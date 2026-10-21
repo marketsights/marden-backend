@@ -215,8 +215,13 @@ def _write_facts(conn: Conn, arc: Archive, chunk: list[str], idents: dict[str, A
         rows: list[F.FactRow] = F.terms_facts(iid, row, kinds[iid], AIDEBT)
         rating = F.rating_fact(row, AIDEBT)
         rows += [rating] if rating else []
-        if rating is None and (row.get("rating") or "").strip():
+        raw_rating = (row.get("rating") or "").strip()
+        if rating is None and raw_rating.lower().startswith("no rating found"):
             report.skip("rating text says no instrument rating was found: not written", iid)
+        elif rating is None and raw_rating:
+            report.skip("rating read off finra.org's TRACE security master ('via FINRA'): not written", iid)
+        elif rating is not None and rating.value != raw_rating:
+            report.skip("rating clause read off finra.org removed, rest kept", iid)
         judged, skips = F.judgment_facts(row, AIDEBT)
         rows += judged
         for s in skips:

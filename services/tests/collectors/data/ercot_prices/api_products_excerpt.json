@@ -1,0 +1,254 @@
+{
+ "fetched": "2026-10-21",
+ "url": "https://api.ercot.com/api/public-reports",
+ "emilIds": [
+  "COPG-316",
+  "EIA-930-CD",
+  "EIA-930-ER",
+  "GEN-55-CD",
+  "NP1-300",
+  "NP1-301",
+  "NP1-302",
+  "NP1-346-ER",
+  "NP3-108",
+  "NP3-161-CD",
+  "NP3-162-CD",
+  "NP3-233-CD",
+  "NP3-257-EX",
+  "NP3-560-CD",
+  "NP3-561-CD",
+  "NP3-562-CD",
+  "NP3-565-CD",
+  "NP3-566-CD",
+  "NP3-763-CD",
+  "NP3-764-CD",
+  "NP3-765-CD",
+  "NP3-906-EX",
+  "NP3-907-EX",
+  "NP3-908-ER",
+  "NP3-909-ER",
+  "NP3-910-ER",
+  "NP3-911-ER",
+  "NP3-914-EX",
+  "NP3-915-EX",
+  "NP3-916-EX",
+  "NP3-965-ER",
+  "NP3-966-ER",
+  "NP3-987-EX",
+  "NP3-988-ER",
+  "NP3-990-EX",
+  "NP3-991-EX",
+  "NP4-158-SG",
+  "NP4-159-CD",
+  "NP4-179-CD",
+  "NP4-180-ER",
+  "NP4-181-ER",
+  "NP4-183-CD",
+  "NP4-188-CD",
+  "NP4-19-CD",
+  "NP4-190-CD",
+  "NP4-191-CD",
+  "NP4-192-CD",
+  "NP4-193-CD",
+  "NP4-194-CD",
+  "NP4-196-M",
+  "NP4-197-M",
+  "NP4-200-CD",
+  "NP4-212-CD",
+  "NP4-213-CD",
+  "NP4-214-CD",
+  "NP4-215-CD",
+  "NP4-231-CD",
+  "NP4-33-CD",
+  "NP4-412-CD",
+  "NP4-442-CD",
+  "NP4-443-CD",
+  "NP4-494-ER",
+  "NP4-523-CD",
+  "NP4-532-CD",
+  "NP4-722-CD",
+  "NP4-732-CD",
+  "NP4-733-CD",
+  "NP4-737-CD",
+  "NP4-738-CD",
+  "NP4-742-CD",
+  "NP4-743-CD",
+  "NP4-745-CD",
+  "NP4-746-CD",
+  "NP4-751-CD",
+  "NP4-752-CD",
+  "NP4-760-ER",
+  "NP4-765-ER",
+  "NP4-790-CD",
+  "NP4-791-CD",
+  "NP5-108-CD",
+  "NP5-520-ER",
+  "NP5-525-CD",
+  "NP5-526-CD",
+  "NP5-527-CD",
+  "NP5-528-CD",
+  "NP5-754-CD",
+  "NP5-755-CD",
+  "NP6-235-CD",
+  "NP6-322-CD",
+  "NP6-323-CD",
+  "NP6-324-CD",
+  "NP6-325-CD",
+  "NP6-326-CD",
+  "NP6-327-CD",
+  "NP6-328-CD",
+  "NP6-329-CD",
+  "NP6-331-CD",
+  "NP6-332-CD",
+  "NP6-344-CD",
+  "NP6-345-CD",
+  "NP6-346-CD",
+  "NP6-569-CD",
+  "NP6-625-CD",
+  "NP6-626-CD",
+  "NP6-655-CD",
+  "NP6-785-ER",
+  "NP6-787-CD",
+  "NP6-788-CD",
+  "NP6-792-ER",
+  "NP6-793-ER",
+  "NP6-794-ER",
+  "NP6-795-ER",
+  "NP6-796-ER",
+  "NP6-86-CD",
+  "NP6-905-CD",
+  "NP6-913-CD",
+  "NP6-915-CD",
+  "NP6-970-CD",
+  "NP7-464-CD",
+  "NP7-535-SG"
+ ],
+ "products": [
+  {
+   "emilId": "NP4-190-CD",
+   "name": "DAM Settlement Point Prices",
+   "description": "The Settlement Point Prices for all Resource Nodes, Load Zones, and Trading Hubs from the Day-Ahead Market.",
+   "status": "Active",
+   "reportTypeId": 12331,
+   "audience": "Public",
+   "generationFrequency": "Event - Per DAM Run",
+   "securityClassification": "Public",
+   "lastUpdated": "2024-07-10",
+   "firstRun": "2010-11-29",
+   "eceii": "",
+   "channel": "Public,EWS,Data Portal",
+   "userGuide": null,
+   "postingType": "Report",
+   "market": "Nodal",
+   "extractSubscriber": "",
+   "xsdName": "Current Day Reports XSD",
+   "misPostingLocation": "",
+   "certificateRole": "",
+   "fileType": "zip,csv,xml",
+   "ddlName": "",
+   "misDisplayDuration": 31,
+   "archiveDuration": 2555,
+   "notificationType": "",
+   "contentType": "DATA",
+   "downloadLimit": 500,
+   "lastPostDatetime": "2026-10-20T12:32:44",
+   "bundle": 1,
+   "protocolRules": {
+    "NP4.5.3(2)(b)": "https://www.ercot.com/mp/data-products?protocolRules=NP4.5.3(2)(b)"
+   },
+   "artifacts": [
+    {
+     "reportTypeId": 12331,
+     "displayName": "DAM Settlement Point Prices",
+     "_links": {
+      "endpoint": {
+       "href": "https://api.ercot.com/api/public-reports/np4-190-cd/dam_stlmnt_pnt_prices"
+      }
+     }
+    }
+   ],
+   "_links": {
+    "self": {
+     "href": "https://api.ercot.com/api/public-reports/np4-190-cd"
+    },
+    "parent": {
+     "href": "https://api.ercot.com/api/public-reports"
+    },
+    "archive": {
+     "href": "https://api.ercot.com/api/public-reports/archive/np4-190-cd"
+    },
+    "bundle": {
+     "href": "https://api.ercot.com/api/public-reports/bundle/np4-190-cd"
+    }
+   }
+  },
+  {
+   "emilId": "NP6-905-CD",
+   "name": "Settlement Point Prices at Resource Nodes, Hubs and Load Zones",
+   "description": "Settlement Point Price for each Settlement Point, produced from SCED LMPs every 15 minutes.",
+   "status": "Active",
+   "reportTypeId": 12301,
+   "audience": "Public",
+   "generationFrequency": "Chron - 15 Minutes",
+   "securityClassification": "Public",
+   "lastUpdated": "2024-07-10",
+   "firstRun": "2010-11-30",
+   "eceii": "",
+   "channel": "Public,EWS,Data Portal",
+   "userGuide": null,
+   "postingType": "Report",
+   "market": "Nodal",
+   "extractSubscriber": "",
+   "xsdName": "Current Day Reports XSD",
+   "misPostingLocation": "",
+   "certificateRole": "",
+   "fileType": "zip,csv,xml",
+   "ddlName": "",
+   "misDisplayDuration": 7,
+   "archiveDuration": 2555,
+   "notificationType": "",
+   "contentType": "DATA",
+   "downloadLimit": 1000,
+   "lastPostDatetime": "2026-10-21T09:17:01",
+   "bundle": 1,
+   "protocolRules": {
+    "NP6.3.2(2)": "https://www.ercot.com/mp/data-products?protocolRules=NP6.3.2(2)"
+   },
+   "artifacts": [
+    {
+     "reportTypeId": 12301,
+     "displayName": "Settlement Point Prices at Resource Nodes, Hubs and Load Zones",
+     "_links": {
+      "endpoint": {
+       "href": "https://api.ercot.com/api/public-reports/np6-905-cd/spp_node_zone_hub"
+      }
+     }
+    }
+   ],
+   "_links": {
+    "self": {
+     "href": "https://api.ercot.com/api/public-reports/np6-905-cd"
+    },
+    "parent": {
+     "href": "https://api.ercot.com/api/public-reports"
+    },
+    "archive": {
+     "href": "https://api.ercot.com/api/public-reports/archive/np6-905-cd"
+    },
+    "bundle": {
+     "href": "https://api.ercot.com/api/public-reports/bundle/np6-905-cd"
+    }
+   }
+  }
+ ],
+ "np4-160-sg": {
+  "url": "https://api.ercot.com/api/public-reports/archive/np4-160-sg",
+  "status": 404,
+  "body": {
+   "timestamp": "2026-10-21 10:14:17",
+   "code": 404,
+   "status": "NOT_FOUND",
+   "message": "The requested EMIL Product \"np4-160-sg\" does not seem to be available at the moment, or does not exist."
+  }
+ }
+}

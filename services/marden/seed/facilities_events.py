@@ -8,30 +8,28 @@ superset ``aiwc/state/events.json`` (601) on the case's site. Tags follow the it
 
 from __future__ import annotations
 
-import re
-from datetime import date
 from typing import Any
 
 from marden.core.db import Conn
 from marden.seed.common import SOURCE_NAMES, ensure_entity, host_of, parse_date, source_name_for_url
 from marden.seed.facilities_archive import EVENTS, INVENTORY, POWER, Archive, docket_key
-from marden.seed.facilities_sink import SEVERITY, EventSink, FactSink, clean, is_nd, material_text
+from marden.seed.facilities_sink import ARCHIVE_CUTOFF, SEVERITY, EventSink, FactSink, clean, is_nd, material_text
 
 OPPOSITION = {"Court case", "Moratorium", "Air permit contested"}
-UPLOAD_FOLDER = re.compile(r"/(20\d\d)/(0[1-9]|1[0-2])/")  # WordPress-style upload path: /uploads/.../2026/07/
-DATE_AFTER_UPLOAD = "dated after the month it was uploaded (date likely mistyped in the source)"
+# Meeting calendars list meetings ahead of time; every other docket host lists documents already filed.
+MEETING_HOSTS = ("civicclerk.com", "granicus.com", "legistar.com", "boarddocs.com", "municode.com")
+DATED_AFTER_COLLECTION = "filed document dated after the archive was collected (date likely mistyped in the source)"
 
 
-def date_after_upload(day: Any, url: Any) -> bool:
-    """A filed document cannot be dated after the month its file was uploaded: such a date is a typo in the
-    source (the NMED AQB 26-57 position statement is dated 2027-07-22 in a 2026/07 folder). Not corrected
-    here; the item waits for a person."""
+def dated_after_collection(day: Any, url: Any) -> bool:
+    """A filed document cannot carry a date after the archive was collected: such a date is a typo in the
+    source (NMED's AQB 26-57 position statement is dated 2027-07-22). It is not corrected here; the item waits
+    for a person. Scheduled meetings on agenda calendars are dated ahead and are not affected."""
     d = parse_date(day)
-    m = UPLOAD_FOLDER.search(url) if isinstance(url, str) else None
-    if d is None or m is None:
+    host = host_of(url) if isinstance(url, str) else ""
+    if d is None or d <= ARCHIVE_CUTOFF:
         return False
-    year, month = int(m[1]), int(m[2])
-    return d >= (date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1))
+    return not any(host == h or host.endswith("." + h) for h in MEETING_HOSTS)
 STATE_KIND = {"news": "news", "court": "news", "county_board": "docket", "city_council": "docket",
               "zoning": "docket", "ferc": "docket", "ferc_filing": "docket", "ferc_issuance": "docket",
               "state_env_permit": "permit"}
@@ -93,9 +91,9 @@ def write_docket_items(events: EventSink, arc: Archive, key: str, items: list[di
         # the agency's own name when the host is a generic portal (CivicClerk, Granicus, county sites)
         name = source_name_for_url(u) if _known_host(u) or not body else body
         rule = "adverse flag" if (item.get("d"), u) in adverse else material_text(item.get("t"))
-        if date_after_upload(item.get("d"), u):
-            rule = DATE_AFTER_UPLOAD
-            stats["skipped"].append(f"{key}: item dated {item.get('d')} after its upload folder: left as a candidate")
+        if dated_after_collection(item.get("d"), u):
+            rule = DATED_AFTER_COLLECTION
+            stats["skipped"].append(f"{key}: filed item dated {item.get('d')}, after the archive: left as a candidate")
         for slug in sites:
             events.add("site", slug, item.get("d"), "docket", item.get("t"), src=src, url=u,
                        material_rule=rule, source_name=name, source=f"dockets/out/{key}")

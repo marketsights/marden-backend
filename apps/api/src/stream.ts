@@ -14,6 +14,18 @@ const MAX_BUFFERED_BYTES = 1024 * 1024;
 
 interface StreamRow { id: string; org_id: string | null; payload: unknown }
 
+// Ids are selected as text (bigint does not fit a JS number). ORDER BY must name the table's bigint
+// column (stream_event.id): a bare `id` would bind to the text output column and sort '100' before
+// '99', so catch-up would deliver 100 first and the client would then drop 99 as already seen.
+/** Rows written while the listener was down, oldest first. */
+export const CATCH_UP_SQL =
+  `SELECT id::text, org_id, payload FROM stream_event WHERE id > $1 ORDER BY stream_event.id LIMIT ${REPLAY_LIMIT}`;
+/** The newest REPLAY_LIMIT rows after a client's Last-Event-ID that its org may see, oldest first. */
+export const REPLAY_SQL = `SELECT * FROM (
+     SELECT id::text, org_id, payload, count(*) OVER ()::int AS total FROM stream_event
+     WHERE id > $1 AND (org_id IS NULL OR org_id = $2) ORDER BY stream_event.id DESC LIMIT ${REPLAY_LIMIT}) t
+   ORDER BY id::bigint`;
+
 interface Client {
   orgId: string;
   userId: string;
@@ -95,10 +107,7 @@ export class StreamHub {
 
   /** Rows written while the listener was down. */
   private async catchUp(): Promise<void> {
-    const res = await this.db.query<StreamRow>(
-      `SELECT id::text, org_id, payload FROM stream_event WHERE id > $1 ORDER BY id LIMIT ${REPLAY_LIMIT}`,
-      [this.lastSeen.toString()],
-    );
+    const res = await this.db.query<StreamRow>(CATCH_UP_SQL, [this.lastSeen.toString()]);
     for (const row of res.rows) this.enqueue(BigInt(row.id));
   }
 
@@ -175,13 +184,7 @@ export class StreamHub {
 
   private async replay(client: Client, after: bigint): Promise<void> {
     try {
-      const res = await this.db.query<StreamRow & { total: number }>(
-        `SELECT * FROM (
-           SELECT id::text, org_id, payload, count(*) OVER ()::int AS total FROM stream_event
-           WHERE id > $1 AND (org_id IS NULL OR org_id = $2) ORDER BY id DESC LIMIT ${REPLAY_LIMIT}) t
-         ORDER BY id::bigint`,
-        [after.toString(), client.orgId],
-      );
+      const res = await this.db.query<StreamRow & { total: number }>(REPLAY_SQL, [after.toString(), client.orgId]);
       // More missed than we replay: tell the client to refetch everything, then send the newest rows.
       if ((res.rows[0]?.total ?? 0) > REPLAY_LIMIT) this.write(client, `event: reset\ndata: {"reason":"replay_truncated"}\n\n`);
       client.lastId = after;

@@ -164,8 +164,9 @@ class ElibraryClient:
         sources.require_collectable(self.source_id)
         body = download_body(file.file_id)
         resp = self.post(DOWNLOAD_URL, body, expect_json=False)
-        if file.size is not None and len(resp.content) != file.size:
-            raise FetchError(file.url, resp.status, f"got {len(resp.content)} bytes, eLibrary lists {file.size}")
+        if not resp.content:
+            raise FetchError(file.url, resp.status, "empty file")
+        # eLibrary's listed size is not always the byte count (eComment text files list 2): kept as listed
         http_meta = {"status": resp.status, "method": "POST", "endpoint": DOWNLOAD_URL, "body": body}
         if resp.headers.get("content-disposition"):
             http_meta["content_disposition"] = resp.headers["content-disposition"]

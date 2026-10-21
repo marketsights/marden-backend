@@ -67,39 +67,10 @@ TERMS_NOTE = (
     "until then each run records 'needs key' and makes no request. Each report is downloaded once."
 )
 SOURCE = declare_source(SOURCE_ID, "ERCOT", "api", f"https://{API_HOST}", 7 * 24 * 60, TERMS_NOTE)
-http.set_rate_limit(API_HOST, 0.4)  # under ERCOT's 30 requests a minute
-http.set_rate_limit(TOKEN_HOST, 0.2)
-
-
-class NeedsKey(FetchError):
-    """The ERCOT Public API credentials are not configured; no request is made."""
 
 
 def _credentials() -> tuple[str, str, str]:
-    s = get_settings()
-    if not s.has_ercot_api():
-        raise NeedsKey(ARCHIVE_URL, None, "needs key: set ERCOT_API_KEY, ERCOT_API_USERNAME and ERCOT_API_PASSWORD "
-                       "(free ERCOT Public API account registered by a person on apiexplorer.ercot.com)")
-    assert s.ercot_api_key and s.ercot_api_username and s.ercot_api_password
-    return s.ercot_api_key, s.ercot_api_username, s.ercot_api_password
-
-
-def id_token(fetcher: Fetcher, username: str, password: str) -> str:
-    """A one-hour ID token (ERCOT's ROPC sign-in). The password goes in the form body only."""
-    form = {"username": username, "password": password, "grant_type": "password",
-            "scope": f"openid {CLIENT_ID} offline_access", "client_id": CLIENT_ID, "response_type": "id_token"}
-    http.bucket_for(TOKEN_HOST)[1].acquire()
-    try:
-        resp = fetcher.client.post(TOKEN_URL, data=form, headers={"User-Agent": http.user_agent_for(TOKEN_HOST)})
-    except httpx.HTTPError as exc:
-        raise FetchError(TOKEN_URL, None, f"ERCOT sign-in failed: {type(exc).__name__}") from None
-    if resp.status_code != 200:  # the body is not echoed: it can repeat what was sent
-        raise FetchError(TOKEN_URL, resp.status_code, f"ERCOT sign-in refused (HTTP {resp.status_code})")
-    try:
-        token = resp.json()["id_token"]
-    except (ValueError, KeyError, TypeError):
-        raise FetchError(TOKEN_URL, resp.status_code, "ERCOT sign-in answered without an id_token") from None
-    return str(token)
+    return ercot_api.credentials(ARCHIVE_URL)
 
 
 def _api_document(url: str, headers: dict[str, str], fetcher: Fetcher, *, meta: dict[str, Any] | None = None,

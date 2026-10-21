@@ -183,15 +183,17 @@ def test_no_prices_and_exhibit_documents(loaded, committed, seed):
     assert all(docs[d["url"]]["doc_type"] == d["ex"] and docs[d["url"]]["external_id"] == d["acc"] for d in lib)
 
 
-def test_item_dated_after_its_upload_folder_waits_for_a_person(loaded, committed, seed):
-    """NMED's AQB 26-57 position statement is dated 2027-07-22 in a 2026/07 upload folder: the date is a typo in
-    the source. It is not corrected and not published as an upcoming event; a person checks it."""
-    from marden.seed.facilities_events import date_after_upload
+def test_filed_item_dated_after_the_archive_waits_for_a_person(loaded, committed, seed):
+    """NMED's AQB 26-57 position statement is dated 2027-07-22, after the archive was collected: the date is a
+    typo in the source. It is not corrected and not published as an upcoming event; a person checks it.
+    Meetings that agenda calendars list ahead of time stay published."""
+    from marden.seed.facilities_events import dated_after_collection
 
     items = seed("dockets/out/NMED_AQB_26_57.json")["items"]
-    bad = [i for i in items if date_after_upload(i["d"], i["u"])]
+    bad = [i for i in items if dated_after_collection(i["d"], i["u"])]
     assert [i["d"] for i in bad] == ["2027-07-22"]
-    assert not [i for i in items if i not in bad and i["d"] > "2026-10-20"]
+    meetings = [i for i in seed("dockets/out/DONAANA_BOCC.json")["items"] if i["d"] > "2026-10-20"]
+    assert meetings and not [i for i in meetings if dated_after_collection(i["d"], i["u"])]
     ev = _one(committed, "SELECT id, status, material FROM event WHERE subject_id = 'jupiter' AND event_date = %s"
               " AND source_name = 'NMED'", bad[0]["d"])
     assert ev["status"] == "candidate" and ev["material"]

@@ -118,6 +118,7 @@ class Registry:
         self.tickers = tickers
         self.by_norm: dict[str, str] = {}
         self.by_cik: dict[str, str] = {}
+        self.cik_of: dict[str, str] = {}  # entity id -> its CIK
         self.names: dict[str, str] = {}
         self.grp: dict[str, str] = {}     # aidebt group code -> entity id
         self.tenant: dict[str, str] = {}  # aichain tenant id -> entity id
@@ -135,6 +136,14 @@ class Registry:
                 self.by_norm.setdefault(key, eid)
         if cik:
             self.by_cik.setdefault(cik, eid)
+            self.cik_of.setdefault(eid, cik)
+
+    def _same_registrant(self, eid: str | None, cik: str | None) -> str | None:
+        """A name match is dropped when both sides carry different CIKs: two registrants whose names only
+        differ by a legal suffix ('Blue Owl Capital Corporation', OBDC, vs 'Blue Owl Capital', OWL)."""
+        if eid is None or cik is None or self.cik_of.get(eid) in (None, cik):
+            return eid
+        return None
 
     def listing(self, name: str, ticker: Any, *, trusted: bool = False) -> Listing | None:
         """The SEC listing for a ticker, if its title is this party (or the ticker is curated)."""
@@ -184,9 +193,10 @@ class Registry:
         cik_text = str(cik).lstrip("0") if cik else (hit.cik if hit else None)
         alias_set = {raw, *aliases, *( [hit.title] if hit else [])}
         alias_list = sorted(a for a in alias_set if a and a != disp)
-        eid = (self.by_cik.get(cik_text) if cik_text else None) or self.by_norm.get(key)
-        if eid is None:
-            eid = next((self.by_norm[norm(a)] for a in alias_list if norm(a) in self.by_norm), None)
+        eid = self.by_cik.get(cik_text) if cik_text else None
+        for candidate in (key, *(norm(a) for a in alias_list)):
+            if eid is None:
+                eid = self._same_registrant(self.by_norm.get(candidate), cik_text)
         call_name = self.names.get(eid, disp) if eid else disp
         found = ensure_entity(
             self.conn, call_name, kind, aliases=alias_list, cik=cik_text, ticker=hit.ticker if hit else None,

@@ -172,6 +172,9 @@ def test_facts_are_sourced_and_tagged(loaded, committed, rows):
     assert f[("EX-CRWV-093", "issuer_fair_value_disclosure")]["tag"] == "F"
     assert f[("EX-CRWV-093", "legacy_price_status")]["value"] == "issuer_fair_value_not_a_price"
     assert f[("EX-APLD-010", "legacy_price_status")]["value"] == "trace_copy_blocked"
+    # ratings the legacy research read off finra.org ("S&P BB- (via FINRA)") are finra.org data: not loaded
+    assert "FINRA" in rows["EX-APLD-010"]["rating"] and ("EX-APLD-010", "rating") not in f
+    assert not [x for x in facts if x["field"] == "rating" and "FINRA" in str(x["value"])]
     # no fact summarises price_obs (other writers add prices, so it would depend on what they stored)
     assert not [k for k in f if k[1] == "price_basis"]
     # 'price < 90' came from blocked legacy prices: dropped, and the score built on it is not written

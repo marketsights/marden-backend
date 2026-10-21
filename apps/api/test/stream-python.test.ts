@@ -71,7 +71,7 @@ describe.skipIf(SKIP)('stream: Python emit -> API SSE', () => {
 
     // The rows are the ones Python wrote, in this schema; the other org's row was not delivered.
     const rows = await db.query<{ id: string; org_id: string | null }>(
-      `SELECT id::text, org_id FROM stream_event WHERE id = ANY($1::bigint[]) ORDER BY id`, [[devId, globalId, otherId]],
+      `SELECT id::text, org_id FROM stream_event WHERE id = ANY($1::bigint[]) ORDER BY stream_event.id`, [[devId, globalId, otherId]],
     );
     expect(rows.rows).toEqual([{ id: devId, org_id: 'dev' }, { id: globalId, org_id: null }, { id: otherId, org_id: 'py-e2e-other-org' }]);
     expect(sse.chunks()).not.toContain('py-e2e-other');

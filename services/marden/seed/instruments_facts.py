@@ -8,6 +8,7 @@ reported (R). Legacy judgments (tenants, chain, flags, holder notes, scores) and
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
@@ -22,6 +23,9 @@ LEGACY_AIWCREDIT = "legacy-aiwcredit@2026-10-20"
 LOADER_METHOD = "seed-instruments@2026-10-21"
 ARCHIVE = "Marden research archive"
 GENERIC_SEARCH = "sec.gov/edgar/search"
+# Rating text the legacy research read off finra.org's TRACE security master ("Moody's Baa1 / S&P BBB+ (via
+# FINRA)"): finra.org data is never loaded (docs/methods/price-sources.md section 3), ratings included.
+FINRA_TEXT = re.compile(r"\bFINRA\b|\bTRACE\b")
 PRICE_BELOW_90 = "price < 90"
 
 
@@ -83,9 +87,18 @@ def terms_facts(iid: str, row: Mapping[str, Any], kind: str, relpath: str) -> li
     return out
 
 
-def rating_fact(row: Mapping[str, Any], relpath: str) -> FactRow | None:
+def rating_text(row: Mapping[str, Any]) -> str | None:
+    """The rating text without the clauses read off finra.org; None when nothing else is left."""
     text = (row.get("rating") or "").strip()
     if not text or text.lower().startswith("no rating found"):
+        return None
+    kept = [part.strip() for part in text.split(";") if part.strip() and not FINRA_TEXT.search(part)]
+    return "; ".join(kept) or None
+
+
+def rating_fact(row: Mapping[str, Any], relpath: str) -> FactRow | None:
+    text = rating_text(row)
+    if text is None:
         return None
     return FactRow("rating", text, tag_for_url(None), source_name_for_url(None, fallback=ARCHIVE), None, relpath)
 

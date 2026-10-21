@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from marden.core.facts import FactWriter
 from marden.core.http import Fetcher, FetchResponse, TokenBucket
 from marden.core.queue import app
 from marden.core.records import EventWriter
+from marden.core.sources import upsert_spec
 
 DATA = Path(__file__).parent / "data" / "ferc"
 
@@ -216,6 +218,15 @@ def test_run_records_files_events_and_reruns_clean(committed):
     assert second["requests"] == 4 and second["events_seen"] == first["events_seen"]
     runs = committed.execute("SELECT ok FROM source_run WHERE source_id = 'ferc' ORDER BY id").fetchall()
     assert [r["ok"] for r in runs] == [True, True]
+
+
+def test_listed_file_size_is_not_the_byte_count(committed):
+    """eComment text files list fileSize 2 (20261005-5003 sent 2,440 bytes): the file is still stored."""
+    upsert_spec(ferc.SOURCE)
+    filing = _filings("search_cp26_80.json")["20261013-5316"]
+    main = replace(filing.main_file()[0], size=2)
+    doc = _client().download(filing, main, meta=filing.as_meta(), extract_state="none")
+    assert doc.was_new and doc.bytes == 17539 and doc.meta["main_file"]["size"] == 2
 
 
 def test_bot_protection_stops_the_run(committed):
