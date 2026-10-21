@@ -1,0 +1,146 @@
+// Data centers and On-site power: spec 14/15 filters in SQL on the row read models, paging, GeoJSON,
+// KPI strips equal to the filtered rows, and the Excel export (data + sources sheets).
+import ExcelJS from 'exceljs';
+import type { FastifyInstance } from 'fastify';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { Db } from '../src/db.js';
+import { clearReadModels, makeApp, putReadModel, sourced, testDb } from './helpers.js';
+
+const today = new Date().toISOString().slice(0, 10);
+const evidence = (date: string) => ({ date, text: `Record ${date}`, tag: 'F', sourceName: 'County', sourceUrl: 'https://example.test/record' });
+
+function dcRow(id: string, o: { state: string; status: string; mw: number | null; dev: string; financed?: string; firstSeen: string; last: string; lat?: number }) {
+  return {
+    id, name: `Campus ${id}`, aliases: [`${id} alias`], county: 'Test', state: o.state, lat: o.lat ?? 32.4, lon: -99.7,
+    developer: sourced(o.dev, 'F'), tenant: sourced(null, 'R'), status: sourced(o.status, 'F'),
+    facilityMw: sourced(o.mw, 'F'), itMw: sourced(null, 'F'), buildings: { built: 1, total: 2 },
+    powerSource: sourced('Grid', 'F'), utility: sourced('Oncor', 'F'), iso: sourced('ERCOT', 'F'), plantId: null,
+    onlineYear: sourced(2027, 'M'), lastChange: evidence(o.last), firstSeen: o.firstSeen,
+    financed: o.financed ? { siteSlug: o.financed, siteName: o.financed, chainStatus: 'Strained', debtB: sourced(9.4, 'R') } : null,
+  };
+}
+
+const ROWS = [
+  dcRow('dc-a', { state: 'TX', status: 'Operating', mw: 1200, dev: 'Crusoe', financed: 'dc-test-site', firstSeen: '2025-01-10', last: '2026-10-10' }),
+  dcRow('dc-b', { state: 'TX', status: 'Planned', mw: 300, dev: 'Vantage', firstSeen: today, last: '2026-10-12' }),
+  dcRow('dc-c', { state: 'NM', status: 'Planned', mw: null, dev: 'Yucca', firstSeen: '2026-03-01', last: '2026-09-01' }),
+];
+
+describe('data centers and power plants', () => {
+  let db: Db;
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    db = testDb();
+    app = await makeApp({ mode: 'dev', db });
+    for (const r of ROWS) {
+      await db.query(`INSERT INTO campus (id, name, state, parcel_ids) VALUES ($1, $2, $3, $4)`, [r.id, r.name, r.state, r.id === 'dc-c' ? ['R-0042-17'] : []]);
+      await putReadModel(db, { view: 'dc_row', key: r.id, asOf: '2026-10-15' }, r);
+    }
+    await putReadModel(db, { view: 'plant_row', key: 'pp-1', asOf: '2026-10-15' }, {
+      id: 'pp-1', name: 'Abilene generation', state: 'TX', lat: 32.5, lon: -99.8, technology: 'Simple-cycle turbine',
+      units: { count: 10, byModel: [{ oem: 'Solar Turbines', model: 'Titan 350', count: 5 }, { oem: 'GE Vernova', model: 'LM2500', count: 5 }] },
+      permittedMw: sourced(360.5, 'F'), status: sourced('Permitted', 'F'), airPermit: { agency: 'TCEQ', number: '177263', type: 'Standard', status: 'Permitted', decided: today, url: 'https://example.test/p' },
+      operator: sourced('Crusoe', 'F'), gridMode: 'Islanded', financed: null, lastChange: evidence('2026-10-01'), serves: null,
+    });
+    await putReadModel(db, { view: 'plant_detail', key: 'pp-1', asOf: '2026-10-15' }, {
+      id: 'pp-1', permit: { filed: '2024-08-30', decided: today },
+      unitRows: [{ oem: 'Solar Turbines', status: 'Permitted', totalMw: 190 }, { oem: 'GE Vernova', status: 'Permitted', totalMw: 170.5 }],
+    });
+  });
+  afterAll(async () => {
+    await clearReadModels(db, ['dc_row', 'plant_row', 'plant_detail']);
+    await db.query(`DELETE FROM campus WHERE id = ANY($1)`, [ROWS.map((r) => r.id)]);
+    await app.close();
+    await db.close();
+  });
+
+  const json = async (url: string) => (await app.inject({ method: 'GET', url })).json();
+  const ids = async (qs: string) => ((await json(`/api/data-centers?${qs}`)).rows as { id: string }[]).map((r) => r.id);
+
+  it('pages rows with the default sort (last change, newest first)', async () => {
+    const page = await json('/api/data-centers');
+    expect(page).toMatchObject({ asOf: '2026-10-15', total: 3, page: 1, pageSize: 50 });
+    expect(page.rows.map((r: { id: string }) => r.id)).toEqual(['dc-b', 'dc-a', 'dc-c']);
+    expect(page.rows[1]).toEqual(ROWS[0]);
+    const p2 = await json('/api/data-centers?page=2');
+    expect(p2).toMatchObject({ total: 3, page: 2, rows: [] });
+  });
+
+  it('applies the spec 14 filters in SQL', async () => {
+    expect(await ids('state=tx')).toEqual(['dc-b', 'dc-a']);
+    expect(await ids('status=Planned&state=NM')).toEqual(['dc-c']);
+    expect(await ids('mwMin=500')).toEqual(['dc-a']);
+    expect(await ids('mwMax=500')).toEqual(['dc-b']);
+    expect(await ids('financed=true')).toEqual(['dc-a']);
+    expect(await ids(`firstSeenSince=2026-01-01`)).toEqual(['dc-b', 'dc-c']);
+    expect(await ids('developer=crusoe,yucca&sort=name')).toEqual(['dc-a', 'dc-c']);
+    expect(await ids('q=vantage')).toEqual(['dc-b']);
+    expect(await ids('q=R-0042')).toEqual(['dc-c']);
+    expect(await ids('q=dc-a%20alias')).toEqual(['dc-a']);
+    expect(await ids('sort=-facilityMw')).toEqual(['dc-a', 'dc-b', 'dc-c']);
+    expect(await ids('watchlist=true')).toEqual([]);
+    expect((await app.inject({ method: 'GET', url: '/api/data-centers?sort=evil' })).statusCode).toBe(400);
+  });
+
+  it('returns GeoJSON for the map with the same filters', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/data-centers?format=geojson&state=TX' });
+    expect(res.headers['content-type']).toContain('application/geo+json');
+    const fc = res.json();
+    expect(fc.type).toBe('FeatureCollection');
+    expect(fc.total).toBe(2);
+    expect(fc.features).toHaveLength(2);
+    expect(fc.features[0]).toMatchObject({ type: 'Feature', geometry: { type: 'Point', coordinates: [-99.7, 32.4] } });
+    expect(fc.features[0].properties.id).toBe('dc-b');
+  });
+
+  it('computes the KPI strip from the filtered rows', async () => {
+    const all = await json('/api/data-centers/summary');
+    expect(all).toMatchObject({ campuses: 3, buildings: 6, financed: { count: 1, debtB: 9.4 } });
+    expect(all.mwByStatus).toEqual([{ status: 'Operating', mw: 1200 }, { status: 'Planned', mw: 300 }]);
+    expect(all.newThisWeek).toEqual({ count: 1, newest: { id: 'dc-b', name: 'Campus dc-b' } });
+    expect(all.coverage.find((c: { field: string }) => c.field === 'facilityMw').pct).toBeCloseTo(66.7, 1);
+    const tx = await json('/api/data-centers/summary?state=TX');
+    expect(tx.campuses).toBe((await json('/api/data-centers?state=TX')).total);
+  });
+
+  it('filters plants and builds the plant KPI strip', async () => {
+    expect((await json('/api/power-plants?oem=ge%20vernova')).total).toBe(1);
+    expect((await json('/api/power-plants?oem=Caterpillar')).total).toBe(0);
+    expect((await json('/api/power-plants?q=177263')).total).toBe(1);
+    const summary = await json('/api/power-plants/summary');
+    expect(summary).toMatchObject({ plants: 1, units: 10, permitsLast30d: 1 });
+    expect(summary.mwByTech).toEqual([{ tech: 'Simple-cycle turbine', mw: 360.5 }]);
+    expect(summary.mwByOem).toEqual([
+      { oem: 'GE Vernova', byStatus: [{ status: 'Permitted', mw: 170.5 }] },
+      { oem: 'Solar Turbines', byStatus: [{ status: 'Permitted', mw: 190 }] },
+    ]);
+  });
+
+  it('exports the filtered rows as xlsx with a data and a sources sheet', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/export/data-centers.xlsx?state=TX' });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('spreadsheetml.sheet');
+    expect(res.headers['content-disposition']).toContain('marden-data-centers-2026-10-15.xlsx');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer);
+    expect(wb.worksheets.map((s) => s.name)).toEqual(['Data', 'Sources']);
+    const data = wb.getWorksheet('Data')!;
+    expect(data.rowCount).toBe(3);
+    const header = (data.getRow(1).values as unknown[]).slice(1);
+    expect(header).toContain('facilityMw');
+    const mwCol = header.indexOf('facilityMw') + 1;
+    expect(data.getRow(2).getCell(mwCol).value).toBe(300);
+    const sources = wb.getWorksheet('Sources')!;
+    expect((sources.getRow(1).values as unknown[]).slice(1)).toEqual(['Row', 'Field', 'Value', 'Tag', 'Source', 'URL', 'As of', 'Method']);
+    const lines = sources.getSheetValues().slice(2) as unknown[][];
+    const mw = lines.find((l) => l[1] === 'dc-a' && l[2] === 'facilityMw')!;
+    expect(mw.slice(3)).toEqual([1200, 'F', 'Test record', 'https://example.test/doc', '2026-10-15', '']);
+    expect(lines.some((l) => l[2] === 'financed.debtB' && l[4] === 'R')).toBe(true);
+  });
+
+  it('answers 404 for an unknown export table and 503 when its read model is missing', async () => {
+    expect((await app.inject({ method: 'GET', url: '/api/export/nope.xlsx' })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'GET', url: '/api/export/leases.xlsx' })).json()).toEqual({ error: 'not_ready', view: 'leases', key: 'all' });
+  });
+});

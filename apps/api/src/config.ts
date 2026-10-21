@@ -21,6 +21,7 @@ export interface AppConfig {
   heartbeatMs: number;
   recheckMs: number;
   logLevel: string | false;
+  trustProxy: boolean;
   host: string;
   port: number;
 }
@@ -38,6 +39,7 @@ const envSchema = z.object({
   STREAM_HEARTBEAT_MS: z.coerce.number().int().positive().default(25_000),
   STREAM_RECHECK_MS: z.coerce.number().int().positive().default(600_000),
   LOG_LEVEL: z.string().default('info'),
+  TRUST_PROXY: z.enum(['true', 'false']).default('false'),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(4000),
 });
@@ -93,6 +95,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     heartbeatMs: e.STREAM_HEARTBEAT_MS,
     recheckMs: e.STREAM_RECHECK_MS,
     logLevel: e.LOG_LEVEL === 'silent' ? false : e.LOG_LEVEL,
+    trustProxy: e.TRUST_PROXY === 'true',
     host: e.HOST,
     port: e.PORT,
   };

@@ -1,0 +1,50 @@
+// Stress (spec 09, 18): runs go to the stress model; saved scenarios are org-owned.
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import { authOf } from '../auth/plugin.js';
+import type { Db } from '../db.js';
+import { notFound, notReady } from '../errors.js';
+import { stressRequestSchema } from '../lib/defaults.js';
+import { asOfOf } from '../lib/params.js';
+import { audit } from '../queries/audit.js';
+import { getSaved, insertSaved, listSaved, runStress, stressModelAvailable } from '../queries/stress.js';
+import { param, parseBody } from './serve.js';
+
+const saveSchema = z.strictObject({ name: z.string().trim().min(1).max(120), request: stressRequestSchema });
+
+export function stressRoutes(app: FastifyInstance, db: Db): void {
+  // The API never computes a stress result itself: until the model is deployed this answers 503.
+  app.post('/api/stress/run', async (req) => {
+    const request = parseBody(stressRequestSchema, req.body);
+    if (!(await stressModelAvailable(db))) throw notReady('model:stress', request.scenario);
+    const result = await runStress(db, request);
+    if (result === null) throw notReady('model:stress', request.scenario);
+    return result;
+  });
+
+  app.post('/api/stress/saved', async (req, reply) => {
+    const auth = authOf(req);
+    const input = parseBody(saveSchema, req.body);
+    const saved = await db.withOrg(auth.orgId, async (c) => {
+      const row = await insertSaved(c, auth, input);
+      await audit(c, {
+        orgId: auth.orgId, userId: auth.userId, action: 'stress.save', target: `stress_saved:${row.id}`, ip: req.ip,
+        meta: { name: input.name, scenario: input.request.scenario },
+      });
+      return row;
+    });
+    return reply.code(201).send(saved);
+  });
+
+  app.get('/api/stress/saved', async (req) => {
+    const { orgId } = authOf(req);
+    return db.withOrg(orgId, (c) => listSaved(c, orgId, asOfOf(req)));
+  });
+
+  app.get('/api/stress/saved/:id', async (req) => {
+    const { orgId } = authOf(req);
+    const saved = await db.withOrg(orgId, (c) => getSaved(c, orgId, param(req, 'id')));
+    if (!saved) throw notFound('stress_saved');
+    return saved;
+  });
+}
