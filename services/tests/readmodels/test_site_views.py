@@ -219,6 +219,64 @@ def test_power_and_buildings_follow_links_and_plants(sites):
     assert buildings["linkApproved"] == any(link["status"] == "approved" for link in links)
 
 
+def _expected_buildings(slug: str) -> tuple[int, int, str] | None:
+    """(built, total, first campus) as SQL reads it from the copied rows, independent of the builder:
+    the approved links (else the proposed ones); per campus its building records (Operating = built),
+    else its building_count / buildings_operational facts."""
+    links = copied_rows("SELECT campus_id, building_ids, status FROM site_link WHERE site_slug = %s "
+                        "AND status IN ('approved', 'proposed') ORDER BY campus_id", (slug,))
+    links = [lk for lk in links if lk["status"] == "approved"] or links
+    built = total = 0
+    for link in links:
+        records = copied_rows(
+            """SELECT b.id, s.value #>> '{}' AS status FROM building b
+                 LEFT JOIN fact_current s ON s.subject_type = 'building' AND s.subject_id = b.id AND s.field = 'status'
+                WHERE b.campus_id = %s AND (%s::text[] IS NULL OR b.id = ANY(%s::text[]))""",
+            (link["campus_id"], link["building_ids"], link["building_ids"]))
+        if records:
+            built += sum(r["status"] == "Operating" for r in records)
+            total += len(records)
+            continue
+        if link["building_ids"]:
+            continue
+        counts = {r["field"]: r["value"] for r in copied_rows(
+            "SELECT field, value FROM fact_current WHERE subject_type = 'campus' AND subject_id = %s "
+            "AND field IN ('building_count', 'buildings_operational')", (link["campus_id"],))}
+        n_total, n_built = counts.get("building_count") or 0, counts.get("buildings_operational") or 0
+        built += min(n_built, n_total) if n_total else n_built
+        total += max(n_total, n_built)
+    return (built, total, links[0]["campus_id"]) if total else None
+
+
+def test_list_rows_count_the_linked_campus_buildings(sites):
+    """Spec 16 "Bldgs" on Sites and Completion: built / total on the linked campuses, n/d (null) when
+    no linked campus has a building; the same value on both lists."""
+    rows = build("sites")
+    completion = {r["slug"]: r for r in build("completion")["rows"]}
+    counted = 0
+    for row in rows:
+        expected = _expected_buildings(row["slug"])
+        doc = row["buildings"]
+        if expected is None:
+            assert doc is None, row["slug"]
+        else:
+            counted += 1
+            assert (doc["value"]["built"], doc["value"]["total"], doc["value"]["campusId"]) == expected, row["slug"]
+            assert doc["tag"] in ("F", "R", "M") and doc["asOf"]
+        if row["slug"] in completion:
+            assert completion[row["slug"]]["buildings"] == doc, row["slug"]
+    if copied_rows("SELECT 1 FROM site_link l JOIN building b ON b.campus_id = l.campus_id LIMIT 1"):
+        assert counted > 0
+    abilene = next((r for r in rows if r["slug"] == "abilene"), None)
+    if abilene and abilene["buildings"]:  # building records with Epoch's status (M) set the weakest tag
+        statuses = copied_rows(
+            "SELECT DISTINCT f.tag FROM building b JOIN fact_current f ON f.subject_type = 'building' "
+            "AND f.subject_id = b.id AND f.field = 'status' WHERE b.campus_id = 'stargate-abilene'")
+        if statuses:
+            rank = {"F": 0, "R": 1, "M": 2}
+            assert abilene["buildings"]["tag"] == max((s["tag"] for s in statuses), key=rank.__getitem__)
+
+
 def test_opposition_and_event_lanes(sites):
     opposition = build("site_tab:opposition", "jupiter")
     courts = copied_rows(

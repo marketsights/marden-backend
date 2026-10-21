@@ -27,6 +27,9 @@ def copy_sites() -> list[str]:
         src = psycopg.connect(BASE_URL, connect_timeout=5)
     except psycopg.OperationalError as exc:
         pytest.skip(f"source database not reachable: {exc}")
+    # One snapshot for every read: loaders and collectors write the source while it is copied, and rows
+    # written between two COPYs (a holding whose fund was added meanwhile) would break the foreign keys.
+    src.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
     with src, psycopg.connect(TEST_URL) as dst:
         slugs = [r[0] for r in src.execute("SELECT slug FROM site ORDER BY slug")]
         if not slugs:

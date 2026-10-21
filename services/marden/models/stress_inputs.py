@@ -4,6 +4,7 @@ its name and size, the Marden price, its holders and the collateral recovery flo
 - price now: the price model's stored output on or before the as-of day (model 'price', subject
   instrument; marden.models.price_run), with its own as-of;
 - size: the instrument's `amount_usd` fact as public that day ($B);
+- name: the display name the instrument pages use ('Project Jupiter Construction loans');
 - holders: the mark-gap model's stored holder lines (funds from N-PORT and BDC filings), as
   "Vanguard Intermediate-Term ..., The Hartford ... +32 more", or "no fund holds it";
 - recovery floor: the low end of the recovery model's range (cents per dollar), the price an instrument
@@ -21,6 +22,8 @@ from marden.core.db import Conn, Row
 from marden.models import pit
 from marden.models.runs import latest_output
 from marden.models.sourced import fact_value, num
+from marden.readmodels.views.instrument_inputs import instrument_identity
+from marden.readmodels.views.instrument_text import display_name
 
 _RANGE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(?:[–-]\s*(\d+(?:\.\d+)?))?\s*$")
 HOLDER_NAMES = 2
@@ -74,14 +77,15 @@ def recovery_low(out: Row | None) -> float | None:
 
 
 def load(conn: Conn, day: date, ids: list[str]) -> dict[str, Inst]:
-    rows = conn.execute("SELECT id, name, kind, issuer_entity_id, site_slug FROM instrument WHERE id = ANY(%s)",
+    rows = conn.execute("SELECT id, kind, issuer_entity_id, site_slug FROM instrument WHERE id = ANY(%s)",
                         (sorted(set(ids)),)).fetchall()
+    names = {i["id"]: display_name(i) for i in instrument_identity(conn, sorted(set(ids)))}
     sizes: dict[str, list[Row]] = {}
     for r in pit.fact_rows(conn, day, "instrument", [r["id"] for r in rows], ["amount_usd"]):
         sizes.setdefault(r["subject_id"], []).append(r)
     out: dict[str, Inst] = {}
     for r in rows:
-        inst = Inst(r["id"], r["name"], r["kind"], r["issuer_entity_id"], r["site_slug"],
+        inst = Inst(r["id"], names.get(r["id"], r["id"]), r["kind"], r["issuer_entity_id"], r["site_slug"],
                     pit.current_of(sizes.get(r["id"], [])))
         px = latest_output(conn, "price", "instrument", r["id"], day)
         if px is not None and isinstance(px["output"], dict) and num(px["output"].get("price")) is not None:

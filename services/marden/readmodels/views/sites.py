@@ -7,6 +7,8 @@ projection, rent start and driver from the `cushion` model; until those models h
 the values are n/d (status null, projection null, chain links grey with reason 'n/d'). Debt is the
 sum of the site's instruments' sizes (F/R/M as filed); lead lenders the lenders link's label.
 Non-US sites are left out of both lists (V1 is US only); `completion` also drops 'No build' sites.
+Both carry `buildings` (spec 16 "Bldgs", contracts/site-tabs.ts WithBuildingCount): built / total
+over the site's linked campuses, counted as the Data centers row counts a campus.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.readmodels.registry import builder
+from marden.readmodels.views.facilities_common import campus_buildings
 from marden.readmodels.views.sites_common import (
     Doc,
     chain_links,
@@ -33,9 +36,13 @@ from marden.readmodels.views.sites_common import (
     site_events,
     site_instruments,
     site_rows,
+    weakest_tag,
+    with_value,
 )
+from marden.readmodels.views.sites_links import linked_campuses
 
 SUMMARY_FACTS = ("gross_mw", "critical_it_mw")
+COUNT_FACTS = ("building_count", "buildings_operational")
 BANDS = ("<0", "0-3", "3-6", "6-12", "12+")
 DRIVERS = ("Power", "Build", "Delivery", "Permits", "Funding")
 
@@ -56,6 +63,50 @@ def rent_start_p50(cushion_out: Row | None, projection: Doc | None) -> str | Non
     if isinstance(explicit, str):
         return explicit
     return projection.get("p50") if projection else None
+
+
+def _count(row: Row | None) -> int | None:
+    value = row["value"] if row else None
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def building_count(conn: Conn, slug: str) -> Doc | None:
+    """Sourced {built, total, campusId} over the site's linked campuses (sites_links.linked_campuses:
+    approved links, else the proposed ones, as the Buildings tab). Each campus counts as its Data
+    centers row does (facilities_campus.building_counts): its building records known on the build date
+    (only the link's buildings when the link names them), Operating = built; a campus with no record
+    yet, its own `building_count` / `buildings_operational` facts. Sourced by the newest fact behind
+    the count with the weakest tag among them; `campusId` is the first linked campus (the campus link).
+    None (n/d) when no linked campus has a building."""
+    campuses, _approved = linked_campuses(conn, slug)
+    built = total = 0
+    rows: list[Row] = []
+    for campus in campuses:
+        ids = campus.get("building_ids")
+        records = [b for b in campus_buildings(conn, campus["id"]) if not ids or b["id"] in ids]
+        if records:
+            statuses = [known_facts(conn, "building", b["id"], ["status"]).get("status") for b in records]
+            built += sum(1 for s in statuses if s and s["value"] == "Operating")
+            total += len(records)
+            rows.extend(s for s in statuses if s)
+            continue
+        if ids:
+            continue  # the link names buildings Marden has no record of yet
+        facts = known_facts(conn, "campus", campus["id"], COUNT_FACTS)
+        n_total = _count(facts.get("building_count")) or 0
+        n_built = _count(facts.get("buildings_operational")) or 0
+        if n_total or n_built:
+            built += min(n_built, n_total) if n_total else n_built
+            total += max(n_total, n_built)
+            rows.extend(r for r in (facts.get(f) for f in COUNT_FACTS) if r)
+    if total == 0:
+        return None
+    value = {"built": built, "total": total, "campusId": campuses[0]["id"]}
+    if not rows:
+        return {"value": value, "tag": "R", "asOf": day().isoformat(), "sourceName": "Building records"}
+    out = with_value(max(rows, key=lambda r: r["valid_from"]), value)
+    out["tag"] = weakest_tag(r["tag"] for r in rows)
+    return out
 
 
 def site_summary(conn: Conn, site: Row, *, instruments: list[Doc] | None = None) -> Doc:
@@ -96,7 +147,8 @@ def _sort_key(summary: Doc) -> tuple:
 @builder("sites", many=True)
 def build_sites(conn: Conn):
     """Every US site, cushion ascending; no-lease (no cushion) and no-build sites last."""
-    rows = [site_summary(conn, s) for s in site_rows(conn) if is_us(s)]
+    rows = [{**site_summary(conn, s), "buildings": building_count(conn, s["slug"])}
+            for s in site_rows(conn) if is_us(s)]
     yield "all", sorted(rows, key=_sort_key)
 
 
@@ -127,6 +179,7 @@ def completion_row(conn: Conn, site: Row, summary: Doc) -> Doc:
         "lastEvidence": last_evidence(conn, site["slug"], events),
         "debtB": summary["debtB"],
         "leadLenders": summary["leadLenders"],
+        "buildings": building_count(conn, site["slug"]),
     }
 
 

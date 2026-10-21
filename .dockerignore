@@ -1,0 +1,32 @@
+# Build context for apps/api/Dockerfile and services/Dockerfile is the repository root.
+# Keep secrets, local data and build output out of it; each Dockerfile copies only what it needs.
+.git
+.github
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/dist
+**/coverage
+**/*.tsbuildinfo
+
+# Local raw store (R2 stand-in) and seed archives
+.raw
+**/*.zip
+
+# Secrets: only templates are allowed in
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+.neon
+
+# Not needed in any image
+docs
+handoff
+factory
+apps/api/test
+services/tests

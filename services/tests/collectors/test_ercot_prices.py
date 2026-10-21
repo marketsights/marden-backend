@@ -283,7 +283,10 @@ def test_live_prices_twice(committed, monkeypatch):
     nothing; without a key the run records 'needs key'."""
     monkeypatch.setattr(prices, "BACKFILL_DAYS", 2)
     if not config.get_settings().has_ercot_api():
-        assert "needs key" in prices.run()["error"]
+        out = prices.run()
+        # The map step runs first and can fail on its own (www.ercot.com's Imperva answers a burst from this
+        # address with 403); the prices step still runs and must record the missing key.
+        assert "needs key" in out["errors"]["prices"], out
         return
     first = prices.run()
     assert first["ercot_prices"]["days_written"].get("rt", 0) >= 15 and first["facts_new"] > 0, first

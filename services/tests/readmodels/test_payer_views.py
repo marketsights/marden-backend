@@ -157,7 +157,14 @@ def test_obligation_edges_follow_their_facts(edges):
         if status:
             assert edge["status"] == status["value"]
         assert set(ob["instrument_ids"]) <= set(edge["linkedInstruments"])
-        assert edge["annual"] == []  # until the obligations model writes annual schedules
+        modeled = copied_rows(
+            "SELECT output FROM model_output WHERE model = 'obligations' AND subject_type = 'obligation' "
+            "AND subject_id = %s AND as_of <= %s ORDER BY as_of DESC, created_at DESC, id DESC LIMIT 1",
+            (edge["id"], business_today()),
+        )
+        expected = [a for a in modeled[0]["output"].get("annual") or [] if a["amountB"]["value"] is not None] \
+            if modeled else []
+        assert edge["annual"] == expected  # the obligations model's schedule, as stored (none before it runs)
     total = sum(e["totalB"]["value"] or 0 for e in graph["edges"])
     filed = sum(e["totalB"]["value"] or 0 for e in graph["edges"] if e["totalB"]["tag"] == "F")
     assert graph["kpis"]["totalB"] == round(total, 3)
@@ -194,7 +201,15 @@ def test_company_page_splits_the_edges_and_waits_for_its_model(edges):
         assert page["node"]["status"] == _worst_link(key)
         if output("obligation_company", "entity", key) is None:
             assert page["concentration"] == [] and page["fundingGap"] == []
-        assert page["owesByYear"] == []  # no edge has an annual schedule yet
+        by_year: dict[int, dict[str, float]] = {}
+        for e in page["owes"]:  # annual commitments by year and counterparty: the edges' schedules summed
+            for a in e["annual"]:
+                by_year.setdefault(a["year"], {}).setdefault(e["to"], 0.0)
+                by_year[a["year"]][e["to"]] += a["amountB"]["value"]
+        assert page["owesByYear"] == [
+            {"year": y, "byCounterparty": [{"id": c, "amountB": round(v, 3)} for c, v in sorted(parts.items())]}
+            for y, parts in sorted(by_year.items())
+        ]
     assert build("obligation_company", "blackrock") is None  # not at either end of an edge
 
 

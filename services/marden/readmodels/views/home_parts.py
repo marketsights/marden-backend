@@ -28,6 +28,8 @@ LINK_RANK = {"red": 3, "amber": 2, "green": 1, "none": 0}
 QUIET = frozenset({"none", "green"})  # a party named (none -> green) is not a status change
 PRICE_MOVE_PTS = 1.0  # the lowest user threshold (AlertSettings.priceThresholdPts 1 | 2 | 3)
 LENDER_RED_BELOW = 95.0
+MIN_HEADLINE_WORDS = 3
+LONG_TITLE = 80  # characters a Coming up line holds
 
 
 def site_watch(slug: str, instrument_ids: Sequence[str]) -> list[str]:
@@ -183,7 +185,10 @@ def filing_change(entry: Doc) -> Doc:
 def coming_up_event(entry: Doc) -> Doc:
     ev, subject = entry["event"], entry["subject"]
     heads = sorted(set(entry["heads"]), key=lambda h: (len(h), h))
-    what = heads[0] if len(heads) > 1 else ev["title"]  # a step written twice: its short headline
+    # A step written twice shows its short headline. One written once shows its title, or for a long title
+    # its headline when that names the step ("CoreWeave Q3 10-Q", not "Matures").
+    short = len(ev["title"]) > LONG_TITLE and len(heads[0].split()) >= MIN_HEADLINE_WORDS
+    what = heads[0] if len(heads) > 1 or short else ev["title"]
     return {"watch": entry["watch"], "date": ev["event_date"].isoformat(), "when": when_label(ev["event_date"], day()),
             "what": what, "refUrl": subject["href"]}
 

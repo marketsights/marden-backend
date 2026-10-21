@@ -328,6 +328,15 @@ _ENTITY_LINKED_SITES = via(
 )
 
 
+def _any_linked(sites: KeyFn) -> KeyFn:
+    """Key 'all' when the subject is linked to at least one site."""
+
+    def keys(conn: Conn, subject_id: str) -> list[str]:
+        return ["all"] if list(sites(conn, subject_id)) else []
+
+    return keys
+
+
 def _install_site_deps() -> None:
     linked_views = ("site_detail", "site_tab:buildings", "site_tab:power", "project_file")
     _many("campus", linked_views, _CAMPUS_LINKED_SITES)
@@ -337,6 +346,9 @@ def _install_site_deps() -> None:
     _many("instrument", ("site_tab:debt",), _INSTRUMENT_EXPOSED_SITES)
     _many("holding", ("site_detail", "site_tab:debt", "project_file"), _HOLDING_SITE)
     _many("entity", ("site_tab:opposition", "project_file"), _ENTITY_LINKED_SITES)
+    # The lists' "Bldgs" column (spec 16) counts the linked campuses' buildings and building facts.
+    _many("campus", ("sites", "completion"), _any_linked(_CAMPUS_LINKED_SITES))
+    _many("building", ("sites", "completion"), _any_linked(_BUILDING_LINKED_SITES))
     # The Power and Buildings tabs embed the main plant's `plant_row` (built with its own builder), whose
     # financed link shows the site's chain status and debt: the site's instruments refresh them too.
     _many("instrument", ("site_tab:power", "site_tab:buildings"), _INSTRUMENT_SITE)

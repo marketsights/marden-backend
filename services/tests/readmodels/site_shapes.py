@@ -35,8 +35,8 @@ GEOJSON = REPO / "apps" / "api" / "node_modules" / "@types" / "geojson" / "index
 
 PRELUDE = """
 type Nd<X, K extends keyof X> = Omit<X, K> & { [P in K]: X[P] | null };
-type SummaryNd = Nd<T.SiteSummary, 'status'>;
-type CompletionRowNd = Nd<T.CompletionRow, 'driver' | 'lastEvidence'>;
+type SummaryNd = Nd<T.SiteSummary, 'status'> & S.WithBuildingCount;
+type CompletionRowNd = Nd<T.CompletionRow, 'driver' | 'lastEvidence'> & S.WithBuildingCount;
 type CompletionNd = Omit<T.CompletionResponse, 'rows'> & { rows: CompletionRowNd[] };
 type DetailNd = Nd<T.SiteDetail, 'status' | 'debtExposed'>;
 type ScheduleNd = Nd<T.SiteSchedule, 'projection'>;

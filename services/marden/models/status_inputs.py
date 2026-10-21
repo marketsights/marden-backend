@@ -244,6 +244,9 @@ def price_value(output: Any) -> tuple[float | None, str | None, str | None]:
             return float(sourced["value"]), sourced.get("methodVersion"), sourced.get("sourceUrl")
     if isinstance(output.get("value"), int | float):
         return float(output["value"]), output.get("methodVersion"), None
+    plain = output.get("price")  # the price model's own output: {price: number, methodVersion, sourceUrl}
+    if isinstance(plain, int | float) and not isinstance(plain, bool):
+        return float(plain), output.get("methodVersion"), output.get("sourceUrl")
     return None, None, None
 
 

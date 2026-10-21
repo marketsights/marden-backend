@@ -28,7 +28,7 @@ const doc: HomeDoc = {
   changes: [
     { severity: 3, watch: [`site:${SITE}`, `instrument:${LOAN}`], kind: 'site', refId: SITE, name: 'HM site', type: 'status', label: 'Tenant link', from: 'amber', to: { ...sourced('red', 'F'), value: 'red' }, status: 'Broken', record: ev('Force majeure notice') },
     { severity: 2, watch: [`instrument:${NOTE}`], kind: 'instrument', refId: NOTE, name: 'HM 9% notes', type: 'price', from: 90, to: m(87.5), status: null, record: ev('Marden price 90.0 to 87.5 over the week', DAY) },
-    { severity: 1, watch: [`instrument:${NOTE}`], kind: 'instrument', refId: NOTE, name: 'HM 9% notes', type: 'price', from: 87.5, to: m(89), status: null, record: ev('Marden price 87.5 to 89.0 over the week', DAY) },
+    { severity: 1, watch: [`instrument:${LOAN}`], kind: 'instrument', refId: LOAN, name: 'HM construction loan', type: 'price', from: 87.5, to: m(89), status: 'Broken', record: ev('Marden price 87.5 to 89.0 over the week', DAY) },
     { severity: 1, watch: [`site:${SITE}`, `instrument:${LOAN}`], kind: 'site', refId: SITE, name: 'HM site', type: 'filing', label: '8-K', from: null, to: sourced('8-K: Other Events', 'F'), status: 'Broken', record: ev('8-K: Other Events') },
     { severity: 1, watch: [`instrument:${LOAN}`], kind: 'instrument', refId: LOAN, name: 'HM construction loan', type: 'filing', label: '8-K', from: null, to: sourced('8-K: Other Events', 'F'), status: 'Broken', record: ev('8-K: Other Events') },
     { severity: 3, watch: ['site:hm-other'], kind: 'site', refId: 'hm-other', name: 'Other site', type: 'cushion', from: 4, to: m(-2), status: 'Broken', record: ev('Slip') },
@@ -98,7 +98,7 @@ describe('home', () => {
     expect(body.comingUp).toEqual([{ when: 'Late Oct', what: 'Permit hearing', refUrl: `/sites/${SITE}` }]);
   });
 
-  it('counts a watched site its whole debt once, and sums debt across sites with the weakest tag', async () => {
+  it('counts a watched site its whole debt once, not its loan again', async () => {
     await watch('site', SITE);
     const body = await home();
     expect(body.headline.watchedDebtUnder3).toEqual({ debtB: doc.under3[0]?.debtB, names: ['HM site'] });
