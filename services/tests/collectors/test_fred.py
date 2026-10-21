@@ -31,8 +31,10 @@ SECRET = "k3y-0f-32-chars-abcdefghijklmnop"
 
 
 def _public_source() -> sources.SourceSpec:
-    spec = sources.declare_source("test_fred_public", "FRED public-domain series (test)", "api",
-                                  "https://fred.stlouisfed.org", 1440, "test: DGS10 is Public Domain: Citation Requested")
+    spec = sources.declare_source(
+        "test_fred_public", "FRED public-domain series (test)", "api", "https://fred.stlouisfed.org", 1440,
+        "test: DGS10 is Public Domain: Citation Requested",
+    )
     sources.upsert_spec(spec)
     return spec
 
@@ -77,7 +79,8 @@ def test_blocked_source_makes_no_request_and_writes_nothing(committed):
     out = fred.run(fetcher=Fetcher(client=httpx.Client(transport=httpx.MockTransport(handler))))
     assert out["ok"] is False and out["error"].startswith("SourceBlocked")
     assert calls == []
-    src = committed.execute("SELECT blocked, blocked_reason, last_error FROM source WHERE id = 'fred_ice_bofa'").fetchone()
+    src = committed.execute(
+        "SELECT blocked, blocked_reason, last_error FROM source WHERE id = 'fred_ice_bofa'").fetchone()
     assert src["blocked"] is True and "Pre-Approval Required" in src["blocked_reason"]
     assert "SourceBlocked" in src["last_error"]
     assert committed.execute("SELECT ok FROM source_run WHERE source_id = 'fred_ice_bofa'").fetchone()["ok"] is False

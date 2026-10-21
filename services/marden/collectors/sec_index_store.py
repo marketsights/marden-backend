@@ -59,34 +59,37 @@ def stored_urls(conn: Conn, source_id: str, urls: Iterable[str]) -> set[str]:
     return {r["url"] for r in rows}
 
 
-def entities_with_event(conn: Conn, document_id: int, entity_ids: Iterable[str]) -> set[str]:
+def event_subjects(conn: Conn, entity_ids: Iterable[str]) -> list[tuple[str, str]]:
+    """Where a filing event goes: the filer's entities; the instruments they or their direct
+    subsidiaries (entity.parent_id, e.g. borrower SPVs) issued; the sites of those instruments and
+    the sites the filer develops (chain_party role 'developer'). Tenants and end users are left
+    out: their filings are company-wide, not about one site."""
+    ids = list(entity_ids)
     rows = conn.execute(
-        """SELECT DISTINCT subject_id FROM event WHERE subject_type = 'entity' AND kind = %s
-           AND document_id = %s AND subject_id = ANY(%s)""",
-        (EVENT_KIND, document_id, list(entity_ids)),
+        """SELECT i.id, i.site_slug FROM instrument i LEFT JOIN entity e ON e.id = i.issuer_entity_id
+           WHERE i.issuer_entity_id = ANY(%(ids)s) OR e.parent_id = ANY(%(ids)s) ORDER BY i.id""",
+        {"ids": ids},
     ).fetchall()
-    return {r["subject_id"] for r in rows}
+    developed = conn.execute(
+        "SELECT site_slug FROM chain_party WHERE role = 'developer' AND entity_id = ANY(%s)", (ids,)
+    ).fetchall()
+    sites = sorted({r["site_slug"] for r in rows if r["site_slug"]} | {r["site_slug"] for r in developed})
+    return [("entity", e) for e in ids] + [("instrument", r["id"]) for r in rows] + [("site", s) for s in sites]
 
 
-def linked_subjects(conn: Conn, entity_ids: Iterable[str]) -> tuple[list[str], list[str]]:
-    """Instruments issued by these entities, and the financed sites of those instruments."""
+def subjects_with_event(conn: Conn, document_id: int) -> set[tuple[str, str]]:
     rows = conn.execute(
-        "SELECT id, site_slug FROM instrument WHERE issuer_entity_id = ANY(%s) ORDER BY id", (list(entity_ids),)
+        "SELECT subject_type, subject_id FROM event WHERE kind = %s AND document_id = %s", (EVENT_KIND, document_id)
     ).fetchall()
-    instruments = [r["id"] for r in rows]
-    sites = sorted({r["site_slug"] for r in rows if r["site_slug"]})
-    return instruments, sites
+    return {(r["subject_type"], r["subject_id"]) for r in rows}
 
 
 def write_filing_events(
-    conn: Conn, fi: FilingIndex, cik: str, entity_ids: list[str], index_doc: DocumentRow
-) -> tuple[int, int]:
-    """Publish one `filing` event (tag F) per entity, instrument and site. Returns (new, seen)."""
+    conn: Conn, fi: FilingIndex, cik: str, subjects: list[tuple[str, str]], index_doc: DocumentRow
+) -> int:
+    """Publish one `filing` event (tag F) per subject. Returns how many were new."""
     writer = EventWriter(conn)
     title = event_title(fi, cik)
-    instruments, sites = linked_subjects(conn, entity_ids)
-    subjects = [("entity", e) for e in entity_ids] + [("instrument", i) for i in instruments]
-    subjects += [("site", s) for s in sites]
     new = 0
     for subject_type, subject_id in subjects:
         res = writer.add(
@@ -94,4 +97,4 @@ def write_filing_events(
             source_url=index_doc.url, document_id=index_doc.id, status="published",
         )
         new += int(res.created)
-    return new, len(subjects)
+    return new

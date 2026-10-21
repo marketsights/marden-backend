@@ -12,8 +12,8 @@ A run, for the window `[today - days, today]` (US Eastern; 7 days, or 120 in bac
    recorded: its `-index.htm` page is stored, then the primary document and its EX-4 / EX-10 /
    EX-99 exhibits (doc_type = EDGAR type, doc_date = filing date, external_id = accession). 8-K,
    424B*, S-1/F-1 documents and every EX-10 get extract_state 'queued' for the extraction workers.
-   One `filing` event (tag F, published) goes on each entity with that CIK, the instruments it
-   issued and their sites.
+   One `filing` event (tag F, published) goes on each entity with that CIK, the instruments it or
+   its direct subsidiaries issued, their sites and the sites it develops (sec_index_store).
 
 Only /Archives/edgar/ and data.sec.gov/submissions/ are read (never /cgi-bin or /search/); all SEC
 hosts share one 5 req/s bucket with the declared SEC_USER_AGENT. Reruns write nothing new.
@@ -87,7 +87,8 @@ SOURCE = declare_source(
     SOURCE_ID, "SEC EDGAR filing discovery (daily index + submissions API)", "api",
     "https://www.sec.gov/Archives/edgar/", 10, TERMS_NOTE,
 )
-http.set_rate_limit("sec.gov", SEC_RATE_PER_SECOND)
+if http.bucket_for("www.sec.gov")[1].rate > SEC_RATE_PER_SECOND:  # never raise a lower shared SEC limit
+    http.set_rate_limit("sec.gov", SEC_RATE_PER_SECOND)
 
 
 class CollectError(RuntimeError):
@@ -235,8 +236,10 @@ class _Run:
         st = self.stats
         with db.transaction() as conn:
             index_doc = store.index_document(conn, SOURCE_ID, filing.accession)
+            subjects = store.event_subjects(conn, entity_ids)
+            # Known filings are skipped unless a subject was linked since (or in backfill mode).
             done = index_doc is not None and not self.backfill and (
-                store.entities_with_event(conn, index_doc.id, entity_ids) >= set(entity_ids))
+                set(subjects) <= store.subjects_with_event(conn, index_doc.id))
         if done:
             st.filings_known += 1
             return False
@@ -265,7 +268,7 @@ class _Run:
         if index_doc.was_new:
             st.documents_skipped += skipped
         with db.transaction() as conn:
-            new, _ = store.write_filing_events(conn, fi, filing.cik, entity_ids, index_doc)
+            new = store.write_filing_events(conn, fi, filing.cik, subjects, index_doc)
         st.events_new += new
         if new:
             st.filings_new += 1

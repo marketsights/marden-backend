@@ -199,9 +199,15 @@ def watched(committed):
              ('ffc-depositor-llc', 'FFC Depositor LLC', 'spv', '0002089208'),
              ('no-such-filer', 'No such filer', 'company', '9999999'),
              ('no-cik', 'No CIK', 'company', NULL);
-           INSERT INTO site (slug, name) VALUES ('test-site', 'Test site');
-           INSERT INTO instrument (id, name, kind, issuer_entity_id, issuer_name, site_slug)
-           VALUES ('EX-TEST-001', 'FFC 2026-1 A', 'abs', 'ffc-depositor-llc', 'FFC Depositor LLC', 'test-site')"""
+           INSERT INTO entity (id, name, kind, parent_id)
+           VALUES ('ffc-issuer', 'FFC Issuer LLC', 'spv', 'ffc-depositor-llc');
+           INSERT INTO site (slug, name) VALUES ('site-a', 'Site A'), ('site-b', 'Site B'), ('site-c', 'Site C'),
+                                                ('site-d', 'Site D');
+           INSERT INTO instrument (id, name, kind, issuer_entity_id, issuer_name, site_slug) VALUES
+             ('EX-TEST-001', 'FFC notes', 'abs', 'ffc-depositor-llc', 'FFC Depositor LLC', 'site-a'),
+             ('EX-TEST-002', 'FFC 2026-1 A', 'abs', 'ffc-issuer', 'FFC Issuer LLC', 'site-b');
+           INSERT INTO chain_party (site_slug, role, entity_id, label) VALUES
+             ('site-c', 'developer', 'teg-overseas-inc', 'TEG'), ('site-d', 'tenant', 'teg-overseas-inc', 'TEG')"""
     )
     return committed
 
@@ -217,7 +223,7 @@ def test_run_records_new_filings_once(watched):
     assert first.ok, first.summary()
     assert (first.watched_ciks, first.missing_ciks) == (3, ["9999999"])
     assert first.index_days_read == ["2026-10-20"] and first.index_days_pending == ["2026-10-21"]
-    assert (first.filings_found, first.filings_new, first.events_new) == (2, 2, 4)
+    assert (first.filings_found, first.filings_new, first.events_new) == (2, 2, 7)
     assert first.documents_by_type == {"edgar_daily_index": 1, "sec_submissions": 2, "filing_index": 2,
                                        "SCHEDULE 13D": 1, "ABS-15G": 1, "EX-99.1": 1}
     docs = watched.execute(
@@ -233,9 +239,9 @@ def test_run_records_new_filings_once(watched):
     events = watched.execute(
         "SELECT subject_type, subject_id, event_date, kind, tag, status, title, source_url FROM event ORDER BY 1, 2"
     ).fetchall()
-    assert [(e["subject_type"], e["subject_id"]) for e in events] == [
+    assert [(e["subject_type"], e["subject_id"]) for e in events] == [  # no event on site-d (TEG is its tenant)
         ("entity", "ffc-depositor-llc"), ("entity", "teg-overseas-inc"), ("instrument", "EX-TEST-001"),
-        ("site", "test-site")]
+        ("instrument", "EX-TEST-002"), ("site", "site-a"), ("site", "site-b"), ("site", "site-c")]
     assert {(e["kind"], e["tag"], e["status"], e["event_date"]) for e in events} == {
         ("filing", "F", "published", date(2026, 10, 20))}
     assert events[1]["title"] == ("SCHEDULE 13D: General Statement of Acquisition of Beneficial Ownership "
@@ -254,10 +260,18 @@ def test_run_records_new_filings_once(watched):
         f"{ARCH}/daily-index/2026/QTR4/form.20261020.idx", f"{ARCH}/daily-index/2026/QTR4/form.20261021.idx",
         f"{SUB}/CIK0001999261.json", f"{SUB}/CIK0002089208.json", f"{SUB}/CIK0009999999.json"])
 
+    # an instrument linked to a filer later gets the filing event on the next run, with no new fetches
+    watched.execute("""INSERT INTO instrument (id, name, kind, issuer_entity_id, issuer_name)
+                       VALUES ('EX-TEST-003', 'TEG loan', 'loan', 'teg-overseas-inc', 'TEG')""")
+    transport.requests.clear()
+    healed = sec_index.run(today=date(2026, 10, 21), days=2, fetcher=fetcher)
+    assert (healed.documents_new, healed.events_new, healed.filings_new) == (0, 1, 1)
+    assert len(transport.requests) == 5
     backfill = sec_index.run(today=date(2026, 10, 21), days=2, backfill=True, fetcher=fetcher)
     assert backfill.ok and (backfill.documents_new, backfill.events_new) == (0, 0)
     runs = watched.execute("SELECT ok, items_seen, items_new, meta FROM source_run ORDER BY id").fetchall()
-    assert [(r["ok"], r["items_seen"], r["items_new"]) for r in runs] == [(True, 2, 2), (True, 2, 0), (True, 2, 0)]
+    assert [(r["ok"], r["items_seen"], r["items_new"]) for r in runs] == [
+        (True, 2, 2), (True, 2, 0), (True, 2, 1), (True, 2, 0)]
     assert runs[0]["meta"]["watched_ciks"] == 3
     source = watched.execute("SELECT terms_note, blocked, last_ok_at FROM source WHERE id = 'sec_index'").fetchone()
     assert "may be copied or further distributed" in source["terms_note"] and not source["blocked"]

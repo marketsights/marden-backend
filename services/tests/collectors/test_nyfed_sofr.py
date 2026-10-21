@@ -57,7 +57,8 @@ def test_notice_follows_the_terms_of_use():
     terms = (DATA / "terms_of_use_excerpt.txt").read_text()
     for part in sofr.NOTICE_QUOTE.split(" ... "):
         assert part in terms  # quoted verbatim from the Terms of Use
-    assert "Terms of Use Last Updated: 6/9/2023" in terms and sofr.TERMS_UPDATED == date(2023, 6, 9)
+    assert "Terms of Use Last Updated: 6/9/2023" in terms
+    assert sofr.TERMS_UPDATED.isoformat() == "2023-06-09"
     assert "[" not in sofr.NOTICE and "by Marden" in sofr.NOTICE  # brackets completed
     assert sofr.NOTICE in sofr.SOURCE.terms_note
     assert "manually or through an automated process or device" in terms
@@ -86,7 +87,8 @@ def test_load_writes_rates_and_notice_once(committed):
 def test_a_revised_rate_is_a_new_fact_for_the_same_date(committed):
     sources.upsert_spec(sofr.SOURCE)
     url = sofr.year_url(2026)
-    body = b'{"refRates": [{"effectiveDate": "2026-10-20", "type": "SOFR", "percentRate": %s, "revisionIndicator": "%s"}]}'
+    body = (b'{"refRates": [{"effectiveDate": "2026-10-20", "type": "SOFR", "percentRate": %s, '
+            b'"revisionIndicator": "%s"}]}')
     for rate, flag in ((b"3.88", b""), (b"3.89", b"Y")):
         doc = documents.record_document(sofr.SOURCE_ID, url, body % (rate, flag), content_type="application/json")
         sofr.load_document(doc, RunStats())
