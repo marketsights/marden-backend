@@ -6,8 +6,10 @@ A run, for the window `[today - days, today]` (US Eastern; 7 days, or 120 in bac
    published only at night (SEC: "Indexes incorporating the current business day's filings are
    updated nightly starting about 10:00 p.m., ET"), so a 403/404 means "not yet" and is noted.
 2. data.sec.gov submissions JSON for every watched CIK (each `entity` row with a cik: issuers,
-   BDCs, fund filers, SPVs). It is updated in real time, so it finds filings during the day; older
-   `-submissions-NNN.json` pages are read when `recent` does not reach back to the window start.
+   BDCs, SPVs) except registered-fund registrants (kind 'fund'; sec_index_store.INDEX_ONLY_KINDS),
+   whose relevant filings the daily index still finds. It is updated in real time, so it finds
+   filings during the day; older `-submissions-NNN.json` pages are read when `recent` does not
+   reach back to the window start.
 3. Each filing of a relevant form (8-K, 10-Q, 10-K, 424B*, S-1/F-1, ABS-15G, 10-D, 13D) not yet
    recorded: its `-index.htm` page is stored, then the primary document and its EX-4 / EX-10 /
    EX-99 exhibits (doc_type = EDGAR type, doc_date = filing date, external_id = accession). 8-K,
@@ -102,6 +104,7 @@ class RunStats:
     since: date
     watched_ciks: int = 0
     watched_entities: int = 0
+    polled_ciks: int = 0  # watched CIKs whose submissions JSON is read (fund registrants: daily index only)
     bad_entity_ciks: list[str] = field(default_factory=list)
     index_days_read: list[str] = field(default_factory=list)
     index_days_pending: list[str] = field(default_factory=list)
@@ -132,7 +135,8 @@ class RunStats:
     def summary(self) -> str:
         lines = [
             f"sec_index {self.mode} {self.since}..{self.today}: {'ok' if self.ok else 'FAILED'}",
-            f"  watched CIKs {self.watched_ciks} ({self.watched_entities} entities); submissions read "
+            f"  watched CIKs {self.watched_ciks} ({self.watched_entities} entities; {self.polled_ciks} polled); "
+            "submissions read "
             f"{self.submissions_read} ({self.submissions_changed} changed); missing CIKs {len(self.missing_ciks)}",
             f"  daily index read {self.index_days_read or '-'}; not yet published {self.index_days_pending or '-'}; "
             f"watched lines {self.index_filings_watched}",
@@ -166,6 +170,7 @@ class _Run:
         with db.transaction() as conn:
             watched = store.watched_ciks(conn, ciks)
         st.watched_ciks, st.watched_entities = len(watched), sum(len(v) for v in watched.entities.values())
+        st.polled_ciks = len(watched.polled)
         st.bad_entity_ciks = watched.bad[:MAX_LISTED]
         found: dict[tuple[str, str], Filing] = {}
         days = [previous_business_day(st.today)] + ([st.today] if st.today.weekday() < 5 else [])
@@ -175,7 +180,7 @@ class _Run:
                     st.index_filings_watched += 1
                     key = (line.cik, line.accession)
                     found.setdefault(key, Filing(line.cik, line.accession, line.form, line.filed))
-        for cik in sorted(watched.entities, key=int):
+        for cik in sorted(watched.polled, key=int):
             for filing in self._submissions(cik):
                 if is_relevant_form(filing.form) and st.since <= filing.filing_date <= st.today:
                     found[(cik, filing.accession)] = filing

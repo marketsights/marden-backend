@@ -81,6 +81,7 @@ The owner set these limits. `services/marden/collectors/market_http.py` enforces
 
 - **Yahoo Finance equity series** (`series` / `equity:<TICKER>`: open, high, low, close, adj_close, volume, dividend, split) are tagged **F**: the exchange's official daily prices, as instructed for this build.
 - **Börse Frankfurt** specialist quotes and fixings are **R** (`price_obs.kind = 'exchange'`, plus fact `exchange_quote` with bid/ask on the instrument). They are usually zero-turnover quotes, not trades.
+  - After the 17:30 close Frankfurt shows no bid or ask (both 0; seen 2026-10-21). The scheduled 18:05 run therefore records the last fixing, day range, previous close, fixings count and nominal turnover, but no bid/ask. Capturing bid/ask needs a run before 17:30, which is outside the "after 17:45 CET" limit, so that is the owner's call.
 - **TRACE prints** are F.
 
 ## 6. Changing the decision

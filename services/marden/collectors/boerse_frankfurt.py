@@ -15,7 +15,9 @@ https://api.live.deutsche-boerse.com/v1/data/quote_box/single?isin={ISIN}&mic=XF
   day's nominal turnover when the fixing is from the day fetched. These are specialist quotes and
   fixings (turnover is usually 0), not trades. Instruments not quoted in percent are skipped.
 - Fact `exchange_quote` on the instrument (tag R) per quote date: bid, ask, sizes, last, spread,
-  turnover, fixings count, previous close, day range.
+  nominal turnover, fixings count, previous close, day range. A side the specialist is not quoting
+  comes back as 0 and is left out; after the 17:30 close (so in the scheduled run) Frankfurt shows no
+  bid or ask at all (seen 2026-10-21), so bid/ask appear only in runs during trading hours.
 - source_url is the bond's page (https://live.deutsche-boerse.com/anleihe/<isin>); the exact JSON is
   each row's document.
 - Cadence: weekdays 18:05 Frankfurt time (trading ends 17:30). `python -m marden collect boerse_frankfurt`.
@@ -204,7 +206,8 @@ def parse_quote(isin: str, price_info: bytes, quote_box: bytes | None) -> Quote 
         "spread": _num(qb, "spreadAbsolute") if bid is not None and ask is not None else None,
         "prev_close": pricer(pi, "closingPricePrevTradingDay"), "day_high": pricer(pi, "dayHigh"),
         "day_low": pricer(pi, "dayLow"), "price_fixings": _num(pi, "priceFixings"),
-        "turnover_nominal": _num(pi, "turnoverNominal"), "turnover_eur": _num(pi, "turnoverInEur"),
+        # turnoverInEur is left out: Deutsche Börse re-converts it at live FX, so it moves after the close.
+        "turnover_nominal": _num(pi, "turnoverNominal"),
         "instrument_status": qb.get("instrumentStatus"), "traded_in_percent": in_percent,
         "currency": currency.get("originalValue") if isinstance(currency, dict) else currency,
     }

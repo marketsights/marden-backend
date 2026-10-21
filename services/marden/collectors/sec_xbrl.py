@@ -10,7 +10,7 @@ power companies in the entity table, plus Broadcom), one run:
    = period end, `public_date` = the filing date that first made a period public, the XBRL concept and
    filing in quote_loc. Structured filed data: nothing is queued for extraction.
 
-Cadence: weekly (Sunday 05:23 ET), plus `collect.sec_xbrl_on_filing` every 15 minutes, which re-runs
+Cadence: weekly (Sunday 09:23 UTC, early morning ET), plus `collect.sec_xbrl_on_filing` every 15 minutes, which re-runs
 the CIKs whose new 10-Q/10-K sec_index has announced as a `filing` event (sec_xbrl_store.due_filings).
 Only data.sec.gov/api/xbrl/ is read, through the shared SEC bucket (<= 5 req/s, SEC_USER_AGENT).
 Reruns write nothing new.
@@ -42,7 +42,7 @@ PRODUCER = store.PRODUCER
 SEC_RATE_PER_SECOND = 5.0  # docs/methods/price-sources.md §5: all SEC collectors share <= 5 req/s
 DEFAULT_SINCE = date(2019, 1, 1)  # ASC 842 (leases on the balance sheet) took effect for 2019
 EASTERN = ZoneInfo("America/New_York")
-WEEKLY_CRON = "23 9 * * 0"  # Sunday 09:23 UTC (05:23 EST / 04:23 EDT), before the Sunday-night risk ranking
+WEEKLY_CRON = "23 9 * * 0"  # Sunday 09:23 UTC (05:23 EDT / 04:23 EST), before the Sunday-night risk ranking
 ON_FILING_CRON = "2-59/15 * * * *"  # after sec_index's 10-minute polls; a database check unless a CIK is due
 MAX_LISTED = 100
 

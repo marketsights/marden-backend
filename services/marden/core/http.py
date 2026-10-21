@@ -1,6 +1,7 @@
 """Polite HTTP: declared User-Agent, per-host rate limits, retries, conditional GETs.
 
-- sec.gov hosts get SEC_USER_AGENT and share one bucket capped at 8 req/s (SEC allows 10).
+- sec.gov hosts get SEC_USER_AGENT and share one bucket capped at 5 req/s per process (SEC allows 10
+  in total; docs/methods/price-sources.md section 5 sets 5 for every SEC collector together).
 - Other hosts get a descriptive Marden User-Agent and 2 req/s unless a collector sets a limit.
 - 429/5xx/timeouts are retried with exponential backoff, honoring Retry-After.
 - ETag / Last-Modified are replayed as If-None-Match / If-Modified-Since.
@@ -31,7 +32,7 @@ from marden.core.db import Conn
 from marden.core.documents import DocumentRow
 
 SEC_SUFFIX = "sec.gov"
-SEC_MAX_PER_SECOND = 8.0
+SEC_MAX_PER_SECOND = 5.0
 DEFAULT_PER_SECOND = 2.0
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 MAX_BACKOFF_SECONDS = 60.0

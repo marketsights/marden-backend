@@ -1139,6 +1139,18 @@ CREATE TABLE public.membership (
 
 
 --
+-- Name: model_dirty; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.model_dirty (
+    model text NOT NULL,
+    key text NOT NULL,
+    marked_at timestamp with time zone DEFAULT now() NOT NULL,
+    reason text
+);
+
+
+--
 -- Name: model_output; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2013,6 +2025,14 @@ ALTER TABLE ONLY public.membership
 
 
 --
+-- Name: model_dirty model_dirty_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.model_dirty
+    ADD CONSTRAINT model_dirty_pkey PRIMARY KEY (model, key);
+
+
+--
 -- Name: model_output model_output_model_version_subject_type_subject_id_as_of_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2457,6 +2477,13 @@ CREATE INDEX instrument_site ON public.instrument USING btree (site_slug);
 --
 
 CREATE INDEX member_product_role_product ON public.member_product_role USING btree (org_id, product_id);
+
+
+--
+-- Name: model_dirty_marked; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX model_dirty_marked ON public.model_dirty USING btree (model, marked_at);
 
 
 --
@@ -3064,4 +3091,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261021140000'),
     ('20261021150000'),
     ('20261021170000'),
-    ('20261021180000');
+    ('20261021180000'),
+    ('20261021190000');

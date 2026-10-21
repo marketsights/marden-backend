@@ -4,6 +4,9 @@ The API reads `read_model(view, key)` with exactly these names; builders, depend
 dirty marks may only use them, so a typo fails at import time instead of leaving a screen at 503.
 Key kinds: `all` (one document), `<table>.<column>` (that identity row's key), `week` (the
 Monday a risk list was published, YYYY-MM-DD), `gpu_model` (the `:model` path segment).
+
+The builders live in this package's modules, one area each (instruments.py, instrument_detail.py,
+curve.py, gpu_collateral.py, sites*.py, ...), and are imported by `marden.plugins.load_plugins()`.
 """
 
 from __future__ import annotations

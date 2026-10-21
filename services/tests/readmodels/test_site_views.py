@@ -1,0 +1,287 @@
+"""Site builders (completion, sites, site_detail, site_schedule, site_tab:*, project_file) on real seeded rows.
+
+Rows are copied from the local `marden` database (site_rows.copy_sites): every financed site with its
+parties, instruments, campuses, buildings, plants, facts, events, prices, holdings and model outputs.
+Expectations are computed from the copied rows with SQL independent of the builders, so the tests
+follow the data as collectors and models add to it. Where a model has not run, the documents must show
+n/d (null), never a placeholder; where it has, they must show its output.
+"""
+
+from __future__ import annotations
+
+from datetime import timedelta
+from typing import Any
+
+import pytest
+from real_rows import copied_rows
+from site_rows import copy_sites
+from site_shapes import SITE_TYPES, available, check
+
+from marden.core import db
+from marden.readmodels import business_today, rebuild_all
+from marden.readmodels.context import building
+from marden.readmodels.deps import targets
+from marden.readmodels.registry import get_builder
+from marden.readmodels.views import sites as _sites  # noqa: F401 (registers builders)
+from marden.readmodels.views import sites_debt, sites_detail, sites_power, sites_project, sites_tabs  # noqa: F401
+from marden.readmodels.views.sites_checklist import ITEMS
+
+NAMED = ("jupiter", "abilene", "frontier", "the-barn", "coreweave-ddtl-3", "southgate")
+LIST_VIEWS = ("sites", "completion")
+
+
+@pytest.fixture
+def sites() -> list[str]:
+    return copy_sites()
+
+
+def build(view: str, key: str = "all", day=None) -> Any:
+    """The builder's document for `key` (built in a transaction, nothing written)."""
+    b = get_builder(view)
+    assert b is not None, view
+    with building(day or business_today()), db.transaction() as conn:
+        if b.build_many is not None:
+            return dict(b.build_many(conn))[key]
+        return b.build_one(conn, key)
+
+
+def latest_output(model: str, slug: str) -> dict | None:
+    rows = copied_rows(
+        "SELECT * FROM model_output WHERE model = %s AND subject_type = 'site' AND subject_id = %s "
+        "ORDER BY as_of DESC, id DESC LIMIT 1", (model, slug))
+    return rows[0] if rows else None
+
+
+def stored(view: str, key: str) -> Any:
+    rows = copied_rows("SELECT doc FROM read_model WHERE view = %s AND key = %s AND as_of = %s",
+                       (view, key, business_today()))
+    return rows[0]["doc"] if rows else None
+
+
+def test_every_site_view_rebuilds_every_site(sites):
+    for view in SITE_TYPES:
+        stats = rebuild_all(view)
+        assert not stats.errors, (view, stats.errors[:3])
+        assert stats.built == (1 if view in LIST_VIEWS else len(sites)), view
+    assert stored("site_detail", "jupiter")["slug"] == "jupiter"
+    events = copied_rows("SELECT payload FROM stream_event WHERE payload->>'type' = 'status'")
+    assert {e["payload"]["siteSlug"] for e in events} == set(sites)  # site pages announce themselves
+    assert all(e["payload"]["chain"] == stored("site_detail", e["payload"]["siteSlug"])["chain"] for e in events)
+    before = len(events)
+    rebuild_all("site_detail")  # unchanged documents: no new event
+    assert len(copied_rows("SELECT id FROM stream_event WHERE payload->>'type' = 'status'")) == before
+
+
+@pytest.mark.parametrize("view", list(SITE_TYPES))
+def test_documents_match_the_response_types(sites, view):
+    if not available():
+        pytest.skip("TypeScript toolchain (apps/api/node_modules) not installed")
+    keys = ["all"] if view in LIST_VIEWS else [s for s in NAMED if s in sites]
+    docs = [(view, build(view, key)) for key in keys]
+    errors = check(docs)
+    assert errors == "", errors[:3000]
+
+
+def test_model_pending_fields_are_null_only_until_the_model_runs(sites):
+    for slug in [s for s in NAMED if s in sites]:
+        detail, schedule = build("site_detail", slug), build("site_schedule", slug)
+        status = latest_output("status", slug)
+        if status is None:
+            assert detail["status"] is None
+            assert {link["status"] for link in detail["chain"]} == {"none"}
+        else:
+            assert detail["status"] == status["output"]["status"]
+            assert detail["chain"] == status["output"]["chain"]
+        cushion = latest_output("cushion", slug)
+        projection = (cushion or {"output": {}})["output"].get("projection") or {}
+        if projection.get("p50"):
+            assert schedule["projection"] == projection
+            assert detail["cushionMonths"] == projection.get("cushionMonths")
+        else:
+            assert schedule["projection"] is None and detail["cushionMonths"] is None
+            assert detail["rentStartP50"] is None
+
+
+def _instrument_total(slug: str) -> float | None:
+    rows = copied_rows(
+        """SELECT a.value AS amount FROM instrument i
+             JOIN fact_current a ON a.subject_type = 'instrument' AND a.subject_id = i.id AND a.field = 'amount_usd'
+             LEFT JOIN fact_current s ON s.subject_type = 'instrument' AND s.subject_id = i.id AND s.field = 'status'
+             LEFT JOIN fact_current b ON b.subject_type = 'instrument' AND b.subject_id = i.id
+                  AND b.field = 'amount_basis'
+            WHERE i.site_slug = %s AND coalesce(s.value #>> '{}', '') NOT IN ('repaid', 'proposed')
+              AND coalesce(b.value #>> '{}', '') <> 'holder_par'""",
+        (slug,))
+    return round(sum(r["amount"] for r in rows) / 1e9, 3) if rows else None
+
+
+def test_lists_cover_us_sites_with_their_debt(sites):
+    rows = build("sites")
+    completion = build("completion")
+    slugs = {r["slug"] for r in rows}
+    non_us = {s["slug"] for s in copied_rows("SELECT slug FROM site WHERE state ILIKE '%%australia%%'")}
+    assert slugs == set(sites) - non_us and "southgate" not in slugs
+    assert {r["slug"] for r in completion["rows"]} <= slugs
+    for row in rows:
+        assert row["debtB"]["value"] == _instrument_total(row["slug"]), row["slug"]
+        parties = {p["role"]: p["label"] for p in copied_rows(
+            "SELECT role, label FROM chain_party WHERE site_slug = %s", (row["slug"],))}
+        assert row["leadLenders"] == parties.get("lenders", "n/d")
+        assert [link["role"] for link in row["chain"]] == ["end_user", "tenant", "developer", "lenders"]
+    frontier = next(r for r in rows if r["slug"] == "frontier")
+    held = copied_rows("SELECT id FROM instrument WHERE site_slug = 'frontier' AND NOT in_v1")
+    assert held and frontier["debtB"]["value"] == _instrument_total("frontier")  # the PGIM-held slice is not added
+    summary = completion["summary"]
+    with_cushion = [r for r in completion["rows"] if ((r["projection"] or {}).get("cushionMonths") or {}).get("value")
+                    is not None]
+    assert summary["pastOutside"]["count"] == sum(r["projection"]["cushionMonths"]["value"] < 0 for r in with_cushion)
+    assert completion["asOf"] == business_today().isoformat()
+
+
+def test_site_detail_header_and_debt_exposed(sites):
+    detail = build("site_detail", "jupiter")
+    quote = copied_rows("SELECT * FROM price_obs WHERE instrument_id = 'EX-JUPITER-190' AND kind = 'dealer' "
+                        "ORDER BY obs_date DESC LIMIT 1")
+    exposed = detail["debtExposed"]
+    assert exposed["instrumentId"] == "EX-JUPITER-190"
+    if quote:
+        assert exposed["dealerQuote"]["value"] == f"{float(quote[0]['price']):.1f}"
+        assert exposed["dealerQuote"]["tag"] == quote[0]["tag"] == "R"
+    holders = copied_rows(
+        "SELECT count(DISTINCT fund_entity_id) AS n FROM holding WHERE instrument_id = 'EX-JUPITER-190'")
+    assert (holders[0]["n"] == 0) == exposed["holdersNote"].startswith("No N-PORT")
+    for model in ("price", "recovery"):
+        if not copied_rows("SELECT 1 FROM model_output WHERE model = %s AND subject_id = 'EX-JUPITER-190'", (model,)):
+            field = "mardenPrice" if model == "price" else "recovery"
+            assert exposed[field]["value"] is None and exposed[field]["tag"] == "M"
+    assert detail["trackingNames"] == copied_rows("SELECT tracking_names FROM site WHERE slug = 'jupiter'")[0][
+        "tracking_names"]
+    assert detail["tabCounts"] == {
+        "evidence": len(build("site_tab:evidence", "jupiter")["records"]),
+        "opposition": len(build("site_tab:opposition", "jupiter")["items"]),
+        "events": len(build("site_tab:events", "jupiter")["events"]),
+    }
+    notes = {(r["value"]["event_date"], r["value"]["title"]) for r in copied_rows(
+        "SELECT value FROM fact WHERE subject_type = 'site' AND subject_id = 'jupiter' AND field = 'materiality_note'")}
+    assert detail["materialEvents"] and all((e["date"], e["text"]) in notes for e in detail["materialEvents"])
+
+
+def test_debt_tab_lists_site_debt_and_tenant_notes(sites):
+    debt = build("site_tab:debt", "jupiter")
+    tenant_notes = {r["id"] for r in copied_rows(
+        """SELECT i.id FROM instrument i JOIN fact_current f ON f.subject_type = 'instrument' AND f.subject_id = i.id
+            WHERE f.field = 'exposure_links' AND i.in_v1 AND i.site_slug IS DISTINCT FROM 'jupiter'
+              AND f.value @> '[{"case": "JUPITER", "role": "Tenant"}]'""")}
+    ids = [i["instrumentId"] for i in debt["instruments"]]
+    assert ids[0] == "EX-JUPITER-190" and set(ids[1:]) == tenant_notes
+    tenant = copied_rows("SELECT entity_id FROM chain_party WHERE site_slug = 'jupiter' AND role = 'tenant'")[0]
+    assert {i["payerSlug"] for i in debt["instruments"][1:]} <= {tenant["entity_id"]}
+    names = copied_rows("SELECT tracking_names FROM site WHERE slug = 'jupiter'")[0]["tracking_names"]
+    assert debt["spvName"] == names[0]
+    assert [c["kind"] for c in debt["capitalStack"]] == ["loan", "equity"]
+    lease = build("site_tab:lease", "jupiter")
+    assert [t["key"] for t in lease["terms"]] == ["parties", "rent_start", "outside_date", "force_majeure", "rent",
+                                                  "term", "termination", "guarantee"]
+    assert all(("pending" in t) == (t["value"]["value"] is None) for t in lease["terms"])
+
+
+def test_power_and_buildings_follow_links_and_plants(sites):
+    power = build("site_tab:power", "jupiter")
+    plants = {r["name"] for r in copied_rows(
+        """SELECT DISTINCT p.name FROM power_plant p
+            WHERE p.id IN (SELECT ps.plant_id FROM plant_serves ps JOIN site_link l ON l.campus_id = ps.campus_id
+                           WHERE l.site_slug = 'jupiter' AND l.status IN ('approved', 'proposed'))
+               OR p.id IN (SELECT subject_id FROM fact_current WHERE subject_type = 'plant' AND field = 'serves_sites'
+                           AND value ? 'jupiter')""")}
+    assert {s["source"] for s in power["sources"]} == plants
+    lateral = copied_rows("SELECT f.* FROM power_plant p JOIN fact_current f ON f.subject_type = 'plant' "
+                          "AND f.subject_id = p.id AND f.field = 'expected_cod' WHERE p.name ILIKE '%%lateral%%' "
+                          "AND p.id IN (SELECT plant_id FROM plant_serves WHERE campus_id = 'project-jupiter')")
+    if lateral:
+        assert power["gasInService"]["value"]["value"] == lateral[0]["value"]
+    buildings = build("site_tab:buildings", "abilene")
+    rows = copied_rows("""SELECT b.id FROM building b JOIN site_link l ON l.campus_id = b.campus_id
+                           WHERE l.site_slug = 'abilene' AND l.status IN ('approved', 'proposed')""")
+    links = copied_rows("SELECT status FROM site_link WHERE site_slug = 'abilene'")
+    assert {b["id"] for b in buildings["buildings"]} == {r["id"] for r in rows}
+    assert all(b["footprint"]["type"] == "Polygon" for b in buildings["buildings"])
+    assert buildings["linkApproved"] == any(link["status"] == "approved" for link in links)
+
+
+def test_opposition_and_event_lanes(sites):
+    opposition = build("site_tab:opposition", "jupiter")
+    courts = copied_rows(
+        """SELECT k.subject_id FROM fact_current k JOIN fact_current l ON l.subject_type = 'entity'
+             AND l.subject_id = k.subject_id AND l.field = 'linked_sites' AND l.value ? 'jupiter'
+            WHERE k.subject_type = 'entity' AND k.field = 'proceeding_kind' AND k.value = '"court"'""")
+    assert sum(i["type"] == "Court case" for i in opposition["items"]) == len(courts)
+    if courts:
+        assert opposition["openCases"]["value"]["value"] <= len(courts)
+    events = build("site_tab:events", "jupiter")
+    assert [lane["role"] for lane in events["lanes"]] == ["end_user", "tenant", "developer", "lenders", "chain"]
+    status = latest_output("status", "jupiter")
+    tenant = events["lanes"][1]["segments"]
+    if status is None:
+        assert tenant == []
+    else:
+        link = next(x for x in status["output"]["chain"] if x["role"] == "tenant")
+        assert tenant[-1]["status"] == link["status"] and tenant[-1]["to"] == business_today().isoformat()
+    assert all(e["severity"] in ("red", "amber", "green", "none") for e in events["events"])
+
+
+def test_project_file_checklist_and_score(sites):
+    pf = build("project_file", "jupiter")
+    items = pf["checklist"]
+    assert len(items) == len(ITEMS)
+    counted = [i for i in items if i["state"] != "n/p"]
+    assert pf["completeness"] == round(100 * sum(i["state"] == "sourced" for i in counted) / len(counted))
+    assert {i["area"] for i in items if i["state"] == "n/p"} <= {"Insurance", "Independent engineer"}
+    assert all((i["state"] == "sourced") == (i["value"]["value"] is not None) for i in items)
+    parties = copied_rows("SELECT value FROM fact_current WHERE subject_type = 'site' AND subject_id = 'jupiter' "
+                          "AND field IN ('chain_parties', 'chain_parties_presumed')")
+    assert len(pf["parties"]) == sum(len(r["value"]) for r in parties)
+    assert pf["structure"]["tranches"][0]["instrumentId"] == "EX-JUPITER-190"
+    assert pf["construction"]["liens"] == [] and pf["construction"]["costPerMwM"]["value"] is None
+
+
+def test_backfilled_snapshot_shows_only_what_was_known(sites):
+    seed_day = copied_rows("SELECT min(learned_at)::date AS d FROM fact WHERE subject_type = 'site'")[0]["d"]
+    past = seed_day - timedelta(days=1)
+    known = copied_rows("SELECT id FROM fact_current WHERE subject_type = 'site' AND subject_id = 'jupiter' "
+                        "AND field = 'gross_mw' AND valid_from <= %s", (past,))
+    if not known:
+        pytest.skip("no Jupiter gross_mw fact dated before the seed day")
+    copied_rows("UPDATE fact SET learned_at = %s WHERE id = %s RETURNING id", (past, known[0]["id"]))
+    detail = build("site_detail", "jupiter", past)
+    today = build("site_detail", "jupiter")
+    assert detail["gw"]["value"] == today["gw"]["value"] is not None  # known on `past`
+    assert detail["debtB"]["value"] is None and detail["materialEvents"] == []  # learned on the seed day
+    assert detail["status"] is None or latest_output("status", "jupiter")["created_at"].date() <= past
+    stats = rebuild_all("site_detail", as_of=past)
+    assert not stats.errors and stats.events == 0
+    assert copied_rows("SELECT count(*) AS n FROM read_model WHERE view = 'site_detail' AND as_of = %s",
+                       (past,))[0]["n"] == len(sites)
+
+
+def test_dependencies_reach_the_site_views(sites):
+    with db.transaction() as conn:
+        building_id = copied_rows("SELECT id FROM building WHERE campus_id = 'stargate-abilene' LIMIT 1")[0]["id"]
+        assert {("site_detail", "abilene"), ("site_tab:buildings", "abilene")} <= targets(
+            "building", building_id, "status", conn=conn)
+        note = copied_rows("""SELECT i.id FROM instrument i JOIN fact_current f ON f.subject_type = 'instrument'
+                               AND f.subject_id = i.id AND f.field = 'exposure_links'
+                              WHERE f.value @> '[{"case": "JUPITER", "role": "Tenant"}]' LIMIT 1""")
+        if note:
+            assert ("site_tab:debt", "jupiter") in targets("instrument", note[0]["id"], "@price", conn=conn)
+        plant = copied_rows("SELECT plant_id FROM plant_serves WHERE campus_id = 'project-jupiter' LIMIT 1")
+        if plant:
+            assert ("site_tab:power", "jupiter") in targets("plant", plant[0]["plant_id"], "status", conn=conn)
+        court = copied_rows("SELECT subject_id FROM fact_current WHERE subject_type = 'entity' "
+                            "AND field = 'linked_sites' AND value ? 'jupiter' LIMIT 1")
+        if court:
+            assert ("site_tab:opposition", "jupiter") in targets("entity", court[0]["subject_id"], "status", conn=conn)
+        holding = copied_rows("SELECT h.id, i.site_slug FROM holding h JOIN instrument i ON i.id = h.instrument_id "
+                              "WHERE i.site_slug IS NOT NULL LIMIT 1")
+        if holding:
+            assert ("site_tab:debt", holding[0]["site_slug"]) in targets(
+                "holding", str(holding[0]["id"]), "@holding", conn=conn)

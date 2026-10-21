@@ -13,13 +13,20 @@ from marden.core.records import EventWriter
 SOURCE_NAME = "SEC EDGAR"
 EVENT_KIND = "filing"
 FILING_INDEX = "filing_index"
+# Registered-fund registrants (N-PORT filers, from the holdings seed): their filings are N-PORT, N-CSR,
+# 497 ... (read by sec_nport from the daily index), and a fund complex's submissions file changes with
+# every one of them, so polling ~500 of them every 10 minutes would only re-download unchanged-in-kind
+# files. Their relevant-form filings are still found in the daily index.
+INDEX_ONLY_KINDS = frozenset({"fund"})
 
 
 @dataclass
 class Watched:
-    """Watched CIK -> the entity ids that carry it (normally one)."""
+    """Watched CIK -> the entity ids that carry it (normally one); `polled`: the CIKs whose
+    submissions JSON is read (all of them except fund registrants, unless asked for by CIK)."""
 
     entities: dict[str, list[str]] = field(default_factory=dict)
+    polled: set[str] = field(default_factory=set)
     bad: list[str] = field(default_factory=list)  # entity ids whose cik is not a CIK
 
     def __len__(self) -> int:
@@ -27,15 +34,19 @@ class Watched:
 
 
 def watched_ciks(conn: Conn, only: Iterable[str] | None = None) -> Watched:
-    """Every entity row with a CIK (issuers, BDCs, fund filers, SPVs), optionally limited to `only`."""
+    """Every entity row with a CIK (issuers, BDCs, fund filers, SPVs), optionally limited to `only`.
+    Submissions are polled for every CIK carried by an entity whose kind is not index-only, and for
+    every CIK in `only`."""
     wanted = {c for c in (normalize_cik(x) for x in only or ()) if c} if only is not None else None
     out = Watched()
-    for row in conn.execute("SELECT id, cik FROM entity WHERE cik IS NOT NULL ORDER BY id").fetchall():
+    for row in conn.execute("SELECT id, cik, kind FROM entity WHERE cik IS NOT NULL ORDER BY id").fetchall():
         cik = normalize_cik(row["cik"])
         if cik is None:
             out.bad.append(row["id"])
         elif wanted is None or cik in wanted:
             out.entities.setdefault(cik, []).append(row["id"])
+            if wanted is not None or row["kind"] not in INDEX_ONLY_KINDS:
+                out.polled.add(cik)
     return out
 
 

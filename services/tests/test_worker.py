@@ -8,16 +8,18 @@ from marden.readmodels import builder, mark_dirty
 
 
 def _core(name: str) -> bool:
-    """Tasks worker.py registers itself. Collector tasks ('collect.*') register in their own modules
-    (imported by load_plugins) and are checked by their collector's tests."""
-    return not name.startswith("collect.")
+    """Tasks worker.py registers itself. Collector tasks ('collect.*') and model tasks ('models.*') register
+    in their own modules (imported by load_plugins) and are checked by their own tests."""
+    return not name.startswith(("collect.", "models."))
 
 
 def test_only_existing_tasks_are_registered():
     assert [n for n in worker.registered_task_names() if _core(n)] == [
         "queue.prune_jobs", "readmodels.rebuild_all", "readmodels.rebuild_dirty"
     ]
-    assert all(app.tasks[n].queue == "collect" for n in worker.registered_task_names() if not _core(n))
+    for name in worker.registered_task_names():
+        if not _core(name):
+            assert app.tasks[name].queue == ("models" if name.startswith("models.") else "collect"), name
     periodic = {name: task.cron for (name, _), task in app.periodic_registry.periodic_tasks.items() if _core(name)}
     assert periodic == {
         "readmodels.rebuild_dirty": worker.REBUILD_DIRTY_CRON,

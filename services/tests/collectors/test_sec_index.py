@@ -22,6 +22,7 @@ import pytest
 from marden import cli
 from marden.collectors import sec_index
 from marden.collectors import sec_index_parse as p
+from marden.collectors import sec_index_store as store
 from marden.core.config import get_settings
 from marden.core.http import Fetcher, FetchError
 from marden.core.queue import app
@@ -275,6 +276,21 @@ def test_run_records_new_filings_once(watched):
     assert runs[0]["meta"]["watched_ciks"] == 3
     source = watched.execute("SELECT terms_note, blocked, last_ok_at FROM source WHERE id = 'sec_index'").fetchone()
     assert "may be copied or further distributed" in source["terms_note"] and not source["blocked"]
+
+
+def test_fund_registrants_are_index_only(watched):
+    """A fund registrant's CIK is matched in the daily index but its submissions file is not polled
+    (unless asked for by CIK)."""
+    watched.execute("INSERT INTO entity (id, name, kind, cik) VALUES ('fund-trust', 'A Fund Trust', 'fund', '844779')")
+    w = store.watched_ciks(watched)
+    assert "844779" in w.entities and "844779" not in w.polled
+    assert w.polled == {"1999261", "2089208", "9999999"}
+    assert store.watched_ciks(watched, ["844779"]).polled == {"844779"}
+    transport = CapturedSec()
+    fetcher = Fetcher(client=httpx.Client(transport=httpx.MockTransport(transport)), backoff_base=0.01)
+    stats = sec_index.run(today=date(2026, 10, 21), days=2, fetcher=fetcher)
+    assert stats.ok and (stats.watched_ciks, stats.polled_ciks) == (4, 3)
+    assert not any("CIK0000844779" in u for u in transport.requests)
 
 
 def test_failed_fetch_is_recorded_on_the_source(watched):

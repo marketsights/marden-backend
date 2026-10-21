@@ -26,6 +26,9 @@ from marden.readmodels.context import build_date, is_backfill
 
 SOURCED_KEYS = ("value", "tag", "sourceUrl", "sourceName", "asOf", "methodVersion")
 OBSERVED_KINDS = ("trade", "exchange", "quote", "dealer")
+# Fund filings that name holders (N-PORT, BDC 10-Q/10-K). Insurer NAIC Schedule D lines are held for
+# legal review (docs/methods/price-sources.md section 3) and are not shown as holders.
+FUND_FILINGS = ("N-PORT", "10-Q", "10-K")
 
 
 def day() -> date:
@@ -66,8 +69,11 @@ def fact_sourced(row: Row | None, value: Any = None) -> dict[str, Any] | None:
     """A fact row as Sourced<T>, optionally with a display value derived from the fact's value."""
     if row is None:
         return None
-    out: dict[str, Any] = {"value": row["value"] if value is None else value, "tag": row["tag"],
-                           "asOf": iso(row["valid_from"])}
+    out: dict[str, Any] = {
+        "value": row["value"] if value is None else value,
+        "tag": row["tag"],
+        "asOf": iso(row["valid_from"]),
+    }
     if row.get("source_url"):
         out["sourceUrl"] = row["source_url"]
     if row.get("source_name"):
@@ -79,13 +85,14 @@ def fact_sourced(row: Row | None, value: Any = None) -> dict[str, Any] | None:
 
 # ---------------------------------------------------------------- model outputs
 def latest_output(conn: Conn, model: str, subject_id: str, subject_type: str | None = None) -> Row | None:
-    """The newest output of `model` for the subject with as_of on or before the build date."""
+    """The newest output of `model` for the subject with as_of on or before the build date. A model
+    run for a past day reads only what was public that day (marden.models.pit), so its output is
+    that day's value even when it was computed later."""
     sql = (
         "SELECT id, model, version, subject_type, subject_id, as_of, output, created_at FROM model_output"
         " WHERE model = %(model)s AND subject_id = %(id)s AND as_of <= %(day)s"
         " AND (%(type)s::text IS NULL OR subject_type = %(type)s)"
-        + _known_by_clause("created_at")
-        + " ORDER BY as_of DESC, created_at DESC, id DESC LIMIT 1"
+        " ORDER BY as_of DESC, created_at DESC, id DESC LIMIT 1"
     )
     return conn.execute(sql, {"model": model, "id": subject_id, "type": subject_type, "day": day()}).fetchone()
 
@@ -114,8 +121,12 @@ def model_sourced(out: Row, raw: Any) -> dict[str, Any] | None:
         if got["tag"] == "M":
             got.setdefault("methodVersion", method_version(out))
         return got
-    out_doc: dict[str, Any] = {"value": raw, "tag": "M", "asOf": iso(out["as_of"]),
-                               "methodVersion": method_version(out)}
+    out_doc: dict[str, Any] = {
+        "value": raw,
+        "tag": "M",
+        "asOf": iso(out["as_of"]),
+        "methodVersion": method_version(out),
+    }
     return out_doc
 
 
@@ -150,7 +161,8 @@ def price_rows(conn: Conn, instrument_id: str, kinds: Sequence[str]) -> list[Row
         "SELECT id, obs_date, obs_at, kind, price, yield_pct, spread_bp, tag, source_name, source_url,"
         " method_version FROM price_obs"
         " WHERE instrument_id = %(id)s AND kind = ANY(%(kinds)s) AND obs_date <= %(day)s"
-        + _known_by_clause() + licence
+        + _known_by_clause()
+        + licence
         + " ORDER BY obs_date, obs_at NULLS FIRST, id"
     )
     return conn.execute(sql, {"id": instrument_id, "kinds": list(kinds), "day": day(), "hidden": hidden}).fetchall()
@@ -204,25 +216,25 @@ def filed_marks(rows: Sequence[Row]) -> list[Row]:
 def holder_lines(conn: Conn, instrument_id: str) -> list[Row]:
     """Each fund's lines of this instrument in its latest filing known by the build date, kept only
     when that filing is also the fund's newest known filing (a fund whose newer filing no longer
-    lists the instrument no longer holds it)."""
-    sql = (
-        """WITH known AS (
-             SELECT h.* FROM holding h
-              WHERE h.period_end <= %(day)s AND (h.filed_at IS NULL OR h.filed_at <= %(day)s)"""
-        + _known_by_clause("h.learned_at")
-        + """), newest AS (
-             SELECT fund_entity_id, max(period_end) AS period_end FROM known GROUP BY fund_entity_id),
-           mine AS (
-             SELECT k.*, max(k.period_end) OVER (PARTITION BY k.fund_entity_id) AS fund_last
-               FROM known k WHERE k.instrument_id = %(id)s)
-           SELECT m.id, m.fund_entity_id, e.name AS fund_name, m.period_end, m.filing_type, m.filing_url,
-                  m.filed_at, m.par, m.value_usd, m.mark_price, m.fund_net_assets
-             FROM mine m JOIN newest n ON n.fund_entity_id = m.fund_entity_id AND n.period_end = m.period_end
-             JOIN entity e ON e.id = m.fund_entity_id
-            WHERE m.period_end = m.fund_last
-            ORDER BY m.par DESC NULLS LAST, m.id"""
+    lists the instrument no longer holds it). N-PORT and BDC filings only."""
+    known = (
+        " h.period_end <= %(day)s AND (h.filed_at IS NULL OR h.filed_at <= %(day)s)"
+        " AND h.filing_type = ANY(%(filings)s)" + _known_by_clause("h.learned_at")
     )
-    return conn.execute(sql, {"id": instrument_id, "day": day()}).fetchall()
+    sql = f"""WITH mine AS (
+                 SELECT h.*, max(h.period_end) OVER (PARTITION BY h.fund_entity_id) AS fund_last
+                   FROM holding h WHERE h.instrument_id = %(id)s AND {known}),
+               newest AS (
+                 SELECT h.fund_entity_id, max(h.period_end) AS period_end FROM holding h
+                  WHERE h.fund_entity_id IN (SELECT fund_entity_id FROM mine) AND {known}
+                  GROUP BY h.fund_entity_id)
+               SELECT m.id, m.fund_entity_id, e.name AS fund_name, m.period_end, m.filing_type, m.filing_url,
+                      m.filed_at, m.par, m.value_usd, m.mark_price, m.fund_net_assets
+                 FROM mine m JOIN newest n ON n.fund_entity_id = m.fund_entity_id AND n.period_end = m.period_end
+                 JOIN entity e ON e.id = m.fund_entity_id
+                WHERE m.period_end = m.fund_last
+                ORDER BY m.par DESC NULLS LAST, m.id"""
+    return conn.execute(sql, {"id": instrument_id, "day": day(), "filings": list(FUND_FILINGS)}).fetchall()
 
 
 def holder_totals(lines: Sequence[Row]) -> tuple[int, float]:

@@ -16,15 +16,18 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.core.facts import sourced
+from marden.core.jsonutil import jsonb
 from marden.readmodels.context import build_date, known_fact_rows, known_facts
+from marden.readmodels.views.sites_text import text_of
 
 Doc = dict[str, Any]
 ROLES = ("end_user", "tenant", "developer", "lenders")
 TAG_RANK = {"F": 0, "R": 1, "M": 2}
-US_STATES = frozenset(
-    "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND "
-    "OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY PR".split()
-)
+US_STATES = frozenset((
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY",
+    "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH",
+    "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "PR",
+))
 NOT_COUNTED = frozenset({"repaid", "proposed", "cancelled", "canceled"})
 INSTRUMENT_FIELDS = (
     "amount_usd", "amount_basis", "status", "coupon", "maturity", "seniority", "drawn_usd", "commitment_usd",
@@ -61,28 +64,6 @@ def with_value(row: Row, value: Any) -> Doc:
     assert out is not None
     out["value"] = value
     return out
-
-
-def text_of(value: Any, limit: int = 400) -> str | None:
-    """Short display text of a fact value (string, number, or the archive's dict / list shapes)."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return "yes" if value else "no"
-    if isinstance(value, int | float):
-        return f"{value:,}" if isinstance(value, int) else f"{value:,.2f}".rstrip("0").rstrip(".")
-    if isinstance(value, str):
-        return value[:limit] if value.strip() else None
-    if isinstance(value, dict):
-        for key in ("short", "text", "description", "detail", "what", "status", "name", "value", "title"):
-            if isinstance(value.get(key), str) and value[key].strip():
-                return value[key][:limit]
-        parts = [f"{k}: {text_of(v, 80)}" for k, v in value.items() if isinstance(v, str | int | float)]
-        return "; ".join(parts)[:limit] or None
-    if isinstance(value, list):
-        parts = [t for t in (text_of(v, 120) for v in value) if t]
-        return "; ".join(parts)[:limit] or None
-    return str(value)[:limit]
 
 
 def billions(usd: Any) -> float | None:
@@ -301,6 +282,22 @@ def holders_note(summary: dict[str, Any]) -> str:
             f"{summary['period'].isoformat()}).")
 
 
+def subjects_listing(conn: Conn, subject_type: str, field: str, item: Any) -> list[str]:
+    """Subjects whose `field` fact (a JSON array) has ever listed `item` as published: the candidates
+    a builder then checks against what was known on the build date (`known_facts`). Two branches so
+    each uses an index (published facts by subject; superseded ones by status)."""
+    probe = jsonb([item])
+    rows = conn.execute(
+        """SELECT subject_id FROM fact WHERE subject_type = %(t)s AND field = %(f)s AND status = 'published'
+             AND jsonb_typeof(value) = 'array' AND value @> %(v)s
+           UNION SELECT subject_id FROM fact WHERE status = 'superseded' AND subject_type = %(t)s
+             AND field = %(f)s AND jsonb_typeof(value) = 'array' AND value @> %(v)s
+           ORDER BY 1""",
+        {"t": subject_type, "f": field, "v": probe},
+    ).fetchall()
+    return [r["subject_id"] for r in rows]
+
+
 # ---------------------------------------------------------------- events and evidence
 def site_events(conn: Conn, slug: str, *, kinds: Sequence[str] | None = None, future: bool = False) -> list[Row]:
     """Published events on the site that Marden knew by the build date, newest first. Past-dated
@@ -358,9 +355,11 @@ def material_events(conn: Conn, slug: str, events: Sequence[Row] | None = None) 
 
 
 def last_evidence(conn: Conn, slug: str, events: Sequence[Row]) -> Doc | None:
-    """Completion's 'Last evidence': the latest material event, else the latest red/amber event."""
+    """Completion's 'Last evidence': the latest material event, else the latest red/amber event, else
+    the latest record of any kind (None only for a site with no record at all)."""
     material = material_events(conn, slug, events)
     if material:
         return event_evidence(material[0][0])
     flagged = [e for e in events if severity(e) in ("red", "amber")]
-    return event_evidence(flagged[0]) if flagged else None
+    records = flagged or [e for e in events if e["kind"] != "catalyst"]
+    return event_evidence(records[0]) if records else None

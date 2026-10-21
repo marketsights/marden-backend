@@ -174,6 +174,8 @@ def test_run_twice_over_captured_pages(committed, fast_rate):
     deck = documents.latest_document(ercot.SOURCE_ID, JUNE_URL)
     assert deck is not None and deck.extract_state == "queued" and deck.doc_date == date(2026, 6, 18)
     assert deck.doc_type == "llwg_report_pptx" and deck.meta["meeting"].endswith("06192026-LLWG-Meeting")
+    # MW series are not rate observations: the curve card is not marked dirty by them
+    assert committed.execute("SELECT count(*) AS n FROM read_model_dirty WHERE view = 'curve'").fetchone()["n"] == 0
 
     downloads = sum(u in files_ for u in calls)
     second = ercot.run(fetcher=fetcher, today=date(2026, 7, 1))

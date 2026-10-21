@@ -18,10 +18,8 @@ pytestmark = pytest.mark.skipif(not os.environ.get("MARDEN_SEED_DIR"), reason="M
 
 def test_seed_all_runs_every_loader_in_dependency_order():
     from marden import cli
-    from marden.plugins import load_plugins
-    from marden.seed.run_all import ORDER, seed_all
+    from marden.seed.run_all import ORDER, seed_all  # importing it registers the five loaders' actions
 
-    load_plugins()
     actions = cli._groups["seed"]
     assert [name for name, _ in ORDER] == ["sites", "instruments", "holdings", "facilities", "cases"]
     assert all(actions[name].handler is handler for name, handler in ORDER)

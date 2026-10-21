@@ -98,11 +98,21 @@ def mark_dirty_for(
     conn: Conn | None = None,
     reason: str | None = None,
 ) -> list[Pair]:
-    """Mark every read model depending on this subject/field dirty. Returns the pairs marked."""
+    """Mark every read model depending on this subject/field dirty. Returns the pairs marked.
+    Models whose inputs include the value are marked too (marden.models.triggers, same transaction)."""
     with db.transaction(conn) as c:
         pairs = targets(subject_type, subject_id, field, conn=c)
         _upsert(c, pairs, reason)
+        _mark_models(c, subject_type, subject_id, field, reason)
     return sorted(pairs)
+
+
+def _mark_models(conn: Conn, subject_type: str, subject_id: str, field: str, reason: str | None) -> None:
+    try:
+        from marden.models.triggers import mark_models_for  # models depend on readmodels, not the reverse
+    except ImportError:  # pragma: no cover - the models package is optional until it lands
+        return
+    mark_models_for(conn, subject_type, subject_id, field, reason)
 
 
 # ---------------------------------------------------------------- default table
@@ -195,8 +205,9 @@ def _install_defaults() -> None:
         _many(subject_type, ("obligation_company",), _OBLIGATION_COMPANIES)
 
     # Rate series (UST par curve, SOFR, spread indexes): tier-curve yields sit on the Treasury curve.
-    # Only observations ('value'), not licence facts such as 'notice' or 'display_allowed'.
-    depends("series", "value", "curve", singleton)
+    # Only observations ('value') of rate series: not licence facts such as 'notice' or
+    # 'display_allowed', nor other series such as ERCOT's large-load MW (collectors/ercot).
+    depends("series", "value", "curve", _rate_series)
 
     # A fund's net assets (collectors/sec_nport) set the NAV share and NAV hit of its holder rows.
     depends("entity", "net_assets_usd", "instrument_detail", _FUND_INSTRUMENTS)
@@ -225,9 +236,102 @@ def _queue_links(kind: str) -> KeyFn:
     )
 
 
+RATE_SERIES_PREFIXES = ("ust_par_", "sofr", "ice_bofa_")  # collectors ust_par_curve, nyfed_sofr, fred
+
+
+def _rate_series(conn: Conn, subject_id: str) -> list[str]:
+    """Key 'all' for a rate series (the curve card); nothing for other series."""
+    return ["all"] if subject_id.startswith(RATE_SERIES_PREFIXES) else []
+
+
 def _many_field(subject_type: str, field_prefix: str, views: tuple[str, ...], keys: KeyFn) -> None:
     for view in views:
         depends(subject_type, field_prefix, view, keys)
 
 
 _install_defaults()
+
+
+# Instruments area (readmodels/views/instruments.py, instrument_detail.py, curve.py, gpu_collateral.py).
+# An instrument's chain status is the 'status' model output on its site, so a site's status output
+# ('@model:status', marden.models.status) refreshes the instruments list and the site's instruments.
+# Outputs for subject 'all' (the 'curve' tiers, the 'gpu_deployment' page) may sit on subject_type 'series'.
+_SITE_INSTRUMENTS = via("SELECT id FROM instrument WHERE site_slug = %s")
+# A fund's newer filing that no longer lists an instrument ends the fund's holding of it (holder count,
+# par and marks on instrument_detail), so a fund's new holding line refreshes every instrument it holds.
+_FUND_HOLDING_INSTRUMENTS = via(
+    """SELECT DISTINCT o.instrument_id FROM holding h JOIN holding o ON o.fund_entity_id = h.fund_entity_id
+        WHERE h.id::text = %s AND o.instrument_id IS NOT NULL"""
+)
+_GPU_INSTRUMENTS_FOR_ALL = via(
+    """SELECT DISTINCT subject_id FROM fact_current
+        WHERE subject_type = 'instrument' AND field IN ('gpu_collateral', 'gpu_model') AND %s = 'all'"""
+)
+
+
+def _install_instrument_deps() -> None:
+    depends("site", "@model:status", "instruments", singleton)
+    depends("site", "@model:status", "instrument_detail", _SITE_INSTRUMENTS)
+    depends("holding", "", "instrument_detail", _FUND_HOLDING_INSTRUMENTS)
+    depends("series", "@model", "curve", singleton)
+    depends("series", "@model", "gpu_collateral", _GPU_INSTRUMENTS_FOR_ALL)
+
+
+_install_instrument_deps()
+
+
+# Sites area (readmodels/views/sites*.py). A site shows its approved campus links, or its proposed
+# ones while none is approved (Buildings tab `linkApproved: false`), and the plants serving those
+# campuses or naming the site in `serves_sites`; the debt tab lists the tenant's own V1 notes exposed
+# to the site (instrument `exposure_links`); the opposition tab and project file read the docket
+# entities whose `linked_sites` names the site; filed holders appear on the debt tab, the detail
+# header and the project file.
+_LINKED = "status IN ('approved', 'proposed')"
+_CAMPUS_LINKED_SITES = via(f"SELECT site_slug FROM site_link WHERE campus_id = %s AND {_LINKED}")
+_BUILDING_LINKED_SITES = via(
+    f"""SELECT l.site_slug FROM building b JOIN site_link l ON l.campus_id = b.campus_id
+        WHERE b.id = %s AND l.{_LINKED} AND (l.building_ids IS NULL OR b.id = ANY(l.building_ids))"""
+)
+_PLANT_LINKED_SITES = via(
+    f"""SELECT l.site_slug FROM plant_serves ps JOIN site_link l ON l.campus_id = ps.campus_id
+        WHERE ps.plant_id = %(id)s AND l.{_LINKED}
+        UNION SELECT jsonb_array_elements_text(value) FROM fact
+        WHERE subject_type = 'plant' AND subject_id = %(id)s AND field = 'serves_sites'
+          AND status IN ('published', 'superseded') AND jsonb_typeof(value) = 'array'"""
+)
+_UNIT_LINKED_SITES = via(
+    f"""SELECT l.site_slug FROM power_unit u JOIN plant_serves ps ON ps.plant_id = u.plant_id
+          JOIN site_link l ON l.campus_id = ps.campus_id WHERE u.id = %(id)s AND l.{_LINKED}
+        UNION SELECT jsonb_array_elements_text(f.value) FROM power_unit u JOIN fact f
+          ON f.subject_type = 'plant' AND f.subject_id = u.plant_id AND f.field = 'serves_sites'
+        WHERE u.id = %(id)s AND f.status IN ('published', 'superseded') AND jsonb_typeof(f.value) = 'array'"""
+)
+_INSTRUMENT_EXPOSED_SITES = via(
+    """SELECT DISTINCT s.slug FROM fact f, jsonb_array_elements(
+             CASE WHEN jsonb_typeof(f.value) = 'array' THEN f.value ELSE '[]' END) e
+         JOIN site s ON s.legacy_group = e->>'case'
+        WHERE f.subject_type = 'instrument' AND f.subject_id = %s AND f.field = 'exposure_links'
+          AND f.status IN ('published', 'superseded') AND e->>'role' = 'Tenant'"""
+)
+_HOLDING_SITE = via(
+    "SELECT i.site_slug FROM holding h JOIN instrument i ON i.id = h.instrument_id WHERE h.id::text = %s"
+)
+_ENTITY_LINKED_SITES = via(
+    """SELECT DISTINCT jsonb_array_elements_text(value) FROM fact
+        WHERE subject_type = 'entity' AND subject_id = %s AND field = 'linked_sites'
+          AND status IN ('published', 'superseded') AND jsonb_typeof(value) = 'array'"""
+)
+
+
+def _install_site_deps() -> None:
+    linked_views = ("site_detail", "site_tab:buildings", "site_tab:power", "project_file")
+    _many("campus", linked_views, _CAMPUS_LINKED_SITES)
+    _many("building", ("site_detail", "site_tab:buildings", "project_file"), _BUILDING_LINKED_SITES)
+    _many("plant", ("site_tab:power", "site_tab:buildings", "project_file"), _PLANT_LINKED_SITES)
+    _many("unit", ("site_tab:power", "site_tab:buildings", "project_file"), _UNIT_LINKED_SITES)
+    _many("instrument", ("site_tab:debt",), _INSTRUMENT_EXPOSED_SITES)
+    _many("holding", ("site_detail", "site_tab:debt", "project_file"), _HOLDING_SITE)
+    _many("entity", ("site_tab:opposition", "project_file"), _ENTITY_LINKED_SITES)
+
+
+_install_site_deps()

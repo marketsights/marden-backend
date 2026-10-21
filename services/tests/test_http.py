@@ -79,10 +79,13 @@ def test_token_bucket_spaces_requests():
 def test_sec_hosts_share_one_capped_bucket():
     key_www, b1 = http.bucket_for("www.sec.gov")
     key_efts, b2 = http.bucket_for("efts.sec.gov")
-    assert key_www == key_efts == "sec.gov" and b1 is b2 and b1.rate <= 8
+    assert key_www == key_efts == "sec.gov" and b1 is b2 and b1.rate <= 5  # price-sources.md section 5
+    assert http.bucket_for("data.sec.gov")[1] is b1
     assert http.bucket_for("api.eia.gov")[1].rate == http.DEFAULT_PER_SECOND
     with pytest.raises(ValueError):
         http.set_rate_limit("sec.gov", 10)
+    with pytest.raises(ValueError):
+        http.set_rate_limit("data.sec.gov", 6)
 
 
 def test_user_agents():
