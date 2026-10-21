@@ -103,6 +103,17 @@ def _number(value: Any) -> float | None:
     return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
 
+def _record_point(record: Row | None) -> tuple[float, float] | None:
+    """A filed (tag F) `coordinates` record's point; a value without a numeric lat/lon in range is no point."""
+    value = record["value"] if record is not None and record["tag"] == "F" else None
+    if not isinstance(value, dict):
+        return None
+    lat, lon = _number(value.get("lat")), _number(value.get("lon"))
+    if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    return lat, lon
+
+
 @dataclass
 class Located:
     """One plant's decision: its point (with the fact behind it), county and EIA plant id."""
@@ -202,9 +213,9 @@ def decide(conn: Conn, report: Report | None, doc: DocumentRow | None, counts: C
         pid = p["id"]
         facts = {f: others[(pid, f)] for f in FACT_FIELDS if (pid, f) in others}
         record = others.get((pid, "coordinates"))
-        record_pt = record["value"] if record and record["tag"] == "F" and isinstance(record["value"], dict) else None
+        record_pt = _record_point(record)
         campus = campuses.get(pid)
-        ref = ((record_pt["lat"], record_pt["lon"], "the plant's recorded point") if record_pt else
+        ref = ((*record_pt, "the plant's recorded point") if record_pt else
                (campus["lat"], campus["lon"], f"the served campus {campus['campus_id']} point") if campus else None)
         given = others.get((pid, "eia_plant_id"))
         given_id = given["value"] if given else (p["eia_plant_id"] if (pid, "eia_plant_id") not in own else None)
@@ -229,7 +240,7 @@ def decide(conn: Conn, report: Report | None, doc: DocumentRow | None, counts: C
             loc.notes.append(f"EIA {outcome.status}: " + "; ".join(
                 f"{c['eia_plant_id']} {c['eia_name']} ({c['why']})" for c in outcome.candidates))
         if loc.point is None and record and record_pt:
-            loc.method, loc.point = "record", (record_pt["lat"], record_pt["lon"])
+            loc.method, loc.point = "record", record_pt
             loc.point_src = {k: record[k] for k in ("source_name", "source_url", "document_id", "valid_from",
                                                     "method_version")} | {"quote_loc": record["quote_loc"] or ""}
             loc.notes.append(f"point from {record['source_name']} fact {record['id']}")
