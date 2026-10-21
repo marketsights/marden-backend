@@ -15,4 +15,5 @@ Tabs: Team · Alerts · Plan and billing · Security (designed as one page of fo
 ## Acceptance
 
 - Only Admins can invite, remove or change roles.
-- SSO is a Clerk enterprise connection on the organization (spec 23). Roles are Owner, Admin, Member and Viewer (spec 23); only Owners and Admins invite, remove or change roles; the last Owner cannot be removed.
+- SSO is a Clerk enterprise connection on the organization (spec 23). Roles are Owner, Admin, Member and Viewer (spec 23); only Owners and Admins invite, remove or change roles; Admins cannot make Owners or change or remove an Owner's roles; the last Owner cannot be removed.
+- Roles are Marden's (spec 23 update, 2026-10-21): the invite and team screens show Marden roles only, never Clerk roles; a role change is saved in Marden, not in Clerk.

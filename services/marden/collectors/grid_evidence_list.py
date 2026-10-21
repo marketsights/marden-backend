@@ -6,6 +6,7 @@ and says what the quote states, in the values grid_join uses: `iso` as the ISO/R
 `utility` as the HIFLD retail territory name. grid_evidence derives the balancing authority and interconnection
 from a stated ISO/RTO (grid_evidence module docstring) and checks the quote against the stored document.
 
+Quotes keep the document's own characters (curly quotes, dashes; ruff's RUF001 is silenced on those lines).
 Add a statement only from a document a person has read: the quote must be the document's own words about that
 facility (not a third-party database), and the subjects must be the facility the quote names. Two statements
 that disagree on a subject's field leave its review open with both quotes attached.
@@ -50,7 +51,8 @@ IREN_20F_2024 = Doc(f"{EDGAR}/1878848/000162828024038677/iren-20240630.htm",
 GLXY_10Q_2026Q2 = Doc(f"{EDGAR}/1859392/000185939226000091/glxy-20260630.htm",
                       "Galaxy Digital Inc. Form 10-Q for the quarter ended June 30, 2026", "10-Q", date(2026, 8, 10))
 MDU_10Q_2026Q2 = Doc(f"{EDGAR}/67716/000006771626000072/mdu-20260630.htm",
-                     "MDU Resources Group, Inc. Form 10-Q for the quarter ended June 30, 2026", "10-Q", date(2026, 8, 6))
+                     "MDU Resources Group, Inc. Form 10-Q for the quarter ended June 30, 2026", "10-Q",
+                     date(2026, 8, 6))
 CIFR_10K_2025 = Doc(f"{EDGAR}/1819989/000181998926000009/cifr-20251231.htm",
                     "Cipher Digital Inc. Form 10-K for 2025", "10-K", date(2026, 2, 24))
 CIFR_10K_2024 = Doc(f"{EDGAR}/1819989/000181998925000005/cifr-20241231.htm",
@@ -78,14 +80,15 @@ EVIDENCE: tuple[Statement, ...] = (
     ),
     Statement(
         WULF_JV_DECK,
-        "Grid: SPP • Utility: Xcel Energy ‒ Southwestern Public Service Company service territory",
+        "Grid: SPP • Utility: Xcel Energy ‒ Southwestern Public Service Company service territory",  # noqa: RUF001
         (("utility", "SOUTHWESTERN PUBLIC SERVICE CO"),),
         (("site", "abernathy"),),
         "slide 4, Abernathy Site highlights (120 acres in Abernathy, TX)",
     ),
     Statement(
         IREN_20F_2024,
-        "Electricity at Childress, Texas is sourced from ERCOT, the organization that operates Texas’ electrical grid.",
+        "Electricity at Childress, Texas is sourced from ERCOT, the organization that operates Texas’ electrical "  # noqa: RUF001
+        "grid.",
         (("iso", "ERCOT"),),
         (("site", "childress"), ("campus", "iren-childress")),
         "Item 5 (Operating and Financial Review and Prospects), electricity in Texas: IREN's Childress site",

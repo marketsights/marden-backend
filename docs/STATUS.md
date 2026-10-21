@@ -33,7 +33,8 @@ API should return 404 (not 503) for collateral on non-GPU instruments.
 | --- | --- | --- |
 | marden-web-remaining-screens | wf_6239c834-ac7 | build + review Home, Customize, Watchlist, Payers/Payer, Stress, Risk list, Track record, Obligations, GPUs, Leases; final route walk + build |
 | marden-web-mockup-fidelity | wf_32d85200-a86 | element-by-element audit of every built screen/tab vs its mockup with real data; fix; verify; critic |
-| marden-saas-live-v2 | wf_c6559cea-094 | Railway/Neon/R2 deploy setup; alert engine + email; spec-22 agent system on the Anthropic API (intake incl. upload API/CLI/R2 inbox, router, per-area specialist extractors with domain briefs, verifier, linker, approvals, eval set; then researcher, watchdog, note writer); reviews; end-to-end integration. Replaces wf_49c2d294-54c (stopped). |
+| marden-saas-live-v2 | wf_c6559cea-094 | (its agents were launched before the Anthropic key arrived: they prove the agents through the claude CLI fallback; run the live API proof with the key afterwards) |
+| | | Railway/Neon/R2 deploy setup; alert engine + email; spec-22 agent system on the Anthropic API (intake incl. upload API/CLI/R2 inbox, router, per-area specialist extractors with domain briefs, verifier, linker, approvals, eval set; then researcher, watchdog, note writer); reviews; end-to-end integration. Replaces wf_49c2d294-54c (stopped). |
 | marden-readiness-a | wf_2ca3d0cf-311 | org roles Marden-owned (no Clerk roles; admins can't change owners); resolve the 7 grid-region review items |
 | marden-data-gaps | wf_5fca7cc9-15c | power-plant locations/county/EIA match (all 74 had none), plant air permits from state records, dc lastChange ordering bug, favicon |
 Shared local dev servers: API :4000 (dev auth), web :3000. FRED was in maintenance at 18:14 UTC; retry scheduled 20:16 UTC (ICE BofA OAS needed by the tier curves).
@@ -72,7 +73,7 @@ If a new session starts: read this file, check `git log`, then re-run any workfl
 - Names: Neon `core`/`app`/`app_rw`; R2 `core-raw`, `core-snapshots`, `core-backups`; Railway project `core` with `web`, `api`, `worker`.
 
 ## Credentials (values are NOT in git)
-Stored only in this container under `/root/.config/marden/` (lost on reset). Add them as environment variables in the cloud environment settings and in Railway: `DATABASE_URL`, `DATABASE_URL_UNPOOLED` (app_rw, from Neon), `NEON_API_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (+ dev-instance keys), `ERCOT_API_KEY`, `ERCOT_API_USERNAME`, `ERCOT_API_PASSWORD`. Still needed: `ANTHROPIC_API_KEY`, `R2_*`, `RAILWAY_TOKEN`, `POSTMARK_TOKEN` or `RESEND_API_KEY`, `FRED_API_KEY`. Rotate the keys that were pasted into chat (Clerk secret, Neon owner password and API key, ERCOT primary key and password).
+Stored only in this container under `/root/.config/marden/` (lost on reset); `anthropic.env` there holds `ANTHROPIC_API_KEY` (verified 2026-10-21 against /v1/models): source it in the same shell command that needs it, never print it. Add them as environment variables in the cloud environment settings and in Railway: `DATABASE_URL`, `DATABASE_URL_UNPOOLED` (app_rw, from Neon), `NEON_API_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (+ dev-instance keys), `ERCOT_API_KEY`, `ERCOT_API_USERNAME`, `ERCOT_API_PASSWORD`. Still needed: `R2_*`, `RAILWAY_TOKEN`, `POSTMARK_TOKEN` or `RESEND_API_KEY`, `FRED_API_KEY`. Rotate the keys that were pasted into chat (Clerk secret, Neon owner password and API key, ERCOT primary key and password).
 
 ## Inputs outside git
 The seed archive `marden_data_2026-10-20.zip` (re-attach if the container resets; set `MARDEN_SEED_DIR` to its extracted folder). The handoff package is in `handoff/` in both repos.

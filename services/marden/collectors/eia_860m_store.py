@@ -8,11 +8,14 @@
   operating), `retired_month`. A value is written only when it differs from Marden's value as of that report, so
   the stored rows are the planned-vs-actual history (fact_asof answers what a report said) and a rerun writes
   nothing. Nothing is derived; slips are only counted in run meta.
-- Plants (power_plant): matched by eia_plant_id, else by name (the EIA plant name's distinctive words all in ours)
-  in the same state within MATCH_KM of the plant's point. Facts `planned_online` ({generator id: 'YYYY-MM'}) and
-  `eia_status` ({generator id: EIA code}); a plant's own `status` keeps Marden's PlantStatus vocabulary
-  (spec 15), so EIA codes go to `eia_status`. Tag F on an eia_plant_id match; tag M (MATCH_METHOD) plus an
-  `eia_plant_id` fact on a name+location match.
+- Plants (power_plant): matched by eia_plant_id, else by name (the EIA plant name's distinctive words all in ours;
+  parentheticals in the EIA name dropped, CamelCase split: 'TalenEnergy' = 'Talen Energy') in the same state
+  within MATCH_KM of the plant's point, or, for a plant without one, of its served campus's point (exactly one
+  served campus with a point, in the plant's state: the stand-in grid_join uses). Facts `planned_online`
+  ({generator id: 'YYYY-MM'}) and `eia_status` ({generator id: EIA code}); a plant's own `status` keeps Marden's
+  PlantStatus vocabulary (spec 15), so EIA codes go to `eia_status`. Tag F on an eia_plant_id match; tag M
+  (MATCH_METHOD) plus an `eia_plant_id` fact on a name+location match. power_plant.eia_plant_id and the plant's
+  point are set from those facts by `plant_locate`, which owns those columns.
 """
 
 from __future__ import annotations
@@ -60,13 +63,27 @@ def report_date(year: int, month: int) -> date:
     return date(year, month, monthrange(year, month)[1])
 
 
+_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
+_PARENS = re.compile(r"\([^)]*\)")
+
+
+def word_list(text: str) -> list[str]:
+    """Lower-case ASCII words in order, CamelCase split ('TalenEnergy Montour' -> talen, energy, montour)."""
+    ascii_text = unicodedata.normalize("NFKD", _CAMEL.sub(" ", text)).encode("ascii", "ignore").decode().lower()
+    return re.findall(r"[a-z0-9]+", ascii_text)
+
+
 def name_words(text: str) -> set[str]:
-    ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
-    return {w for w in re.findall(r"[a-z0-9]+", ascii_text) if len(w) > 1 and w not in GENERIC_WORDS}
+    return {w for w in word_list(text) if len(w) > 1 and w not in GENERIC_WORDS}
+
+
+def eia_name_words(eia: str) -> set[str]:
+    """The distinctive words of an EIA plant name, without its parentheticals ('Paris (WI)', '... (PMG)')."""
+    return name_words(_PARENS.sub(" ", eia))
 
 
 def names_match(ours: str, eia: str) -> bool:
-    words = name_words(eia)
+    words = eia_name_words(eia)
     return bool(words) and words <= name_words(ours)
 
 
@@ -95,6 +112,46 @@ class EiaPlant:
     lat: float | None
     lon: float | None
     generators: list[Generator] = field(default_factory=list)
+
+
+def eia_plants(report: Report) -> dict[int, EiaPlant]:
+    """The report's generators grouped by EIA plant; the plant's coordinates from its first row that has them."""
+    out: dict[int, EiaPlant] = {}
+    for g in report.generators:
+        d = g.descriptor
+        p = out.get(g.plant_id)
+        if p is None:
+            p = out[g.plant_id] = EiaPlant(g.plant_id, d.get("plant_name", ""), g.state, None, None)
+        if p.lat is None and d.get("latitude") is not None and d.get("longitude") is not None:
+            p.lat, p.lon = d["latitude"], d["longitude"]
+        p.generators.append(g)
+    return out
+
+
+SERVED_POINTS = """
+SELECT ps.plant_id, c.id AS campus_id, ST_Y(c.geom) AS lat, ST_X(c.geom) AS lon, c.state AS campus_state,
+       p.state AS plant_state, ps.evidence_fact_id
+  FROM plant_serves ps JOIN campus c ON c.id = ps.campus_id JOIN power_plant p ON p.id = ps.plant_id
+ WHERE c.geom IS NOT NULL ORDER BY ps.plant_id, c.id
+"""
+
+
+def served_campus_points(conn: Conn) -> dict[str, dict[str, Any]]:
+    """plant id -> its served campus's point, for plants serving exactly one campus with a point in the plant's
+    state (the stand-in grid_join uses): {campus_id, lat, lon, evidence_fact_id}."""
+    by_plant: dict[str, list[dict[str, Any]]] = {}
+    for r in conn.execute(SERVED_POINTS).fetchall():
+        by_plant.setdefault(r["plant_id"], []).append(dict(r))
+    out: dict[str, dict[str, Any]] = {}
+    for pid, rows in by_plant.items():
+        if len(rows) != 1:
+            continue
+        r = rows[0]
+        plant_state, campus_state = (r["plant_state"] or "").strip().upper(), (r["campus_state"] or "").strip().upper()
+        if plant_state and plant_state != campus_state:
+            continue
+        out[pid] = {k: r[k] for k in ("campus_id", "lat", "lon", "evidence_fact_id")}
+    return out
 
 
 class ReportWriter:
@@ -186,21 +243,14 @@ class ReportWriter:
 
     # ------------------------------------------------------------ plants
     def eia_plants(self) -> dict[int, EiaPlant]:
-        out: dict[int, EiaPlant] = {}
-        for g in self.report.generators:
-            p = out.get(g.plant_id)
-            if p is None:
-                d = g.descriptor
-                p = out[g.plant_id] = EiaPlant(g.plant_id, d.get("plant_name", ""), g.state, d.get("latitude"),
-                                               d.get("longitude"))
-            p.generators.append(g)
-        return out
+        return eia_plants(self.report)
 
     def write_plants(self) -> None:
         plants = self.conn.execute(
             """SELECT id, name, state, eia_plant_id, ST_Y(geom) AS lat, ST_X(geom) AS lon FROM power_plant
                 ORDER BY id"""
         ).fetchall()
+        stand_in = served_campus_points(self.conn)
         eia = self.eia_plants()
         by_state: dict[str, list[EiaPlant]] = {}
         for p in eia.values():
@@ -218,18 +268,23 @@ class ReportWriter:
             if not named:
                 counts["no_name_match"] += 1
                 continue
-            if row["lat"] is None:
+            lat, lon, where = row["lat"], row["lon"], "the plant point"
+            if lat is None and row["id"] in stand_in:
+                campus = stand_in[row["id"]]
+                lat, lon = campus["lat"], campus["lon"]
+                where = f"the served campus {campus['campus_id']} point (plant has no location)"
+            if lat is None:
                 counts["name_match_without_location"] += 1
                 unlocated += [{"plant": row["id"], "eia_plant_id": p.plant_id, "eia_name": p.name} for p in named]
                 continue
-            near = [(km_between(row["lat"], row["lon"], p.lat, p.lon), p) for p in named if p.lat is not None]
+            near = [(km_between(lat, lon, p.lat, p.lon), p) for p in named if p.lat is not None]
             near = [(km, p) for km, p in near if km <= MATCH_KM]
             if len(near) != 1:
                 counts["name_match_not_within_2km" if not near else "ambiguous"] += 1
                 continue
             km, match = near[0]
-            counts["matched_by_name_location"] += 1
-            loc = f"{self.file_name}: '{match.name}' ({match.state}) {km:.2f} km from the plant point"
+            counts["matched_by_name_location" if row["lat"] is not None else "matched_by_name_served_campus"] += 1
+            loc = f"{self.file_name}: '{match.name}' ({match.state}) {km:.2f} km from {where}"
             self._put("plant", row["id"], "eia_plant_id", match.plant_id, tag="M", quote_loc=loc)
             self._plant_facts(row["id"], match, tag="M")
         self.plants = {"plants": len(plants), **dict(sorted(counts.items())),

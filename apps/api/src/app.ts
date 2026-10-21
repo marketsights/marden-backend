@@ -24,6 +24,7 @@ import { instrumentRoutes } from './routes/instruments.js';
 import { marketRoutes } from './routes/market.js';
 import { monitorRoutes } from './routes/monitor.js';
 import { prefsRoutes } from './routes/prefs.js';
+import { savedViewRoutes } from './routes/saved-views.js';
 import { productAccessRoutes } from './routes/product-access.js';
 import { siteRoutes } from './routes/sites.js';
 import { stressRoutes } from './routes/stress.js';
@@ -73,6 +74,7 @@ function registerRoutes(app: FastifyInstance, r: RouteDeps): void {
   marketRoutes(app, db);
   watchlistRoutes(app, db);
   prefsRoutes(app, db);
+  savedViewRoutes(app, db);
   stressRoutes(app, db);
   accountRoutes(app, { db, clerkAdmin: r.clerkAdmin, devMode: r.devMode, products: r.products });
   productAccessRoutes(app, { db, products: r.products });

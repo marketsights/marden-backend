@@ -10,10 +10,12 @@ import { queryRows } from '../queries/rows.js';
 import { runStress, stressModelAvailable, stressRequestFromQuery, stressResultRows } from '../queries/stress.js';
 import { watchedSiteSlugs, watchRows } from '../queries/watchlist.js';
 import { filterCompletion, filterInstruments, filterObligations, filterSites, wantsWatchlist } from './doc-filters.js';
+import { completionExportRow, sitesExportRow } from './list-export.js';
 import { first, isoDate, type Query } from './params.js';
 import { filterPayers, payerIndexRow, payerSiteRows } from './payer-filters.js';
 import type { RowViewDef } from './row-query.js';
 import { DC_ROWS, PLANT_ROWS } from './row-views.js';
+import { siteExport } from './site-export.js';
 import { toWatchItem } from './watch-items.js';
 
 export interface ExportCtx { db: Db; q: Query; orgId: string; asOf: string | null }
@@ -41,9 +43,13 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
   completion: async (ctx) => {
     const d = await doc<CompletionResponse>(ctx, 'completion', 'all');
     const watched = wantsWatchlist(ctx.q) ? await watchedSiteSlugs(ctx.db, ctx.orgId) : null;
-    return { view: 'completion', asOf: d.asOf, rows: asRows(filterCompletion(d.rows, ctx.q, watched)) };
+    return { view: 'completion', asOf: d.asOf, rows: filterCompletion(d.rows, ctx.q, watched).map(completionExportRow) };
   },
-  sites: async (ctx) => ({ view: 'sites', asOf: ctx.asOf, rows: asRows(filterSites(await doc<SiteSummary[]>(ctx, 'sites', 'all'), ctx.q)) }),
+  sites: async (ctx) => ({
+    view: 'sites', asOf: ctx.asOf, rows: filterSites(await doc<SiteSummary[]>(ctx, 'sites', 'all'), ctx.q).map(sitesExportRow),
+  }),
+  // One Site detail tab's table (?slug=&tab=[&type=], spec 04): the header Excel and the Evidence Records Excel.
+  site: (ctx) => siteExport(ctx),
   instruments: async (ctx) => ({
     view: 'instruments', asOf: ctx.asOf, rows: asRows(filterInstruments(await doc<InstrumentRow[]>(ctx, 'instruments', 'all'), ctx.q)),
   }),

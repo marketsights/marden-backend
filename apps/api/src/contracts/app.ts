@@ -71,6 +71,16 @@ export interface SavedStress {
   savedAt: string;                                     // = createdAt; the name the web app's SavedStress reads
 }
 
+// GET / POST /api/saved-views, DELETE /api/saved-views/:id (spec 03 "Saved views"; specs 14, 15)
+export type SavedViewScreen = 'completion' | 'data-centers' | 'power';
+export interface SavedView {
+  id: string;
+  screen: SavedViewScreen | string;
+  name: string;
+  query: string;                                       // the screen's URL query without '?', e.g. 'tenant=Oracle&sort=-debt'
+  createdAt: string;
+}
+
 // ---------- Monitor area (specs 01, 12, 19): read models home, track_record, gpus ----------
 
 /** A watchlist entry a home piece belongs to: "site:<slug>" or "instrument:<id>". */

@@ -81,6 +81,9 @@ _TYPES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("Filing", re.compile(r"\bsec\b|edgar|10-[kq]|8-k", re.I)),
 )
 CAPACITY_KEYS = frozenset({"facilityMw", "itMw", "gpus", "gpuValueB", "methods"})
+# Every CapacityEstimate field (types.ts); the model's own bookkeeping (`missing`, `basis`) stays out of the doc.
+CAPACITY_FIELDS = CAPACITY_KEYS | {"scope", "id", "name", "pue", "gpuGeneration", "kwPerGpu", "gpuShareOfIt"}
+CAPACITY_FIELDS |= {"confidence", "disagreement", "replacedByFiling", "methodVersion"}
 
 
 def doc_type(kind: str, *texts: str | None) -> str:
@@ -229,7 +232,8 @@ def capacity_estimates(conn: Conn, campus: Row) -> list[Doc]:
         output = latest_output(conn, "capacity", scope, sid)
         value = output["output"] if output else None
         if isinstance(value, dict) and set(value) >= CAPACITY_KEYS:
-            out.append({**value, "scope": scope, "id": sid, "name": name})
+            kept = {k: v for k, v in value.items() if k in CAPACITY_FIELDS}
+            out.append({**kept, "scope": scope, "id": sid, "name": name})
     return out
 
 

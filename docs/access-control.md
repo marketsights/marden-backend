@@ -5,16 +5,19 @@ authorization, which is Marden's alone.
 
 ## The model
 
-- **Clerk is identity only.** It holds users, organizations (firms), membership, MFA and SSO. Marden
-  creates no Clerk roles or permissions for this model and never changes the Clerk instance. The
-  production Clerk instance is shared with another Marden product line.
+- **Clerk is identity only.** It holds users, organizations (firms), membership, invitations, MFA and
+  SSO. The production Clerk instance is shared with another product, so Marden never creates, reads,
+  assigns or changes a Clerk role or permission, and never changes the Clerk instance. Every invitation
+  Marden sends uses Clerk's built-in basic member role (`org:member`); a Clerk role on a membership,
+  whoever set it, means nothing to Marden.
 - **Marden's Postgres decides access.**
   - A firm (`org`) holds **products** (`org_product`), each on a plan, with a seat limit and dates.
   - Each member holds a **role per product** (`member_product_role`). No row means no access to that
     product.
-- **`membership.role` is the org-level administrative role.** It decides who manages the firm's members
-  and their product roles. It grants no product data by itself. Clerk webhooks still set it from the
-  Clerk organization role (spec 23).
+- **`membership.role` is the org-level administrative role, and it is Marden's.** It decides who manages
+  the firm's members and their product roles, and grants no product data by itself. Marden sets it when
+  the membership is created and changes it only on an org owner's or admin's request (see
+  [Org roles](#org-roles)); Clerk webhooks never change it.
 - **Staff** (`app_user.is_staff`, a `@marden.ai` address and a verified second factor) keep their
   superset on top of whatever their roles grant:
   - read every product's data;
@@ -69,15 +72,55 @@ code.
 The SSE stream re-checks on each interval (`STREAM_RECHECK_MS`, default 10 minutes). It closes when the
 membership is gone or the member's product roles no longer grant `stream:read`.
 
+## Org roles
+
+`membership.role` is one of `owner`, `admin`, `member` and `viewer`. Owner decision (2026-10-21): it is
+Marden's, never Clerk's.
+
+| When | Role | `membership.role_source` |
+| --- | --- | --- |
+| The first member of an org joins (Clerk membership webhook). | `owner` | `first_member` |
+| A member joins through a Marden invitation (open, not revoked, not expired at the event time; matched by the address on the Clerk membership or the user, case-insensitive). | the role on the invitation | `invitation` |
+| Anyone else joins: added in Clerk's dashboard, or by the other product on the shared instance. | `viewer` | `default` |
+| An org owner or admin changes it (`PATCH /api/account/members/:id`). | the new role | `changed` |
+| Rows that existed before this change: their role was mirrored from Clerk and is kept as it was. | unchanged | `clerk` |
+
+- One org's joins take turns (a transaction advisory lock), so two members joining at the same moment
+  cannot both be first. Each join is audit-logged: action `member.join`, meta `{ role, rule,
+  invitationId }`.
+- **Invitations** (`org_invitation`). `POST /api/account/invites` asks Clerk for an organization
+  invitation with the basic member role, then records the Marden role on Marden's row: Clerk invitation
+  id, org, address (lower case), role, inviter, status (`pending` / `accepted` / `revoked`), Clerk's
+  expiry, and who accepted it. Clerk sends the email; when the person accepts, Clerk creates the
+  membership and its webhook gives them the invited role. An `organizationInvitation.revoked` webhook
+  marks the row revoked. The invitation carries no product role: the new member gets one when an org
+  owner or admin assigns it.
+- **Changes write Marden's tables and `audit_log` only.** `PATCH /api/account/members/:id` makes no Clerk
+  call (audit action `member.role`, meta `{ from, to }`; setting the role a member already holds changes
+  nothing). `DELETE /api/account/members/:id` ends the Clerk membership too, because membership is
+  Clerk's (audit action `member.remove`).
+- **Rules** (`apps/api/src/lib/member-rules.ts`):
+  - only org owners and admins invite, change roles, assign product roles and remove members;
+  - an admin cannot invite an owner, make someone an owner, or change or remove an owner's org role or
+    product roles: 403 `admins_cannot_manage_owners`. Owners can do all of these;
+  - the last owner cannot be removed or demoted: 409 `last_owner`.
+- **Clerk webhooks never change a role.** `organizationMembership.created` creates the membership with the
+  role above; `organizationMembership.updated` creates it if Marden has not seen it yet and otherwise
+  changes nothing; `organizationMembership.deleted` deletes it with its product roles. The `role` field
+  of these events is never read.
+
 ## Tables
 
-Migration: `db/migrations/20261021180000_product_access.sql`.
+Migrations: `db/migrations/20261021180000_product_access.sql` (products) and
+`20261021234100_marden_org_roles.sql` (Marden-owned org roles: `membership.role_source`, `org_invitation`).
 
 | Table | Key | Columns |
 | --- | --- | --- |
 | `product` | `id` | `name`, `description`, `active` (false: grants nothing anywhere), `created_at`. Seeded: `marden`, the V1 app, which covers every current screen and endpoint. |
 | `org_product` | `org_id, product_id` | `plan` (`trial` / `design_partner` / `paid`), `seats` (null = unlimited), `status` (`active` / `suspended` / `ended`), `starts_on`, `ends_on` (null = open-ended), `created_at` |
 | `member_product_role` | `org_id, user_id, product_id` | `role` (`owner` / `admin` / `member` / `viewer`), `granted_by` (null = webhook rule or migration), `granted_at`. Rows are deleted with the membership or with the `org_product`. |
+| `membership` | `org_id, user_id` | `role` (the org role, Marden's), `role_source` (`clerk` / `first_member` / `invitation` / `default` / `changed` / `system`). |
+| `org_invitation` | `id` (Clerk invitation id) | `org_id`, `email` (lower case), `role`, `invited_by`, `status` (`pending` / `accepted` / `revoked`), `expires_at`, `created_at`, `accepted_by`, `accepted_at`. |
 
 - **Seats.** Role assignments on an `org_product` never exceed `seats`. Every assignment locks the
   `org_product` row, then counts.
@@ -90,6 +133,10 @@ Migration: `db/migrations/20261021180000_product_access.sql`.
     orgs on the default `trial`) get `marden` on that plan, with unlimited seats from the org's creation
     date. Each member keeps their current role on it.
   - Trial orgs get no product (fail closed). Staff add one with the admin endpoint below.
+- **The org roles migration keeps every current role.** Existing memberships keep the role Clerk last
+  gave them, marked `role_source = 'clerk'`. Invitations sent before the change (audit action
+  `member.invite`) become `org_invitation` rows with their Marden role and Clerk's default 30-day expiry;
+  one whose address is already a member of the org counts as accepted.
 
 ## Endpoints
 
@@ -97,13 +144,17 @@ Migration: `db/migrations/20261021180000_product_access.sql`.
 | --- | --- | --- |
 | `GET /api/me` | any member | `{ user, org: { id, name }, orgRole, products: [{ id, name, plan, status, role, seats, seatsUsed }], permissions, staff }`. `products` lists the org's live products; `role` is the caller's role, or null when none was assigned. `products: []` means the org has no live product. |
 | `GET /api/account` | any member | `team[]`: each member with their org `role` and `products: [{ productId, role }]`. `products[]`: the org's products, live or not: `{ id, name, plan, status, seats, seatsUsed, startsOn, endsOn, live }`. Plus `seats` (member count) and `security`. |
-| `PATCH /api/account/members/:id/products` | org owner or admin | Body `{ productId, role }`, where `role` null removes the role. Answers the member. Seat limit: 409 `seat_limit` with `seats` and `used`. Unknown member: 404 `member`. Product the org does not hold: 404 `product`. Audit action `member.product_role`, meta `{ productId, from, to }`. |
+| `POST /api/account/invites` | org owner or admin | Body `{ email, role }`, `role` default `viewer`. Clerk invitation with the basic member role; the Marden role goes to `org_invitation`. Answers 201 `{ invitationId, email, role }`. Admin inviting an owner: 403 `admins_cannot_manage_owners`. No Clerk secret key: 503. Audit action `member.invite`, meta `{ email, role }`. |
+| `PATCH /api/account/members/:id` | org owner or admin | Body `{ role }`. Marden's tables only, no Clerk call. Answers the member. 403 `admins_cannot_manage_owners`, 409 `last_owner`, 404 `member`. Audit action `member.role`. |
+| `DELETE /api/account/members/:id` | org owner or admin | Ends the Clerk membership and deletes the Marden one with its product roles. 204; same refusals as above; no Clerk secret key (outside dev mode): 503. Audit action `member.remove`. |
+| `PATCH /api/account/members/:id/products` | org owner or admin | Body `{ productId, role }`, where `role` null removes the role. Answers the member. Only an owner changes an owner's product roles: 403 `admins_cannot_manage_owners`. Seat limit: 409 `seat_limit` with `seats` and `used`. Unknown member: 404 `member`. Product the org does not hold: 404 `product`. Audit action `member.product_role`, meta `{ productId, from, to }`. |
 | `POST /api/admin/orgs/:orgId/products` | staff | Body `{ productId, plan, seats, startsOn, endsOn?, status? }`; `endsOn` defaults to null, `status` to `active`. Answers 201 with the org product. Errors: unknown org or product 404; product without a matrix in code 400; already held 409 `org_product_exists`; `endsOn` before `startsOn` 400. Audit action `org_product.create`, meta `{ productId, to }`. |
 | `PATCH /api/admin/orgs/:orgId/products/:productId` | staff | Body: any of `{ plan, seats, startsOn, endsOn, status }`. Seats below those in use: 409 `seats_in_use`. Audit action `org_product.update`, meta `{ productId, from, to }`. |
 
 ## Webhooks and new members
 
-- Clerk webhooks keep creating and updating `org`, `app_user` and `membership` rows.
+- Clerk webhooks keep creating and updating `org` and `app_user` rows, and create and delete `membership`
+  rows. They never change `membership.role` (see [Org roles](#org-roles)).
 - A new member gets **no product role** until an org owner or admin assigns one (fail closed). There is
   one exception: the **first member** of an org that already holds live products becomes `owner` of
   each of them, seats permitting. That grant is audit-logged with `rule: 'first_member'`. One org's

@@ -196,19 +196,19 @@ def markets_of(conn: Conn, p: dict[str, Any], day: date) -> dict[str, tc.Market]
 
 
 # ---------------------------------------------------------------- runs
-def scan(p: dict[str, Any], day: date, workers: int, step: int,
-         refine: bool = True) -> tuple[dict[date, ts.State], dict[str, Any]]:
+def scan(p: dict[str, Any], day: date, workers: int, step: int, refine: bool = True,
+         memo: dict | None = None) -> tuple[dict[date, ts.State], dict[str, Any]]:
     """Weekly states from the window start, then daily ones in the week before each case's first signal."""
     weekly = ts.scan_days(day, step)
     args = (p["price_ids"], p["slugs"], p["slugs"])
-    states = ts.compute_days(weekly, *args, workers)
+    states = ts.compute_days(weekly, *args, workers, memo)
     extra: set[date] = set()
     for c in p["cases"] if refine else []:
         first = ts.first_fires(list(c.instruments), p["sites"][c.key], states)
         earliest = min(first.values(), key=lambda f: f.day, default=None)
         extra |= {d for d in ts.refine_days(states, earliest) if d not in states}
     if extra:
-        states.update(ts.compute_days(sorted(extra), *args, workers))
+        states.update(ts.compute_days(sorted(extra), *args, workers, memo))
     return states, {"weekly": [d.isoformat() for d in weekly], "refined": sorted(d.isoformat() for d in extra),
                     "stepDays": step}
 
@@ -230,8 +230,10 @@ def _digest(output: dict[str, Any]) -> str:
 
 
 def run(as_of: date | None = None, cases: list[str] | None = None, *, trigger: str = "manual",
-        workers: int = DEFAULT_WORKERS, step: int = 7, refine: bool = True, mark: bool = True) -> dict[str, Any]:
-    """The full backtest as of `as_of` (default today, US Eastern): market moves and a fresh signal scan."""
+        workers: int = DEFAULT_WORKERS, step: int = 7, refine: bool = True, mark: bool = True,
+        memo: dict | None = None) -> dict[str, Any]:
+    """The full backtest as of `as_of` (default today, US Eastern): market moves and a fresh signal scan.
+    `memo` shares scan-day states between runs for several as-of days in one sitting (never across days)."""
     day = as_of or business_today()
     if day > business_today():
         raise ValueError(f"cannot run the backtest for a future day ({day.isoformat()})")
@@ -242,7 +244,7 @@ def run(as_of: date | None = None, cases: list[str] | None = None, *, trigger: s
         with db.transaction() as conn:
             p = plan(conn, cases)
             markets = markets_of(conn, p, day)
-        states, meta = scan(p, day, workers, step, refine)
+        states, meta = scan(p, day, workers, step, refine, memo)
         output = assemble(day, p, markets, states, {**meta, "mode": "full", "fullRunId": run_id})
         _write(run_id, day, output, mark=mark, subject=subject_of(cases))
         runs.finish_run(run_id, ok=True, inputs_hash=_digest(output))

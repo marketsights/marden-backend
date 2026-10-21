@@ -154,15 +154,21 @@ def compute_day(args: tuple[str, list[str], list[str], list[str]]) -> State:
 
 
 def compute_days(days: Sequence[date], price_ids: list[str], status_slugs: list[str], cushion_slugs: list[str],
-                 workers: int) -> dict[date, State]:
-    args = [(d.isoformat(), price_ids, status_slugs, cushion_slugs) for d in days]
+                 workers: int, memo: dict[tuple, State] | None = None) -> dict[date, State]:
+    """Each day's state, in parallel processes. `memo` (optional, for several as-of runs in one sitting:
+    a scan day's state does not depend on the run's as-of day) holds states already computed."""
+    memo = {} if memo is None else memo
+    key = (tuple(price_ids), tuple(status_slugs), tuple(cushion_slugs))
+    args = [(d.isoformat(), price_ids, status_slugs, cushion_slugs) for d in days if (d, key) not in memo]
     if workers <= 1 or len(args) <= 1:
         states = [compute_day(a) for a in args]
     else:
         ctx = multiprocessing.get_context("spawn")
         with ProcessPoolExecutor(max_workers=min(workers, len(args)), mp_context=ctx) as pool:
             states = list(pool.map(compute_day, args))
-    return {date.fromisoformat(s["day"]): s for s in states}
+    for s in states:
+        memo[(date.fromisoformat(s["day"]), key)] = s
+    return {d: memo[(d, key)] for d in days}
 
 
 # ---------------------------------------------------------------- signals
