@@ -36,9 +36,9 @@ _atexit_registered = False
 
 
 def get_pool() -> ConnectionPool[Conn]:
-    """The process-wide pool for the current DATABASE_URL (re-created if the URL changed)."""
+    """The process-wide pool for the worker database URL (re-created if the URL changed)."""
     global _pool, _pool_url, _atexit_registered
-    url = get_settings().require_database_url()
+    url = get_settings().require_session_database_url()
     with _lock:
         if _pool is not None and _pool_url == url:
             return _pool
@@ -89,7 +89,7 @@ def transaction(conn: Conn | None = None) -> Iterator[Conn]:
 
 def connect(*, autocommit: bool = False) -> Conn:
     """A dedicated (unpooled) connection, e.g. for LISTEN. The caller closes it."""
-    url = get_settings().require_database_url()
+    url = get_settings().require_session_database_url()
     return psycopg.connect(url, autocommit=autocommit, row_factory=dict_row)
 
 

@@ -22,6 +22,9 @@ class ConfigError(RuntimeError):
     """A required setting is missing or invalid."""
 
 
+_BOOLS = {"true": True, "1": True, "yes": True, "false": False, "0": False, "no": False}
+
+
 def _env(name: str) -> str | None:
     value = os.environ.get(name)
     if value is None:
@@ -33,6 +36,9 @@ def _env(name: str) -> str | None:
 @dataclass(frozen=True)
 class Settings:
     database_url: str | None = field(default=None, repr=False)
+    # Neon's direct (non-pooler) endpoint. Workers hold LISTEN/NOTIFY and session state (the queue,
+    # stream listeners, migrations), which PgBouncer's transaction mode does not support.
+    database_url_unpooled: str | None = field(default=None, repr=False)
     raw_dir: Path = DEFAULT_RAW_DIR
     r2_account_id: str | None = None
     r2_access_key_id: str | None = field(default=None, repr=False)
@@ -44,13 +50,19 @@ class Settings:
     finra_client_id: str | None = field(default=None, repr=False)
     finra_client_secret: str | None = field(default=None, repr=False)
     seed_dir: Path | None = None
+    # Serve and use values from sources flagged 'unlicensed-commercial' in marden.core.licensing.
+    show_unlicensed_prices: bool = True
 
     @classmethod
     def from_env(cls) -> Settings:
         raw_dir = _env("MARDEN_RAW_DIR")
         seed_dir = _env("MARDEN_SEED_DIR")
+        show_unlicensed = _env("MARDEN_SHOW_UNLICENSED_PRICES")
+        if show_unlicensed is not None and show_unlicensed.lower() not in _BOOLS:
+            raise ConfigError("MARDEN_SHOW_UNLICENSED_PRICES must be true or false")
         return cls(
             database_url=_env("DATABASE_URL"),
+            database_url_unpooled=_env("DATABASE_URL_UNPOOLED"),
             raw_dir=Path(raw_dir).expanduser() if raw_dir else DEFAULT_RAW_DIR,
             r2_account_id=_env("R2_ACCOUNT_ID"),
             r2_access_key_id=_env("R2_ACCESS_KEY_ID"),
@@ -62,6 +74,7 @@ class Settings:
             finra_client_id=_env("FINRA_CLIENT_ID"),
             finra_client_secret=_env("FINRA_CLIENT_SECRET"),
             seed_dir=Path(seed_dir).expanduser() if seed_dir else None,
+            show_unlicensed_prices=_BOOLS[show_unlicensed.lower()] if show_unlicensed else True,
         )
 
     # ------------------------------------------------------------ credential checks
@@ -92,6 +105,10 @@ class Settings:
         if self.database_url is None:
             raise ConfigError("DATABASE_URL is not set (see .env.example)")
         return self.database_url
+
+    def require_session_database_url(self) -> str:
+        """The URL for worker connections: the direct endpoint when set, else DATABASE_URL."""
+        return self.database_url_unpooled or self.require_database_url()
 
     def require_seed_dir(self) -> Path:
         if not self.has_seed_dir():

@@ -21,8 +21,12 @@ QUEUES = ("default", "collect", "extract", "models", "readmodels")
 
 
 def make_connector() -> procrastinate.PsycopgConnector:
-    """A connector for the current DATABASE_URL (read when called, so call after setting env)."""
-    url = get_settings().database_url
+    """A connector for the worker database URL (read when called, so call after setting env).
+
+    The queue LISTENs for new jobs, so it uses the direct endpoint when DATABASE_URL_UNPOOLED is set.
+    """
+    settings = get_settings()
+    url = settings.database_url_unpooled or settings.database_url
     return procrastinate.PsycopgConnector(conninfo=url) if url else procrastinate.PsycopgConnector()
 
 

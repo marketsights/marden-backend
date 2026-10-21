@@ -90,7 +90,9 @@ if ! command -v dbmate >/dev/null 2>&1; then
   exit 1
 fi
 log "applying migrations"
-(cd "$ROOT" && dbmate --migrations-dir db/migrations --schema-file db/schema.sql up)
+# Migrations need a session (no PgBouncer), so on Neon they run on the direct endpoint.
+(cd "$ROOT" && dbmate --url "${DATABASE_URL_UNPOOLED:-$DATABASE_URL}" \
+  --migrations-dir db/migrations --schema-file db/schema.sql up)
 
 # ---------------------------------------------------------------- Python services
 if ! command -v uv >/dev/null 2>&1; then

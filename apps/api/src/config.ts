@@ -14,6 +14,8 @@ export interface ClerkConfig {
 export interface AppConfig {
   nodeEnv: string;
   databaseUrl: string;
+  /** Direct endpoint for session-level work (the stream's LISTEN); equals databaseUrl when unset. */
+  databaseUrlUnpooled: string;
   authMode: AuthMode;
   clerk: ClerkConfig;
   webOrigins: string[];
@@ -29,6 +31,9 @@ export interface AppConfig {
 const envSchema = z.object({
   NODE_ENV: z.string().default('development'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // Neon's direct (non-pooler) endpoint for the stream's LISTEN connection; PgBouncer's
+  // transaction mode drops LISTEN. Falls back to DATABASE_URL (local Postgres has no pooler).
+  DATABASE_URL_UNPOOLED: z.string().optional(),
   MARDEN_AUTH_MODE: z.enum(['dev', 'clerk']).default('clerk'),
   CLERK_SECRET_KEY: z.string().optional(),
   CLERK_PUBLISHABLE_KEY: z.string().optional(),
@@ -106,6 +111,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     nodeEnv: e.NODE_ENV,
     databaseUrl: e.DATABASE_URL,
+    databaseUrlUnpooled: blank(e.DATABASE_URL_UNPOOLED) ?? e.DATABASE_URL,
     authMode: e.MARDEN_AUTH_MODE,
     clerk,
     webOrigins: e.WEB_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean),

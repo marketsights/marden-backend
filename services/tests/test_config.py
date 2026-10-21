@@ -45,3 +45,16 @@ def test_missing_database_url_is_a_clear_error(env):
     env.delenv("DATABASE_URL")
     with pytest.raises(config.ConfigError, match="DATABASE_URL"):
         config.reload_settings().require_database_url()
+
+
+def test_workers_use_the_direct_endpoint_when_set(env):
+    pooled = "postgresql://u:p@ep-x-pooler.c-7.us-east-2.aws.neon.tech/app?sslmode=require"
+    direct = "postgresql://u:p@ep-x.c-7.us-east-2.aws.neon.tech/app?sslmode=require"
+    env.setenv("DATABASE_URL", pooled)
+    env.delenv("DATABASE_URL_UNPOOLED", raising=False)
+    assert config.reload_settings().require_session_database_url() == pooled  # local Postgres: one URL
+    env.setenv("DATABASE_URL_UNPOOLED", direct)
+    s = config.reload_settings()
+    assert s.require_session_database_url() == direct
+    assert s.require_database_url() == pooled
+    assert "u:p@" not in repr(s)

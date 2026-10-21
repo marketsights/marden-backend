@@ -12,6 +12,16 @@ describe('loadConfig', () => {
     process.env = { ...saved };
   });
 
+  it('uses the direct Neon endpoint for the stream when DATABASE_URL_UNPOOLED is set', () => {
+    const base = { NODE_ENV: 'test', MARDEN_AUTH_MODE: 'dev' };
+    expect(loadConfig({ ...base, DATABASE_URL }).databaseUrlUnpooled).toBe(DATABASE_URL);
+    const pooled = 'postgresql://u:p@ep-x-pooler.c-7.us-east-2.aws.neon.tech/app?sslmode=require';
+    const direct = 'postgresql://u:p@ep-x.c-7.us-east-2.aws.neon.tech/app?sslmode=require';
+    const c = loadConfig({ ...base, DATABASE_URL: pooled, DATABASE_URL_UNPOOLED: direct });
+    expect(c.databaseUrl).toBe(pooled);
+    expect(c.databaseUrlUnpooled).toBe(direct);
+  });
+
   it('refuses MARDEN_AUTH_MODE=dev when NODE_ENV=production', () => {
     expect(() => loadConfig({ DATABASE_URL, NODE_ENV: 'production', MARDEN_AUTH_MODE: 'dev' })).toThrow(/refused/);
   });

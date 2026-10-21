@@ -146,7 +146,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   const hub = new StreamHub(db, {
-    connectionString: config.databaseUrl, heartbeatMs: config.heartbeatMs, recheckMs: config.recheckMs, log: app.log,
+    connectionString: config.databaseUrlUnpooled, heartbeatMs: config.heartbeatMs, recheckMs: config.recheckMs,
+    log: app.log,
   });
   app.decorate('streams', hub);
   const clerkAdmin = deps.clerkAdmin === undefined ? createClerkAdmin(config.clerk.secretKey) : deps.clerkAdmin;
