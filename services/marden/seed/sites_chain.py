@@ -17,11 +17,12 @@ import re
 from marden.core.db import Conn
 from marden.seed.common import tag_for_basis
 from marden.seed.sites_archive import Archive
-from marden.seed.sites_entities import Registry, is_placeholder
+from marden.seed.sites_entities import Registry, display_name, is_placeholder, norm
 from marden.seed.sites_facts import FactSink, is_nd, weakest
 from marden.seed.sites_parties import ChainRow
 
 _MULTI = re.compile(r"\s/\s|,|\band\b|;")
+_STOP = frozenset({"jv", "and", "of", "the", "funds", "group", "capital", "holdings", "partners"})
 _GENERIC = re.compile(r"\b(hyperscalers?|customers|tenants?|IG|investment-grade)\b", re.I)
 _ROWINFO_ROLES = {"tenant": ("Tenant",), "developer": ("Developer", "Sponsor")}
 
@@ -38,12 +39,34 @@ def _rowinfo_entity(arc: Archive, reg: Registry, case: str, link: str) -> str | 
     return reg.grp.get(groups.pop()) if len(groups) == 1 else None
 
 
-def _named_rows(rows: list[ChainRow], *roles: str) -> list[ChainRow]:
+def _named_rows(rows: list[ChainRow], roles: tuple[str, ...], *, keep_placeholders: bool) -> list[ChainRow]:
+    """Rows of the first role present. 'Not disclosed' rows are dropped; other placeholder names
+    ('Noteholders', 'About 20 banks') are kept only when asked (they still describe the lenders)."""
     for role in roles:
-        found = [r for r in rows if r.role == role and not is_nd(r.name) and r.name.strip().lower() != "not disclosed"]
+        found = [r for r in rows if r.role == role and not is_nd(r.name)
+                 and (keep_placeholders or r.entity_ids or not is_placeholder(r.name))]
         if found:
             return found
     return []
+
+
+def _overlaps(reg: Registry, label: str, eid: str) -> bool:
+    """The entity's name shares a word with the label (so 'Fluidstack JV' never maps to TeraWulf)."""
+    words = set(norm(display_name(label)).split()) - _STOP
+    return bool(words & set(norm(reg.names.get(eid, eid)).split()))
+
+
+def _entity(arc: Archive, reg: Registry, case: str, link: str, label: str, rows: list[ChainRow],
+            roles: tuple[str, ...]) -> str | None:
+    if _MULTI.search(label):
+        return _single(rows) if link == "lenders" else None
+    found = None if is_placeholder(label) else reg.lookup(label)
+    if found:
+        return found
+    candidates = [e for role in roles for r in rows if r.role == role for e in r.entity_ids]
+    rowinfo = _rowinfo_entity(arc, reg, case, link)
+    candidates += [rowinfo] if rowinfo else []
+    return next((e for e in dict.fromkeys(candidates) if _overlaps(reg, label, e)), None)
 
 
 def chain_links(arc: Archive, reg: Registry, case: str, rows: list[ChainRow]) -> dict[str, tuple[str, str | None]]:
@@ -53,23 +76,18 @@ def chain_links(arc: Archive, reg: Registry, case: str, rows: list[ChainRow]) ->
     plans = (("end_user", None, ("End user",)), ("tenant", short[1], ("Tenant",)),
              ("developer", short[0], ("Developer", "Sponsor")), ("lenders", None, ("Arranger", "Lender")))
     for link, label, roles in plans:
-        role_rows = _named_rows(rows, *roles)
+        role_rows = _named_rows(rows, roles, keep_placeholders=link == "lenders")
         if is_nd(label) or (label and label.strip().lower() == "not disclosed"):
             label = None
-        sole = _single(role_rows) if all(r.entity_ids for r in role_rows) else None
+        every = _named_rows(rows, roles, keep_placeholders=True)
+        sole = _single(every) if every and all(r.entity_ids for r in every) else None
         if label and sole and _GENERIC.search(label) and reg.lookup(label) is None:
             label = "; ".join(r.name for r in role_rows)  # the short name predates the disclosed party
         if label is None and role_rows:
             label = "; ".join(r.name for r in role_rows)
-        if not label:
-            continue
-        entity = None
-        if not _MULTI.search(label):
-            entity = reg.lookup(label) if not is_placeholder(label) else None
-            entity = entity or _single(role_rows) or _rowinfo_entity(arc, reg, case, link)
-        elif link in ("end_user", "lenders"):
-            entity = _single(role_rows)
-        out[link] = (label, entity)
+        if label:
+            out[link] = (label, _entity(arc, reg, case, link, label, rows if link != "lenders" else role_rows,
+                                        roles))
     return out
 
 

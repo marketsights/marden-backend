@@ -49,8 +49,9 @@ def seed_tenants(arc: Archive, reg: Registry) -> None:
         trusted = ticker is not None
         if ticker is None and t.get("own"):
             ticker = own_ticker.get(t["own"][0])
+        parts = [p.strip() for p in t["name"].split(" / ")] if " / " in t["name"] else []
         eid = reg.resolve(t["name"], TENANT_KIND.get(t.get("kind"), "company"), ticker=ticker, exact=True,
-                          trusted_ticker=trusted)
+                          trusted_ticker=trusted, aliases=parts)
         if eid:
             reg.tenant[t["id"]] = eid
 

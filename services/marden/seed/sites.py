@@ -19,9 +19,9 @@ facts dedupe on their key.
 |---|---|---|---|
 | site | place | - | place label (memo/titles.json [1]) |
 | site | headline | - | one-line description of the project (memo.headline) |
-| site | county / state | - | county and state as written in the dossier (may list several) |
-| site | location / land | - | location text; land / title arrangement |
-| site | coordinates | deg | {lat, lon, accuracy_note, coord_src, campus_key} (q3x/site.json); M when the campus point is shared with another case |
+| site | county, state | - | county and state as written in the dossier (may list several) |
+| site | location, land | - | location text; land / title arrangement |
+| site | coordinates | deg | {lat, lon, accuracy_note, coord_src, campus_key} (q3x/site.json); M if shared campus |
 | site | critical_it_mw | MW | critical IT capacity (dossier capacity; gpu/site_power it_mw.value) |
 | site | gross_mw | MW | gross / utility MW (dossier; site_power; dcmap) |
 | site | delivered_mw | MW | MW delivered to date |
@@ -31,20 +31,24 @@ facts dedupe on their key.
 | site | expected_energization | - | scheduled completion / energization, as stated (free text) |
 | site | original_energization | - | the original schedule, as stated |
 | site | first_delivery | - | {text, source_text}: first capacity delivery as stated (q3x/site.json) |
-| site | construction_stage | - | Marden read of build progress ('on track', 'behind schedule') (M) |
-| site | power_iso / power_utility | - | ISO / RTO and serving utility (site_power, dcmap) |
-| site | power_supply / onsite_generation / power_contract | - | supply type, on-site plant, power contract text |
+| site | construction_stage | - | Marden read of build progress: 'on track', 'behind schedule' ... (M) |
+| site | power_iso, power_utility | - | ISO / RTO and serving utility (site_power, dcmap) |
+| site | power_supply, onsite_generation, power_contract | - | supply type, on-site plant, power contract |
 | site | power_source | - | types.ts PowerSource from the supply text: Grid / On-site gas / Hybrid (M rule) |
-| site | power_source_class / power_status / power_detail | - | dcmap power class, status and detail text |
+| site | power_source_class, power_status, power_detail | - | dcmap power class, status and detail |
 | site | power_payer | - | who pays for power |
-| site | rent_start | - | rent commencement / start as stated (ctr.start; the single dossier lease) |
+| site | rent_start | - | rent commencement as stated (ctr.start; the dossier lease when there is one) |
 | site | outside_date | - | lease outside date as stated (ctr.outside; dossier lease[].outside_date) |
-| site | lease_tenant / lease_term / lease_rent_basis / lease_termination / lease_renewal / lease_guarantee | - | main contract terms (q3x/ctr.json) |
+| site | lease_tenant, lease_term | - | main contract (q3x/ctr.json): lessee text; term when not a number |
+| site | lease_rent_basis, lease_termination | - | main contract: rent basis; termination / force majeure |
+| site | lease_renewal, lease_guarantee | - | main contract: renewals; guarantee |
 | site | lease_term_years | years | main contract term |
-| site | lease_tcv_usd / lease_annual_rent_usd | USD | contract value / annual rent |
+| site | lease_tcv_usd, lease_annual_rent_usd | USD | main contract value; annual rent |
 | site | lease_kind | - | contract kind: lease, gpu, eq, pool (M) |
-| site | leases | - | every dossier lease row: [{tenant, mw, term_years, start, tcv_usd, annual_rent_usd, rent_basis, termination_rights, outside_date, renewals, inferred, source_url, quote}] |
-| site | chain_parties | - | memo.chain parties (disclosed / reported): [{role, name, what, basis, ticker, group, entity_ids, tag}] |
+| site | leases | - | every dossier lease row: [{tenant, mw, term_years, start, tcv_usd, annual_rent_usd, |
+| | | | rent_basis, termination_rights, outside_date, renewals, inferred, source_url, quote}] |
+| site | chain_parties | - | memo.chain parties, basis disclosed / reported: [{role, name, what, basis, ticker, |
+| | | | group, entity_ids, tag}] |
 | site | chain_parties_presumed | - | memo.chain parties whose basis is presumed (M) |
 | obligation | edge_type | - | types.ts EdgeType of the edge |
 | obligation | linked_sites | - | site slugs the source links the edge to |
@@ -52,11 +56,11 @@ facts dedupe on their key.
 | obligation | payer_instruments | - | the payer's instruments exposed to the site (rowinfo.x tenant links) (M) |
 | obligation | conditions | - | contract, backstop, termination, renewal and coverage terms (text list) |
 | obligation | contracts | - | per source record: aichain edge, ctr contract or credit-support item details |
-| obligation | total_usd / annual_usd | USD | total contract (or guaranteed) value / annual payment, when one record gives it |
-| obligation | start / outside_date | - | start and outside date as stated |
+| obligation | total_usd, annual_usd | USD | contract (or guaranteed) value; annual payment - when one record gives it |
+| obligation | start, outside_date | - | start and outside date as stated |
 | obligation | term_years | years | contract term |
-| obligation | status | - | types.ts EdgeStatus: Started (start text says commenced / accepted / live) or Signed (filed contract) (M rule) |
-| obligation | evidence | - | {date, text, url}, one row per source record (read every published row, not only the current one) |
+| obligation | status | - | EdgeStatus: Started (start says commenced / accepted / live), Signed (filed) (M rule) |
+| obligation | evidence | - | {date, text, url}, one row per source record (read all published rows) |
 
 Entity, chain_party and obligation rows hold identity only (names, CIK, ticker, joins).
 """

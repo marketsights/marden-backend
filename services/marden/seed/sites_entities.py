@@ -19,15 +19,14 @@ from typing import Any
 from marden.core.db import Conn
 from marden.seed.common import ensure_entity
 
-_SUFFIXES = frozenset(
-    "inc incorporated corp corporation co company llc lp llp ltd limited plc nv bv sa ag pty pte group".split()
-)
+_SUFFIXES = frozenset({"inc", "incorporated", "corp", "corporation", "co", "company", "llc", "lp", "llp", "ltd",
+                       "limited", "plc", "nv", "bv", "sa", "ag", "pty", "pte", "group"})
 _DOTTED = ((r"\bl\.\s?l\.\s?c\b\.?", " llc "), (r"\bl\.\s?p\b\.?", " lp "), (r"\bn\.\s?v\b\.?", " nv "),
            (r"\bb\.\s?v\b\.?", " bv "), (r"\bs\.\s?a\b\.?", " sa "))
 _PLACEHOLDER = re.compile(
     r"not disclosed|\bn/d\b|^n/?a$|unnamed|not named|names? not|name not|undisclosed|^various\b|\bsubs\b|"
     r"subsidiaries|noteholders|bondholders|\babout \d+ banks|customers\b|tenants\b|not public|ground landlord|"
-    r"^parent\b|^none\b|^tenant\b|special-purpose companies|^\d[\d,]* ",
+    r"^parent\b|^none\b|^tenant\b|special-purpose companies|\bsub(sidiary)?$|consolidated\b|\bVIEs\b",
     re.I,
 )
 _QUALIFIER = re.compile(r"\s*\((presumed|former|reported|agent|inferred)\)\s*$", re.I)
@@ -85,7 +84,7 @@ def split_parties(name: str, role: str) -> list[str]:
     """One chain row can name several parties ('Wells Fargo, BNP Paribas, Goldman Sachs')."""
     text = _QUALIFIER.sub("", name.strip())
     text = re.sub(r"^(noteholders|lenders) including\s+", "", text, flags=re.I)
-    if role in ("Lender", "Arranger"):
+    if role in ("Lender", "Arranger", "Equity investor", "Contractor"):
         text = re.sub(r"\s*\([^()]*\)", "", text)
         parts = re.split(r",\s*(?:with\s+)?|\s+with\s+|\s+and\s+", text)
     else:

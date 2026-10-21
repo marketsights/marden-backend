@@ -25,7 +25,7 @@ from typing import Any
 
 from marden.seed.common import slugify, tag_for_url
 from marden.seed.sites_archive import HTML, Archive
-from marden.seed.sites_entities import Registry, display_name, norm
+from marden.seed.sites_entities import Registry, display_name
 from marden.seed.sites_facts import Src, is_nd, number, pick_url, usd
 from marden.seed.sites_parties import ChainRow
 
@@ -33,6 +33,10 @@ EDGE_MAP = Path(__file__).with_name("chain_edge_sites.json")
 AICHAIN_TYPE = {"tenant": "Lease", "customer": "Compute purchase", "end user": "Compute purchase",
                 "guarantor": "Guarantee or backstop", "credit support": "Guarantee or backstop"}
 _TO_PARTY = re.compile(r"\(to ([^,()]+?)(?:,|\))")
+def _plain(text: str) -> str:
+    return " " + " ".join(re.sub(r"[^a-z0-9]+", " ", text.lower()).split()) + " "
+
+
 _STARTED = re.compile(r"\b(commenced|accepted|live|rent scaling|delivered)\b", re.I)
 
 
@@ -90,17 +94,19 @@ class EdgeBuilder:
         return next((o for o in options if o and o != payer), None)
 
     def _utility(self, case: str, text: str) -> str | None:
+        """The site's utility named in the text, else its only utility (memo.chain 'Utility' rows)."""
         rows = [r for r in self.chain.get(case, []) if r.role == "Utility" and r.entity_ids]
-        named = [r for r in rows if norm(display_name(r.name)) and norm(display_name(r.name)) in norm(text)]
+        hay = _plain(text)
+        named = [r for r in rows if _plain(display_name(r.name)) and _plain(display_name(r.name)) in hay]
         pick = named or rows
         return pick[0].entity_ids[0] if len(pick) == 1 or named else None
 
     def add(self, edge_type: str, from_id: str | None, to_id: str | None, rec: Record, what: str) -> None:
         if not from_id or not to_id:
-            self.skipped.append(f"{rec.kind} {what}: party not resolved (from={from_id}, to={to_id})")
+            self.skipped.append(f"{what}: party not resolved (from={from_id}, to={to_id})")
             return
         if from_id == to_id:
-            self.skipped.append(f"{rec.kind} {what}: self-edge on {from_id}")
+            self.skipped.append(f"{what}: self-edge on {from_id}")
             return
         eid = f"{from_id}--{to_id}--{slugify(edge_type)}"
         edge = self.edges.setdefault(eid, Edge(eid, edge_type, from_id, to_id))
@@ -136,7 +142,7 @@ class EdgeBuilder:
             if edge_type is None:
                 self.skipped.append(f"aichain {sheet}:{cp} {e['tenant']}: role {role!r} has no edge type")
                 continue
-            self.add(edge_type, payer, target, rec, f"{sheet}:{cp} {e['tenant']} ({role})")
+            self.add(edge_type, payer, target, rec, f"aichain {sheet}:{cp} {e['tenant']} ({role})")
 
     def _lessee(self, text: str) -> str | None:
         """The aichain tenant named first in a contract's lessee text; unnamed lessees -> 'undisclosed'."""
@@ -186,7 +192,7 @@ class EdgeBuilder:
             for i, cs in enumerate(self.arc.case(case).get("credit_support") or []):
                 kind, provider = (cs.get("type") or "").lower(), cs.get("provider") or ""
                 what = f"credit_support {case}[{i}] {cs.get('type')}"
-                if kind.startswith("none") or is_nd(provider):
+                if kind.startswith("none") or is_nd(provider) or provider.lower().startswith("none"):
                     self.skipped.append(f"{what}: record says no credit support")
                     continue
                 giver, _, receiver = provider.partition("->")
