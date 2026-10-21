@@ -116,9 +116,7 @@ def _subject(committed, table: str, sid: str, lonlat: tuple[float, float] | None
              facts: dict[str, str] | None = None) -> None:
     key = "slug" if table == "site" else "id"
     geom = "ST_SetSRID(ST_MakePoint(%s, %s), 4326)" if lonlat else "NULL"
-    committed.execute(f"INSERT INTO {table} ({key}, name, state, county, geom) VALUES (%s, %s, 'TX', %s, {geom})"
-                      if table != "power_plant" else
-                      f"INSERT INTO {table} ({key}, name, state, county, geom) VALUES (%s, %s, 'TX', %s, {geom})",
+    committed.execute(f"INSERT INTO {table} ({key}, name, state, county, geom) VALUES (%s, %s, 'TX', %s, {geom})",
                       (sid, sid, county, *(lonlat or ())))
     stype = {"site": "site", "campus": "campus", "power_plant": "plant"}[table]
     with db.transaction() as conn:
