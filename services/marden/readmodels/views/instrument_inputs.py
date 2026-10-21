@@ -247,7 +247,8 @@ def holder_totals(lines: Sequence[Row]) -> tuple[int, float]:
 def instrument_identity(conn: Conn, ids: Sequence[str] | None = None, *, v1_only: bool = False) -> list[Row]:
     """Instrument rows with their site, issuer and issuer parent names."""
     sql = """SELECT i.id, i.name, i.kind, i.issuer_name, i.issuer_entity_id, i.site_slug, i.cusip, i.isin, i.in_v1,
-                    s.name AS site_name, e.name AS issuer_entity, e.kind AS issuer_kind, p.name AS parent_name
+                    s.name AS site_name, e.name AS issuer_entity, e.kind AS issuer_kind, p.name AS parent_name,
+                    e.parent_id AS parent_entity_id
                FROM instrument i
                LEFT JOIN site s ON s.slug = i.site_slug
                LEFT JOIN entity e ON e.id = i.issuer_entity_id

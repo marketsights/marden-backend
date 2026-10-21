@@ -129,7 +129,7 @@ def test_detail_terms_dealer_quote_recovery_and_payers(seeded):
     if quote:
         q = quote[0]
         assert doc["marketCheck"]["Dealer quote"] == {
-            "value": f"{float(q['price']):.2f}",
+            "value": f"{float(q['price']):.1f}",
             "tag": q["tag"],
             "asOf": q["obs_date"].isoformat(),
             "sourceUrl": q["source_url"],
@@ -203,7 +203,7 @@ def test_detail_holders_and_fund_marks_from_filings(seeded, instrument_id):
     )
     if medians:
         latest = [m for m in medians if m["obs_date"] == medians[0]["obs_date"]]
-        assert doc["marketCheck"]["Fund marks (median)"]["value"] in {f"{float(m['price']):.2f}" for m in latest}
+        assert doc["marketCheck"]["Fund marks (median)"]["value"] in {f"{float(m['price']):.1f}" for m in latest}
         assert doc["marketCheck"]["Fund marks (median)"]["tag"] == "F"
 
 
@@ -259,22 +259,17 @@ def test_market_check_carries_the_traded_yield_three_months_back(seeded):
         assert instrument_detail.YIELD_BEFORE not in doc["marketCheck"]
         return
     got = doc["marketCheck"][instrument_detail.YIELD_BEFORE]
-    assert got["value"] == f"{float(prior[-1]['yield_pct']):.2f}%"
+    assert got["value"] == f"{float(prior[-1]['yield_pct']):.1f}%"
     assert (got["asOf"], got["tag"]) == (prior[-1]["obs_date"].isoformat(), prior[-1]["tag"].strip())
     assert got["asOf"] < doc["yieldPct"]["asOf"]
 
 
-@pytest.mark.parametrize("instrument_id", [CRWV31, ORACLE])
-def test_unsited_note_takes_its_issuers_link_status(seeded, instrument_id):
-    """A corporate note finances no site: its Chain is its issuer's own worst link across the chains it
-    is a party of (the status model's outputs, as the obligation map shows the company)."""
-    _need(seeded, instrument_id)
-    issuer = copied_rows("SELECT issuer_entity_id, site_slug FROM instrument WHERE id = %s", (instrument_id,))[0]
-    assert issuer["site_slug"] is None
+def _worst_link(entity_id: str) -> str | None:
+    """The entity's worst link across the chains it is a party of, from the copied status outputs."""
     rank = {"Broken": 0, "Strained": 1, "Holding": 2}
     link_to_status = {"red": "Broken", "amber": "Strained", "green": "Holding"}
     worst: str | None = None
-    parties = copied_rows("SELECT site_slug, role FROM chain_party WHERE entity_id = %s", (issuer["issuer_entity_id"],))
+    parties = copied_rows("SELECT site_slug, role FROM chain_party WHERE entity_id = %s", (entity_id,))
     for party in parties:
         out = copied_rows(
             """SELECT output FROM model_output WHERE model = 'status' AND subject_type = 'site' AND subject_id = %s
@@ -285,11 +280,87 @@ def test_unsited_note_takes_its_issuers_link_status(seeded, instrument_id):
             status = link_to_status.get(link.get("status"))
             if link.get("role") == party["role"] and status and (worst is None or rank[status] < rank[worst]):
                 worst = status
+    return worst
+
+
+@pytest.mark.parametrize("instrument_id", [CRWV31, ORACLE])
+def test_unsited_note_takes_its_issuers_link_status(seeded, instrument_id):
+    """A corporate note finances no site: its Chain is its issuer's own worst link across the chains it
+    is a party of (the status model's outputs, as the obligation map shows the company)."""
+    _need(seeded, instrument_id)
+    issuer = copied_rows("SELECT issuer_entity_id, site_slug FROM instrument WHERE id = %s", (instrument_id,))[0]
+    assert issuer["site_slug"] is None
+    worst = _worst_link(issuer["issuer_entity_id"])
     rebuild_all("instruments")
     rebuild_all("instrument_detail")
     row = next(r for r in _doc("instruments", "all") if r["id"] == instrument_id)
     assert row["chainStatus"] == worst
     assert _doc("instrument_detail", instrument_id)["chainStatus"] == worst
+
+
+def test_spv_facility_takes_its_parents_link_status(seeded):
+    """CoreWeave DDTL 5.0 is borrowed by a CoreWeave financing SPV that is no chain party itself and
+    finances no site: it sits on its parent's chains, so its Chain is CoreWeave's own worst link."""
+    _need(seeded, DDTL5)
+    inst = copied_rows(
+        """SELECT i.site_slug, i.issuer_entity_id, e.parent_id FROM instrument i
+             JOIN entity e ON e.id = i.issuer_entity_id WHERE i.id = %s""",
+        (DDTL5,),
+    )[0]
+    assert inst["site_slug"] is None and inst["parent_id"]
+    expected = _worst_link(inst["issuer_entity_id"]) or _worst_link(inst["parent_id"])
+    rebuild_all("instruments")
+    rebuild_all("instrument_detail")
+    row = next(r for r in _doc("instruments", "all") if r["id"] == DDTL5)
+    assert row["chainStatus"] == expected
+    assert _doc("instrument_detail", DDTL5)["chainStatus"] == expected
+
+
+def _cds_input(instrument_id: str, keys: tuple[str, ...]) -> dict | None:
+    out = _output("price", instrument_id)
+    inputs = out["output"].get("inputs") if out and isinstance(out["output"], dict) else None
+    items = {i["key"]: i for i in inputs or [] if isinstance(i, dict) and i.get("value") is not None}
+    return next((items[k] for k in keys if k in items), None)
+
+
+@pytest.mark.parametrize("instrument_id", [DDTL5, JUPITER, CRWV31])
+def test_market_check_leads_with_the_named_cds_and_its_default_odds(seeded, instrument_id):
+    """Market check (spec 07): issuer CDS, default odds implied by it and tenant CDS, named for the
+    company (CoreWeave for a CoreWeave SPV's DDTL, Oracle as Jupiter's tenant), from the price model's
+    bond-implied inputs; prices one decimal, yields one decimal with % (spec 00 Formats)."""
+    _need(seeded, instrument_id)
+    rebuild_all("instrument_detail")
+    doc = _doc("instrument_detail", instrument_id)
+    names = {r["id"]: r["name"] for r in copied_rows("SELECT id, name FROM entity")}
+    expected: list[tuple[str, str]] = []
+    issuer_keys, tenant_keys = instrument_detail.CDS_INPUTS
+    for prefix, keys in (("", issuer_keys), ("", ("odds",)), ("Tenant ", tenant_keys)):
+        if keys == ("odds",):
+            odds = _cds_input(instrument_id, instrument_detail.ODDS_INPUTS)
+            if odds:
+                years = re.search(r"\((\d+(?:\.\d+)?)y", odds["label"])
+                text = f"{float(odds['value']) * 100:.1f}%" + (f" over {years.group(1)} years" if years else "")
+                expected.append(("Default odds implied by CDS", text))
+            continue
+        item = _cds_input(instrument_id, keys)
+        if item:
+            who = item["label"].removesuffix(" bond-implied CDS")
+            expected.append((f"{prefix}{names.get(who, who)} CDS (bond-implied)", f"{float(item['value']):,.0f}bp"))
+    if not expected:
+        pytest.skip(f"no CDS input in the price model output for {instrument_id}")
+    # JSONB keeps no key order (the screen orders the rows): check the rows, not their order.
+    got = {k: v for k, v in doc["marketCheck"].items() if "CDS" in k}
+    assert {k: v["value"] for k, v in got.items()} == {k: v for k, v in expected if "CDS" in k}
+    if any(k.startswith("Default odds") for k, _ in expected):
+        odds_key = "Default odds implied by CDS"
+        assert doc["marketCheck"][odds_key]["value"] == dict(expected)[odds_key]
+    assert all(v["tag"] == "M" and v["methodVersion"] for k, v in doc["marketCheck"].items() if "CDS" in k)
+    assert "Issuer CDS (bond-implied)" not in doc["marketCheck"]
+    for key, value in doc["marketCheck"].items():
+        if key in ("Dealer quote", "Last trade", "Exchange quote", "Quote", "Fund marks (median)"):
+            assert re.fullmatch(r"-?\d+\.\d( \(yield -?\d+\.\d%\))?", value["value"]), (key, value)
+    if doc["yieldPct"] is not None:
+        assert re.fullmatch(r"-?\d+\.\d%", doc["yieldPct"]["value"])
 
 
 def test_date_words():
@@ -356,6 +427,7 @@ def test_backfilled_day_shows_only_what_was_known(seeded):
     rebuild_all("instrument_detail")
     past, today = _doc("instrument_detail", JUPITER, before), _doc("instrument_detail", JUPITER)
     assert past["sizeB"]["value"] is None and past["terms"] == {}
+
     # Model outputs dated by that day (a price-model backtest run reads only what was public then) may
     # show; nothing learned later does.
     def known_then(v: dict) -> bool:

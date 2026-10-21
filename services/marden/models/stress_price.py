@@ -29,7 +29,7 @@ from typing import Any
 from dateutil.relativedelta import relativedelta
 
 from marden.core.db import Conn
-from marden.models import price_marks, price_signals, price_tiers
+from marden.models import pit, price_marks, price_signals, price_tiers
 from marden.models.price import HISTORY_START, _unsupported, cds_issuers, targets
 from marden.models.price_bonds import solve_spread
 from marden.models.price_chain import Chain, gpu_half_lives, resolve
@@ -94,7 +94,8 @@ class Book:
         if book.curve(day) is None:
             raise ValueError(f"no Treasury curve public on or within a week before {day}")
         insts = load_instruments(conn, targets(conn))
-        attach(insts, load_comps(conn, business_today()))  # as marden.models.price.run_day
+        with pit.unaudited():  # as marden.models.price.run_day: comps are static terms dated their issue day,
+            attach(insts, load_comps(conn, business_today()))  # an instrument not issued by `day` is not priced
         by_issuer = straight_bonds(insts)
         obs = price_marks.load(conn, day, list(insts))
         tickers = {r["id"]: r["ticker"] for r in conn.execute("SELECT id, ticker FROM entity").fetchall()}

@@ -12,7 +12,7 @@ import psycopg
 import pytest
 from conftest import TEST_URL
 from credit_rows import copy_credit_area, rows, shape
-from ts_shapes_models import assert_matches_types
+from ts_shapes_models import assert_matches_ts, assert_matches_types
 
 from marden.core import db
 from marden.core.jsonutil import jsonb
@@ -65,7 +65,13 @@ def test_saved_scenarios_and_their_outputs(area):
     out = result["outputs"]
     base = [out[f"{s}:base"] for s in ("end_user_funding_miss", "tenant_downgrade", "power_delay")]
     assert_matches_types("StressResult", [shape(o) for o in base])
-    assert_matches_types("ContagionResult", [shape(out[f"contagion:{c}:base"]) for c in stress.CONTAGION_COMPANIES])
+    walks = [out[f"contagion:{c}:base"] for c in stress.CONTAGION_COMPANIES]
+    # totalAtRiskB is n/d (null, never 0) when no edge on the walk has a payment schedule
+    assert_matches_ts("NDFields<T.ContagionResult, 'totalAtRiskB'>", [shape(o) for o in walks])
+    for o in walks:
+        unscheduled = any("has no annual schedule" in m for m in o["missing"])
+        assert o["totalAtRiskB"] is not None or unscheduled
+        assert o["totalAtRiskB"] != 0 or not unscheduled
     td = out["tenant_downgrade:base"]
     # the multiplier is exp(beta x notches) with beta fitted on the priced issuers' intensities and ratings
     pts = td["basis"]["points"]

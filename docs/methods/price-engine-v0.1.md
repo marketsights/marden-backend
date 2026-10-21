@@ -140,6 +140,7 @@ Run 2026-10-21 on the local database. The numbers move as more N-PORT filings lo
 
 **CoreWeave leave-one-bond-out (Apr–Jul 2026).**
 - Result: 14 prices, MAE 0.89pt, RMSE 0.98pt, 57% within 1pt.
+- Corrected in the model review (2026-10-21): May was graded twice (funds reporting 05-29 and 05-31 form two cross-sections of one month-end). With one cross-section per month (the one with the most holders): 11 prices, MAE 0.81pt, RMSE 0.91pt, 64% within 1pt. An independent re-computation from the raw rows gives 0.80 / 0.90 / 64% (docs/models.md).
 - Target: 17 prices, 0.76pt, 0.87pt, 65%.
 - The largest misses are the shortest and the longest note, which are extrapolated or sit at the line's ends: 21873SAK4 on 06-30 (−1.66pt) and 07-31 (−1.31pt); 21873SAG3 on 05-29/05-31 (+1.4pt).
 

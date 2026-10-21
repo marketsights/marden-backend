@@ -80,7 +80,7 @@ def holder_row(h: Holder, price: Price | None) -> dict[str, Any]:
         "filing": "N-PORT" if h.filing_type == "N-PORT" else "10-Q",
         "filingUrl": h.filing_url,
         "filingDate": h.period_end.isoformat(),
-        "parMm": rounded(par_mm, 3),
+        "parMm": rounded(par_mm, 6),  # to the dollar: a $430 line is not 0
         "lastMark": rounded(mark, 4),
         "gapPts": rounded(gap, 4),
         "navHitMm": rounded(hit, 4),

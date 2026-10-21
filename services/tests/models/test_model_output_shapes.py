@@ -168,3 +168,30 @@ def test_nd_fields_are_null_with_a_missing_entry_never_zero():
             for key in ("leaseCommencingB", "computeCommitmentsB", "fundingGapB"):
                 if year[key]["value"] is None:
                     assert out["missing"], f"payer_capacity {sid}: {key} n/d without a missing entry"
+
+
+def test_nd_never_stored_as_zero_in_the_review_cases():
+    """The n/d cases fixed in the model review stay null with a reason (00-global data rule 3)."""
+    _day, rows = _stored("price", "instrument")
+    for sid, out in rows:
+        basis = out.get("basis") or {}
+        if basis.get("mode") == "facility" and not any(k in (basis.get("today") or {})
+                                                       for k in ("tenantHazard", "obligorHazard", "guarantorHazard")):
+            assert basis.get("defaultOddsToMaturity") is None, f"price {sid}: default odds with no credit leg"
+            assert any("default odds n/d" in m for m in out["missing"]), sid
+    _day, rows = _stored("cds", "entity")
+    for sid, out in rows:
+        eq = out.get("equity") or {}
+        if eq and not eq.get("pairs") and not eq.get("prior"):
+            assert eq.get("loading") is None, f"cds {sid}: equity loading 0 for an equity model that did not run"
+    _day, rows = _stored("stress", "scenario")
+    for sid, out in rows:
+        kpis = out.get("kpis")
+        if kpis and kpis.get("valueLostB") is None and sid.endswith(":severe"):
+            assert kpis["fundsHit"] is None, f"stress {sid}: fundsHit counted with prices n/d"
+        if sid.startswith("contagion:") and any("has no annual schedule" in m for m in out["missing"]):
+            assert out["totalAtRiskB"] != 0, f"stress {sid}: totalAtRiskB 0 with unscheduled edges"
+    _day, rows = _stored("mark_gap", "instrument")
+    for sid, out in rows:
+        for h in out["holders"]:
+            assert h["parMm"] is None or h["parMm"] > 0, f"mark_gap {sid}: holder {h['name']} with par {h['parMm']}"

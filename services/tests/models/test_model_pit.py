@@ -116,3 +116,19 @@ def test_xbrl_value_is_public_on_its_filing_date_when_later_than_the_lag():
     cover = {**base, "valid_from": date(2026, 10, 6),  # shares outstanding as of the cover date
              "quote_loc": "dei:EntityCommonStockSharesOutstanding [shares]; 10-Q 0001144879-26-000071 filed 2026-10-09"}
     assert pit.public_date(cover) == date(2026, 10, 9)  # public on its filing date, not cover date + 40
+
+
+def test_stress_backtest_reads_nothing_published_after_its_day(test_database):
+    """The stress book (price engine, cushion re-run, obligations) as of 2026-07-01 reads only what was public
+    then: issue comps dated later are static terms of instruments not yet issued, which are not priced."""
+    from credit_rows import copy_credit_area
+
+    from marden.models import stress_run
+
+    copy_credit_area()
+    day = date(2026, 7, 1)
+    with pit.audit() as used:
+        result = stress_run.run(day, trigger="test", mark=False)
+    assert result["outputs"] and {i.kind for i in used} >= {"fact", "price_obs", "event"}
+    late = pit.late_inputs(used, day)
+    assert late == [], f"{len(late)} inputs not yet public on {day}: {late[:5]}"

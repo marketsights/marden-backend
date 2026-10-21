@@ -38,6 +38,7 @@ from marden.readmodels.views.instrument_text import (
     maturity_text,
     segment_rank,
     type_label,
+    yield_text,
 )
 
 CHAIN_STATUSES = ("Broken", "Strained", "Holding", "No build")
@@ -48,20 +49,23 @@ def chain_status(conn: Conn, inst: Row) -> str | None:
     """The status of the chain the instrument sits on: model 'status' of its financed site. An
     instrument with no financed site (a corporate note such as CoreWeave's or Oracle's) sits on the
     chains its issuer is a party of: the issuer's own worst link across them in the status model's
-    outputs, as the obligation map shows the company (marden.models.graph.party_status). n/d when
-    neither is judged."""
+    outputs, as the obligation map shows the company (marden.models.graph.party_status). A borrower
+    SPV is no chain party itself (CoreWeave Compute Acquisition Co. IV for DDTL 2.0): its facility sits
+    on its parent's chains, so it takes the parent's link. n/d when none is judged."""
     if inst.get("site_slug"):
         out = latest_output(conn, "status", inst["site_slug"], "site")
         status = output_field(out, "status")
         if isinstance(status, dict):
             status = status.get("value")
         return status if status in CHAIN_STATUSES else None
-    if not inst.get("issuer_entity_id"):
-        return None
     from marden.models.graph import party_status  # the map's rule (models import readmodels)
 
-    status = party_status(conn, inst["issuer_entity_id"], day())
-    return status if status in CHAIN_STATUSES else None
+    for entity_id in (inst.get("issuer_entity_id"), inst.get("parent_entity_id")):
+        if entity_id:
+            status = party_status(conn, entity_id, day())
+            if status in CHAIN_STATUSES:
+                return status
+    return None
 
 
 def size_b(facts: dict[str, Row]) -> dict[str, Any]:
@@ -100,12 +104,13 @@ def change_1w(price_out: Row | None, series: list[Row], price: dict[str, Any]) -
 
 
 def traded_yield(observed: list[Row]) -> dict[str, Any] | None:
-    """Yield from the latest observation that carries one (R/F where traded; spec 06 'Yield')."""
+    """Yield from the latest observation that carries one (R/F where traded; spec 06 'Yield'), one
+    decimal with % (spec 00 Formats)."""
     with_yield = [r for r in observed if num(r["yield_pct"]) is not None]
     if not with_yield:
         return None
     last = with_yield[-1]
-    return price_sourced(last, f"{float(last['yield_pct']):.2f}%")
+    return price_sourced(last, yield_text(last["yield_pct"]))
 
 
 def gap_rows(gap_out: Row | None) -> list[dict[str, Any]]:

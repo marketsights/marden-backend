@@ -124,7 +124,12 @@ def _holding_facts(conn: Conn, ids: Sequence[int]) -> dict[int, dict[str, Any]]:
 
 
 def _net_assets_facts(conn: Conn, day: date, funds: Sequence[str]) -> dict[tuple[str, date], float]:
-    rows = pit.fact_rows(conn, day, "entity", list(funds), ["net_assets_usd"]) if funds else []
+    with pit.unaudited():  # the rows kept are noted below, with the N-PORT lag applied on today's run too
+        rows = pit.fact_rows(conn, day, "entity", list(funds), ["net_assets_usd"]) if funds else []
+    rows = [r for r in rows if pit.public_date(r) <= day]
+    for r in rows:
+        pit.note("fact", f"entity:{r['subject_id']}", r["field"], r["valid_from"], pit.public_date(r),
+                 r.get("source_name"))
     out: dict[tuple[str, date], float] = {}
     for r in rows:
         value = num(r["value"])

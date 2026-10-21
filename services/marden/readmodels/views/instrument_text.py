@@ -117,8 +117,15 @@ def money_text(usd: Any) -> str | None:
 
 
 def price_text(value: Any) -> str | None:
+    """A price per 100 of par, one decimal (spec 00 Formats: '88.6')."""
     v = num(value)
-    return None if v is None else f"{v:.2f}"
+    return None if v is None else f"{v:.1f}"
+
+
+def yield_text(value: Any) -> str | None:
+    """A yield in percent, one decimal with % (spec 00 Formats: '15.6%')."""
+    v = num(value)
+    return None if v is None else f"{v:.1f}%"
 
 
 def text_of(value: Any) -> str | None:

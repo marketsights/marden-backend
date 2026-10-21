@@ -9,8 +9,10 @@ The row part is `instruments.instrument_row`, so the page agrees with the list. 
 - priceHistory: the Marden daily price (price_obs kind 'marden');
 - recovery: model 'recovery', else the price output's recovery, else the recovery facts (M);
 - stress: model 'stress' rows; terms: the instrument's facts; payers: end-user share facts;
-- marketCheck: observed prices with their sources (dealer quote, last trade, exchange quote, the
-  N-PORT median) and the price model's spread, band and CDS inputs.
+- marketCheck: the issuer's (or the SPV's parent's) bond-implied CDS named for the company, the
+  default odds it implies, the tenant's CDS (the price model's inputs), observed
+  prices with their sources (dealer quote, last trade, exchange quote, the N-PORT median) and the price
+  model's spread and band. Prices one decimal, yields one decimal with % (spec 00 Formats).
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ from marden.readmodels.views.instrument_text import (
     recovery_from_facts,
     recovery_from_output,
     terms,
+    yield_text,
 )
 from marden.readmodels.views.instruments import gap_rows, instrument_row
 
@@ -226,11 +229,71 @@ def yield_before(observed: list[Row]) -> dict[str, Any] | None:
     if not before:
         return None
     row = before[-1]
-    return price_sourced(row, f"{float(row['yield_pct']):.2f}%")
+    return price_sourced(row, yield_text(row["yield_pct"]))
 
 
-def market_check(price_out: Row | None, observed: list[Row], marks: list[Row]) -> dict[str, dict[str, Any]]:
+# The price model's CDS inputs (marden.models.price `_inputs`): the issuer's own bond-implied CDS, the
+# obligor's (the parent behind a borrower SPV: CoreWeave for its DDTLs) and the tenant's, each labelled
+# '<entity id> bond-implied CDS'.
+CDS_INPUTS = (("issuerCdsBp", "cdsBp", "bondImpliedCdsBp", "obligorCdsBp"), ("tenantCdsBp",))
+ODDS_INPUTS = ("impliedDefaultOdds", "defaultOdds5y", "pd5y")
+_CDS_LABEL = re.compile(r"^(\S+) bond-implied CDS$")
+_ODDS_YEARS = re.compile(r"\((\d+(?:\.\d+)?)y\b")
+
+
+def _inputs(price_out: Row | None) -> dict[str, dict[str, Any]]:
+    """The price model's inputs by key: [{key, label, value, unit, ...}] (or a plain {key: value})."""
+    raw = output_field(price_out, "inputs")
+    if isinstance(raw, dict):
+        return {k: {"value": v} for k, v in raw.items()}
+    if not isinstance(raw, list):
+        return {}
+    return {i["key"]: i for i in raw if isinstance(i, dict) and isinstance(i.get("key"), str)}
+
+
+def cds_entities(price_out: Row | None) -> list[str]:
+    """Entity ids named by the price model's CDS inputs ('coreweave bond-implied CDS' -> 'coreweave')."""
+    ids = []
+    for item in _inputs(price_out).values():
+        m = _CDS_LABEL.match(str(item.get("label") or ""))
+        if m:
+            ids.append(m.group(1))
+    return ids
+
+
+def _cds_row(price_out: Row, item: dict[str, Any], names: dict[str, str], prefix: str) -> tuple[str, dict[str, Any]]:
+    m = _CDS_LABEL.match(str(item.get("label") or ""))
+    who = names.get(m.group(1), m.group(1)) if m else ""
+    label = f"{prefix}{who} CDS (bond-implied)".replace("  ", " ").strip()
+    return label, model_sourced(price_out, f"{float(item['value']):,.0f}bp")  # type: ignore[return-value]
+
+
+def market_check(
+    price_out: Row | None, observed: list[Row], marks: list[Row], names: dict[str, str] | None = None
+) -> dict[str, dict[str, Any]]:
+    """Market check (spec 07 Layout 4): the issuer's CDS ('CoreWeave CDS (bond-implied)'), the default
+    odds it implies, the tenant's CDS ('Tenant Oracle CDS (bond-implied)'), then the observed prices, the
+    funds' median mark and the price model's spread and band. CDS levels are the price model's
+    bond-implied inputs, named for their entity; `names` maps entity ids to display names
+    (cds_entities). The document is JSONB, which keeps no key order: the screen orders the rows."""
+    names = names or {}
     out: dict[str, dict[str, Any]] = {}
+    inputs = _inputs(price_out) if price_out is not None else {}
+
+    def first(keys: tuple[str, ...]) -> dict[str, Any] | None:
+        return next((inputs[k] for k in keys if k in inputs and num(inputs[k].get("value")) is not None), None)
+
+    issuer, tenant, odds = first(CDS_INPUTS[0]), first(CDS_INPUTS[1]), first(ODDS_INPUTS)
+    if price_out is not None and issuer is not None:
+        label, value = _cds_row(price_out, issuer, names, "")
+        out[label] = value
+    if price_out is not None and odds is not None:
+        years = _ODDS_YEARS.search(str(odds.get("label") or ""))
+        text = f"{float(odds['value']) * 100:.1f}%" + (f" over {years.group(1)} years" if years else "")
+        out["Default odds implied by CDS"] = model_sourced(price_out, text)  # type: ignore[assignment]
+    if price_out is not None and tenant is not None:
+        label, value = _cds_row(price_out, tenant, names, "Tenant ")
+        out.setdefault(label, value)
     for label, kind in (
         ("Dealer quote", "dealer"),
         ("Last trade", "trade"),
@@ -241,7 +304,7 @@ def market_check(price_out: Row | None, observed: list[Row], marks: list[Row]) -
         if row is not None:
             text = price_text(row["price"])
             if num(row["yield_pct"]) is not None:
-                text = f"{text} (yield {float(row['yield_pct']):.2f}%)"
+                text = f"{text} (yield {yield_text(row['yield_pct'])})"
             out[label] = price_sourced(row, text)
     prior = yield_before(observed)
     if prior is not None:
@@ -252,24 +315,18 @@ def market_check(price_out: Row | None, observed: list[Row], marks: list[Row]) -
     if price_out is not None:
         spread = num(output_field(price_out, "spreadBp"))
         if spread is not None:
-            out["Marden spread"] = model_sourced(price_out, f"{spread:.0f}bp")  # type: ignore[assignment]
+            out["Marden spread"] = model_sourced(price_out, f"{spread:,.0f}bp")  # type: ignore[assignment]
         band = output_field(price_out, "band")
         if isinstance(band, dict) and num(band.get("low")) is not None and num(band.get("high")) is not None:
-            out["Price band"] = model_sourced(price_out, f"{float(band['low']):.2f}{DASH}{float(band['high']):.2f}")  # type: ignore[assignment]
-        inputs = output_field(price_out, "inputs")
-        if isinstance(inputs, list):  # the price model's inputs list: [{key, label, value, unit, ...}]
-            inputs = {i["key"]: i.get("value") for i in inputs if isinstance(i, dict) and isinstance(i.get("key"), str)}
-        if isinstance(inputs, dict):
-            for label, keys, fmt in (
-                ("Issuer CDS (bond-implied)", ("issuerCdsBp", "cdsBp", "bondImpliedCdsBp"), "{:.0f}bp"),
-                ("Tenant CDS (bond-implied)", ("tenantCdsBp",), "{:.0f}bp"),
-                ("Implied default odds", ("impliedDefaultOdds", "defaultOdds5y", "pd5y"), "pct"),
-            ):
-                value = next((num(inputs[k]) for k in keys if num(inputs.get(k)) is not None), None)
-                if value is not None:
-                    text = f"{value * 100:.1f}%" if fmt == "pct" else fmt.format(value)
-                    out[label] = model_sourced(price_out, text)  # type: ignore[assignment]
+            out["Price band"] = model_sourced(price_out, f"{price_text(band['low'])}{DASH}{price_text(band['high'])}")  # type: ignore[assignment]
     return out
+
+
+def entity_names(conn: Conn, ids: list[str]) -> dict[str, str]:
+    if not ids:
+        return {}
+    rows = conn.execute("SELECT id, name FROM entity WHERE id = ANY(%s)", (ids,)).fetchall()
+    return {r["id"]: r["name"] for r in rows}
 
 
 def price_event(key: str, doc: dict[str, Any]) -> dict[str, Any] | None:
@@ -300,5 +357,7 @@ def build_instrument_detail(conn: Conn, key: str) -> dict[str, Any] | None:
         "stress": stress_rows(conn, key),
         "terms": terms(inst, facts),
         "payers": payers(facts),
-        "marketCheck": market_check(ctx["price_out"], ctx["observed"], ctx["marks"]),
+        "marketCheck": market_check(
+            ctx["price_out"], ctx["observed"], ctx["marks"], entity_names(conn, cds_entities(ctx["price_out"]))
+        ),
     }

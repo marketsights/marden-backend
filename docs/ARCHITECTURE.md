@@ -123,6 +123,8 @@ Procrastinate on the same Postgres. Collectors, extraction, models and read-mode
 
 Model triggers (`marden.models.triggers`): each model declares its inputs with `model_depends(model, subject_type, field_prefix, keys)`; when a writer publishes a matching value, `mark_dirty_for` also upserts `model_dirty(model, key)` in the same transaction, and `models.run_dirty` (queue `models`, every minute) runs the model on those keys. A model run writes `model_run` + `model_output` (`marden.models.runs`, one output per subject and as-of day), reads inputs point in time (`marden.models.pit`) and marks its subjects' read models dirty with the pseudo-field `@model:<name>`. Methods: `docs/methods/` (e.g. `cushion-v0.1.md`, `status-rules-v0.1.md`: chain status per site and the materiality test the alert engine uses, `marden.models.materiality.is_material`; `price-engine-v0.1.md`: bond-implied CDS, tier curves and facility prices, models `price`, `cds`, `curve`, `curve_fit`; `track-record-v0.1.md`: the backtest of past repricings, model `track_record` (`series` / `all`, weekly Sunday 21:17 UTC plus a refresh on new prices and live runs; marks `track_record`), which re-runs the status, price and cushion code point in time on scan days without storing those reconstructions).
 
+Every model on one page (inputs, output shape and storage, schedule, version, calibration, validation, point-in-time rules): `docs/models.md`.
+
 Collateral and holder models. Each output is shaped as the types.ts piece its builder reads. `marden.models.sourced` holds the shared run/output helper: on a run for today it marks `@model:<name>` plus the views named below.
 
 | Model | Subject | Output | Runs (UTC) | Method page |
