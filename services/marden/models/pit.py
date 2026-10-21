@@ -140,7 +140,10 @@ def public_date(row: Row) -> date:
     if row.get("subject_type") == "entity" and (row.get("producer") or "").startswith("collector:sec_xbrl"):
         # 40 days after the period end (pricing-v0.1), but never before the filing that reported the value
         # (a 10-K, a late filer or a restating 10-K/A is public only on its filing date: quote_loc names it)
-        filed = _XBRL_FILED.search(row.get("quote_loc") or "")
+        loc = row.get("quote_loc") or ""
+        filed = _XBRL_FILED.search(loc)
+        if filed and loc.startswith("dei:"):  # a cover-page count is dated days before its filing, not a period end
+            return max(day, date.fromisoformat(filed.group(1)))
         lagged = day + timedelta(days=XBRL_LAG_DAYS)
         return max(lagged, date.fromisoformat(filed.group(1))) if filed else lagged
     return day

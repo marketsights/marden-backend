@@ -57,10 +57,19 @@ def test_sweep_queues_each_document_once_with_priorities(backend):
     old = store_case_document("power_ferc_oklo_pjm", source_id="ferc")
     with db.transaction() as conn:
         conn.execute("UPDATE document SET doc_date = current_date - 90 WHERE id = %s", (old.id,))
-    assert sweep()["queued"] == 3
+        # Applied Digital is the developer on a financed chain: its filings are about a material subject.
+        conn.execute("INSERT INTO entity (id, name, kind, cik) VALUES ('applied-digital-corp', "
+                     "'Applied Digital Corp.', 'developer', '1144879') ON CONFLICT (id) DO NOTHING")
+        conn.execute("INSERT INTO site (slug, name) VALUES ('polaris-forge-1', 'Polaris Forge 1') "
+                     "ON CONFLICT (slug) DO NOTHING")
+        conn.execute("INSERT INTO chain_party (site_slug, role, entity_id, label) VALUES ('polaris-forge-1', "
+                     "'developer', 'applied-digital-corp', 'Applied Digital') ON CONFLICT DO NOTHING")
+    chain = store_case_document("lease_apld_building4", meta={"cik": "0001144879"}, doc_type="EX-10.1")
+    assert sweep()["queued"] == 4
     assert queue_documents() == 0  # idempotent
     jobs = {r["document_id"]: r for r in rows("SELECT * FROM agent_job")}
     assert (jobs[watched.id]["priority"], jobs[watched.id]["priority_reason"]) == (90, "watched subject")
+    assert (jobs[chain.id]["priority"], jobs[chain.id]["priority_reason"]) == (85, "material subject")
     assert (jobs[eightk.id]["priority"], jobs[eightk.id]["priority_reason"]) == (80, "current report")
     assert (jobs[old.id]["priority"], jobs[old.id]["priority_reason"]) == (20, "backfill")
 

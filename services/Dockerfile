@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 # Marden worker image (services/): the Python package `marden` with its locked dependencies, run as a
 # non-root user. One image, two commands:
-#   python -m marden worker   (default) Procrastinate worker on every queue (collect, extract, models,
-#                             readmodels, alerts, default) plus the periodic scheduler
+#   python -m marden worker   (default) Procrastinate worker on every queue (collect, extract, agents,
+#                             models, readmodels, alerts, default) plus the periodic scheduler
 #   marden-migrate            one-shot: dbmate applies db/migrations (Railway pre-deploy command)
 # The build context is the repository root (db/migrations and scripts/ live there):
 #   docker build -f services/Dockerfile -t marden-worker .

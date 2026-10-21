@@ -10,7 +10,7 @@ Everything below is config as code in the two repositories (an equivalent Render
 | `worker` | marden-backend | `/services/railway.json` | `services/Dockerfile` (context: repo root) | `python -m marden worker` | no |
 | `web` | marden-front-end | `/railway.json` | `Dockerfile` | `node server.js` (Next standalone) | yes: `app.marden.ai` |
 
-The `api` and `worker` services both run `marden-migrate` (dbmate) as their **pre-deploy command**, so a push that adds a migration applies it before the new code takes traffic. Two concurrent runs are safe: dbmate holds a Postgres advisory lock and the second run finds nothing to apply.
+The `api` and `worker` services both run `marden-migrate` (dbmate) as their **pre-deploy command**, so a push that adds a migration applies it before the new code takes traffic. Two concurrent runs are safe: dbmate holds a Postgres advisory lock and the second run finds nothing to apply. `marden-migrate` (`scripts/migrate.sh`, installed in both images) is `dbmate migrate` against `DATABASE_URL_UNPOOLED` with `channel_binding` stripped from the URL: `dbmate up` minus the `CREATE DATABASE` step, which Neon's `app` database does not need and `app_rw` may not run.
 
 ## 1. Neon (once)
 
@@ -86,9 +86,11 @@ Credentials live only in Railway variables (and Neon / R2 / Clerk dashboards), n
 | `SHUTDOWN_TIMEOUT_MS` | `20000` | default | SIGTERM drain budget; must stay below `drainingSeconds` (30 s) |
 | `LOG_LEVEL` | `info` | default | JSON logs (pino); `authorization`, `cookie` and `svix-signature` headers are redacted |
 | `MARDEN_STRESS_WAIT_MS` | `20000` | default | how long POST /api/stress/run waits for a custom run |
+| `MARDEN_UPLOAD_MAX_BYTES` | `52428800` (50 MiB) | default | largest staff document upload (`POST /api/documents`); larger answers 413. The web's `/api/*` rewrite passes request bodies whole only up to 50 MiB (`next.config.ts` `experimental.middlewareClientMaxBodySize`, checked against this default by `src/test/deploy-config.test.ts`): raise both together |
 | `ALERT_LINK_SECRET` | `${{worker.ALERT_LINK_SECRET}}` (the worker's value) | for alert email | verifies the one-click unsubscribe links the worker signs; without it (or under 32 characters) `/api/email/unsubscribe` answers 503 and changes nothing |
 | `MARDEN_MIGRATE_WAIT`, `MARDEN_MIGRATE_LOCK_TIMEOUT` | `60s`, `10m` | defaults | `marden-migrate` waits for the database / for a concurrent migration |
-| `RAILWAY_GIT_COMMIT_SHA` | set by Railway | — | shown (12 characters) by `/healthz` |
+| `RAILWAY_GIT_COMMIT_SHA` (Render: `RENDER_GIT_COMMIT`) | set by the host | — | shown (12 characters) by `/healthz` |
+| `RAILWAY_ENVIRONMENT`, `RAILWAY_ENVIRONMENT_NAME`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_PROJECT_ID` (Render: `RENDER`, `RENDER_SERVICE_ID`) | set by the host | — | deploy markers: any one of them makes `MARDEN_AUTH_MODE=dev` a startup error |
 
 ### worker
 
@@ -101,7 +103,9 @@ Credentials live only in Railway variables (and Neon / R2 / Clerk dashboards), n
 | `R2_BUCKET_BACKUPS` | `core-backups` | default | |
 | `SEC_USER_AGENT` | `Marden research cody@marden.ai` | default | SEC fair-access policy: a contact address |
 | `ANTHROPIC_API_KEY` | Claude API key | for extraction / agents | without it the agents report `not_configured` and nothing is enqueued (a deployed service never uses the local `claude` CLI fallback) |
-| `MARDEN_AGENT_*` (`BACKEND`, `CONCURRENCY`, `DAY_TOKENS`, `RUN_TOKENS`, `SOURCE_CAP(S)`, `MAX_SECTIONS`, `SECTION_CHARS`, `FILES_API_MIN_BYTES`, `CLI_TIMEOUT`) | defaults | optional | agent backend choice, concurrency and token budgets: `services/marden/agents/config.py` and docs/agents.md |
+| `MARDEN_AGENT_BACKEND` | `auto` | default | `auto`, `api`, `cli` or `off`. On a deployed service `auto` means the Claude API or nothing: the `claude` CLI fallback is refused |
+| `MARDEN_AGENT_CONCURRENCY` (3), `MARDEN_AGENT_RUN_TOKENS` (3,000,000), `MARDEN_AGENT_DAY_TOKENS` (30,000,000), `MARDEN_AGENT_SOURCE_CAP` (2), `MARDEN_AGENT_SOURCE_CAPS` (none; e.g. `sec_index=3,ferc=2`), `MARDEN_AGENT_MAX_SECTIONS` (16), `MARDEN_AGENT_SECTION_CHARS` (120,000), `MARDEN_AGENT_FILES_API_MIN_BYTES` (4,000,000), `MARDEN_AGENT_CLI_TIMEOUT` (900 s) | defaults in brackets | optional | concurrency and token budgets (`services/marden/agents/config.py`, `runner.py`, docs/agents.md); `CLI_TIMEOUT` only matters for the local CLI backend |
+| `MARDEN_AGENT_MODEL_ROUTER`, `_EXTRACTOR`, `_VERIFIER`, `_LINKER`; `MARDEN_AGENT_EFFORT_ROUTER`, `_EXTRACTOR`, `_VERIFIER`, `_LINKER` | defaults: models `claude-haiku-5-5` / `claude-sonnet-5-5` / `claude-opus-5-5` / `claude-sonnet-5-5`, effort `low` / `medium` / `medium` / `low` | optional | override the model id or effort (`low`, `medium`, `high`, `xhigh`, `max`) per agent role |
 | `FRED_API_KEY` | FRED key | for FRED series | ICE BofA OAS, Treasuries via FRED |
 | `ERCOT_API_KEY`, `ERCOT_API_USERNAME`, `ERCOT_API_PASSWORD` | ERCOT Public API subscription key and account | for ERCOT GIS / API collectors | all three or the collector records "needs key" |
 | `FINRA_CLIENT_ID`, `FINRA_CLIENT_SECRET` | FINRA API | only once TRACE is licensed | |
@@ -116,6 +120,7 @@ Credentials live only in Railway variables (and Neon / R2 / Clerk dashboards), n
 | `MARDEN_WORKER_SHUTDOWN_TIMEOUT` | `90` | default | seconds running jobs get after SIGTERM; must stay below `drainingSeconds` (120) |
 | `MARDEN_SEED_DIR` | — | only for `seed` | not set on Railway (section 7) |
 | `MARDEN_RAW_DIR` | `/tmp/marden-raw` | set by the image | scratch only; ignored once R2 is configured |
+| `RAILWAY_ENVIRONMENT`, `RAILWAY_ENVIRONMENT_NAME`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_PROJECT_ID` (Render: `RENDER`, `RENDER_SERVICE_ID`) | set by the host | — | deploy markers: the raw store then refuses local disk (R2 or a recorded failure) and the agents refuse the `claude` CLI fallback |
 
 ### web
 
@@ -125,8 +130,11 @@ Credentials live only in Railway variables (and Neon / R2 / Clerk dashboards), n
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | same `pk_live_…` as the API | yes | read at **runtime** only (no build arg), so the image holds no Clerk key |
 | `CLERK_SECRET_KEY` | same `sk_live_…` as the API | yes | runtime only; never reaches the browser |
 | `CLERK_JWT_KEY` | PEM public key | optional | |
+| `NEXT_PUBLIC_API_BASE` | — | do not set | the older name of `API_ORIGIN`, still honoured when `API_ORIGIN` is empty (`src/lib/api-url.ts`, `next.config.ts`); the browser never reads it |
 | `PORT` | set by Railway | — | |
-| `NODE_ENV`, `HOSTNAME`, `NEXT_TELEMETRY_DISABLED` | `production`, `::`, `1` | set by the image | |
+| `RAILWAY_GIT_COMMIT_SHA` (Render: `RENDER_GIT_COMMIT`) | set by the host | — | shown (12 characters) by `/healthz` |
+| `RAILWAY_ENVIRONMENT`, `RAILWAY_ENVIRONMENT_NAME`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_PROJECT_ID` (Render: `RENDER`, `RENDER_SERVICE_ID`) | set by the host | — | deploy markers: the development sign-in is refused whatever `NODE_ENV` says |
+| `NODE_ENV`, `HOSTNAME`, `NEXT_TELEMETRY_DISABLED` | `production`, `0.0.0.0`, `1` | set by the image | |
 
 Without both Clerk keys every page renders "Sign-in is not configured" and `/healthz` answers 503, so Railway never switches traffic to such a deploy. The development sign-in (no Clerk, API dev auth) exists only under `next dev` on a machine without `RAILWAY_*` variables.
 
@@ -137,6 +145,7 @@ Without both Clerk keys every page renders "Sign-in is not configured" and `/hea
 - Cookies: Marden sets none of its own. Clerk's production cookies on `marden.ai` are `Secure`; the session cookie is short-lived and refreshed by Clerk's middleware.
 - Headers: the API sends helmet's set (HSTS, `X-Content-Type-Options`, `default-src 'none'` CSP, `frame-ancestors 'none'`); the web sends HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and no `X-Powered-By`.
 - Rate limits: 600 requests per minute per signed-in user (per client address before sign-in), on every route including `/healthz`.
+- Request bodies through the web app: Next.js buffers each `/api/*` request body for the middleware and, past `experimental.middlewareClientMaxBodySize`, silently forwards only the first part (its default, 10 MB, turned a 12 MB upload into a 500 in the local proof). `next.config.ts` sets it to 50 MiB, the API's `MARDEN_UPLOAD_MAX_BYTES` default; a 12 MB body then reached the API byte for byte (same sha256).
 
 ## 6. Clerk production (shared marden.ai instance)
 
@@ -184,7 +193,7 @@ Install the Railway CLI on your machine (`npm i -g @railway/cli`, `railway login
    It checks `/healthz` (database reachable), that `/api/me`, `/api/sites` and `/api/stream` refuse requests without a session (dev auth off), CORS, security headers, that `/` redirects to sign-in, that `/api/*` through the web app reaches the API, and with a token that `/api/me` answers 200 and `/api/stream` opens an event stream. Exit 0 = all passed.
 10. Sign in as staff and grant the first fund its product (docs/access-control.md).
 
-Later deploys: push to the branch. The api and worker migrate in their pre-deploy step (only when their watch patterns match), Railway waits for `/healthz`, then sends SIGTERM to the old deployment: the API stops accepting connections, closes SSE streams (clients reconnect to the new deploy and replay from `Last-Event-ID`) and finishes in-flight requests within 20 s; the worker stops fetching jobs and gives running ones 90 s. A job killed anyway (crash, SIGKILL) is requeued within 5 minutes by `queue.retry_stalled`.
+Later deploys: push to the branch. The api and worker migrate in their pre-deploy step (only when their watch patterns match), Railway waits for `/healthz`, then sends SIGTERM to the old deployment: the API stops accepting connections, closes SSE streams (clients reconnect to the new deploy and replay from `Last-Event-ID`) and finishes in-flight requests within 20 s; the worker stops fetching jobs and gives running ones 90 s. A job killed anyway (crash, SIGKILL) is requeued within 5 minutes by `queue.retry_stalled`. The web's Next server stops accepting connections and waits for open ones; an event stream proxied through an old web deploy stays open until the API ends it or Railway's `drainingSeconds` (30 s) passes, then the browser reconnects to the new deploy and replays from `Last-Event-ID`.
 
 ## 8. Operations
 
@@ -229,7 +238,25 @@ Restore an R2 dump into a fresh database (never over `app`), from inside the wor
 | `FRED_API_KEY`, ERCOT API key/account (and FINRA once licensed) | worker | those collectors record a missing credential |
 | DNS CNAMEs for `app` and `api` | custom domains | use the `*.up.railway.app` domains meanwhile (set `WEB_ORIGIN` to the web's) |
 
-## What was proved locally (2026-10-21, this sandbox, Docker 29)
+## What was proved locally, second pass (2026-10-21 ~22:15 UTC, without Docker)
+
+The Docker daemon was not running in this pass (`docker version`: client 29.9.1, "Cannot connect to the Docker daemon"), so each service was run the way its image runs it, from the working tree (git HEAD `acabc83` backend / `37d763f` web plus the uncommitted changes of the time), against the local Postgres 16. Throwaway values only: a locally generated RS256 key pair and Clerk-format `pk_test_`/`sk_test_` strings stood in for Clerk; no real credential was used or printed. The Dockerfiles changed only in comments since the first pass, so its image builds still stand.
+
+| Check | Command (abridged) | Result |
+| --- | --- | --- |
+| Migrate from empty | `createdb marden_migrate_check`; `DATABASE_URL_UNPOOLED='postgres://…/marden_migrate_check?sslmode=disable&channel_binding=require' scripts/migrate.sh`, again, then `scripts/migrate.sh status` | all **15/15** migrations applied in 0.9 s; the second run applied nothing; `Applied: 15, Pending: 0`; no password or `channel_binding` in the output. The same URL given to dbmate directly fails (`unrecognized configuration parameter "channel_binding"`), which is why the script strips it. The scratch database had the same 66 tables/views and the same columns as the main development database (which then lacked only the newest migration, `20261022020000_member_last_active`, not yet applied there by its author). Dropped |
+| API build and start | `pnpm build` (tsc, 5 s); `node --enable-source-maps dist/server.js` with `NODE_ENV=production`, the test Clerk keys and `CLERK_JWT_KEY`, `TRUST_PROXY=1`, `HOST=::`, `PORT=4610`, `RAILWAY_ENVIRONMENT_NAME=local-proof` | listening (no IPv6 here, so `::` fell back to 0.0.0.0 with a warning); `/healthz` 200 `{"ok":true,"db":"ok","commit":"acabc83adeae"}` with `cache-control: no-store`, HSTS, helmet headers and `x-ratelimit-limit: 600`; JSON log lines with `reqId` |
+| API refuses dev auth | `MARDEN_AUTH_MODE=dev` with `RAILWAY_ENVIRONMENT_NAME` / `RAILWAY_PROJECT_ID` set, with `NODE_ENV=production`; production without Clerk keys; no `DATABASE_URL` | each exits 1 naming the reason (`… refused on a deployed environment (RAILWAY_PROJECT_ID is set)`, `… refused when NODE_ENV=production`, `CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY are required …`, `DATABASE_URL: Invalid input`) and never a value |
+| API session checks | a token signed with the test key (`azp` = the web origin) vs one with `azp=https://evil.example` | `/api/me` 200 for the first, 401 `invalid_token` for the second, 401 `missing_token` without one |
+| API drains on SIGTERM | a client holds an idle keep-alive socket and an open `/api/stream`; `kill -TERM` | "shutting down: draining requests" → "shutdown complete" in 6 ms; the stream was closed by the server; exit 0 |
+| Worker start command, 60 s | scratch database migrated from empty with `scripts/migrate.sh`, one `ops.backup_db` job deferred; `timeout --preserve-status -s TERM 60 python -m marden worker` with `MARDEN_LOG_FORMAT=json`, `RAILWAY_ENVIRONMENT_NAME=local-proof`, no R2 / Anthropic / email keys | 70 periodic schedules registered, "Starting worker on all queues"; the queued backup ran first and recorded `not_configured` ("R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY not set; nothing was dumped"); periodic jobs ran: `readmodels.rebuild_dirty` ×3, `models.run_dirty` ×2, `alerts.scan` ×2, `queue.retry_stalled` ×2, `agents.sweep` ×3, `agents.work` ×2, `agents.batch_poll` ×2, `agents.r2_inbox`, `collect.sec_index` (live poll, 21 s); every agent job ended `not_configured` ("ANTHROPIC_API_KEY is not set (RAILWAY_ENVIRONMENT_NAME is set: no CLI fallback on a deployed service)"). 19 jobs succeeded, none failed. 134 log lines, all JSON, no password. SIGTERM at 60 s: "Stop requested" → "worker stopped" in 28 ms, exit 0. Scratch database dropped |
+| Web production build | copy of the repository (tar, without `node_modules`/`.next`/`.git`/`.env*`; `node_modules` symlinked) in the scratchpad; `NODE_ENV=production API_ORIGIN=http://127.0.0.1:4610 pnpm build` with both Clerk variables unset | built in 95 s (23 routes + middleware); the rewrite baked in is `/api/:path*` → `http://127.0.0.1:4610/api/:path*`; `middlewareClientMaxBodySize` 52428800; no Clerk key in the server bundle (only the key-format checks). With a symlinked `node_modules` the standalone folder links to it instead of holding the traced copy, so this pass does not re-prove the traced dependencies; the first pass's Docker build did |
+| Web without Clerk keys | `.next/static` copied beside `.next/standalone/server.js`; `node server.js` with `PORT=3610`, `API_ORIGIN`, `RAILWAY_ENVIRONMENT_NAME=local-proof` | `/` 200 "Sign-in is not configured" ("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY are not set."), no development sign-in; `/healthz` 503 `{"ok":false,"auth":"unconfigured","commit":"37d763f74753"}` |
+| Upload body through the rewrite | a stand-in on :4610 that answers with the byte count and sha256 it received; `curl --data-binary @12mb.bin http://127.0.0.1:3610/api/documents` | 12,000,000 bytes arrived, sha256 identical to the file. The same request through a copy of the server with Next's default limit (10 MB): 500 and "Request body exceeded 10MB … Only the first 10MB will be available" |
+| Web on SIGTERM | `kill -TERM` with nothing open; again with an event stream open through the rewrite | exit 0 in 56 ms; with the stream open the server refused new connections at once, kept the stream until the client ended it (7 s), then exited 0 |
+| Smoke test | `SMOKE_TOKEN=<test token> scripts/smoke.sh --api http://127.0.0.1:4610 --web http://127.0.0.1:3610 --expect-auth unconfigured` | **21 passed, 0 failed**, exit 0, the token not in the output. Against the shared development API (dev auth on): 3 failed (`/api/me`, `/api/sites`, `/api/stream` answered 200 without a session), exit 1 |
+
+## What was proved locally, first pass (2026-10-21, this sandbox, Docker 29)
 
 The images were built from a snapshot (git HEAD plus these deploy changes), with the official base images plus this sandbox's egress-proxy CA (local only; Railway builds from the official images), and run with `--network host` against the local Postgres 16. Throwaway values only: a locally generated RS256 key pair stood in for Clerk; no real credential was used.
 

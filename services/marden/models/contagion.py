@@ -199,10 +199,14 @@ def contagion(
     rows = [r for r in rows if abs(r["priceAfter"] - r["priceNow"]) >= 0.001]
     rows.sort(key=lambda r: (r["priceAfter"] - r["priceNow"], r["instrumentId"]))
     total = sum(c["lossB"] for h in hops for c in h["companies"])
+    unscheduled = any("has no annual schedule" in m for m in missing)
+    if unscheduled:  # payments on unscheduled edges are unknown: none known is n/d, some known is a floor
+        missing.append("totalAtRiskB: " + ("n/d (no edge on the walk has a payment schedule)" if not total else
+                                           "scheduled payments only (edges with no schedule add to it)"))
     return {
         "hops": hops,
         "instruments": rows,
-        "totalAtRiskB": round(total, 3),
+        "totalAtRiskB": None if unscheduled and not total else round(total, 3),
         "missing": sorted(set(missing)),
         "basis": {
             "methodVersion": f"{METHOD} (model v0)",

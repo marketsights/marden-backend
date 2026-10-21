@@ -218,6 +218,12 @@ def price(ctx: Ctx, inst: Instrument, ch: Chain | None, obs: list[Obs]) -> dict[
     hi = clean_price(f_now, curve, hz, m.recovery, lp + r - Z80 * sd)
     week = _week_ago(ctx, inst, m, lp, filt, days)
     rec = m.recovery if isinstance(m.recovery, float) else float(m.recovery(np.array([0.0]))[0])
+    # Default odds need a credit leg: with no tenant, obligor or guarantor intensity the hazard holds only
+    # the completion terms and the credit risk sits in the calibrated spread, so the odds are n/d, never 0.
+    credit_leg = m.mode != "facility" or any(f"{r}Hazard" in info for r in ("tenant", "obligor", "guarantor"))
+    if not credit_leg:
+        missing.append(f"instrument {inst.id}: default odds n/d (no tenant, obligor or guarantor bond-implied "
+                       "intensity; credit risk is carried by the spread at issue)")
     out.update({
         "price": round(px, 3), "spreadBp": _round(g_spread_bp(f_now, curve, px), 1),
         "yieldPct": _round(yield_to_maturity(f_now, px), 3), "recovery": round(rec, 3),
@@ -230,7 +236,7 @@ def price(ctx: Ctx, inst: Instrument, ch: Chain | None, obs: list[Obs]) -> dict[
         "observationsUsed": len(filt.used), "lastObservation": filt.used[-1].label if filt.used else None,
         "today": {k: (round(v, 6) if isinstance(v, float) else v) for k, v in info.items()},
         "chain": ch.doc() if ch else None, "terms": _terms_doc(inst),
-        "defaultOddsToMaturity": round(_default_odds(hz, f_now.maturity_years), 4),
+        "defaultOddsToMaturity": round(_default_odds(hz, f_now.maturity_years), 4) if credit_leg else None,
     }
     out["_week_ago_price"] = week
     return out

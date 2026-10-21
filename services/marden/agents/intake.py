@@ -8,8 +8,10 @@ Sources of documents:
 - the CLI: `python -m marden agents ingest <file|dir|url>`;
 - the R2 inbox: objects under inbox/ in the raw bucket, when R2 is configured.
 Nothing is queued while the agents are not configured (no API key and no CLI fallback): documents keep
-extract_state 'queued' and are picked up once a backend exists. Priority: documents about watched subjects
-or 8-K current reports jump the line; uploads come next; old documents are backfill.
+extract_state 'queued' and are picked up once a backend exists. Priority: documents about watched subjects,
+then documents about material subjects (a filer that is a party to a financed chain or the issuer of a
+site-backed instrument, or a document staff tied to a site or instrument), then 8-K current reports jump the
+line; uploads come next; old documents are backfill.
 """
 
 from __future__ import annotations
@@ -57,13 +59,20 @@ CASE
                   OR (w.kind = 'site' AND w.ref_id IN (SELECT site_slug FROM chain_party WHERE entity_id = e.id)))
     OR EXISTS (SELECT 1 FROM watchlist_item w WHERE (w.kind = 'site' AND w.ref_id = d.meta->'links'->>'site')
                  OR (w.kind = 'instrument' AND w.ref_id = d.meta->'links'->>'instrument')) THEN 90
+  WHEN EXISTS (SELECT 1 FROM entity e WHERE d.meta->>'cik' IS NOT NULL
+                 AND ltrim(e.cik, '0') = ltrim(d.meta->>'cik', '0')
+                 AND (EXISTS (SELECT 1 FROM chain_party c WHERE c.entity_id = e.id)
+                      OR EXISTS (SELECT 1 FROM instrument i
+                                 WHERE i.issuer_entity_id = e.id AND i.site_slug IS NOT NULL)))
+    OR d.meta->'links'->>'site' IS NOT NULL OR d.meta->'links'->>'instrument' IS NOT NULL THEN 85
   WHEN d.doc_type IN ('8-K', '8-K/A') THEN 80
   WHEN d.source_id IN ('upload', 'agent_url', 'r2_inbox') THEN 70
   WHEN coalesce(d.doc_date, d.fetched_at::date) < current_date - 30 THEN 20
   ELSE 50
 END"""
-REASON_SQL = """CASE WHEN {p} = 90 THEN 'watched subject' WHEN {p} = 80 THEN 'current report'
-                     WHEN {p} = 70 THEN 'staff upload' WHEN {p} = 20 THEN 'backfill' ELSE 'routine' END"""
+REASON_SQL = """CASE WHEN {p} = 90 THEN 'watched subject' WHEN {p} = 85 THEN 'material subject'
+                     WHEN {p} = 80 THEN 'current report' WHEN {p} = 70 THEN 'staff upload'
+                     WHEN {p} = 20 THEN 'backfill' ELSE 'routine' END"""
 
 
 def ensure_intake_sources(conn: db.Conn | None = None) -> None:

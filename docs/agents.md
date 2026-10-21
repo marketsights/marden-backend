@@ -41,7 +41,9 @@ a retry after a crash and a re-run cost nothing. A new prompt version (`PROMPT_V
 re-reads documents.
 
 Priority (higher first): 90 a document about a watched subject (the filer's instruments or chain sites on any
-watchlist, or the upload's own site / instrument); 80 an 8-K current report; 70 staff uploads; 50 routine;
+watchlist, or the upload's own site / instrument); 85 a document about a material subject (the filer is a
+party to a financed chain or issues a site-backed instrument, or staff tied the document to a site or
+instrument); 80 an 8-K current report; 70 staff uploads; 50 routine;
 20 backfill (dated more than 30 days ago; `agents backfill` sends these through the Batch API).
 Concurrency: at most `MARDEN_AGENT_SOURCE_CAP` (default 2) documents of one source at once
 (`MARDEN_AGENT_SOURCE_CAPS="sec_index=3,ferc=1"`), `MARDEN_AGENT_CONCURRENCY` threads (default 3).
@@ -86,8 +88,11 @@ Every field reuses the fact store's existing names where one exists; new ones ar
 3. **Code validators.** Hard (rejected): quote found, value shape, subject kind, the number written in the
    quote with its scale word ("$2.6 billion", "5.50%" for 550 bp, "25,000 kW" for 25 MW, a table's "(dollars
    in millions)"), the date's year in the quote, ranges per unit. Soft (review): a number matching only
-   through an unstated table scale, the month missing from the quote, date order (closing <= commitment
-   termination <= maturity), tranches adding to the facility (0.5%).
+   through an unstated table scale, the month missing from the quote (full dates and month values alike),
+   date order (closing <= commitment termination <= maturity), tranches adding to the facility (0.5%).
+   Month-precision dates are values, not failures: `maturity`, `commitment_termination_date`, `rent_start`,
+   `outside_date`, `expected_cod` and the other month fields take YYYY-MM when the document gives only the
+   month ("matures in September 2031"), as the fact store already holds for some instruments.
 4. **Source ranking.** Filed (F: SEC, FERC, state, county and court records, uploads marked filed) beats
    reported (R). A value that differs from another source's published value for the same as-of date, or a
    reported value that differs from a filed one, is a conflict and goes to review; never resolved silently.
@@ -96,8 +101,10 @@ Every field reuses the fact store's existing names where one exists; new ones ar
    majeure, ratings and credit events, opposition events, going concern...), the status and cushion models'
    input fields on chain subjects, and any quote the materiality rules flag (`marden.models.materiality`).
    Routine verified filed facts on an accepted subject publish automatically
-   (tag F/R, `producer = 'agent:<area>'`, `method_version = 'agents v0.1 <area>'`, quote, document id, source
-   url), and the fact writer marks read models and models dirty in the same transaction. Event-like fields
+   (tag F, `producer = 'agent:<area>'`, `method_version = 'agents v0.1 <area>'`, quote, document id, source
+   url), and the fact writer marks read models and models dirty in the same transaction. A fact read from a
+   reported source (tag R: press, a deck, an upload not marked filed) passes the same layers but always waits
+   for a click; approving it publishes it with tag R. Event-like fields
    also write an `event` (opposition, rating, notice, docket, permit, milestone) published with the fact.
 6. **Measured.** The eval below re-runs on every prompt or model change.
 
@@ -140,7 +147,8 @@ facts in 10 cases:
 | Backend | Precision | Recall | Missed | Tokens |
 | --- | --- | --- | --- | --- |
 | `claude` CLI fallback (first prompt text) | 1.00 | 0.95 | debt 1, gpu 1 | 73,927 |
-| Anthropic API (refined field definitions; the recorded set) | 1.00 | 0.93 | debt `events_of_default`, `change_of_control`; gpu one `top_customers` list | 58,316 (about $0.18) |
+| Anthropic API (refined field definitions) | 1.00 | 0.93 | debt `events_of_default`, `change_of_control`; gpu one `top_customers` list | 58,316 (about $0.18) |
+| Anthropic API (`maturity` takes a month; the recorded set), 22:18 UTC | 1.00 | 0.95 | debt `events_of_default`; gpu one `top_customers` list | 10,414, $0.04 (debt re-read; the other 9 cases answered from the request cache) |
 
 ## Live run (Anthropic API, 2026-10-21)
 
@@ -166,15 +174,28 @@ one, DDTL 5.5), ratings (material), backlog $104B against the XBRL RPO $103.7B (
 force majeure terms (material), agenda events on Project Jupiter (proposed site link, model input), and the
 facts the verifier found unsupported.
 
+Re-run of the 10-Q after `maturity` took month precision (22:16 UTC, 179,645 tokens, about $0.62: the three
+debt sections, three verifier groups and the linker; every other call answered from the request cache): the
+two candidates rejected before for "value_date '2031-09' is not ISO" are now candidates the verifier agreed
+with, DDTL 5.5 matures 2031-09 and DDTL 4.0 matures 2032-03 ("The DDTL 5.5 Facility matures in September
+2031."), waiting in review with their proposed instrument links (EX-CRWV-097, EX-CRWV-095); 0 rejected, 46 to
+review, 6 already published.
+
 ## Cost and safety
 
 - Budgets: `MARDEN_AGENT_RUN_TOKENS` per run (default 3,000,000) and `MARDEN_AGENT_DAY_TOKENS` per UTC day
-  (default 30,000,000), checked before every uncached call; a job that hits one is paused (`budget`).
+  (default 30,000,000), checked before every uncached call; a job that hits one is paused (`budget`) and the
+  sweep puts it back in the queue when there is room again (the next run; the next UTC day for the daily
+  budget); model calls already made are cached, so it continues where it stopped. A job paused 5 times stays
+  paused and visible in `GET /api/agents/status`.
 - Every call's tokens and cost are in `agent_call` (`agents status`, `GET /api/agents/status`).
 - Caching: per request hash (document bytes, area, prompt version); prompt caching of each agent's system
   prompt and schema; large PDFs uploaded once to the Files API (`agent_file`).
 - Backfills: `python -m marden agents backfill` sends old documents through the Message Batches API (half
-  price) one stage per batch; `agents.batch_poll` applies results and submits the next stage.
+  price) one stage per batch; `agents.batch_poll` applies results and submits the next stage. A submission
+  takes only the requests whose estimated tokens fit what is left of the run and daily budgets (the rest wait
+  for the next poll); a request the Batches API errors on or lets expire is resubmitted with the next stage,
+  and after 3 such results its job fails with the error.
 - Prompt injection: document text is wrapped as data, every prompt says to ignore instructions inside it,
   outputs are strict-schema tool calls, and code validates every value against the document. Logs carry ids,
   stages and token counts, never document text.

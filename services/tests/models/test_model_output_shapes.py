@@ -13,6 +13,7 @@ every output adds (`missing`, `basis`, `request`, ...) are checked to be there a
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from datetime import date
 from typing import Any
@@ -21,9 +22,10 @@ import psycopg
 import pytest
 from conftest import BASE_URL
 from psycopg.rows import dict_row
-from ts_shapes_models import assert_matches_ts
+from ts_shapes_models import APP_TYPES, assert_matches_ts
 
 MAX_DOCS = 60
+SITE_TABS = f"import type * as S from {json.dumps(str(APP_TYPES.with_name('site-tabs')))};"
 Pick = Callable[[str, Any], Any]
 
 
@@ -43,6 +45,9 @@ SPECS: list[tuple[str, str, Callable[[str], bool], str, Pick]] = [
      "{ projection: NDFields<T.CushionProjection, 'p10' | 'p50' | 'p90'>; milestones: T.Milestone[]; "
      "driver: ND<T.CompletionRow['driver']>; missing: string[] }",
      _keep("projection", "milestones", "driver", "missing")),
+    ("cushion", "site", lambda s: True,  # the Lease tab's pieces (apps/api/src/contracts/site-tabs.ts)
+     "{ leaseOutcomes: S.SiteLeaseTab['outcomes']; leasePosition: S.SiteLeaseTab['today'] | null; "
+     "notApplicable: T.Milestone['key'][] }", _keep("leaseOutcomes", "leasePosition", "notApplicable")),
     ("price", "instrument", lambda s: True,
      "Pick<T.InstrumentRow, 'mardenPrice'> & { price: number | null; spreadBp: number | null; "
      "yieldPct: number | null; change1w: number | null; recovery: number | null; "
@@ -84,10 +89,10 @@ SPECS: list[tuple[str, str, Callable[[str], bool], str, Pick]] = [
     ("capacity", "building", lambda s: True, "T.CapacityEstimate", _drop("missing")),
     ("stress", "scenario", lambda s: not s.startswith(("contagion:", "custom:")),
      "Omit<T.StressResult, 'kpis' | 'flow' | 'rows'> & { kpis: NDFields<T.StressResult['kpis'], 'valueLostB' | "
-     "'valueLostPct'>; flow: NDFields<T.StressResult['flow'][number], 'priceChange'>[]; "
+     "'valueLostPct' | 'fundsHit'>; flow: NDFields<T.StressResult['flow'][number], 'priceChange'>[]; "
      "rows: NDFields<T.StressResult['rows'][number], 'priceAfter'>[] }",
      _drop("basis", "missing", "request")),
-    ("stress", "scenario", lambda s: s.startswith("contagion:"), "T.ContagionResult",
+    ("stress", "scenario", lambda s: s.startswith("contagion:"), "NDFields<T.ContagionResult, 'totalAtRiskB'>",
      _drop("basis", "missing", "request")),
     ("stress", "instrument", lambda s: True, "{ rows: T.InstrumentDetail['stress'] }", _keep("rows")),
     ("stress", "entity", lambda s: True,
@@ -138,7 +143,7 @@ def test_stored_output_is_its_types_ts_piece(model, subject_type, keep, ts_type,
             assert isinstance(out, dict) and key in out, f"{model} {sid}: no `{key}`"
         if isinstance(out, dict) and "missing" in out:
             assert isinstance(out["missing"], list) and all(isinstance(m, str) for m in out["missing"])
-    assert_matches_ts(ts_type, [cut(sid, out) for sid, out in rows])
+    assert_matches_ts(ts_type, [cut(sid, out) for sid, out in rows], prelude=SITE_TABS)
 
 
 def test_status_chain_is_four_links_in_role_order():

@@ -113,3 +113,6 @@ def test_xbrl_value_is_public_on_its_filing_date_when_later_than_the_lag():
     assert pit.public_date(ten_k) == date(2026, 3, 26)  # not 2026-02-09 (period end + 40)
     assert pit.public_date(quick) == date(2026, 2, 9)  # filed early: the locked 40-day rule still applies
     assert pit.public_date({**base, "quote_loc": None}) == date(2026, 2, 9)
+    cover = {**base, "valid_from": date(2026, 10, 6),  # shares outstanding as of the cover date
+             "quote_loc": "dei:EntityCommonStockSharesOutstanding [shares]; 10-Q 0001144879-26-000071 filed 2026-10-09"}
+    assert pit.public_date(cover) == date(2026, 10, 9)  # public on its filing date, not cover date + 40

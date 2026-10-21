@@ -208,8 +208,10 @@ def stress_result(conn: Conn, book: Book, sc: Scenario) -> dict[str, Any]:
         "valueLostB": None if severe_nd else round(lost / 1e9, 3),
         "valueLostPct": None if severe_nd or not exposed else round(100 * lost / exposed, 2),
         "loansBelow95": sorted(below),
-        "fundsHit": len(funds),
+        "fundsHit": None if severe_nd else len(funds),  # prices after the shock n/d: who loses is n/d too
     }
+    if severe_nd:
+        missing.append("severe: prices after the shock n/d, so fundsHit is n/d and loansBelow95 lists none")
     if notes_loss is not None:  # optional in types.ts: present only when the scenario has a tenant with notes
         kpis["tenantNotesLossB"] = round(notes_loss / 1e9, 3)
     return {
