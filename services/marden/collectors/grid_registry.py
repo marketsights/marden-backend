@@ -84,7 +84,7 @@ CANADA: tuple[tuple[str, str, str, str, str | None, str], ...] = (
 
 # (country, abbreviation, company as listed by ENTSO-E, website as linked by ENTSO-E, synchronous area)
 ENTSOE_MEMBERS: tuple[tuple[str, str, str, str, str | None], ...] = (
-    ("AL", "OST", "OST sh.a – Albanian Transmission System Operator", "https://www.ost.al/en/", CONTINENTAL),
+    ("AL", "OST", "OST sh.a – Albanian Transmission System Operator", "https://www.ost.al/en/", CONTINENTAL),  # noqa: RUF001
     ("AT", "APG", "Austrian Power Grid AG", "http://www.apg.at/", CONTINENTAL),
     ("AT", "VUEN", "Vorarlberger Übertragungsnetz GmbH", "http://www.vuen.at/", CONTINENTAL),
     ("BA", "NOS BiH", "Nezavisni operator sustava u Bosni i Hercegovini", "http://www.nosbih.ba/", CONTINENTAL),
@@ -166,7 +166,7 @@ def regions() -> list[Region]:
     out.append(Region(tso_id(abbr), "tso", name, country, area, {
         "coverage": V2, "label": abbr, "website": website,
         "registry": {"checked": CHECKED, "entsoe": "not a member (UK left ENTSO-E in 2021)",
-                     "note": "National Grid Electricity Transmission owns the GB transmission network; NESO operates it"}}))
+                     "note": "National Grid Electricity Transmission owns the GB network; NESO operates it"}}))
     return out
 
 

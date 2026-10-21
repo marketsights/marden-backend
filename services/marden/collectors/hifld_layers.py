@@ -1,11 +1,11 @@
 """The four HIFLD grid layers -> `grid_region` rows (used by `hifld_grid`).
 
-| Layer (HIFLD Next slug)              | Rows                                    | Key                                  |
-| ------------------------------------ | --------------------------------------- | ------------------------------------ |
-| nerc-regions                         | 'nerc:<entity>-<subregion>' + the three US interconnection boundaries (union) | NAME, SUBNAME |
-| independent-systems-operators        | 'iso:<short>' boundaries (the seven US ISO/RTOs) | ID = EIA id (grid_registry.US_ISOS) |
-| control-areas                        | 'ba:<EIA code>' boundaries              | source_ID = EIA-861 BA ID, else name |
-| electric-retail-service-territories  | 'utility:<EIA utility number>'          | source_ID (ID) = EIA utility number  |
+- nerc-regions: 'nerc:<entity>-<subregion>' rows, and the three US interconnection boundaries (their union);
+  key NAME + SUBNAME.
+- independent-systems-operators: 'iso:<short>' boundaries of the seven US ISO/RTOs; key ID = EIA id
+  (grid_registry.US_ISOS).
+- control-areas: 'ba:<EIA code>' boundaries; key source_ID = EIA-861 BA ID, else the name.
+- electric-retail-service-territories: 'utility:<EIA utility number>' rows; key source_ID (ID).
 
 Interconnections are the union of NERC subregions: WECC subregions form the Western Interconnection, the Texas
 RE (ERCOT) subregion the ERCOT Interconnection and every other subregion the Eastern Interconnection (the NERC
@@ -89,15 +89,16 @@ def nerc_region(props: dict[str, Any], ctx: LayerContext) -> Region:
     name = text(props, "NAME") or "NERC region"
     entity = nerc_entity(name)
     sub = text(props, "SUBNAME") or entity
-    return Region(f"nerc:{slug(entity)}-{slug(sub)}", "reliability_region", f"{name} – {sub}", "US",
+    return Region(f"nerc:{slug(entity)}-{slug(sub)}", "reliability_region", f"{name} / {sub}", "US",
                   nerc_interconnection(entity), {"hifld": ctx.meta(
                       feature_id=feature_id(props), name=name, subregion=sub, entity=entity,
                       sourcedate=text(props, "SOURCEDATE"), val_date=text(props, "VAL_DATE"))})
 
 
 _UNION = """
-UPDATE grid_region i SET geom = u.geom, meta = i.meta || jsonb_build_object('boundary', %(meta)s::jsonb || jsonb_build_object('subregions', u.ids)),
-       updated_at = now()
+UPDATE grid_region i
+SET geom = u.geom, updated_at = now(),
+    meta = i.meta || jsonb_build_object('boundary', %(meta)s::jsonb || jsonb_build_object('subregions', u.ids))
 FROM (SELECT parent_id, array_agg(id ORDER BY id) AS ids,
              ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_UnaryUnion(ST_Collect(geom))), 3)) AS geom
       FROM grid_region
@@ -134,7 +135,8 @@ def iso_region(props: dict[str, Any], ctx: LayerContext) -> Region:
 
 # ---------------------------------------------------------------- control areas (balancing authorities)
 def _strip_code_suffix(name: str) -> str:
-    """'ARLINGTON VALLEY, LLC - AVBA' -> 'ARLINGTON VALLEY, LLC'; 'NORTHWESTERN ENERGY (NWMT)' -> 'NORTHWESTERN ENERGY'."""
+    """'ARLINGTON VALLEY, LLC - AVBA' -> 'ARLINGTON VALLEY, LLC'; 'NORTHWESTERN ENERGY (NWMT)' -> 'NORTHWESTERN
+    ENERGY'."""
     return re.sub(r"(\s+-\s+[A-Z0-9]{2,6}|\s*\([A-Z0-9]{2,6}\))\s*$", "", name)
 
 

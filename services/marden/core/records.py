@@ -22,7 +22,8 @@ from marden.core.jsonutil import hash_parts, jsonb
 PRICE_KINDS = frozenset({"trade", "quote", "fund_mark", "exchange", "dealer", "marden", "legacy"})
 SEVERITIES = frozenset({"red", "amber", "green", "none"})
 EVENT_STATUSES = frozenset({"candidate", "published"})
-FILING_TYPES = frozenset({"N-PORT", "10-Q", "10-K"})
+# 'NAIC Schedule D': insurer statutory statements (held for legal review; never a price anchor).
+FILING_TYPES = frozenset({"N-PORT", "10-Q", "10-K", "NAIC Schedule D"})
 _CUSIP = re.compile(r"^[0-9A-Z*@#]{9}$")
 _ISIN = re.compile(r"^[A-Z]{2}[0-9A-Z]{9}[0-9]$")
 
@@ -203,8 +204,8 @@ class EventWriter:
 
 
 class HoldingWriter:
-    """holding rows (N-PORT, BDC 10-Q/10-K schedule lines; filed values). Unique on
-    (fund_entity_id, accession, line_key)."""
+    """holding rows (N-PORT, BDC 10-Q/10-K schedule lines, insurer NAIC Schedule D lines; filed values).
+    Unique on (fund_entity_id, accession, line_key)."""
 
     def __init__(self, conn: Conn):
         self.conn = conn

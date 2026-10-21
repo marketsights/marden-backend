@@ -197,5 +197,28 @@ def _install_defaults() -> None:
     # Only observations ('value'), not licence facts such as 'notice' or 'display_allowed'.
     depends("series", "value", "curve", singleton)
 
+    # Interconnection queue entries (collectors/iso_queue): a link to one of our campuses, sites or
+    # plants changes that subject's power section. Status changes reach them as events and, for large
+    # loads, as `large_load_queue_<iso>` facts on the subject itself.
+    for kind, views in (("campus", ("dc_row", "dc_detail")), ("site", ("site_detail", "site_tab:power")),
+                        ("plant", ("plant_row", "plant_detail"))):
+        _many_field("queue_project", f"linked_{kind}", views, _queue_links(kind))
+
+
+def _queue_links(kind: str) -> KeyFn:
+    """Ids a queue entry is or was linked to (every published linked_<kind> list, so an unlink also
+    refreshes the subject it left)."""
+    return via(
+        f"""SELECT DISTINCT l->>'id' FROM fact f,
+                  jsonb_array_elements(CASE WHEN jsonb_typeof(f.value) = 'array' THEN f.value ELSE '[]' END) l
+             WHERE f.subject_type = 'queue_project' AND f.subject_id = %s AND f.field = 'linked_{kind}'
+               AND f.status = 'published'"""
+    )
+
+
+def _many_field(subject_type: str, field_prefix: str, views: tuple[str, ...], keys: KeyFn) -> None:
+    for view in views:
+        depends(subject_type, field_prefix, view, keys)
+
 
 _install_defaults()
