@@ -35,6 +35,11 @@ services:
         sync: false
       - key: TRUST_PROXY             # one hop: Render's proxy
         value: "1"
+      - key: ALERT_LINK_SECRET       # verifies the unsubscribe links the worker signs: the worker's value
+        fromService:
+          type: worker
+          name: core-worker
+          envVarKey: ALERT_LINK_SECRET
 
   - type: worker
     name: core-worker

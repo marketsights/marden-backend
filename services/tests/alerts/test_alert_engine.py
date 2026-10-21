@@ -132,6 +132,7 @@ def test_backfill_writes_alerts_only(firms):
     alerts = rows("SELECT * FROM alert")
     assert alerts and stats.alerts == len(alerts) and stats.stream_events == 0
     assert all(a["backfill"] for a in alerts)
+    assert all(a["read_at"] is not None for a in alerts)  # history: no "new" badge for it
     assert all(a["at"].astimezone(BUSINESS_TZ).date() == a["occurred_on"] for a in alerts)
     assert not rows("SELECT 1 FROM stream_event")
     assert outbox.sweep_instant() == 0

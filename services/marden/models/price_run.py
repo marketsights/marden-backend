@@ -197,7 +197,7 @@ def summary(result: dict[str, Any], v1: set[str], all_bonds: bool = False) -> li
         if iid not in v1 and not all_bonds:
             continue
         band = o["band"] or {}
-        mode = (o.get("basis") or {}).get("mode", "-")
+        mode = (o.get("basis") or {}).get("mode") or "-"
         rng = _fmt(band.get("low"), 1) + "-" + _fmt(band.get("high"), 1)
         lines.append(f"{iid:36} {_fmt(o['price'], 2):>7} {rng:>13} "
                      f"{_fmt(o['spreadBp'], 0):>6} {_fmt(o['yieldPct'], 2):>6} {_fmt(o['change1w'], 2):>6} {mode:12} "

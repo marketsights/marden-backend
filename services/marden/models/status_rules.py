@@ -254,7 +254,8 @@ def lenders(site: SiteInputs, missing: list[str]) -> list[Finding]:
     if site.prices:
         worst = min(site.prices, key=lambda p: p.value)
         fact = {"value": f"Marden price {worst.value:.1f} ({worst.instrument_id})", "tag": "M",
-                "asOf": worst.as_of.isoformat(), "methodVersion": worst.method_version or "price"}
+                "asOf": worst.as_of.isoformat(), "sourceName": "Marden model price",
+                "methodVersion": worst.method_version or "price"}
         if worst.source_url:
             fact["sourceUrl"] = worst.source_url
         if worst.value < PRICE_RED_BELOW:

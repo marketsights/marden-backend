@@ -14,13 +14,17 @@ import { param, parseBody } from './serve.js';
 
 const itemSchema = z.strictObject({ kind: z.enum(['site', 'instrument']), refId: z.string().min(1).max(200) });
 const addSchema = z.union([itemSchema, z.strictObject({ items: z.array(itemSchema).min(1).max(200) })]);
-const readSchema = z.strictObject({ ids: z.array(z.string().min(1).max(40)).min(1).max(500).optional() });
+// { ids } marks those alerts read; {} or { all: true } (the web client's "Mark all read") marks all.
+const readSchema = z
+  .strictObject({ ids: z.array(z.string().min(1).max(40)).min(1).max(500).optional(), all: z.literal(true).optional() })
+  .refine((b) => !(b.ids && b.all), { message: 'send ids or all, not both' });
 
 export function watchlistRoutes(app: FastifyInstance, db: Db): void {
   app.get('/api/watchlist', async (req) => {
     const { orgId } = authOf(req);
-    const rows = await db.withOrg(orgId, (c) => watchRows(c, orgId, asOfOf(req)));
-    return rows.map(toWatchItem);
+    const asOf = asOfOf(req);
+    const rows = await db.withOrg(orgId, (c) => watchRows(c, orgId, asOf));
+    return rows.map((row) => toWatchItem(row, asOf));
   });
 
   // Adding an issuer adds its instruments and the sites they depend on; the user can uncheck

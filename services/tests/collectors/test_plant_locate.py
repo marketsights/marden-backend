@@ -140,6 +140,7 @@ def test_plants_are_located_by_eia_then_on_site_campus_and_counties_follow(commi
     queue = _current(committed, "p-queue")
     assert set(queue) == {"county"} and queue["county"]["tag"] == "F" and queue["county"]["source_name"] == "ERCOT"
     assert queue["county"]["value"] == {"name": "Ellis", "state": "TX", "fips": "48139"}
+    assert queue["county"]["quote"] == "28INR0100 | County Ellis"
     assert _row(committed, "p-queue") == {"county": "Ellis", "eia_plant_id": None, "lat": None, "lon": None}
 
     dirty = {r["key"] for r in committed.execute("SELECT key FROM read_model_dirty WHERE view = 'plant_row'")}
@@ -164,6 +165,51 @@ def test_an_eia_plant_id_already_on_the_plant_is_used_and_eia_keeps_its_county(c
     assert facts["county"]["tag"] == "F" and facts["county"]["value"] == {"name": "Indiana", "state": "PA"}
     assert "Westmoreland County" in facts["county"]["quote_loc"]
     assert _row(committed, "p-x")["eia_plant_id"] == 3122
+
+
+def test_a_filed_point_beats_the_campus_and_served_sites_and_states_are_checked(committed):
+    _store_workbook()
+    permit = (32.40, -99.90)
+    with db.transaction() as conn:
+        _county(conn, "48441", "TX", "Taylor", (-100.2, 32.0, -99.6, 32.7))
+        writer = FactWriter(conn)
+        # an on-site plant with a filed point (an air permit): the permit's point, not the campus's
+        _plant(conn, "p-permit", "Abilene on-site gas generation", "TX", technology_type="data center campus power")
+        _serves(conn, "p-permit", "c-abilene", "TX", CAMPUS)
+        writer.add("plant", "p-permit", "coordinates", {"lat": permit[0], "lon": permit[1]}, tag="F",
+                   source_name="TCEQ", source_url="https://www.tceq.texas.gov/permit", valid_from=date(2026, 9, 1),
+                   producer="collector:air_permits", status="published", quote_loc="permit application p. 3")
+        # a filed coordinates value without a numeric lat/lon is no point (and does not stop the run)
+        _plant(conn, "p-badpoint", "Some other on-site plant", "TX", technology_type="gas plant")
+        writer.add("plant", "p-badpoint", "coordinates", {"note": "see map"}, tag="F", source_name="TCEQ",
+                   valid_from=date(2026, 9, 1), producer="collector:air_permits", status="published")
+        # on-site by its utility, one served site with a point in its state: the site's point
+        conn.execute("INSERT INTO site (slug, name, state, geom) VALUES ('s-abilene', 'Abilene', 'TX', "
+                     "ST_SetSRID(ST_MakePoint(%s, %s), 4326))", (CAMPUS[1], CAMPUS[0]))
+        _plant(conn, "p-site", "Turbines for the Abilene site", "TX", utility="Behind-the-meter",
+               serves_sites=["s-abilene"])
+        # on-site, but its one served campus is in another state: not placed there
+        _plant(conn, "p-xstate", "On-site turbines in Southaven", "MS", technology_type="gas plant")
+        _serves(conn, "p-xstate", "c-memphis", "TN", (35.0, -90.03))
+    out = plant_locate.run()
+    assert out["ok"], out
+
+    permit_facts = _current(committed, "p-permit")
+    assert set(permit_facts) == {"county"}  # the point is the permit's own fact; only the county is written
+    assert permit_facts["county"]["valid_from"] == date(2026, 9, 1)
+    assert _row(committed, "p-permit") == {"county": "Taylor", "eia_plant_id": None, "lat": permit[0],
+                                           "lon": permit[1]}
+    placed = {p["plant"]: p["method"] for p in out["placed"]}
+    assert placed["p-permit"] == "record" and placed["p-site"] == "onsite_site"
+    assert "p-badpoint" not in placed and "p-xstate" not in placed
+
+    site = _current(committed, "p-site")["coordinates"]
+    assert site["tag"] == "R" and site["value"]["basis"] == "on-site at served site s-abilene"
+    assert site["quote"] == "Behind-the-meter"
+    assert _current(committed, "p-xstate") == {} and _row(committed, "p-xstate")["lat"] is None
+
+    again = plant_locate.run()
+    assert again["facts_new"] == 0 and again["columns_changed"] == 0
 
 
 def test_dry_run_writes_nothing(committed):

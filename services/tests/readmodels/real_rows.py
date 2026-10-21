@@ -90,10 +90,14 @@ def copy_instruments(ids: Sequence[str]) -> list[str]:
             )
         ]
         p["entities"] = entities
+        # The instruments' own sites, and the sites their issuers are chain parties of (an unsited
+        # note's chain status is its issuer's link there).
         p["sites"] = [
             r[0]
             for r in src.execute(
-                "SELECT DISTINCT site_slug FROM instrument WHERE id = ANY(%(ids)s) AND site_slug IS NOT NULL", p
+                """SELECT site_slug FROM instrument WHERE id = ANY(%(ids)s) AND site_slug IS NOT NULL
+                   UNION SELECT site_slug FROM chain_party WHERE entity_id = ANY(%(entities)s)""",
+                p,
             )
         ]
         _copy(src, dst, "entity", "id = ANY(%(entities)s)", p, nulls=("parent_id",))
@@ -102,6 +106,7 @@ def copy_instruments(ids: Sequence[str]) -> list[str]:
                 dst.execute("UPDATE entity SET parent_id = %s WHERE id = %s", (parent, eid))
         _copy(src, dst, "site", "slug = ANY(%(sites)s)", p)
         _copy(src, dst, "instrument", "id = ANY(%(ids)s)", p)
+        _copy(src, dst, "chain_party", "entity_id = ANY(%(entities)s) AND site_slug = ANY(%(sites)s)", p)
         _copy(src, dst, "fact", "subject_type = 'instrument' AND subject_id = ANY(%(ids)s)", p, nulls=("document_id",))
         _copy(src, dst, "price_obs", "instrument_id = ANY(%(ids)s)", p, nulls=("document_id",))
         _copy(src, dst, "holding", "instrument_id = ANY(%(ids)s)", p, nulls=("document_id",))

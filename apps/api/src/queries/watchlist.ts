@@ -13,6 +13,7 @@ export interface WatchJoinRow {
   site_doc: Record<string, unknown> | null;     // SiteDetail of a watched site
   inst_doc: Record<string, unknown> | null;     // InstrumentDetail of a watched instrument
   inst_site_doc: Record<string, unknown> | null; // SiteDetail of the site an instrument depends on
+  coming: ComingUpEntry[];                       // this name's dated steps (home read model), soonest first
 }
 
 const latestDocs = (view: string, keys: string): string => `
@@ -21,6 +22,11 @@ const latestDocs = (view: string, keys: string): string => `
   ORDER BY key, as_of DESC`;
 
 export async function watchRows(db: Queryable, orgId: string, asOf: string | null): Promise<WatchJoinRow[]> {
+  const [rows, coming] = await Promise.all([watchJoinRows(db, orgId, asOf), comingUp(db, asOf)]);
+  return rows.map((row) => ({ ...row, coming: coming.filter((c) => Array.isArray(c.watch) && c.watch.includes(`${row.kind}:${row.ref_id}`)) }));
+}
+
+async function watchJoinRows(db: Queryable, orgId: string, asOf: string | null): Promise<Omit<WatchJoinRow, 'coming'>[]> {
   const res = await db.query<WatchJoinRow>(
     `WITH items AS (SELECT id, kind, ref_id, created_at FROM watchlist_item WHERE org_id = $1),
      site_keys AS (
@@ -42,6 +48,25 @@ export async function watchRows(db: Queryable, orgId: string, asOf: string | nul
     [orgId, asOf],
   );
   return res.rows;
+}
+
+/** A dated step from the `home` read model's Coming up list, with the watch keys it belongs to. */
+export interface ComingUpEntry { date: string; what: string; watch: string[] }
+
+/**
+ * The scheduled steps and next public fund marks of every name (`home` read model, key 'all',
+ * `comingUp`; built by services/marden/readmodels/views/home.py), as of the day asked. Empty until
+ * that read model is built: the rows then show no catalyst (n/d), never a made-up one.
+ */
+export async function comingUp(db: Queryable, asOf: string | null): Promise<ComingUpEntry[]> {
+  const res = await db.query<{ coming: unknown }>(
+    `SELECT doc->'comingUp' AS coming FROM read_model
+     WHERE view = 'home' AND key = 'all' AND ($1::date IS NULL OR as_of <= $1::date)
+     ORDER BY as_of DESC LIMIT 1`,
+    [asOf],
+  );
+  const coming = res.rows[0]?.coming;
+  return Array.isArray(coming) ? (coming as ComingUpEntry[]) : [];
 }
 
 /** Site slugs on the org's watchlist (for "Watchlist only" filters). */

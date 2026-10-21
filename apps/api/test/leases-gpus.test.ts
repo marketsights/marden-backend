@@ -79,7 +79,7 @@ const DEPLOYMENT = {
 const MODEL = {
   model: 'H100', launch: sourced('2022-10', 'R'), newPrice: sourced(40625, 'M'), index: GPUS.index.slice(0, 2), providers: GPUS.providers.slice(0, 1),
   resale: [{ date: '2026-08-15', usd: 14250, source: 'Amcompute', url: 'https://www.amcompute.com/appraisals/h100' }],
-  valueByAgeYears: GPUS.valueByAge[0].points,
+  valueByAgeYears: GPUS.valueByAge[0]?.points ?? [],
   assumptions: { utilization: 0.16, annualDecline: 0.22, haircut: 0.2, usefulLifeYears: m(5), methodVersion: 'gpu_model v0.1' },
   facilities: [{ instrumentId: 'EX-1', name: 'DDTL 1.0', units: m(43000) }],
 };
@@ -157,6 +157,8 @@ describe('lease map and GPU index', () => {
     expect(sources.some((l) => l[1] === 'ora-jupiter' && l[2] === 'evidence[0]' && l[6] === 'https://www.sec.gov/x')).toBe(true);
     expect((await sheet('/api/export/leases.xlsx?attribution=Inferred')).rows.map((r) => r.id)).toEqual(['ms-jupiter']);
     expect((await sheet('/api/export/leases.xlsx?trigger=1')).rows.map((r) => r.id)).toEqual(['ora-jupiter']);
+    // "Signed, not commenced" holds a comma: the status filter keys on the part before it.
+    expect((await sheet('/api/export/leases.xlsx?status=signed&kind=Compute%20contract')).rows.map((r) => r.id)).toEqual(['ms-jupiter']);
     expect((await sheet('/api/export/leases.xlsx?q=jupiter&band=n/d')).rows.map((r) => r.id)).toEqual(['ms-jupiter']);
     expect((await get('/api/export/leases.xlsx?band=Severe')).statusCode).toBe(400);
   });

@@ -85,7 +85,8 @@ const EXPORTS: Record<string, Expect | null> = {
   'data-centers': ['dc_row', '*'], 'power-plants': ['plant_row', '*'], completion: ['completion', 'all'],
   sites: ['sites', 'all'], site: ['site_schedule', SITE], instruments: ['instruments', 'all'], holders: ['instrument_detail', INST],
   'risk-list': ['risk_list', 'latest'], payers: ['payers', 'all'], payer: ['payer', ENTITY], 'payer-exposed': ['payer_capacity', ENTITY],
-  leases: ['leases', 'all'],
+  leases: ['leases', 'all'], 'lease-reconciliation': ['leases', 'all'],
+  gpus: ['gpus', 'all'], 'gpu-models': ['gpus', 'all'], 'gpu-deployment': ['gpu_deployment', 'all'], 'gpu-model': ['gpu_model', 'H100'],
   obligations: ['obligations', 'all'], watchlist: null,
   'track-record': ['track_record', 'all'], models: ['track_record', 'all'], sources: null,
   stress: ['model:stress', 'power_delay'], // a run of the stress model (stress_run), not a read model
@@ -96,6 +97,8 @@ const APP_ROUTES = new Set([
   '/api/home/layout', '/api/stress/saved', '/api/stress/saved/:id', '/api/watchlist', '/api/watchlist/issuers/:id', '/api/alerts',
   '/api/alert-settings', '/api/saved-views', '/api/sources/health', '/api/account', '/api/search', '/api/stream', '/api/me',
   '/api/export/:table.xlsx', '/healthz',
+  // alert email delivery: email_outbox / email_provider_state, and the signed unsubscribe link
+  '/api/alert-delivery', '/api/email/unsubscribe',
   // staff document agents: app tables (agent_job, agent_upload, review_item), not read models
   '/api/documents', '/api/documents/:id', '/api/uploads/:id', '/api/agents/status', '/api/review', '/api/review/:id',
 ]);
@@ -149,6 +152,7 @@ describe('view/key contract', () => {
     for (const [table, expected] of Object.entries(EXPORTS)) {
       const qs = table === 'holders' ? `?instrument=${INST}` : table === 'payer' || table === 'payer-exposed' ? `?slug=${ENTITY}`
         : table === 'site' ? `?slug=${SITE}`
+        : table === 'gpu-model' ? '?model=H100'
         : table === 'stress' ? '?scenario=power_delay&months=6' : '';
       const res = await app.inject({ method: 'GET', url: `/api/export/${table}.xlsx${qs}` });
       if (expected === null) {

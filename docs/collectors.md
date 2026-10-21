@@ -80,3 +80,99 @@ Each collector was run twice in a row with `python -m marden collect <name>`, on
 Ten random rows per collector were checked against the raw stored document by an independent parser: the value, date, tag, source and URL. All matched. The checker raised two false alarms of its own, both confirmed correct by hand: a BDC line whose prior-year row has the same par and fair value, and a EUR N-PORT line whose mark is in euros (100 × valUSD × exchangeRt / balance with exchangeRt 0.8752 EUR per USD). `fred` has no rows to check yet.
 
 Totals from these sources on 2026-10-21 18:45 UTC (documents / queued for extraction / events / holdings / prices): `sec_index` 338 / 74 / 195 / 0 / 0, `sec_nport` 1,993 / 0 / 0 / 22,720 / 22,728 (plus 1,035 "N-PORT median" prices, a name the holdings seed loader shares), `sec_bdc` 11 / 0 / 0 / 317 / 109, `sec_xbrl` 35 documents and 15,456 facts, `ust_par_curve` 2 documents and 6,269 facts, `nyfed_sofr` 3 and 700, `eia_860m` 4 and 3,756, `ercot` 20 (6 queued) and 18, `ferc` 57 (8 queued) and 15 events, `sentinel2` 287 documents and 1,281 facts, `fred` 1 document (the maintenance page) and no facts.
+
+## Air permits (`air_permits`)
+
+State air permits for our power plants (spec 15 "Air permit card", spec 20). One collector, `services/marden/collectors/air_permits.py`, with one adapter per state permit system Marden may read: `air_permits_tx.py` (+ `air_permits_tx_parse.py`), `air_permits_nm.py`, `air_permits_ia.py` and `air_permits_la.py`. The shared parts are `air_permits_match.py` (plant profiles and the match rule), `air_permits_text.py` (PDF text, dates, units and emission statements), `air_permits_store.py` (facts and events) and `air_permits_systems.py` (every state with a plant, its permit system, and why it is or is not collected).
+
+- **Run:** `python -m marden collect air_permits [--state TX --state LA]`. Task `collect.air_permits` runs weekly, Wednesdays 12:29 UTC (`29 12 * * 3`).
+- **Rules:** each adapter is one heartbeat on its discovery source; Records Online gets its own. The User-Agent is `Marden research cody@marden.ai`, set per host through the project's `Fetcher` with no retries. A 401, 403 or 429 or a challenge page stops that adapter, is recorded on its `source_run`, and nothing is written in place of the record. Robots-disallowed hosts are never requested. Raw pages and PDFs are stored before parsing. Pages with per-request tokens, and Socrata pages whose rows come back in a different order, are stored again only when their rows change. Stored files are never fetched again.
+
+| State | Source id | Endpoints and limits | Terms relied on (terms_note) | What is read |
+|---|---|---|---|---|
+| TX | `tceq_cr_open_data` | TCEQ Central Registry Files on the Texas Open Data Portal: `https://data.texas.gov/resource/{msah-s2rv,5eqq-7nad,t34q-qzi3,tzyg-j7q4,9iad-hrn8}.json`. One SoQL query per regional data set, ORing the operator, owner and project names of our Texas plants and the permit numbers they cite. Up to 4 pages of 5,000 rows. 1 req/s. | data.texas.gov robots: `Crawl-delay: 1`, with Disallow rules only on `/browse` search pages. TCEQ Website Policies: "Unless otherwise noted, content of our site is considered "public domain."" | Regulated entities (RN), county, NSR and Title V permit numbers with status, and the customers on each permit. An RN counts as a power plant only if a record says it generates power (NAICS 2211xx, "electric generation", "EGU", "power station", ...). |
+| TX | `tceq_records_online` | `https://records.tceq.texas.gov/cs/idcplg`. The flow is `TCEQ_SEARCH` (session cookie), then `TCEQ_SEARCH_ADD_ACCESS` (as the page does), then `TCEQ_PERFORM_SEARCH&QueryText=...&ResultCount=200`, per RN and per permit number of a matched facility. Files come from `TCEQ_EXTERNAL_SEARCH_GET_FILE&dID=..&Rendition=Web&searchType=External`. At most 60 downloads a run, 1 request per 2 s. | No robots.txt (404). TCEQ public-domain clause; "Maintaining Public Access: ... we reserve the right to block their access". | Permit families (a numeric permit plus its PSDTX, GHGPSDTX and HAP ids), dated actions (application, notice, draft, technical review, decision, withdrawal), technical reviews (units, models, OEM, MW ratings, emission totals, received date) and final-action letters (expiry, application date). Copies that are not public come back as an HTML metadata page; those pages are stored so they are not fetched again. |
+| NM | `nmed_aqb` | WordPress REST on www.env.nm.gov. Notices: `/public-notices/wp-json/wp/v2/search` and `/posts/<id>`. OPF dockets: `/opf/wp-json/wp/v2/...`. Legal-notice and application PDFs come from `service.web.env.nm.gov` and `cloud.env.nm.gov`. 1 request per 2 s. | robots: "User-agent: * Disallow: /wp-admin/". Notices: "The permit application is available for review on the AQB Public Notices of Permitting Actions website". | Applicant, facility, county and permit number from the legal notice. Its generation sentence, units (model, OEM) and the emissions the application estimates (with the basis stated). Dated actions: application received, completeness letter, draft, hearing. |
+| IA | `iowa_dnr_aqrr` | `https://idnraqrr.iowadnr.gov/ConPermitSearch`: plant-name autocomplete, then the plant page `ConstructionPermit?id=<n>`, then `DownloadFile` permit-collection PDFs (programs.iowadnr.gov). 1 request per 2 s. | No robots.txt (404). Iowa DNR notices: "The public may review the following air quality construction permits available online at https://idnraqrr.iowadnr.gov/ConPermitSearch". | Plant number, county, permits by project and emission point with issue dates. From the collection PDF: company, project, process, emission units and capacities, and emission limits (Table 2). Later projects become amendments. |
+| LA | `ldeq_public_notices` | `https://www.deq.louisiana.gov/public-notices?q=<operator name>`: one keyword query per operator phrase of our Louisiana plants. 1 request per 2 s. Attachments link into EDMS and are not followed. | robots: "User-Agent: * Disallow: /admin". "Permit records are available for review at the DEQ Public Records Center". The privacy page states no reuse restriction. | Air Quality rows: company and facility, AI number, permit numbers (Part 70, PSD-LA, acid rain), subject, publication, hearing and issue dates. The parish is taken from the facility name only when it says "<Name> Parish". |
+
+**Match rule** (`air-permit-match@0.1`). A facility is tied to a plant only when all three of these hold:
+
+1. **Name.** An operator, owner, party, served-campus or project name of the plant appears in the facility's names or permit customers. This is a whole-phrase token match. Legal suffixes, notes and representatives are dropped, and 3-letter acronyms such as CPV are kept.
+2. **Generation.** The record says the facility generates power.
+3. **Location.** One of: the county or parish agrees (from the plant row, its served campuses, or a "<X> County" in its name or notes, checked against the Census list); or a permit number the plant's own records cite; or the project name (for example "Project Llano").
+
+A county that conflicts rejects the facility. When two plants have equal evidence, the facility goes to neither. A plant takes a second facility only if each facility it takes brings a cited permit number or the project name. Profiles never read this collector's own facts.
+
+Everything that is not matched, but bears a plant's name with generation, a cited number or a project name, goes to the run report (`source_run.meta.coverage.unmatched` and the CLI) with the reason it failed. It never becomes a fact.
+
+**Outputs** (tag F, `source_name` = the agency, `document_id` = the stored record, verbatim `quote`, `method_version` = `air-permit-match@0.1`, `valid_from` = the run day; a field is written only when its value changed):
+
+- `air_permit`: the primary permit. It is ranked PSD/NSR, then Title V, then standard/PBR; live before withdrawn; then the latest activity. It carries the number, ids, type, status and agency status, applicant, filed, issued and expires dates, and units (count, model, OEM, MW each and total, each with its quote and URL). It also carries emission limits or estimates with their basis, amendments, the facility, and the match evidence.
+- `air_permits`: every matched permit.
+- `air_permit_number`: all ids joined.
+- Events of kind `permit` on the plant: one per dated action, titled `"<agency> air permit <number>: <action> (project <n>)"`.
+
+The plant card reads them through `facilities_plants.air_permit` (`filed`, `decided`, `amendments`; types PSD becomes Major, NSR/PBR become Minor).
+
+**States with plants and no adapter** (each recorded in the report; the blocked ones are declared as sources with `blocked_reason`):
+
+| State | System | Status |
+|---|---|---|
+| TX | TCEQ APAD, NSR project reports, CID, Central Registry query (www2/www14/www15/www17) | Blocked: robots.txt `User-agent: * Disallow: /` (`tceq_air_permits_web`). The same data come from data.texas.gov and Records Online. |
+| LA | LDEQ EDMS | Blocked: robots.txt `User-agent: * Disallow: /` (`ldeq_edms`). |
+| KS | KDHE Bureau of Air | Unreachable: every page, robots.txt included, answers Cloudflare 403 "Sorry, you have been blocked" (`kdhe_air`). Kansas Register notices are a v2 candidate. |
+| TN | Shelby County Health Department (xAI Memphis) | Unreachable: Cloudflare 403 (`shelby_county_air`). TDEC: n/a (the other Tennessee plant is a reactor). |
+| MN | MPCA air permits | Unreachable: Radware "Verifying your browser" challenge (`mpca_air`). |
+| IN | IDEM permits online | Unreachable: 403 "Access is denied" (`idem_air`). |
+| VA | Virginia DEQ | Unreachable: Akamai 403 on every page, robots.txt included (`va_deq`). |
+| PA | DEP eFACTS | Unreachable: incomplete TLS chain. Verification is never disabled (`pa_efacts`). Regional files and PA Bulletin notices are v2. |
+| OH, ND, NE, OK, MS, WY, WI, SD | Ohio EPA eDocs, NDDEQ notices, Nebraska DWEE notices (the old deq-iis.ne.gov host reset the connection), Oklahoma DEQ, MDEQ enSearch, Wyoming DEQ, Wisconsin DNR, SD DANR | Reachable; no adapter yet (v2). |
+| IL, WA | Illinois EPA, Washington Ecology/EFSEC | n/a: nuclear PPAs and uprates, and an advanced reactor. There is no combustion permit to look for. |
+
+### Live results (local DB, 2026-10-21)
+
+`python -m marden collect air_permits` (every state) ran three times in a row, at 20:30, 20:35 and 20:42 UTC. Each followed the earlier TX/NM/IA runs that wrote this collector's rows at 20:14–20:17.
+
+- **Run 1:** 0 documents, 0 facts, 0 events.
+- **Run 2:** 1 document: a Central Registry page whose rows came back from Socrata in a different order. The page was then made change-only on its row set, with a test.
+- **Run 3:** 0 documents, 0 facts, 0 events.
+
+All 15 adapter runs were ok. Stored in total: `tceq_cr_open_data` 27 documents, `tceq_records_online` 68 (32 queued for extraction), `nmed_aqb` 23 (2 queued), `iowa_dnr_aqrr` 3 (2 queued), `ldeq_public_notices` 1. Facts: 24 (`air_permit`, `air_permits` and `air_permit_number` on 8 plants). Permit events: 63 (TCEQ 52, NMED 9, Iowa DNR 2).
+
+| State | Plants | Facilities with power generation found | Permits found | Plants matched (permits) | Unmatched candidates |
+|---|---|---|---|---|---|
+| TX | 19 | 28 (from 2,365 search rows without generation or name evidence) | 76 | 6 (15): n-abilene-onsite, n-frontier-shack, p-089, p-090, p-098, p-110 | 22 |
+| NM | 3 | 1 | 1 | 1 (1): n-jupiter-microgrid | 0 |
+| IA | 7 | 1 | 1 | 1 (1): p-050 | 0 |
+| LA | 2 | 9 | 9 | 0 | 9 |
+| 16 other states | 43 | – | – | – | Not collected (table above) |
+
+**Spot checks against the stored records:**
+
+- **n-abilene-onsite** (RN112029061, Longhorn Data Center, Taylor County). Primary permit 182126 (+ PSDTX1688, GHGPSDTX263, HAP89): PSD, pending. Also on the plant:
+  - 177263, Standard, issued, expires 2034-08-21. Technical review 387309: "Project Received Date January 11, 2025"; 5 Solar Titan 350 at 38 MW and 5 GE Vernova LM2500 at 34.1 MW. The final action is dated 2025-01-22.
+  - 177262 (PBR).
+  - 182267, withdrawn 2026-04-20.
+  - O4721 (Title V).
+- **p-089** (Fermi, RN112258678, Carson County). PSD 181009, issued 2026-02-27, technical review received 2025-08-01. 90 Siemens Energy SGT-800 among the units; NOx 1,741.75 tpy and CO2e 23,964,782.74 tpy as the review states them. 183462 is pending.
+- **p-098** (GW Ranch, RN112259775): PSD 181033 issued 2026-01-21.
+- **p-110** (CPV Basin Ranch, RN111876330): PSD 175063 issued 2024-11-25, plus O4946.
+- **p-090** (Project Llano, RN112229901): PSD 182880 pending, plus 182124 (PBR) and O4965. The generation evidence came from Records Online, because the Central Registry rows had none.
+- **n-frontier-shack** (RN112247101): PSD 182467 pending, plus Standard 180842.
+- **n-jupiter-microgrid**: NMED NSR 10883 (YGI Microgrid, Doña Ana County). Pending, application received 2026-04-27. Bloom Energy Server; NOx 37.2 tpy, as "estimated in the application (legal notice)".
+- **p-050** (Orient Energy Center, Adair County): Iowa DNR 26-A-117 to 26-A-121, issued 2026-04-30. Project 26-153 (CT-3, 26-A-246) is an amendment; NOx 235.42 tons/yr combined.
+
+**Unmatched, in the report:**
+
+- **Louisiana.** Richland Parish 1 and 2 (AI 249132, PSD-LA-869) and 3 and 4 (AI 249365, PSD-LA-871) tie between n-hyp-ccgt1 and n-hyp-exp7: same operator, same parish. Franklin Farms (PSD-LA-862) and Waterford 5 and 6 (PSD-LA-865) have no parish in their names.
+- **Texas.**
+  - El Paso Electric: five facilities in El Paso County, so which is the Meta unit's is not guessed.
+  - Pacifico: B & W Ranch (Bastrop) and Spunky (Hood).
+  - VoltaGrid, Vistra and Crusoe: sites in counties other than our plants'. Klondike Pad 1 is in Dawson.
+
+**Known limits:**
+
+- NMED's legal notice says "Permit No. 10883", while its OPF docket index file says "NSR 10833". 10883 is written.
+- Technical reviews that Records Online does not make public cannot be read. Up to 3 copies are tried per project.
+- Louisiana needs a permit number or a project name on the Hyperion plants before its notices can be tied to them.

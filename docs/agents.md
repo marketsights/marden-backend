@@ -152,9 +152,9 @@ publish), 145 s, about $2.02 (router $0.006, verifier $0.72; prompt caching read
 | CoreWeave 8-K (DDTL 5.5) | debt | 0 | 17 (instrument link proposed) | 0 | 46,012 |
 | CoreWeave DDTL 5.5 press release | debt, ratings, gpu | 0 | 10 | 0 | 39,898 |
 | CoreWeave Q2 2026 earnings release | gpu, periodic, debt | 3 | 4 | 0 | 62,191 |
-| CoreWeave 10-Q | 8 areas | 6 | 44 | 2 | 483,690 |
+| CoreWeave 10-Q | 8 areas | 5 | 44 | 2 | 483,690 |
 | FERC order, Oklo (PJM) | power | 0 | 2 | 0 | 30,635 |
-| Applied Digital Building 4 lease (EX-10.1) | lease | 5 | 4 | 0 | 76,037 |
+| Applied Digital Building 4 lease (EX-10.1) | lease | 4 (+1 repeat) | 4 | 0 | 76,037 |
 | TCEQ permit 182126 summary | permits | 1 | 1 | 0 | 12,685 |
 | Doña Ana County BOCC agenda (Project Jupiter) | local | 0 | 2 | 0 | 44,307 |
 

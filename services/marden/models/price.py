@@ -149,10 +149,10 @@ def _inputs(inst: Instrument, out: dict[str, Any], ch: Chain | None, curves: dic
     items: list[dict[str, Any]] = []
 
     def add(key: str, label: str, value: Any, unit: str, tag: str = "M", source: str | None = None) -> None:
-        if value is not None:
+        if value is not None:  # rule 4: an M input names the engine as its source
             items.append({"key": key, "label": label, "value": value, "unit": unit, "tag": tag,
                           "asOf": as_of.isoformat(), **({"methodVersion": VERSION} if tag == "M" else {}),
-                          **({"sourceName": source} if source else {})})
+                          "sourceName": source or "Marden price engine"})
 
     issuer = inst.issuer if inst.issuer in cds else None
     if issuer:
@@ -233,6 +233,7 @@ def run_day(conn: Conn, day: date, ids: Sequence[str] | None = None, *,
         except (ValueError, ZeroDivisionError) as exc:  # one instrument's bad terms never stop the run
             out = _null([f"instrument {iid}: {type(exc).__name__}: {exc}"])
         out.pop("_week_ago_price", None)
+        out.setdefault("basis", {"mode": None, "why": "not priced (see missing)"})
         out["inputs"] = _inputs(inst, out, ch, curves, cds, book, day)
         out.update({"label": PRICE_LABEL, "methodVersion": VERSION, "sourceUrl": METHOD_URL,
                     "tier": None if issuer_bond else instrument_tier(inst, ch)})

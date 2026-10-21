@@ -105,10 +105,15 @@ def fund_marks(holders: list[Holder]) -> dict[str, Any] | None:
 
 def instrument_output(iid: str, inputs: Inputs) -> dict[str, Any]:
     day, price = inputs.as_of, inputs.prices.get(iid)
-    holders = sorted(inputs.holders.get(iid, []), key=lambda h: (-h.par_usd, h.name))
+    listed = inputs.holders.get(iid, [])
+    # A filed line with zero or negative par (a closed or short position) does not make the fund a holder.
+    holders = sorted((h for h in listed if h.par_usd > 0), key=lambda h: (-h.par_usd, h.name))
     rows = [holder_row(h, price) for h in holders]
     rows.sort(key=lambda r: (-(abs(r["navHitMm"]) if r["navHitMm"] is not None else -1), -r["parMm"], r["name"]))
     missing: list[str] = []
+    if len(holders) < len(listed):
+        missing.append(f"{len(listed) - len(holders)} filed lines with zero or negative par left out "
+                       "(closed or short positions)")
     marked = [r for r in rows if r["lastMark"] is not None]
     if not holders:
         gap: Any = "no fund"
@@ -134,6 +139,7 @@ def instrument_output(iid: str, inputs: Inputs) -> dict[str, Any]:
         "markGap": gap,
         "mardenPrice": None if price is None else {
             "value": round(price.value, 4), "tag": "M", "asOf": price.as_of.isoformat(),
+            "sourceName": "Marden model price",  # rule 4: every value names its source
             **({"methodVersion": price.method} if price.method else {}),
             **({"sourceUrl": price.source_url} if price.source_url else {})},
         "missing": missing,

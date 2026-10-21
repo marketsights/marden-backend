@@ -7,8 +7,9 @@ interconnection queue entries. Each function returns (county name, FactWriter.ad
   came from and the polygon disagrees (generalized boundaries near a county line), EIA's record is kept: tag F,
   source EIA-860M, quote 'County <name>' from the workbook row.
 - From the queue: every entry named in the plant's `queue_ids` fact is in `queue_project` with a county and
-  state, all name the same county, in the plant's state. Tag F, the queue's source (ERCOT GIS report, PJM queue)
-  and document, method QUEUE_METHOD. Used only for plants without a point.
+  state, all name the same county, in the plant's state (a queue id found in two queues is not used). Tag F, the
+  queue's source (ERCOT GIS report, PJM queue) and document, quote = that entry's id and County cell
+  ('28INR0100 | County Ellis'), method QUEUE_METHOD. Used only for plants without a point.
 """
 
 from __future__ import annotations
@@ -84,18 +85,23 @@ def from_queue(conn: Conn, state: str | None, queue_ids: Row | None) -> Found | 
     for r in rows:
         by_entry.setdefault(r["subject_id"], {})[r["field"]] = r
     st = (state or "").strip().upper()
-    named = {(norm(e["county"]["value"]), e["state"]["value"]) for e in by_entry.values()
-             if {"county", "state"} <= set(e)}
-    if len(by_entry) != len(ids) or len(named) != 1 or next(iter(named))[1] != st:
+    # every named entry found exactly once (a queue id in two ISOs' queues is not one entry), each with both
+    found = sorted(e.split(":", 1)[1] for e in by_entry)
+    if found != sorted({str(i) for i in ids}) or any(not {"county", "state"} <= set(e) for e in by_entry.values()):
+        return None
+    named = {(norm(e["county"]["value"]), e["state"]["value"]) for e in by_entry.values()}
+    if len(named) != 1 or next(iter(named))[1] != st:
         return None
     entries = sorted(by_entry)
-    src = max((by_entry[e]["county"] for e in entries), key=lambda r: (r["valid_from"], r["id"]))
+    src_entry = max(entries, key=lambda e: (by_entry[e]["county"]["valid_from"], by_entry[e]["county"]["id"]))
+    src = by_entry[src_entry]["county"]
     county = src["value"]
     fips = fips_of(conn, st, county)
     return county, {
         "value": {"name": county, "state": st, **({"fips": fips} if fips else {})}, "tag": "F",
         "source_name": src["source_name"], "source_url": src["source_url"], "document_id": src["document_id"],
         "valid_from": src["valid_from"], "method_version": QUEUE_METHOD,
+        "quote": src["quote"] or f"{src_entry.split(':', 1)[1]} | County {county}",
         "quote_loc": f"interconnection queue {', '.join(entries)}: county '{county}', state '{st}' (the plant's "
                      f"queue_ids fact {queue_ids['id'] if queue_ids else ''}); the plant has no point",
     }

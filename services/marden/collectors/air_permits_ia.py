@@ -177,11 +177,15 @@ def facility(fetcher: Fetcher, plant_id: str, stats: RunStats, info: dict[str, A
 def plant_permit(head: dict[str, str], projects: list[tuple[str, list[PermitRow], Any, dict[str, Any]]], url: str,
                  doc_id: int) -> Permit:
     """A plant's construction permits as one permit card: the first project's permits, later projects (new or
-    changed emission units) as amendments; units and limits of every project, each with its project."""
-    actions, units, limits = [], [], []
+    changed emission units) as amendments; each emission unit as the newest project describes it (a later
+    collection lists the earlier units again), and the limits of every project, each with its project."""
+    actions, limits = [], []
+    by_unit: dict[str, dict[str, Any]] = {}
     for project, prow, pdf, c in projects:
         src = {"url": prow[0].url, "document_id": pdf.id, "project": project}
-        units += [dict(u, **src) for u in c["units"]]
+        for u in c["units"]:
+            by_unit.pop(u["emission_unit"], None)
+            by_unit[u["emission_unit"]] = dict(u, **src)
         limits += [dict(e, **src) for e in c["limits"]]
         issued = min((r.issued for r in prow if r.issued), default=None)
         if issued:
@@ -195,7 +199,7 @@ def plant_permit(head: dict[str, str], projects: list[tuple[str, list[PermitRow]
     return Permit(
         AGENCY, ", ".join(r.permit for r in first_rows), ids, type="Construction permit", status="issued",
         agency_status="issued", applicant=first_c["company"], issued=actions[0].day if actions else None,
-        units=units, emission_limits=limits, actions=actions, url=url,
+        units=list(by_unit.values()), emission_limits=limits, actions=actions, url=url,
         quote=f"{head.get('Plant Name')} {head.get('Plant Number')}: " + "; ".join(
             f"{r.permit} project {r.project} {r.emission_point} {r.equipment} issued {r.issued}"
             for _, prow, _, _ in projects for r in prow),

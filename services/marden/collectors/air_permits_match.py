@@ -38,7 +38,7 @@ METHOD_VERSION = "air-permit-match@0.1"
 GENERATION = re.compile(
     r"\b(electric(ity|al)?\s+(power\s+)?generat\w*|power\s+generat\w*|generat\w+\s+(unit|station|facility|plant)s?"
     r"|EGUs?|combined[- ]cycle|simple[- ]cycle|peak(ing|er)|turbines?|reciprocating|engine generators?"
-    r"|fuel cells?|microgrid|power plant|energy server|generator sets?|genset)\b",
+    r"|fuel cells?|microgrid|power plant|power station|energy server|generator sets?|genset)\b",
     re.I,
 )
 PERMIT_NO = re.compile(r"\b(GHGPSDTX\d+|PSDTX\d+|NSR\s?\d{4,6}|\d{2}-A-\d{3}|\d{5,6})\b")
@@ -316,7 +316,8 @@ def score(ev: dict[str, Any]) -> int:
 def match_all(facilities: Iterable[Facility], plants: list[PlantProfile]) -> list[Match]:
     """One Match per facility: the plant it is tied to, or None with the reasons (best candidate's). A plant
     takes several facilities only when each brings a cited permit number or the project name: an operator with
-    several permitted sites in the plant's county (a utility's existing stations) is not guessed at."""
+    several permitted sites in the plant's county (a utility's existing stations, a second station next to the one
+    whose permit number the plant cites) is not guessed at."""
     out = _match_each(facilities, plants)
     by_plant: dict[str, list[Match]] = {}
     for m in out:
@@ -324,10 +325,10 @@ def match_all(facilities: Iterable[Facility], plants: list[PlantProfile]) -> lis
             by_plant.setdefault(m.plant.id, []).append(m)
     for plant_id, ms in by_plant.items():
         weak = [m for m in ms if not ({"permit_numbers", "project_name"} & set(m.evidence))]
-        if len(weak) > 1:
-            keys = ", ".join(m.facility.key for m in weak)
+        if weak and len(ms) > 1:  # with a second facility tied to the plant, name and county no longer tell
+            keys = ", ".join(m.facility.key for m in ms)
             for m in weak:
-                m.reasons = [f"{len(weak)} facilities of the operator in the plant's county ({keys}) and no permit "
+                m.reasons = [f"{len(ms)} facilities of the operator in the plant's county ({keys}) and no permit "
                              "number or project name to tell which is the plant's"]
                 m.evidence = dict(m.evidence, closest_plant=plant_id)
                 m.plant = None

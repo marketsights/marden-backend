@@ -11,6 +11,7 @@
 - `nmed_post_7565.json`, `nmed_legal_notice_10883.pdf.gz`: NMED's YGI Microgrid notice post and legal notice.
 - `aqrr_plant_11491.html`, `aqrr_25-350_pages1-3.pdf.gz`: the Iowa DNR plant page of Orient Energy Center and the
   first three pages of its project 25-350 permit collection.
+- `ldeq_notices_entergy_louisiana.html.gz`: the LDEQ public notice listing for the keyword 'entergy louisiana'.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from datetime import date
 from pathlib import Path
 
 from marden.collectors import air_permits_ia as ia
+from marden.collectors import air_permits_la as la
 from marden.collectors import air_permits_match as am
 from marden.collectors import air_permits_nm as nm
 from marden.collectors import air_permits_text as text
@@ -167,3 +169,32 @@ def test_iowa_plant_page_and_permit_collection():
         ("EU-1", "2,315 MMBtu/hr, natural gas"), ("EU-2", "2,315 MMBtu/hr, natural gas")]
     assert c["limits"] == [{"pollutant": "NOx", "value": 235.42, "unit": "tons/yr",
                             "basis": "combined, 12-month rolling", "quote": "Nitrogen Oxides (NOx) 235.42"}]
+
+
+def test_ldeq_notices_give_one_facility_per_ai_and_ties_stay_unmatched():
+    found = la.rows(gzip.decompress((DATA / "ldeq_notices_entergy_louisiana.html.gz").read_bytes()))
+    air = [n for n in found if n["media"] == "Air Quality"]
+    assert len(found) == 12 and len(air) == 9
+    richland = next(n for n in air if n["ai"] == "AI 249132")
+    assert richland["permits"] == "2460-00036-V0;PSD-LA-869;2460-00036-IV0" and richland["hearing"] == "9/22/2026"
+    parishes = [("richland",), ("franklin",), ("st", "charles")]
+    fac = la.facility("AI 249132", [richland], parishes, "https://www.deq.louisiana.gov/public-notices?q=249132", 1)
+    assert (fac.name, fac.county, fac.names) == ("Entergy Louisiana, LLC - Richland Parish 1 and 2 Power Station",
+                                                 "Richland", ["Entergy Louisiana, LLC"])
+    permit = fac.permits[0]
+    assert (permit.number, permit.type, permit.status) == ("PSD-LA-869", "PSD", "pending")
+    assert permit.ids == ["2460-00036-V0", "PSD-LA-869", "2460-00036-IV0"]
+    assert {(a.kind, a.day) for a in permit.actions} == {("notice", date(2026, 8, 20)), ("hearing", date(2026, 9, 22))}
+    assert fac.generation and "Power Station" in fac.generation
+    franklin = next(n for n in air if n["ai"] == "AI 245286")
+    done = la.facility("AI 245286", [franklin], parishes, "u", 1)
+    assert done.county is None  # 'Franklin Farms' is not '<Name> Parish': no parish is inferred from a word
+    assert done.names == ["Entergy Louisiana, LLC"]  # 'Entergy Louisiana, LLC / Franklin Farms Power Station'
+    assert (done.permits[0].status, done.permits[0].issued) == ("issued", date(2025, 12, 23))
+    # two of our Entergy Louisiana plants in Richland Parish: which one the station serves is not guessed
+    plants = [am.profile({"id": pid, "name": name, "state": "LA", "county": None, "campus_counties": ["Richland"],
+                          "facts": {"operator": "Entergy Louisiana"}, "prior_permit": None}, parishes, {})
+              for pid, name in (("n-hyp-ccgt1", "Entergy Louisiana Hyperion CCGTs"),
+                                ("n-hyp-exp7", "Entergy Louisiana Hyperion expansion: 7 additional gas plants"))]
+    (m,) = am.match_all([fac], plants)
+    assert m.plant is None and m.reasons[0].startswith("equal evidence for 2 plants")

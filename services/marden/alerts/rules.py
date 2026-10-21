@@ -70,7 +70,8 @@ def event_finding(event: dict[str, Any], name: str, ref_url: str) -> Finding | N
     severity_of = {c: t.rule_severity(c) for c in codes}
     if event.get("kind") == "opposition":
         codes.append("OP")
-        severity_of["OP"] = event["severity"] if event.get("severity") in ("red", "amber") else "amber"
+        # the collector's own grade; an ungraded one ('none') is news, not a warning
+        severity_of["OP"] = event["severity"] if event.get("severity") in ("red", "amber") else "green"
         reasons.append(f"OP: {event.get('kind')} event")
     if not codes:
         return None
@@ -245,9 +246,21 @@ def price_findings(name: str, instrument_id: str, refs: dict[str, list[Any]], af
 
 
 # ------------------------------------------------------------------ fund marks (mark_gap model)
+def _gap_text(mark: dict[str, Any]) -> str:
+    """gapPts = Marden price - the fund's mark (marden.models.mark_gap): negative = the fund marks above."""
+    gap = _number(mark.get("gapPts"))
+    if gap is None:
+        return ""
+    size = t.num(abs(gap))
+    if float(size) == 0:
+        return ", at the Marden price"
+    return f", {size} pts {'above' if gap < 0 else 'below'} the Marden price"
+
+
 def mark_finding(name: str, instrument_id: str, before: dict[str, Any], after: dict[str, Any],
                  as_of: date) -> Finding | None:
-    """Marks filed after the newest filing the engine had seen (the first coverage is not news)."""
+    """Marks for a period after the newest one the engine had seen (`filingDate` is the filing's period end;
+    the first coverage is not news)."""
     seen = [m["filingDate"] for m in before.get("marks") or [] if m.get("filingDate")]
     if not seen:
         return None
@@ -264,9 +277,8 @@ def mark_finding(name: str, instrument_id: str, before: dict[str, Any], after: d
         headline = f"{name}: {len(new)} fund marks filed, {t.num(min(marks))}\u2013{t.num(max(marks))}"
     lines = []
     for m in new[:MAX_LISTED]:
-        gap = f", {t.signed(m['gapPts'])} pts vs Marden price" if _number(m.get("gapPts")) is not None else ""
         filing = m.get("filing") or "filing"
-        lines.append(f"{m['name']}: {t.num(m['lastMark'])} ({filing}, {t.day(m['filingDate'])}){gap}")
+        lines.append(f"{m['name']}: {t.num(m['lastMark'])} ({filing} for {t.day(m['filingDate'])}){_gap_text(m)}")
     if len(new) > MAX_LISTED:
         lines.append(f"\u2026and {len(new) - MAX_LISTED} more on the instrument page.")
     if _number(after.get("marden_price")) is not None:

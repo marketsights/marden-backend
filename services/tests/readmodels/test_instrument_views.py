@@ -264,6 +264,34 @@ def test_market_check_carries_the_traded_yield_three_months_back(seeded):
     assert got["asOf"] < doc["yieldPct"]["asOf"]
 
 
+@pytest.mark.parametrize("instrument_id", [CRWV31, ORACLE])
+def test_unsited_note_takes_its_issuers_link_status(seeded, instrument_id):
+    """A corporate note finances no site: its Chain is its issuer's own worst link across the chains it
+    is a party of (the status model's outputs, as the obligation map shows the company)."""
+    _need(seeded, instrument_id)
+    issuer = copied_rows("SELECT issuer_entity_id, site_slug FROM instrument WHERE id = %s", (instrument_id,))[0]
+    assert issuer["site_slug"] is None
+    rank = {"Broken": 0, "Strained": 1, "Holding": 2}
+    link_to_status = {"red": "Broken", "amber": "Strained", "green": "Holding"}
+    worst: str | None = None
+    parties = copied_rows("SELECT site_slug, role FROM chain_party WHERE entity_id = %s", (issuer["issuer_entity_id"],))
+    for party in parties:
+        out = copied_rows(
+            """SELECT output FROM model_output WHERE model = 'status' AND subject_type = 'site' AND subject_id = %s
+                AND as_of <= %s ORDER BY as_of DESC, created_at DESC, id DESC LIMIT 1""",
+            (party["site_slug"], business_today()),
+        )
+        for link in (out[0]["output"].get("chain") or []) if out else []:
+            status = link_to_status.get(link.get("status"))
+            if link.get("role") == party["role"] and status and (worst is None or rank[status] < rank[worst]):
+                worst = status
+    rebuild_all("instruments")
+    rebuild_all("instrument_detail")
+    row = next(r for r in _doc("instruments", "all") if r["id"] == instrument_id)
+    assert row["chainStatus"] == worst
+    assert _doc("instrument_detail", instrument_id)["chainStatus"] == worst
+
+
 def test_date_words():
     assert instrument_text.date_words("2031-02") == "Feb 2031"
     assert instrument_text.date_words("2030-04-15") == "Apr 15, 2030"

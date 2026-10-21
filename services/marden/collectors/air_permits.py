@@ -8,6 +8,7 @@ States and systems (checked 2026-10-21; `air_permits_systems` has every state's 
   hosts are robots-disallowed and not used.
 - NM: NMED Air Quality Bureau public notices and the Office of Public Facilitation docket (air_permits_nm).
 - IA: Iowa DNR Air Quality construction permit search (AQRR) (air_permits_ia).
+- LA: LDEQ public notice listing (air_permits_la); LDEQ's EDMS is robots-disallowed and not used.
 - Other states with plants: the system, why it is not collected (robots, bot challenge, TLS, no public search
   of permits) or that no adapter exists yet, in the report and in docs/collectors.md.
 
@@ -27,7 +28,7 @@ from collections.abc import Callable
 from typing import Any
 
 from marden import cli
-from marden.collectors import air_permits_ia, air_permits_nm, air_permits_tx
+from marden.collectors import air_permits_ia, air_permits_la, air_permits_nm, air_permits_tx
 from marden.collectors.air_permits_match import Match, PlantProfile, candidate, load_profiles, match_all, report_row
 from marden.collectors.air_permits_store import write_plant
 from marden.collectors.air_permits_systems import SYSTEMS, blocked_specs, systems_for
@@ -44,6 +45,7 @@ ADAPTERS: dict[str, tuple[SourceSpec, Runner]] = {
     "TX": (air_permits_tx.SOURCE_CR, air_permits_tx.run_tx),
     "NM": (air_permits_nm.SOURCE, air_permits_nm.run_nm),
     "IA": (air_permits_ia.SOURCE, air_permits_ia.run_ia),
+    "LA": (air_permits_la.SOURCE, air_permits_la.run_la),
 }
 
 
@@ -143,8 +145,8 @@ def _configure(p: argparse.ArgumentParser) -> None:
     p.add_argument("--state", action="append", help="two-letter state; repeat for several (default: every state)")
 
 
-@cli.action("collect", "air_permits", help="State air permits for our power plants (TX TCEQ, NM NMED, IA DNR)",
-            configure=_configure)
+@cli.action("collect", "air_permits", configure=_configure,
+            help="State air permits for our power plants (TX TCEQ, NM NMED, IA DNR, LA LDEQ)")
 def collect_cli(args: argparse.Namespace) -> int:
     states = [s.upper() for s in args.state] if getattr(args, "state", None) else None
     return print_stats(run(states=states))

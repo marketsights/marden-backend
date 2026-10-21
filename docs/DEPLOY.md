@@ -86,6 +86,7 @@ Credentials live only in Railway variables (and Neon / R2 / Clerk dashboards), n
 | `SHUTDOWN_TIMEOUT_MS` | `20000` | default | SIGTERM drain budget; must stay below `drainingSeconds` (30 s) |
 | `LOG_LEVEL` | `info` | default | JSON logs (pino); `authorization`, `cookie` and `svix-signature` headers are redacted |
 | `MARDEN_STRESS_WAIT_MS` | `20000` | default | how long POST /api/stress/run waits for a custom run |
+| `ALERT_LINK_SECRET` | `${{worker.ALERT_LINK_SECRET}}` (the worker's value) | for alert email | verifies the one-click unsubscribe links the worker signs; without it (or under 32 characters) `/api/email/unsubscribe` answers 503 and changes nothing |
 | `MARDEN_MIGRATE_WAIT`, `MARDEN_MIGRATE_LOCK_TIMEOUT` | `60s`, `10m` | defaults | `marden-migrate` waits for the database / for a concurrent migration |
 | `RAILWAY_GIT_COMMIT_SHA` | set by Railway | — | shown (12 characters) by `/healthz` |
 
@@ -224,7 +225,7 @@ Restore an R2 dump into a fresh database (never over `app`), from inside the wor
 | Clerk production `pk_live_` / `sk_live_` and the webhook signing secret | api, web | API refuses to start; web shows "Sign-in is not configured" and fails its healthcheck |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (+ the three buckets) | worker | collectors fail their runs (raw-first needs R2), backups `not_configured` |
 | `ANTHROPIC_API_KEY` | worker (extraction / agents) | agent jobs record "not configured" |
-| `POSTMARK_TOKEN` or `RESEND_API_KEY`, `ALERT_FROM_EMAIL`, `ALERT_LINK_SECRET` | worker | in-app alerts only; email records "not configured" |
+| `POSTMARK_TOKEN` or `RESEND_API_KEY`, `ALERT_FROM_EMAIL`, `ALERT_LINK_SECRET` (same value on the api), `MARDEN_APP_URL` | worker (+ api for the secret) | in-app alerts only; email rows end `not_configured` and Account > Alerts says email is not set up |
 | `FRED_API_KEY`, ERCOT API key/account (and FINRA once licensed) | worker | those collectors record a missing credential |
 | DNS CNAMEs for `app` and `api` | custom domains | use the `*.up.railway.app` domains meanwhile (set `WEB_ORIGIN` to the web's) |
 

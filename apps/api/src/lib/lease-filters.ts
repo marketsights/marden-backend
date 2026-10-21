@@ -15,6 +15,12 @@ const lowerSet = (values: string[]): Set<string> => new Set(values.map((v) => v.
 const matches = (wanted: Set<string>, value: string | null | undefined): boolean =>
   wanted.size === 0 || (value != null && wanted.has(value.toLowerCase()));
 
+/**
+ * Status filter key: the status up to its first comma ("Signed, not commenced" → "Signed"), since
+ * filter values are comma lists (front end: components/leases/lease-model.ts statusKey).
+ */
+export const statusKey = (status: string): string => status.split(',')[0]?.trim() ?? status;
+
 /** The band a lease shows: its lessee's model band, or 'n/d' while the model has none. */
 export const leaseBand = (lease: LeaseRecord): string => lease.lesseeBand?.value ?? 'n/d';
 
@@ -23,7 +29,7 @@ const haystack = (lease: LeaseRecord): string =>
   [lease.lessee, lease.lessor?.value, lease.siteSlug, lease.campusId, lease.id].filter(Boolean).join(' ').toLowerCase();
 
 /**
- * lessee, kind, status, attribution and band match one of a comma list (any case); trigger=1 keeps
+ * lessee, kind, status (its key), attribution and band match one of a comma list (any case); trigger=1 keeps
  * trigger leases only; q matches text in the lessee, landlord, site or id.
  */
 export function filterLeases(leases: readonly LeaseRecord[], q: Query): LeaseRecord[] {
@@ -41,7 +47,7 @@ export function filterLeases(leases: readonly LeaseRecord[], q: Query): LeaseRec
     (l) =>
       matches(lessee, l.lessee) &&
       matches(kind, l.kind) &&
-      matches(status, l.status) &&
+      matches(status, statusKey(l.status)) &&
       matches(attribution, l.attribution) &&
       matches(band, leaseBand(l)) &&
       (!trigger || l.triggerLease) &&

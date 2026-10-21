@@ -16,7 +16,7 @@ import httpx
 import pytest
 
 from marden import cli
-from marden.collectors import air_permits, air_permits_ia, air_permits_nm, air_permits_tx
+from marden.collectors import air_permits, air_permits_ia, air_permits_la, air_permits_nm, air_permits_tx
 from marden.collectors.air_permits_match import load_profiles
 from marden.collectors.air_permits_systems import SYSTEMS
 from marden.core import http
@@ -37,8 +37,10 @@ NM_POST = (DATA / "nmed_post_7565.json").read_bytes()
 NM_NOTICE = gzip.decompress((DATA / "nmed_legal_notice_10883.pdf.gz").read_bytes())
 IA_PAGE = (DATA / "aqrr_plant_11491.html").read_bytes()
 IA_PDF = gzip.decompress((DATA / "aqrr_25-350_pages1-3.pdf.gz").read_bytes())
+LA_PAGE = gzip.decompress((DATA / "ldeq_notices_entergy_louisiana.html.gz").read_bytes())
+LA_EMPTY = b'<table><tbody id="pn-table-body"></tbody></table>'
 HOSTS = ("data.texas.gov", "records.tceq.texas.gov", "www.env.nm.gov", "service.web.env.nm.gov",
-         "idnraqrr.iowadnr.gov", "programs.iowadnr.gov")
+         "idnraqrr.iowadnr.gov", "programs.iowadnr.gov", "www.deq.louisiana.gov")
 
 
 @pytest.fixture
@@ -51,7 +53,7 @@ def fast_rate():
         http.set_rate_limit(host, 0.5)
 
 
-def handler(seen: list[str], *, refuse_files: bool = False, challenge_cr: bool = False):
+def handler(seen: list[str], *, refuse_files: bool = False, challenge_cr: bool = False, reorder_cr: bool = False):
     def respond(request: httpx.Request) -> httpx.Response:
         url, q = str(request.url), parse_qs(urlparse(str(request.url)).query)
         seen.append(url)
@@ -60,7 +62,8 @@ def handler(seen: list[str], *, refuse_files: bool = False, challenge_cr: bool =
         if host == "data.texas.gov":
             if challenge_cr:
                 return httpx.Response(200, html="<title>Just a moment...</title>")
-            return httpx.Response(200, content=CR_ROWS if "5eqq-7nad" in url else b"[]",
+            rows = json.dumps(json.loads(CR_ROWS)[::-1]).encode() if reorder_cr else CR_ROWS  # same rows, new order
+            return httpx.Response(200, content=rows if "5eqq-7nad" in url else b"[]",
                                   headers={"content-type": "application/json"})
         if host == "records.tceq.texas.gov":
             service = q["IdcService"][0]
@@ -97,6 +100,9 @@ def handler(seen: list[str], *, refuse_files: bool = False, challenge_cr: bool =
             if "DownloadFile" in url and "25-350" in url:
                 return httpx.Response(200, content=IA_PDF, headers={"content-type": "application/pdf"})
             return httpx.Response(200, html="<html>not a permit file</html>")
+        if host == "www.deq.louisiana.gov":
+            page = LA_PAGE if q.get("q") == ["entergy louisiana"] else LA_EMPTY
+            return httpx.Response(200, content=page, headers={"content-type": "text/html"})
         return httpx.Response(404)
 
     return respond
@@ -164,7 +170,7 @@ def test_texas_run_writes_permits_units_and_history_once(committed, fast_rate):
     assert {"tceq_technical_review", "tceq_final_action", "tceq_not_public_html"} <= {d["doc_type"] for d in docs}
     assert {d["extract_state"] for d in docs if d["doc_type"] != "tceq_not_public_html"} == {"queued"}
     before = _counts(committed)
-    again = air_permits.run(states=["TX"], fetcher=fetcher(seen))
+    again = air_permits.run(states=["TX"], fetcher=fetcher(seen, reorder_cr=True))
     assert again["ok"] and again["totals"]["facts_new"] == 0 and again["totals"]["events_new"] == 0
     assert _counts(committed) == before  # nothing new: facts, events and documents
     profile = next(p for p in load_profiles(committed, ["TX"]) if p.id == "n-abilene-onsite")
@@ -221,6 +227,22 @@ def test_iowa_run_reads_the_plant_page_and_collection(committed, fast_rate):
     assert run["adapter"]["not_pdf"]  # project 26-153's file was not a PDF here: skipped, not guessed
 
 
+def test_louisiana_run_ties_the_cited_station_only(committed, fast_rate):
+    _plant(committed, "n-hyp-ccgt1", "Entergy Louisiana Hyperion CCGTs", "LA", "Richland", "Entergy Louisiana",
+           air_permit={"agency": "LDEQ", "number": "PSD-LA-869"})
+    out = air_permits.run(states=["LA"], fetcher=fetcher([]))
+    assert out["ok"], out
+    cov = out["states"]["LA"]["run"]["coverage"]
+    assert cov["matched_plants"] == ["n-hyp-ccgt1"] and cov["facilities_found"] >= 2
+    main = _current(committed, "n-hyp-ccgt1")["air_permit"]
+    assert (main["agency"], main["number"], main["type"], main["status"]) == ("LDEQ", "PSD-LA-869", "PSD", "pending")
+    assert main["facility"]["key"] == "AI 249132" and main["match"]["permit_numbers"]["numbers"] == ["PSD-LA-869"]
+    # Richland Parish 3 and 4 (AI 249365) has the same operator and parish but no number of the plant's: reported
+    other = next(u for u in cov["unmatched"] if u["facility"] == "AI 249365")
+    assert "2 facilities of the operator" in other["reasons"][0]
+    assert air_permits.run(states=["LA"], fetcher=fetcher([]))["totals"]["facts_new"] == 0
+
+
 def test_plant_card_maps_dates_types_and_amendments():
     row = {"value": {"agency": "TCEQ", "number": "177263", "type": "PSD", "status": "issued", "filed": "2024-08-15",
                      "issued": "2024-08-21", "url": "https://data.texas.gov/x",
@@ -237,7 +259,8 @@ def test_systems_sources_schedule_and_cli():
     states = {s.state for s in SYSTEMS}
     assert {"TX", "NM", "IA", "LA", "KS", "TN", "MN", "IN", "VA", "PA", "OH", "ND", "NE", "OK", "MS", "WY", "WI", "SD",
             "IL", "WA"} <= states
-    for spec in (air_permits_tx.SOURCE_CR, air_permits_tx.SOURCE_RO, air_permits_nm.SOURCE, air_permits_ia.SOURCE):
+    for spec in (air_permits_tx.SOURCE_CR, air_permits_tx.SOURCE_RO, air_permits_nm.SOURCE, air_permits_ia.SOURCE,
+                 air_permits_la.SOURCE):
         assert "Checked 2026-10-21" in spec.terms_note and not spec.blocked
     assert air_permits_tx.SOURCE_WEB.blocked and all(s.status != "built" or s.source_id for s in SYSTEMS)
     crons = {t.cron for (n, _), t in app.periodic_registry.periodic_tasks.items() if n == "collect.air_permits"}

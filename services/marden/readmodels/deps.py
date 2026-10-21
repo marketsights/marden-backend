@@ -261,6 +261,11 @@ _install_defaults()
 # ('@model:status', marden.models.status) refreshes the instruments list and the site's instruments.
 # Outputs for subject 'all' (the 'curve' tiers, the 'gpu_deployment' page) may sit on subject_type 'series'.
 _SITE_INSTRUMENTS = via("SELECT id FROM instrument WHERE site_slug = %s")
+# An unsited instrument's chain status is its issuer's own link on the sites it is a chain party of.
+_SITE_PARTY_INSTRUMENTS = via(
+    """SELECT DISTINCT i.id FROM instrument i JOIN chain_party cp ON cp.entity_id = i.issuer_entity_id
+        WHERE cp.site_slug = %s AND i.site_slug IS NULL"""
+)
 # A fund's newer filing that no longer lists an instrument ends the fund's holding of it (holder count,
 # par and marks on instrument_detail), so a fund's new holding line refreshes every instrument it holds.
 _FUND_HOLDING_INSTRUMENTS = via(
@@ -277,6 +282,7 @@ _GPU_INSTRUMENTS_FOR_ALL = via(
 def _install_instrument_deps() -> None:
     depends("site", "@model:status", "instruments", singleton)
     depends("site", "@model:status", "instrument_detail", _SITE_INSTRUMENTS)
+    depends("site", "@model:status", "instrument_detail", _SITE_PARTY_INSTRUMENTS)
     depends("holding", "", "instrument_detail", _FUND_HOLDING_INSTRUMENTS)
     depends("series", "@model", "curve", singleton)
     depends("series", "@model", "gpu_collateral", _GPU_INSTRUMENTS_FOR_ALL)

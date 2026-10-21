@@ -13,6 +13,9 @@ references cleared, since raw documents are not copied):
 - `anthropic-amazon-new-carlisle` and `vantage-lighthouse`: changes of the same day (Epoch's monthly
   values learned in one batch, the archive's status learned after it; FERC eLibrary records learned in
   two runs) for the tie-breaks.
+- Plant `n-oh-flagship` (plant_row, plant_detail; facilities_plants.plant_changes): its research-archive
+  facts (status, tag M, valid_from 2026-10-20) and its FERC eLibrary records on ER27-126, some older and
+  one newer (2026-10-21) than the status.
 
 Expectations are read from the copied rows with SQL, independent of the builders. Rows are only
 removed (inside a rolled-back transaction) to rebuild the state before a record arrived; nothing is
@@ -33,7 +36,7 @@ from marden.core import db
 from marden.readmodels import business_today
 from marden.readmodels.context import building
 from marden.readmodels.registry import get_builder
-from marden.readmodels.views import facilities_campus  # noqa: F401 (registers builders)
+from marden.readmodels.views import facilities_campus, facilities_plants  # noqa: F401 (registers builders)
 from marden.readmodels.views.facilities_campus_tabs import HISTORY_FIELDS, campus_changes
 from marden.readmodels.views.facilities_common import (
     VALUE_CHANGE,
@@ -225,3 +228,78 @@ def test_same_day_changes_rank_by_learned_at_then_field_then_id(campuses):
     with building(business_today()), db.transaction() as conn:
         rows = [e for e in subject_events(conn, "campus", LIGHTHOUSE) if e["event_date"] == same[0]["event_date"]]
     assert last_change(event_changes(rows), {}) == event_evidence(max(same, key=lambda r: r["id"]))
+
+
+OH_FLAGSHIP = "n-oh-flagship"
+
+
+def copy_plant(plant_id: str) -> None:
+    """Copy the plant, its units, the facts on both and the plant's events."""
+    try:
+        src = psycopg.connect(BASE_URL, connect_timeout=5)
+    except psycopg.OperationalError as exc:
+        pytest.skip(f"source database not reachable: {exc}")
+    with src, psycopg.connect(TEST_URL) as dst:
+        if src.execute("SELECT 1 FROM power_plant WHERE id = %s", (plant_id,)).fetchone() is None:
+            pytest.skip(f"not in the source database: {plant_id}")
+        p: dict[str, Any] = {"id": plant_id}
+        p["units"] = [r[0] for r in src.execute("SELECT id FROM power_unit WHERE plant_id = %(id)s", p)]
+        _copy(src, dst, "power_plant", "id = %(id)s", p)
+        _copy(src, dst, "power_unit", "plant_id = %(id)s", p)
+        _copy(
+            src,
+            dst,
+            "fact",
+            """(subject_type = 'plant' AND subject_id = %(id)s)
+               OR (subject_type = 'unit' AND subject_id = ANY(%(units)s))""",
+            p,
+            nulls=("document_id",),
+        )
+        _copy(src, dst, "event", "subject_type = 'plant' AND subject_id = %(id)s", p, nulls=("document_id", "fact_id"))
+        for table in ("fact", "event"):
+            _reset_sequence(dst, table)
+        dst.commit()
+
+
+def newest_fact_change(plant_id: str) -> Any:
+    """The newest date of a plant History change, by SQL: a new value of a History field, or the first
+    value of status / air permit (the fields whose first value is a History entry)."""
+    return copied_rows(
+        """SELECT max(valid_from) AS d FROM (
+             SELECT field, valid_from, value,
+                    lag(value) OVER (PARTITION BY field ORDER BY valid_from, id) AS prev,
+                    row_number() OVER (PARTITION BY field ORDER BY valid_from, id) AS n
+               FROM fact WHERE subject_type = 'plant' AND subject_id = %s AND status = 'published'
+                AND valid_from <= CURRENT_DATE AND (valid_to IS NULL OR valid_to > CURRENT_DATE)
+                AND field = ANY(%s)) x
+            WHERE (n = 1 AND field IN ('status', 'air_permit')) OR (prev IS NOT NULL AND prev <> value)""",
+        (plant_id, list(facilities_plants.HISTORY_FIELDS)),
+    )[0]["d"]
+
+
+@pytest.fixture
+def plant() -> None:
+    copy_plant(OH_FLAGSHIP)
+
+
+def test_plant_last_change_ranks_records_and_history_on_one_scale(plant):
+    records = copied_rows(
+        """SELECT * FROM event WHERE subject_type = 'plant' AND subject_id = %s AND status = 'published'
+                AND event_date <= CURRENT_DATE ORDER BY event_date DESC, learned_at DESC, id DESC""",
+        (OH_FLAGSHIP,),
+    )
+    history_newest = newest_fact_change(OH_FLAGSHIP)
+    newer = [r for r in records if r["event_date"] > history_newest]
+    older = [r for r in records if r["event_date"] < history_newest]
+    assert newer and older, "FERC records both after and before the plant's newest History change"
+    # The newest record is the plant's lastChange, on the row and the detail page alike.
+    row = build("plant_row", OH_FLAGSHIP)["lastChange"]
+    assert row == event_evidence(records[0])
+    assert build("plant_detail", OH_FLAGSHIP)["lastChange"] == row
+    # Without the newer records the History change is the newest; the older records never pull it back,
+    # with all of them present or with only the oldest one.
+    without_newer = build("plant_row", OH_FLAGSHIP, without_events=[r["id"] for r in newer])["lastChange"]
+    assert without_newer["date"] == history_newest.isoformat()
+    only_oldest = [r["id"] for r in records if r["id"] != older[-1]["id"]]
+    assert build("plant_row", OH_FLAGSHIP, without_events=only_oldest)["lastChange"] == without_newer
+    assert build("plant_row", OH_FLAGSHIP, without_events=[r["id"] for r in records])["lastChange"] == without_newer

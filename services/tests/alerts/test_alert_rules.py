@@ -77,7 +77,8 @@ def test_marks_filed_after_the_newest_seen():
              "methodVersion": "mark_gap v0.1"}
     f = rules.mark_finding("Bond", "BOND-1", before, after, D1)
     assert f.headline == "Bond: fund mark filed at 96.0 (Fund B)" and f.severity == "amber"
-    assert f.facts["newMarks"] == 1 and "\u22126.1 pts vs Marden price" in f.body
+    assert f.facts["newMarks"] == 1
+    assert "Fund B: 96.0 (N-PORT for Aug 29, 2026), 6.1 pts above the Marden price" in f.body
     assert f.sources[0]["url"] == "https://www.sec.gov/x" and f.tag == "F"
     assert rules.mark_finding("Bond", "BOND-1", {"marks": []}, after, D1) is None  # first coverage is not news
 
@@ -104,3 +105,14 @@ def test_worker_tasks():
     periodic = {name: task.cron for (name, _), task in app.periodic_registry.periodic_tasks.items()}
     assert periodic["alerts.scan"] == tasks.SCAN_CRON == "* * * * *"
     assert periodic["alerts.digests"] == tasks.DIGEST_CRON
+
+
+def test_opposition_events_take_the_collectors_grade():
+    event = {"id": 7, "kind": "opposition", "severity": "none", "title": "County hearing on the rezoning", "tag": "R",
+             "event_date": D1, "source_name": "Google News", "source_url": "https://example.com/a"}
+    info = rules.event_finding(event, "Site", "/sites/site?tab=opposition")
+    assert info.codes == ["OP"] and info.severity == "green" and info.alert_types == ["opposition"]
+    assert info.headline == "Site: County hearing on the rezoning" and info.ref_url == "/sites/site?tab=opposition"
+    red = rules.event_finding({**event, "severity": "red"}, "Site", "/sites/site?tab=opposition")
+    assert red.severity == "red" and red.sources[0]["eventId"] == 7
+    assert rules.event_finding({**event, "kind": "news"}, "Site", "/sites/site") is None  # not material, not opposition

@@ -9,7 +9,7 @@ from datetime import date
 
 import pytest
 from credit_rows import copy_credit_area, rows, shape
-from ts_shapes_models import assert_matches_types
+from ts_shapes_models import assert_matches_ts, assert_matches_types
 
 from marden.core import db
 from marden.models import contagion, graph, lease_map, obligations, payer_capacity
@@ -185,8 +185,11 @@ def test_payer_capacity_leverage_band_and_backtest(area):
 def test_lease_map_ranks_by_priority(area):
     payer_capacity.run(trigger="test")
     doc = lease_map.run(trigger="test")["outputs"]["all"]
-    assert_matches_types("LeaseMapPage", [shape(doc)])
-    assert doc["reconciliation"] == [] and doc["totals"]["disclosedB"] == 0.0  # not collected: never estimated
+    # totals the 10-K lease notes and agency triggers would give are n/d (null), never 0 (00-global rule 3)
+    assert_matches_ts("Omit<T.LeaseMapPage, 'totals'> & { totals: NDFields<T.LeaseMapPage['totals'], "
+                      "'disclosedB' | 'unattributedB' | 'attributedShare' | 'triggerLeases'> }", [shape(doc)])
+    assert doc["reconciliation"] == [] and doc["totals"]["disclosedB"] is None  # not collected: never estimated
+    assert doc["totals"]["triggerLeases"] is None and doc["totals"]["attributedShare"] is None
     scores = [r["priorityScore"]["value"] for r in doc["leases"] if r["priorityScore"]["value"] is not None]
     assert scores == sorted(scores, reverse=True)
     for r in doc["leases"]:

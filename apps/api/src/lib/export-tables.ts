@@ -153,7 +153,7 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     const kind = first(ctx.q, 'kind');
     if (kind !== undefined && kind !== 'site' && kind !== 'instrument') throw badRequest('kind must be site or instrument');
     const rows = await ctx.db.withOrg(ctx.orgId, (c) => watchRows(c, ctx.orgId, ctx.asOf));
-    const items = rows.map(toWatchItem).filter((item) => kind === undefined || item.kind === kind);
+    const items = rows.map((row) => toWatchItem(row, ctx.asOf)).filter((item) => kind === undefined || item.kind === kind);
     return { view: 'watchlist', asOf: ctx.asOf, rows: asRows(items) };
   },
 };

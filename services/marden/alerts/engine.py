@@ -1,7 +1,8 @@
 """The alert engine: evaluate triggers, fan findings out to watching users, write alerts and live events.
 
     stats = scan()                                   # live: the last LIVE_DAYS, alerts + stream events
-    stats = scan(since=today - 30, dry_run=True)     # backfill: alerts only (no stream, never emailed)
+    stats = scan(since=today - 30, dry_run=True)     # backfill: alerts only (no stream, never emailed,
+                                                     # landed read: history, not news for the badge)
 
 Each trigger is one transaction: its alert_trigger row (the rerun guard), its alerts (unique per org, user
 and dedupe key), the 'alert' stream event per new alert (scoped to that user) and, for a model change, the
@@ -168,13 +169,14 @@ def _deliver(conn: Conn, trigger: tr.Trigger, finding: Finding, person: Recipien
     row = conn.execute(
         """INSERT INTO alert (org_id, user_id, at, kind, headline, body, tag, rule_label, rule_code, ref_url,
                               subject_type, subject_id, event_id, severity, facts, sources, occurred_on,
-                              trigger_key, dedupe_key, backfill)
-           VALUES (%s, %s, coalesce(%s, now()), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                              trigger_key, dedupe_key, backfill, read_at)
+           VALUES (%s, %s, coalesce(%s, now()), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   CASE WHEN %s THEN now() END)
            ON CONFLICT (org_id, user_id, dedupe_key) DO NOTHING RETURNING id, at""",
         (person.org_id, person.user_id, _alert_at(trigger, dry_run), kind, finding.headline, _body(finding, person),
          finding.tag, finding.rule_label, finding.code, finding.ref_url, trigger.subject_type, trigger.subject_id,
          trigger.event_id, finding.severity, jsonb(finding.facts), jsonb(_source_entry(trigger, finding)),
-         trigger.occurred_on, trigger.key, dedupe, dry_run),
+         trigger.occurred_on, trigger.key, dedupe, dry_run, dry_run),
     ).fetchone()
     if row is None:
         return 0

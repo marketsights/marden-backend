@@ -100,6 +100,27 @@ def test_filer_identifier_publishes_routine_facts_and_holds_material_or_conflict
     assert link == {"method": "identifier", "status": "accepted"}
 
 
+def test_the_same_fact_twice_in_a_document_is_one_candidate_and_reruns_keep_its_outcome():
+    seed_coreweave()
+    case_id = "periodic_coreweave_10q_liquidity"
+    doc = store_case_document(case_id, meta={"cik": COREWEAVE_CIK}, doc_type="10-Q")
+    answer = recorded(case_id)
+    twice = {**answer, "facts": answer["facts"] * 2}  # e.g. overlapping sections quoting the same passage
+    answers = {"router": route_to("periodic"), "extractor": lambda r: twice, "verifier": agree_all, "linker": no_links}
+    job = enqueue_document(doc.id)
+    out = run_job(job, make_llm(answers)[0])
+    n = len(answer["facts"])
+    assert out.state == "published" and out.stats["published"] == n and out.stats["duplicate"] == n
+    assert "already published" in out.stats["summary"]
+    cands = rows("SELECT outcome FROM agent_candidate WHERE job_id = %s", (job,))
+    assert [c["outcome"] for c in cands] == ["published"] * n
+    again = run_job(job, make_llm(answers)[0])
+    assert again.state == "published" and again.stats["published"] == 0 and again.stats["duplicate"] == 2 * n
+    assert [c["outcome"] for c in rows("SELECT outcome FROM agent_candidate WHERE job_id = %s", (job,))] == \
+        ["published"] * n
+    assert len(rows("SELECT id FROM fact WHERE document_id = %s", (doc.id,))) == n
+
+
 
 def test_hard_failures_are_rejected_and_disagreements_and_ratings_wait():
     seed_coreweave()

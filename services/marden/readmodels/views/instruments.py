@@ -18,6 +18,7 @@ from marden.readmodels.registry import builder
 from marden.readmodels.views.instrument_inputs import (
     OBSERVED_KINDS,
     daily_series,
+    day,
     fact_sourced,
     holder_lines,
     instrument_identity,
@@ -44,13 +45,22 @@ GAP_WORDS = ("no fund", "traded", "private")
 
 
 def chain_status(conn: Conn, inst: Row) -> str | None:
-    """The status of the chain the instrument sits on: model 'status' of its site (n/d without one)."""
-    if not inst.get("site_slug"):
+    """The status of the chain the instrument sits on: model 'status' of its financed site. An
+    instrument with no financed site (a corporate note such as CoreWeave's or Oracle's) sits on the
+    chains its issuer is a party of: the issuer's own worst link across them in the status model's
+    outputs, as the obligation map shows the company (marden.models.graph.party_status). n/d when
+    neither is judged."""
+    if inst.get("site_slug"):
+        out = latest_output(conn, "status", inst["site_slug"], "site")
+        status = output_field(out, "status")
+        if isinstance(status, dict):
+            status = status.get("value")
+        return status if status in CHAIN_STATUSES else None
+    if not inst.get("issuer_entity_id"):
         return None
-    out = latest_output(conn, "status", inst["site_slug"], "site")
-    status = output_field(out, "status")
-    if isinstance(status, dict):
-        status = status.get("value")
+    from marden.models.graph import party_status  # the map's rule (models import readmodels)
+
+    status = party_status(conn, inst["issuer_entity_id"], day())
     return status if status in CHAIN_STATUSES else None
 
 

@@ -1,7 +1,7 @@
 // GPU index and collateral (spec 19): the Excel exports behind the tables on /gpus and /gpus/:model.
 // Each export is one table as shown, from the same read model the screen reads; values are copied
 // as served (Sourced values kept, so the sources sheet lists each price page and model version).
-import type { GpuIndexPage } from '../contracts/app.js';
+import type { GpuIndexPage, GpuValueCurve } from '../contracts/app.js';
 import type { GpuDeploymentPage, GpuModelDetail, GpuPricePoint } from '../contracts/types.js';
 import { badRequest } from '../errors.js';
 import { first, list, type Query } from './params.js';
@@ -40,28 +40,27 @@ export function latestIndex(index: readonly GpuPricePoint[], term: string): Map<
   return out;
 }
 
+const curveColumns = (curve: GpuValueCurve | undefined): Row =>
+  curve
+    ? { launch: curve.launch, newPrice: curve.newPrice, ...Object.fromEntries(curve.points.map((p) => [`valueAge${p.age}y`, p.usd])) }
+    : { launch: null, newPrice: null };
+
+const indexColumns = (point: GpuPricePoint | undefined): Row =>
+  point
+    ? { indexDate: point.date, medianUsdHr: point.medianUsdHr, p25UsdHr: point.p25, p75UsdHr: point.p75, providers: point.nProviders }
+    : { indexDate: null, medianUsdHr: null, p25UsdHr: null, p75UsdHr: null, providers: null };
+
+function modelRow(model: string, term: string, curve: GpuValueCurve | undefined, point: GpuPricePoint | undefined): Row {
+  const { launch, newPrice, ...ages } = curveColumns(curve);
+  return { model, launch, newPrice, term, ...indexColumns(point), ...ages };
+}
+
 /** One row per model (?term=): today's index price and the value per unit by age, as in the models table. */
 export function gpuModelRows(doc: GpuIndexPage, q: Query): Row[] {
   const term = gpuTerm(q);
   const latest = latestIndex(doc.index, term);
   const models = [...new Set([...doc.valueByAge.map((c) => c.model), ...latest.keys()])].sort();
-  return models.map((model) => {
-    const curve = doc.valueByAge.find((c) => c.model === model);
-    const point = latest.get(model);
-    const ages = Object.fromEntries((curve?.points ?? []).map((p) => [`valueAge${p.age}y`, p.usd]));
-    return {
-      model,
-      launch: curve?.launch ?? null,
-      newPrice: curve?.newPrice ?? null,
-      term,
-      indexDate: point?.date ?? null,
-      medianUsdHr: point?.medianUsdHr ?? null,
-      p25UsdHr: point?.p25 ?? null,
-      p75UsdHr: point?.p75 ?? null,
-      providers: point?.nProviders ?? null,
-      ...ages,
-    };
-  });
+  return models.map((model) => modelRow(model, term, doc.valueByAge.find((c) => c.model === model), latest.get(model)));
 }
 
 /** Delivered vs energized, one row per facility (spec 19). */

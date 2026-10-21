@@ -146,6 +146,10 @@ def cr_query(terms: list[str], numbers: list[str]) -> str:
     return f"program_code in ('AIRNSR', 'AIROP') AND ({' OR '.join(like)})"
 
 
+def _row_set(rows: list[Any]) -> list[str]:
+    return sorted(json.dumps(r, sort_keys=True) for r in rows)
+
+
 def discover(plants: list[PlantProfile], fetcher: Fetcher, stats: RunStats, info: dict[str, Any]) -> list[Facility]:
     terms, numbers = _soql_terms(plants)
     info.update(terms=terms, numbers=numbers)
@@ -163,9 +167,13 @@ def discover(plants: list[PlantProfile], fetcher: Fetcher, stats: RunStats, info
                 raise ParseError(f"Central Registry {ds}: not JSON") from None
             if not isinstance(rows, list):
                 raise ParseError(f"Central Registry {ds}: unexpected payload {str(rows)[:200]}")
-            doc = documents.record_document(SOURCE_CR.id, url, resp.content, content_type="application/json",
-                                            doc_type="cr_rows_json", meta={"dataset": ds, "rows": len(rows)},
-                                            title=f"TCEQ Central Registry Files - {region} (air), page {page + 1}")
+            prior = documents.latest_document(SOURCE_CR.id, url)
+            if prior is not None and _row_set(json.loads(prior.read())) == _row_set(rows):
+                doc = prior  # the same rows: the API orders rows that tie on $order differently from call to call
+            else:
+                doc = documents.record_document(SOURCE_CR.id, url, resp.content, content_type="application/json",
+                                                doc_type="cr_rows_json", meta={"dataset": ds, "rows": len(rows)},
+                                                title=f"TCEQ Central Registry Files - {region} (air), page {page + 1}")
             stats.document(doc)
             info.setdefault("cr_rows", {})[ds] = info.get("cr_rows", {}).get(ds, 0) + len(rows)
             out += tx.facilities(rows, url=url, document_id=doc.id, system=SOURCE_CR.id, dataset=ds)

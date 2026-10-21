@@ -144,7 +144,8 @@ def run_job(job_id: int, llm: Llm) -> JobOutcome:
                       coalesce(sum(cost_usd), 0)::float AS cost FROM agent_call WHERE job_id = %s""",
             (job_id,)).fetchone()
     stats["tokens"], stats["cost_usd"] = int(used["n"]), round(float(used["cost"]), 4)
-    stats["summary"] = f"{stats['published']} published, {stats['review']} to review, {stats['rejected']} rejected"
+    stats["summary"] = (f"{stats['published']} published, {stats['review']} to review, {stats['rejected']} rejected"
+                        + (f", {stats['duplicate']} already published" if stats.get("duplicate") else ""))
     set_job(job_id, stage="published")
     state = "needs_review" if stats["review"] else "published"
     return finish(job, state, "", stats)

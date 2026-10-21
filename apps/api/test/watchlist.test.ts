@@ -36,7 +36,8 @@ describe('watchlist screen API', () => {
     });
   });
   afterAll(async () => {
-    await clearReadModels(db, ['site_detail', 'instrument_detail']);
+    await clearReadModels(db, ['site_detail', 'instrument_detail', 'home']);
+    await db.query(`DELETE FROM alert WHERE org_id = 'dev' AND dedupe_key LIKE 'wl-test-%'`);
     await db.query(`DELETE FROM watchlist_item WHERE org_id = 'dev'`);
     await db.query(`DELETE FROM instrument WHERE id = ANY($1)`, [[LOAN, BOND]]);
     await db.query(`DELETE FROM site WHERE slug = $1`, [SITE]);
@@ -71,7 +72,8 @@ describe('watchlist screen API', () => {
   });
 
   it('serves the site slug, the sourced cushion and debt, and the dated next catalyst', async () => {
-    const items = (await call('GET', '/api/watchlist')).json();
+    await clearReadModels(db, ['home']);
+    const items = (await call('GET', '/api/watchlist?asOf=2026-10-16')).json();
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
       kind: 'site', refId: SITE, siteSlug: SITE, status: 'Strained', cushionMonths: 7,
@@ -83,6 +85,40 @@ describe('watchlist screen API', () => {
       debtB: sourced(14, 'R'), markGap: sourced(-6.1, 'M'),
       nextCatalyst: 'Fund marks due', nextCatalystAt: '2026-11-29',
     });
+  });
+
+  it('takes the next catalyst from the home read model: the soonest step not yet past, its short line, named for the row', async () => {
+    await putReadModel(db, { view: 'home', key: 'all', asOf: '2026-10-15' }, {
+      comingUp: [
+        { date: '2026-10-10', what: 'Already past', when: 'Early Oct', watch: [`site:${SITE}`], refUrl: `/sites/${SITE}` },
+        { date: '2026-11-02', what: 'County board vote on the rezoning of the campus', when: 'Early Nov', watch: [`instrument:${LOAN}`], refUrl: `/instruments/${LOAN}` },
+        { date: '2026-11-02', what: 'County board vote', when: 'Early Nov', watch: [`site:${SITE}`, `instrument:${LOAN}`], refUrl: `/sites/${SITE}` },
+        { date: '2026-11-20', what: 'Lighthouse loan: lender consent due', when: 'Late Nov', watch: [`instrument:${LOAN}`], refUrl: `/instruments/${LOAN}` },
+        { date: '2026-10-20', what: 'Another site step', when: 'Late Oct', watch: ['site:somewhere-else'], refUrl: '/sites/somewhere-else' },
+      ],
+    });
+    const items = (await call('GET', '/api/watchlist?asOf=2026-10-16')).json();
+    expect(items[0]).toMatchObject({ kind: 'site', nextCatalyst: 'County board vote', nextCatalystAt: '2026-11-02' });
+    expect(items[1]).toMatchObject({ kind: 'instrument', nextCatalyst: 'County board vote', nextCatalystAt: '2026-11-02' });
+    // Once that day has passed, the loan's next step is its own (its name dropped), still before its fund marks.
+    const later = (await call('GET', '/api/watchlist?asOf=2026-11-05')).json();
+    expect(later[0]).toMatchObject({ nextCatalyst: null, nextCatalystAt: null });
+    expect(later[1]).toMatchObject({ nextCatalyst: 'Lender consent due', nextCatalystAt: '2026-11-20' });
+  });
+
+  it('marks all alerts read with {} or { all: true }, and refuses ids with all', async () => {
+    await db.query(
+      `INSERT INTO alert (org_id, user_id, kind, headline, body, tag, rule_label, ref_url, subject_type, subject_id,
+                          severity, occurred_on, trigger_key, dedupe_key)
+       VALUES ('dev', 'dev-user', 'power', 'Permit hearing moved', 'b', 'F', 'Power event', '/sites/${SITE}', 'site', $1,
+               'amber', '2026-10-20', 'event:wl-test-1', 'wl-test-1')`,
+      [SITE],
+    );
+    expect((await call('GET', '/api/alerts?unread=true')).json().length).toBeGreaterThan(0);
+    expect((await call('POST', '/api/alerts/read', { all: true, ids: ['1'] })).statusCode).toBe(400);
+    expect((await call('POST', '/api/alerts/read', { all: false })).statusCode).toBe(400);
+    expect((await call('POST', '/api/alerts/read', { all: true })).statusCode).toBe(204);
+    expect((await call('GET', '/api/alerts?unread=true')).json()).toEqual([]);
   });
 
   it('exports the rows of one tab with ?kind and refuses an unknown kind', async () => {

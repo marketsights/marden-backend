@@ -189,7 +189,9 @@ def unit_statements(text: str, *, limit: int = 20) -> list[dict[str, Any]]:
             "quote": clause,
             "count": count,
             "model": squash(model.group(0)) if model else None,
-            "oem": oem_of(clause),
+            # the maker of the named model ('54 SGT-800 turbines ... GE TM2500' is Siemens'), else of the clause
+            "oem": (oem_of(model.group(0)) or oem_of(clause[max(0, model.start() - 40):model.end()])
+                    if model else None) or oem_of(clause),
             "rating_mw_each": float(mw.group(1)) if mw and each else None,
             "rating_mw": float(mw.group(1)) if mw and not each else None,
         })

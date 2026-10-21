@@ -47,6 +47,28 @@ async function latestDocs<T>(db: Db, view: string, keys: string[], asOf: string 
 const located = (row: DataCenterRow | undefined): row is DataCenterRow =>
   !!row && Number.isFinite(row.lat) && Number.isFinite(row.lon);
 
+/** Campus ids per lease: its own campusId, else every campus on its site. */
+function campusesByLease(page: LeaseMapPage, siteTabs: Map<string, SiteBuildings>): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const lease of page.leases) {
+    const ids = lease.campusId
+      ? [lease.campusId]
+      : (siteTabs.get(lease.siteSlug ?? '')?.campuses ?? []).map((c) => c.id).filter(Boolean);
+    out.set(lease.id, [...new Set(ids)]);
+  }
+  return out;
+}
+
+const newLocation = (id: string, row: DataCenterRow): LeaseLocation => ({
+  id, name: row.name, lat: row.lat, lon: row.lon, state: row.state, county: row.county,
+  facilityMw: row.facilityMw, itMw: row.itMw, status: row.status, sites: [], leaseIds: [],
+});
+
+function addSite(loc: LeaseLocation, slug: string | null, site: SiteSummary | undefined): void {
+  if (!slug || loc.sites.some((s) => s.slug === slug)) return;
+  loc.sites.push({ slug, name: site?.name ?? slug, gw: site?.gw ?? null });
+}
+
 export async function leaseLocations(db: Db, page: LeaseMapPage, asOf: string | null): Promise<LeaseLocationCollection> {
   const slugs = [...new Set(page.leases.map((l) => l.siteSlug).filter((s): s is string => Boolean(s)))];
   const [siteTabs, sites] = await Promise.all([
@@ -54,41 +76,20 @@ export async function leaseLocations(db: Db, page: LeaseMapPage, asOf: string | 
     db.readModel<SiteSummary[]>('sites', 'all', asOf),
   ]);
   const siteBySlug = new Map((sites ?? []).map((s) => [s.slug, s]));
-
-  // Campus ids per lease: its own campusId, else every campus on its site.
-  const campusesOf = new Map<string, string[]>();
-  for (const lease of page.leases) {
-    const ids = lease.campusId
-      ? [lease.campusId]
-      : (siteTabs.get(lease.siteSlug ?? '')?.campuses ?? []).map((c) => c.id).filter(Boolean);
-    campusesOf.set(lease.id, [...new Set(ids)]);
-  }
-  const campusIds = [...new Set([...campusesOf.values()].flat())];
-  const rows = await latestDocs<DataCenterRow>(db, 'dc_row', campusIds, asOf);
+  const campusesOf = campusesByLease(page, siteTabs);
+  const rows = await latestDocs<DataCenterRow>(db, 'dc_row', [...new Set([...campusesOf.values()].flat())], asOf);
 
   const byCampus = new Map<string, LeaseLocation>();
   let placed = 0;
   for (const lease of page.leases) {
-    let onMap = false;
-    for (const id of campusesOf.get(lease.id) ?? []) {
-      const row = rows.get(id);
-      if (!located(row)) continue;
-      onMap = true;
-      let loc = byCampus.get(id);
-      if (!loc) {
-        loc = {
-          id, name: row.name, lat: row.lat, lon: row.lon, state: row.state, county: row.county,
-          facilityMw: row.facilityMw, itMw: row.itMw, status: row.status, sites: [], leaseIds: [],
-        };
-        byCampus.set(id, loc);
-      }
+    const here = (campusesOf.get(lease.id) ?? []).filter((id) => located(rows.get(id)));
+    for (const id of here) {
+      const loc = byCampus.get(id) ?? newLocation(id, rows.get(id) as DataCenterRow);
+      byCampus.set(id, loc);
       loc.leaseIds.push(lease.id);
-      const site = lease.siteSlug ? siteBySlug.get(lease.siteSlug) : undefined;
-      if (lease.siteSlug && !loc.sites.some((s) => s.slug === lease.siteSlug)) {
-        loc.sites.push({ slug: lease.siteSlug, name: site?.name ?? lease.siteSlug, gw: site?.gw ?? null });
-      }
+      addSite(loc, lease.siteSlug, siteBySlug.get(lease.siteSlug ?? ''));
     }
-    if (onMap) placed += 1;
+    if (here.length > 0) placed += 1;
   }
 
   const features = [...byCampus.values()]

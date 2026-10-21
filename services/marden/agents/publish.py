@@ -156,13 +156,18 @@ def review_reasons(c: Candidate, material_codes: list[str], conflict: list[dict[
 
 
 def publish_candidates(job: dict[str, Any], doc: Any, cands: list[Candidate]) -> dict[str, int]:
-    stats = {"candidates": len(cands), "published": 0, "review": 0, "rejected": 0}
+    stats = {"candidates": len(cands), "published": 0, "review": 0, "rejected": 0, "duplicate": 0}
+    seen: set[int] = set()
     today = date.today()
     with db.transaction() as conn:
         tag, source_name, source_url = doc_source(conn, doc)
         facts, events = FactWriter(conn), EventWriter(conn)
         for c in cands:
             c.id = cid = store_candidate(conn, job, c)
+            if cid in seen:  # the same fact twice in one document (overlapping sections): handled once
+                stats["duplicate"] += 1
+                continue
+            seen.add(cid)
             if c.hard_fail:
                 failed = [f"{k}: {v.get('detail') or 'failed'}" for k, v in c.checks.items()
                           if v["hard"] and not v["ok"]]
@@ -208,9 +213,12 @@ def publish_candidates(job: dict[str, Any], doc: Any, cands: list[Candidate]) ->
                 _outcome(conn, cid, "published", "verified routine filed fact" if tag == "F" else "verified fact",
                          fact_id=written.id, material=material, codes=codes)
                 stats["published"] += 1
-            elif written.status == "published":
-                _outcome(conn, cid, "duplicate", "the same fact was already published", fact_id=written.id)
-                stats["published"] += 1
+            elif written.status == "published":  # a candidate that published itself on an earlier run keeps that
+                conn.execute(
+                    """UPDATE agent_candidate SET outcome = 'duplicate', outcome_reason = %s, fact_id = %s
+                       WHERE id = %s AND outcome IS DISTINCT FROM 'published'""",
+                    ("the same fact was already published", written.id, cid))
+                stats["duplicate"] += 1
             elif written.status == "rejected":
                 _outcome(conn, cid, "rejected", "a person rejected this fact before", fact_id=written.id)
                 stats["rejected"] += 1
