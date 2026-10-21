@@ -11,6 +11,23 @@ Branch `claude/modest-bardeen-tkbmaq` in both `marketsights/marden-backend` and 
 - Web: design system, shell, all routes, Clerk login (ported from frontend-app-core), permission gates, Completion, Sites, Site detail (all tabs), Data centers, On-site power, Instruments, Instrument detail, Account.
 - Methods: `docs/methods/pricing-v0.1.md`, `price-sources.md`, `licensing.md`.
 
+## Stopped by the org spend limit (2026-10-21 ~16:30 UTC) — re-run after the limit resets/raises
+Finished before the limit: seed load (all loaders + verify), structured collectors (all 9 built and run live; only their review failed),
+grid coverage, capacity auctions, web screens + auth review, per-product access (backend + web built; ERCOT parts and review failed),
+price pulls (built; finra.org refuses non-browser clients, so live TRACE needs the Rule 7730 licence; Frankfurt + Yahoo work; review failed),
+read models: instruments area only (instruments, instrument_detail, curve, gpu_collateral).
+Re-run with Workflow({scriptPath, resumeFromRunId}) so finished agents replay from cache:
+| Workflow | Run id | What still needs to run |
+| --- | --- | --- |
+| marden-models | wf_3e2f467f-9d1 | all 6 model agents + review (status model was mid-way: framework, rules done) |
+| marden-read-models | wf_50c221f6-5dd | sites, facilities, payers, monitor builders + end-to-end review |
+| marden-product-access-and-ercot | wf_5a24c3b6-9b2 | ercot:prices, ercot:gis, review |
+| marden-collectors-a | wf_c66027de-835 | collectors review |
+| marden-market-price-pulls | wf_af9f5953-8a8 | review; then run legacy_trace/legacy_frankfurt/legacy_yahoo on the main DB |
+Known open items from the reports: FRED ICE BofA series blocked pending ICE permission (Treasury + SOFR loaded);
+tests/test_worker.py needs updating for the new models.* and collect.* tasks; Yahoo robots.txt disallows all (owner decision covers it);
+API should return 404 (not 503) for collateral on non-GPU instruments.
+
 ## Running when this was written (check with the workflow journals; rerun if lost)
 | Workflow | What | Script |
 | --- | --- | --- |

@@ -32,6 +32,7 @@ class Ctx:
     holders: dict[str, Any] = field(default_factory=dict)
     holder_row: Row | None = None
     open_questions: list[dict[str, Any]] = field(default_factory=list)
+    modeled_outside: Doc | None = None  # the cushion model's outside date (Sourced, its source's tag)
 
 
 Answer = Doc | None
@@ -207,7 +208,7 @@ ITEMS: tuple[tuple[str, str, Resolver, bool], ...] = (
     ("Lease", "Rent", fact("lease_annual_rent_usd", "lease_rent_basis", "lease_tcv_usd"), False),
     ("Lease", "Escalators", term("escalat"), False),
     ("Lease", "Commencement", fact("rent_start"), False),
-    ("Lease", "Outside date", fact("outside_date"), False),
+    ("Lease", "Outside date", first(fact("outside_date"), lambda ctx: ctx.modeled_outside), False),
     ("Lease", "Termination rights", first(fact("lease_termination"), term("termination")), False),
     ("Lease", "Force majeure", term("force majeure"), False),
     ("Lease", "Residual value guarantees",

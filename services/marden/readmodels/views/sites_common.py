@@ -130,12 +130,13 @@ def party_label(parties: dict[str, Row], role: str) -> str | None:
 
 
 def latest_output(conn: Conn, model: str, subject_type: str, subject_id: str) -> Row | None:
-    """The newest output of `model` for a subject that Marden had on the build date."""
+    """The newest output of `model` for a subject dated on or before the build date. A model run for a
+    past day reads only what was public that day (marden.models.pit), so its output is that day's
+    value even when it was computed later (as views/instrument_inputs.latest_output)."""
     return conn.execute(
         """SELECT * FROM model_output WHERE model = %s AND subject_type = %s AND subject_id = %s
-             AND as_of <= %s AND created_at < %s::date
-           ORDER BY as_of DESC, id DESC LIMIT 1""",
-        (model, subject_type, subject_id, day(), next_day()),
+             AND as_of <= %s ORDER BY as_of DESC, created_at DESC, id DESC LIMIT 1""",
+        (model, subject_type, subject_id, day()),
     ).fetchone()
 
 
@@ -143,9 +144,8 @@ def output_history(conn: Conn, model: str, subject_type: str, subject_id: str, s
     """The last output per as_of day between `since` and the build date, oldest first."""
     return conn.execute(
         """SELECT DISTINCT ON (as_of) * FROM model_output WHERE model = %s AND subject_type = %s
-             AND subject_id = %s AND as_of BETWEEN %s AND %s AND created_at < %s::date
-           ORDER BY as_of, id DESC""",
-        (model, subject_type, subject_id, since, day(), next_day()),
+             AND subject_id = %s AND as_of BETWEEN %s AND %s ORDER BY as_of, created_at DESC, id DESC""",
+        (model, subject_type, subject_id, since, day()),
     ).fetchall()
 
 

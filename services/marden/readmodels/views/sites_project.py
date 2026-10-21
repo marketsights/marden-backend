@@ -20,7 +20,9 @@ from marden.readmodels.views.sites_common import (
     INSTRUMENT_FIELDS,
     Doc,
     holders,
+    latest_output,
     nd,
+    output_field,
     site_events,
     site_instruments,
     site_row,
@@ -76,7 +78,13 @@ def project_context(conn: Conn, slug: str, instruments: list[Doc]) -> Ctx:
         opposition=site_events(conn, slug, kinds=["opposition"]),
         holders=holders(conn, [i["id"] for i in instruments]),
         open_questions=[q for q in questions if isinstance(q, dict)] if isinstance(questions, list) else [],
+        modeled_outside=_modeled_outside(conn, slug),
     )
+
+
+def _modeled_outside(conn: Conn, slug: str) -> Doc | None:
+    outside = output_field(latest_output(conn, "cushion", "site", slug), "projection", "outsideDate")
+    return outside if isinstance(outside, dict) and outside.get("value") is not None else None
 
 
 def parties(conn: Conn, ctx: Ctx) -> list[Doc]:

@@ -190,7 +190,10 @@ def test_eia_history_is_reported_missing_until_two_reports_exist(real, committed
 
     assert eia_records(committed, business_today()) == []
     output = cushion.run(trigger="test")["sites"]["jupiter"]
-    assert any(x.startswith("slip_history: EIA-860M") for x in output["missing"])
+    assert any(x.startswith("slip_history: no EIA-860M planned-vs-actual pairs (1 monthly report(s)")
+               for x in output["missing"])
+    assert output["leasePosition"]["tag"] == "M" and "outside date" in output["leasePosition"]["value"]
+    assert [o["label"] for o in output["leaseOutcomes"]] == ["Finished before the outside date", "Finished after it"]
 
 
 def test_command_and_tasks_are_registered():

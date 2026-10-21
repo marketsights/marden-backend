@@ -15,7 +15,12 @@ from __future__ import annotations
 from datetime import date
 
 from marden.core.db import Conn
+from marden.readmodels.context import known_facts
 from marden.readmodels.registry import builder
+from marden.readmodels.views.instrument_detail import recovery as instrument_recovery
+from marden.readmodels.views.instrument_inputs import latest_output as instrument_output
+from marden.readmodels.views.instruments import marden_price as instrument_price
+from marden.readmodels.views.instruments import marden_prices
 from marden.readmodels.views.sites import site_summary
 from marden.readmodels.views.sites_common import (
     Doc,
@@ -27,7 +32,6 @@ from marden.readmodels.views.sites_common import (
     latest_output,
     main_instrument,
     material_events,
-    msourced,
     nd,
     output_field,
     output_history,
@@ -42,6 +46,8 @@ from marden.readmodels.views.sites_common import (
 from marden.readmodels.views.sites_links import campus_buildings, imagery, linked_campuses
 from marden.readmodels.views.sites_tabs import evidence_records, opposition_tab, site_event_log
 
+RECOVERY_FACTS = ("recovery_waterfall", "recovery_project", "recovery_gpu")
+
 
 def facts_line(summary: Doc, buildings: int) -> str:
     parts = []
@@ -55,21 +61,19 @@ def facts_line(summary: Doc, buildings: int) -> str:
     return " · ".join(parts) or "n/d"
 
 
-def model_value(conn: Conn, model: str, instrument_id: str, *path: str) -> Doc:
-    out = latest_output(conn, model, "instrument", instrument_id)
-    return msourced(out, output_field(out, *path))
+def marden_price(conn: Conn, instrument_id: str) -> Doc:
+    """The instrument's Marden price exactly as its own page shows it (views/instruments.py): the
+    `price` model's output, else the model's daily `marden` price series; n/d (M) before either."""
+    price_out = instrument_output(conn, "price", instrument_id, "instrument")
+    return instrument_price(price_out, marden_prices(conn, instrument_id))
 
 
 def recovery_value(conn: Conn, instrument_id: str) -> Doc:
-    """Recovery if the tenant walks: the recovery model, else the price model's recovery."""
-    value = model_value(conn, "recovery", instrument_id, "recovery")
-    if value["value"] is None:
-        value = model_value(conn, "recovery", instrument_id, "range")
-    if value["value"] is None:
-        value = model_value(conn, "price", instrument_id, "recovery")
-    if isinstance(value.get("value"), int | float):
-        value = {**value, "value": f"{value['value']:g}"}
-    return value
+    """Recovery if the tenant walks, as the instrument page shows it (views/instrument_detail.py):
+    the recovery model, else the price model's recovery, else the filed / research recovery ranges."""
+    facts = known_facts(conn, "instrument", instrument_id, RECOVERY_FACTS)
+    return instrument_recovery(conn, instrument_id, instrument_output(conn, "price", instrument_id, "instrument"),
+                               facts)
 
 
 def debt_exposed(conn: Conn, instruments: list[Doc]) -> Doc | None:
@@ -81,7 +85,7 @@ def debt_exposed(conn: Conn, instruments: list[Doc]) -> Doc | None:
         amount["value"], int | float) else nd("R")
     doc: Doc = {
         "instrumentId": inst["id"], "name": inst["name"], "sizeB": size,
-        "mardenPrice": model_value(conn, "price", inst["id"], "price"),
+        "mardenPrice": marden_price(conn, inst["id"]),
         "recovery": recovery_value(conn, inst["id"]),
         "holdersNote": holders_note(holders(conn, [inst["id"]])),
     }

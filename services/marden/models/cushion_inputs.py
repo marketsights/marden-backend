@@ -184,12 +184,14 @@ def outside_date(site: SiteInputs) -> Outside | None:
             found = _outside_from(text, r, "lease trigger in leases", trigger_only=not lease.get("outside_date"))
             if found:
                 candidates.append(found)
-    for plant in site.plants:
-        r = plant.current("expected_cod")
-        if r is not None:
-            found = _outside_from(text_of(r), r, f"lease trigger in plant {plant.id} expected_cod", trigger_only=True)
-            if found:
-                candidates.append(found)
+    if not candidates:  # the plant's record of the same lease trigger, only when the site's records lack it
+        for plant in site.plants:
+            r = plant.current("expected_cod")
+            if r is not None:
+                found = _outside_from(text_of(r), r, f"lease trigger in plant {plant.id} expected_cod",
+                                      trigger_only=True)
+                if found:
+                    candidates.append(found)
     if not candidates:
         return None
     # the newest record; filed over reported on the same day

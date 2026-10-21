@@ -39,7 +39,7 @@ from marden.readmodels.views.sites_common import (
     text_of,
     with_value,
 )
-from marden.readmodels.views.sites_detail import model_value, recovery_value
+from marden.readmodels.views.sites_detail import marden_price, recovery_value
 
 KIND_LABEL = {"bond": "Bond", "construction_loan": "Construction loan", "term_loan": "Term loan",
               "ddtl": "Delayed-draw term loan", "abs": "ABS", "facility": "Facility", "other": "Other"}
@@ -84,7 +84,7 @@ def instrument_row(conn: Conn, inst: Doc, payer: str | None = None) -> Doc:
     quote: Any = price_sourced(dealer_quote(conn, inst["id"]), as_text=True)
     if quote is None:
         quote = "private" if inst.get("kind") in LOAN_KINDS else ("traded" if inst.get("kind") == "bond" else None)
-    price = model_value(conn, "price", inst["id"], "price")
+    price = marden_price(conn, inst["id"])
     recovery = recovery_value(conn, inst["id"])
     return {"instrumentId": inst["id"], "payerSlug": payer, "name": inst["name"], "sub": instrument_sub(inst),
             "sizeB": size, "quote": quote, "mardenPrice": price, "recovery": recovery}
@@ -190,13 +190,18 @@ def _text(row: Row | None, tag: str = "F") -> Doc:
     return with_value(row, text_of(row["value"]))
 
 
-def _lease_outside(facts: dict[str, Row]) -> Doc:
+def _lease_outside(facts: dict[str, Row], cushion: Row | None) -> Doc:
+    """The site's outside date fact, a lease row's, else the one the cushion model found (with that
+    source's own tag), so the lease tab and the cushion show one date."""
     if row := facts.get("outside_date"):
         return _text(row)
     leases = facts.get("leases")
     for item in (leases["value"] if leases and isinstance(leases["value"], list) else []):
         if isinstance(item, dict) and item.get("outside_date"):
             return with_value(leases, str(item["outside_date"]))
+    modeled = output_field(cushion, "projection", "outsideDate")
+    if isinstance(modeled, dict) and modeled.get("value") is not None and modeled.get("tag") in ("F", "R", "M"):
+        return modeled
     return nd("F")
 
 
@@ -220,17 +225,18 @@ def lease_tab(conn: Conn, slug: str) -> Doc | None:
     parties = chain_parties(conn, slug)
     tenant = party_label(parties, "tenant")
     fm = _structure_term(conn, slug, "force majeure")
+    cushion = latest_output(conn, "cushion", "site", slug)
     terms = [
         _term("parties", "Parties", _text(facts.get("lease_tenant")), "lease or tenant filing"),
         _term("rent_start", "Rent start", _text(facts.get("rent_start")), "lease or landlord filing"),
-        _term("outside_date", "Outside date", _lease_outside(facts), "lease, offering memorandum or credit agreement"),
+        _term("outside_date", "Outside date", _lease_outside(facts, cushion),
+              "lease, offering memorandum or credit agreement"),
         _term("force_majeure", "Force majeure", _text(fm), "lease or tenant notice"),
         _term("rent", "Rent", _rent(facts), "lease or landlord filing"),
         _term("term", "Term", _term_years(facts), "lease or landlord filing"),
         _term("termination", "Termination rights", _text(facts.get("lease_termination")), "lease"),
         _term("guarantee", "Parent guarantee", _text(facts.get("lease_guarantee")), "lease or guaranty"),
     ]
-    cushion = latest_output(conn, "cushion", "site", slug)
     today = output_field(cushion, "leasePosition")
     return {
         "title": f"{tenant}'s lease" if tenant else "Lease",

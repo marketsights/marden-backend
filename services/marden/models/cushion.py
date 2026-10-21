@@ -10,7 +10,8 @@ says so in `outsideDateAssumed`), cushionMonths = outside - P50, deltaWeek again
 earlier, oddsOfMissing ('odds v0', uncalibrated: 'model v0' label) and costPerMonthLate when rent is
 disclosed. Output: one `model_output` per site and as_of (model 'cushion', version 'cushion v0.1') =
 {projection: CushionProjection, milestones: Milestone[], driver, missing, notApplicable, basis,
-inputsHash}; a missing input gives null fields and a `missing` entry, never a guess.
+inputsHash, leaseOutcomes, leasePosition (the Lease terms tab's 'what the terms mean' and 'today')}; a
+missing input gives null fields and a `missing` entry, never a guess.
 
 Runs: daily 09:35 UTC (05:35 EDT; spec 22 'Daily, 5-6 am ... cushions'), which also gives the weekly run
 and keeps one output per day for deltaWeek and cushionHistory; and within a minute of any published fact
@@ -59,7 +60,7 @@ def project_site(site: SiteInputs, history: SlipHistory, prior: dict[str, Any] |
     inputs_hash = hash_parts(MODEL, VERSION, canonical_json(site.fingerprint()), history_hash)
     sim = simulate(milestones, site.as_of, history, site.slug, seed=int(inputs_hash[:15], 16))
     projection = out.projection_doc(site, sim, prior)
-    eia = sum(1 for r in history.records if r.source == "eia_860m")
+    outcomes, position = out.lease_view(site, sim)
     rent = next(m for m in milestones if m.key == "rent_start")
     basis: dict[str, Any] = {
         "label": out.LABEL,
@@ -84,7 +85,9 @@ def project_site(site: SiteInputs, history: SlipHistory, prior: dict[str, Any] |
         "projection": projection,
         "milestones": out.milestones_doc(milestones, sim),
         "driver": sim.driver if sim is not None else None,
-        "missing": out.missing_list(site, milestones, sim, eia),
+        "missing": out.missing_list(site, milestones, sim, history),
+        "leaseOutcomes": outcomes,
+        "leasePosition": position,
         "notApplicable": [m.key for m in milestones if not m.applicable],
         "basis": basis,
         "inputsHash": inputs_hash,

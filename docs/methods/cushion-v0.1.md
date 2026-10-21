@@ -43,6 +43,7 @@ A site's own records are left out of its own pool. A category (build, power, per
 - `milestones` (Milestone[]) with `projected` p10/p50/p90 for simulated milestones.
 - `driver`: in each simulation the milestone that set rent start is charged that run's delay against the plan; the category charged most (Power, Build, Delivery, Permits). Funding is not modelled.
 - `missing`, `notApplicable`, `basis` (slip-history counts, binding shares, delay months, P50 change vs 7 days earlier, assumptions), `inputsHash`.
+- `leaseOutcomes` / `leasePosition` (Lease terms tab, when an outside date exists): the share of simulated schedules that start rent by and after the outside date ('odds v0'), and the P50 position against it.
 - Builders read `cushion_output.stored_output(conn, slug, day)` and `cushion_history(conn, slug, day)` (SiteSchedule.cushionHistory).
 
 ## 6. Runs

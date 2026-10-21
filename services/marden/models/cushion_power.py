@@ -82,7 +82,7 @@ def _from_plants(ms: cm.Milestone, site: SiteInputs, plants: list[Plant]) -> boo
         exp, orig = _plant_dates(p)
         change = p.current("latest_change")
         if exp is not None and (planned is None or exp.hi > planned.hi):
-            planned, evidence = exp, p.current("expected_cod")
+            planned, evidence = exp, change or p.current("expected_cod")
         if exp is not None and orig is not None and exp.lo > orig.hi:
             slipped = True
             ms.add_event((change or p.current("expected_cod"))["valid_from"], "slipped")

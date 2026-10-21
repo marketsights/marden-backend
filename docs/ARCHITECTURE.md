@@ -13,7 +13,7 @@ Specs live in `handoff/` (specs 00–27, `api/types.ts`, `api/endpoints.md`). `h
 5. **Safe reruns.** Every write is idempotent: `fact.dedupe_key`, `price_obs.dedupe_key`, `event.dedupe_key`, `document (source_id, url, sha256)`.
 6. **Never overwrite history.** New values are new rows. `fact_current` picks the current value; `fact_asof(date)` answers what Marden knew on a date.
 7. **Agents read, code computes.** LLM extraction produces candidate facts with quotes; models (Python) compute every number.
-8. **Polite collection.** Declared `SEC_USER_AGENT`, SEC < 10 req/s, per-host rate limits, caching, and each site's terms checked and noted on its `source` row (`terms_note`, `blocked`).
+8. **Polite collection.** Declared `SEC_USER_AGENT`, all SEC hosts in one bucket of at most 5 req/s (SEC allows 10), per-host rate limits, caching, and each site's terms checked and noted on its `source` row (`terms_note`, `blocked`). Per-collector endpoints, cadences and terms: `docs/collectors.md`.
 9. **Licence flags.** Sources collected without a commercial licence (finra.org TRACE, Börse Frankfurt, Yahoo Finance) write exact `source_name`s flagged `unlicensed-commercial` in `marden.core.licensing`; `MARDEN_SHOW_UNLICENSED_PRICES` (default true) is the switch that hides them (docs/methods/licensing.md). Bot protection is never evaded: a challenge, login wall, 401/403 or repeated 429 is recorded on the source and the run stops.
 
 ## Layout

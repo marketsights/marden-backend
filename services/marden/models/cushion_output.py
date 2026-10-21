@@ -9,9 +9,12 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
+import numpy as np
+
 from marden.core.db import Conn
 from marden.models import cushion_dates as cd
 from marden.models import runs
+from marden.models.cushion_history import MIN_POOLED, SlipHistory
 from marden.models.cushion_inputs import SiteInputs
 from marden.models.cushion_milestones import Milestone, milestone_doc
 from marden.models.cushion_sim import SimResult, months_of, odds_after
@@ -96,7 +99,7 @@ def milestones_doc(milestones: list[Milestone], sim: SimResult | None) -> list[d
 
 
 def missing_list(site: SiteInputs, milestones: list[Milestone], sim: SimResult | None,
-                 eia_records: int) -> list[str]:
+                 history: SlipHistory) -> list[str]:
     missing: list[str] = []
     if site.outside is None:
         missing.append("outside_date: no lease outside date in any source (cushion and odds not computed)")
@@ -112,15 +115,46 @@ def missing_list(site: SiteInputs, milestones: list[Milestone], sim: SimResult |
         missing.append(f"rent_start: {rent.note}")
     if rent.is_done and rent.done is None:
         missing.append("rent_start: done, but no source dates it (no projection)")
-    if sim is None:
+    dated = [m.key for m in milestones if m.applicable and not m.is_done and m.planned is not None]
+    pool, _ = history.pool("build", site.slug)
+    if sim is None and dated and len(pool) < MIN_POOLED:
+        missing.append(f"slip_history: {len(pool)} plan revisions public by {site.as_of.isoformat()} (at least "
+                       f"{MIN_POOLED} needed to simulate {', '.join(dated)}; p10/p50/p90 n/d)")
+    elif sim is None:
         missing.append("projection: no dated milestone on the critical path to rent start (p10/p50/p90 n/d)")
     elif sim.unsimulated:
-        missing.extend(f"{k}: dated, but no slip history to simulate it" for k in sim.unsimulated
-                       if any(m.key == k and m.planned is not None for m in milestones))
-    if eia_records == 0:
-        missing.append("slip_history: EIA-860M has no planned-vs-actual pairs yet (one monthly report stored); "
-                       "power milestones use the pooled archive history")
+        missing.extend(f"{k}: dated, but no slip history to simulate it" for k in sim.unsimulated if k in dated)
+    if not any(r.source == "eia_860m" for r in history.records):
+        missing.append(f"slip_history: no EIA-860M planned-vs-actual pairs ({history.eia_reports} monthly report(s) "
+                       "public by then; a pair needs two); power milestones use the pooled archive history")
     return missing
+
+
+def _month_label(m: int) -> str:
+    return f"{cd.month_start(m):%b} '{m // 12 % 100:02d}"
+
+
+def lease_view(site: SiteInputs, sim: SimResult | None) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """What the projection means against the outside date (site_tab:lease 'outcomes' and 'today')."""
+    o = site.outside
+    if o is None or sim is None:
+        return [], None
+    after = odds_after(sim.rent, o.month)
+    when = f"{date.fromisoformat(o.assumed):%b} {int(o.assumed[8:])}, {o.assumed[:4]}, assumed" if o.assumed \
+        else _month_label(o.month)
+    p50 = int(np.floor(np.percentile(sim.rent, 50)))
+    gap = o.month - p50
+    outcomes = [
+        {"label": "Finished before the outside date",
+         "text": f"{round(100 * (1 - after))}% of simulated schedules start rent by the outside date ({when})",
+         "value": m_value(f"{round(100 * (1 - after))}%", site.as_of, ODDS_VERSION)},
+        {"label": "Finished after it",
+         "text": f"{round(100 * after)}% start rent after it; the lease's termination and force majeure terms apply",
+         "value": m_value(f"{round(100 * after)}%", site.as_of, ODDS_VERSION)},
+    ]
+    position = (f"P50 rent start {_month_label(p50)}: {abs(gap)} month{'s' if abs(gap) != 1 else ''} "
+                f"{'before' if gap >= 0 else 'after'} the outside date ({when})")
+    return outcomes, m_value(position, site.as_of)
 
 
 def stored_output(conn: Conn, slug: str, as_of: date) -> dict[str, Any] | None:

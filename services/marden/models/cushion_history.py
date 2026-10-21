@@ -197,6 +197,7 @@ def _energization_record(slug: str, fields: dict[str, list[Row]], as_of: date) -
 @dataclass
 class SlipHistory:
     records: list[SlipRecord]
+    eia_reports: int = 0  # EIA-860M monthly reports public by the run date
 
     def pool(self, category: str, exclude_site: str) -> tuple[list[float], str]:
         """Slip ratios for a milestone category, without the projected site's own records."""
@@ -217,5 +218,13 @@ class SlipHistory:
         return dict(sorted(out.items()))
 
 
+def eia_report_count(conn: Conn, as_of: date) -> int:
+    rows = conn.execute(
+        """SELECT DISTINCT valid_from, source_name, subject_type, producer FROM fact
+            WHERE subject_type = 'eia_generator' AND status IN ('published', 'superseded') AND valid_from <= %s""",
+        (as_of,)).fetchall()
+    return len({r["valid_from"] for r in rows if public_date(r) <= as_of})
+
+
 def load_history(conn: Conn, as_of: date) -> SlipHistory:
-    return SlipHistory(eia_records(conn, as_of) + archive_records(conn, as_of))
+    return SlipHistory(eia_records(conn, as_of) + archive_records(conn, as_of), eia_report_count(conn, as_of))
