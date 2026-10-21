@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import logging
 import time
+from contextlib import nullcontext
 from datetime import date
 from typing import Any
 
@@ -32,7 +33,7 @@ from marden.core import db
 from marden.core.db import Conn
 from marden.core.queue import app
 from marden.core.records import PriceWriter
-from marden.models import price_equity, price_signals, price_terms, runs, triggers
+from marden.models import pit, price_equity, price_signals, price_terms, runs, triggers
 from marden.models.price import MODEL, PRICE_LABEL, VERSION, inputs_hash, is_target, run_day, week_change
 from marden.readmodels.context import business_today
 from marden.readmodels.deps import mark_dirty_for
@@ -174,6 +175,8 @@ def _configure(p: argparse.ArgumentParser) -> None:
     p.add_argument("--instrument", action="append", dest="ids", help="instrument id (repeatable; default: all)")
     p.add_argument("--no-mark", action="store_true", help="do not mark read models dirty")
     p.add_argument("--all-bonds", action="store_true", help="list every priced bond (default: V1 and CDS only)")
+    p.add_argument("--audit-inputs", action="store_true",
+                   help="list the inputs read by public date; exit 1 if one was not yet public on the as-of day")
 
 
 def _fmt(v: Any, nd: int = 1) -> str:
@@ -205,11 +208,20 @@ def summary(result: dict[str, Any], v1: set[str], all_bonds: bool = False) -> li
 @cli.action("model", MODEL, help="Run the price engine (bond-implied CDS, tier curves, facility prices)",
             configure=_configure)
 def price_command(args: argparse.Namespace) -> int:
-    result = run(args.as_of, args.ids, trigger="manual", mark=not args.no_mark)
+    with pit.audit() if args.audit_inputs else nullcontext([]) as used:
+        result = run(args.as_of, args.ids, trigger="manual", mark=not args.no_mark)
     with db.transaction() as conn:
         v1 = {r["id"] for r in conn.execute("SELECT id FROM instrument WHERE in_v1").fetchall()}
     print(f"price run {result['run_id']} as of {result['as_of']}: {len(result['prices'])} instruments, "
           f"{len(result['cds'])} issuers, {len(result['curve'])} tiers")
     for line in summary(result, v1 | set(args.ids or []), args.all_bonds):
         print(line)
-    return 0
+    return _audit_exit(args, used, result["as_of"])
+
+
+def _audit_exit(args: argparse.Namespace, used: list[pit.Input], as_of: date) -> int:
+    if not args.audit_inputs:
+        return 0
+    lines, late = pit.audit_report(used, as_of)
+    print("\n".join(lines))
+    return 1 if late else 0

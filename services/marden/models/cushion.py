@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from contextlib import nullcontext
 from datetime import date, timedelta
 from typing import Any
 
@@ -34,7 +35,7 @@ from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
 from marden.core.queue import app
 from marden.models import cushion_output as out
-from marden.models import runs, triggers
+from marden.models import pit, runs, triggers
 from marden.models.cushion_history import SlipHistory, load_history
 from marden.models.cushion_inputs import PLANT_FIELDS, SITE_FIELDS, SiteInputs, load_sites
 from marden.models.cushion_power import build
@@ -183,6 +184,8 @@ def _configure(p: argparse.ArgumentParser) -> None:
     p.add_argument("--as-of", type=date.fromisoformat, default=None, help="run date (default: today, US Eastern)")
     p.add_argument("--site", action="append", dest="sites", help="site slug (repeatable; default: every V1 site)")
     p.add_argument("--no-mark", action="store_true", help="do not mark the sites' read models dirty")
+    p.add_argument("--audit-inputs", action="store_true",
+                   help="list the inputs read by public date; exit 1 if one was not yet public on the as-of day")
 
 
 def _dash(value: Any) -> Any:
@@ -207,11 +210,16 @@ def summary_rows(result: dict[str, Any]) -> list[str]:
 @cli.action("model", "cushion", help="Run the cushion model (rent-start P10/P50/P90 and cushion per site)",
             configure=_configure)
 def cushion_command(args: argparse.Namespace) -> int:
-    result = run(args.as_of, args.sites, trigger="manual", mark=not args.no_mark)
+    with pit.audit() if args.audit_inputs else nullcontext([]) as used:
+        result = run(args.as_of, args.sites, trigger="manual", mark=not args.no_mark)
     print(f"cushion run {result['run_id']} as of {result['as_of']}: {len(result['sites'])} sites")
     for line in summary_rows(result):
         print(line)
     if result["unknown"]:
         print(f"unknown site slugs: {', '.join(result['unknown'])}")
         return 1
+    if args.audit_inputs:
+        lines, late = pit.audit_report(used, result["as_of"])
+        print("\n".join(lines))
+        return 1 if late else 0
     return 0

@@ -17,6 +17,7 @@ from typing import Any
 
 from marden.agents.extract import Candidate
 from marden.agents.fields import all_fields
+from marden.agents.publish import release_after_link
 from marden.agents.text import find_quote, read_text
 from marden.agents.validators import check_candidate
 from marden.core import checks, db, documents
@@ -38,12 +39,15 @@ def _audit(conn: db.Conn, by: str, action: str, target: str, meta: dict[str, Any
 
 
 def _accept_link(conn: db.Conn, link_id: int | None, by: str) -> None:
+    """Approving a fact on a proposed subject confirms the subject link too (and releases its other facts)."""
     if link_id:
-        conn.execute("""UPDATE agent_link SET status = 'accepted', decided_by = %s, decided_at = now()
-                        WHERE id = %s AND status = 'proposed'""", (by, link_id))
+        row = conn.execute("""UPDATE agent_link SET status = 'accepted', decided_by = %s, decided_at = now()
+                              WHERE id = %s AND status = 'proposed' RETURNING id""", (by, link_id)).fetchone()
         conn.execute("""UPDATE review_item SET status = 'approved', decided_by = %s, decided_at = now()
                         WHERE kind = 'link' AND ref_type = 'agent_link' AND ref_id = %s AND status = 'open'""",
                      (by, str(link_id)))
+        if row is not None:
+            release_after_link(conn, link_id, by)
 
 
 def _area_of(producer: str | None, payload: dict[str, Any]) -> str | None:
@@ -165,7 +169,8 @@ def _decide_link(conn: db.Conn, item: dict[str, Any], approve: bool, by: str) ->
     if item["ref_type"] == "agent_link":
         conn.execute("UPDATE agent_link SET status = %s, decided_by = %s, decided_at = now() WHERE id = %s",
                      (status, by, int(item["ref_id"])))
-        return {"link": status}
+        released = release_after_link(conn, int(item["ref_id"]), by) if approve else []
+        return {"link": status, "released_facts": released}
     site, _, campus = item["ref_id"].partition("|")
     row = conn.execute(
         """UPDATE site_link SET status = %s, approved_by = %s, approved_at = now()

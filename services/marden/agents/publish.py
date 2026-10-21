@@ -240,3 +240,40 @@ def _event(events: EventWriter, c: Candidate, fact_id: int, doc: Any, tag: str, 
     res = events.add(c.subject_type, c.subject_id, when, spec.event, title, tag=tag, source_name=source_name,
                      source_url=source_url, material=material, document_id=doc.id, fact_id=fact_id)
     return res.id if res.status == "candidate" else None
+
+
+def release_after_link(conn: db.Conn, link_id: int, by: str) -> list[int]:
+    """A person accepted a proposed subject link: candidates that waited only for it publish now.
+
+    Only candidates whose checks all passed, that the verifier agreed with, that are not material and that
+    still contradict nothing are released; the rest keep their review items."""
+    rows = conn.execute(
+        """SELECT c.*, f.status AS fact_status, f.valid_from, f.tag FROM agent_candidate c
+           JOIN fact f ON f.id = c.fact_id
+           WHERE c.link_id = %s AND c.outcome = 'review' AND c.verdict = 'agree' AND NOT c.material
+             AND f.status = 'candidate'""",
+        (link_id,),
+    ).fetchall()
+    released: list[int] = []
+    facts, events = FactWriter(conn), EventWriter(conn)
+    for r in rows:
+        if any(not v.get("ok") for v in (r["checks"] or {}).values()):
+            continue
+        cand = Candidate(area=r["area"], section=r["section"] or "", subject_kind=r["subject_kind"],
+                         subject_name=r["subject_mention"], subject_identifier=None, field=r["field"],
+                         value=r["value"], unit=r["unit"], as_of=r["as_of"], quote=r["quote"], page=r["page"],
+                         confidence=r["confidence"], subject_type=r["subject_type"], subject_id=r["subject_id"])
+        if conflicts(conn, cand, r["document_id"], r["valid_from"], r["tag"]):
+            continue
+        facts.publish([r["fact_id"]])
+        ev = [e["id"] for e in conn.execute(
+            "SELECT id FROM event WHERE fact_id = %s AND status = 'candidate' AND NOT material", (r["fact_id"],))]
+        events.publish(ev)
+        conn.execute(
+            """UPDATE review_item SET status = 'approved', decided_by = %s, decided_at = now()
+               WHERE kind = 'fact' AND ref_type = 'fact' AND ref_id = %s AND status = 'open'""",
+            (f"{by} (subject link accepted)", str(r["fact_id"])))
+        conn.execute("UPDATE agent_candidate SET outcome = 'published', outcome_reason = %s WHERE id = %s",
+                     (f"published when {by} accepted the subject link", r["id"]))
+        released.append(int(r["fact_id"]))
+    return released

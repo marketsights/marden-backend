@@ -2,13 +2,18 @@
 `site_tab:lease` (SiteLeaseTab) of the app's site-tab types (apps/api/src/contracts/site-tabs.ts), spec 04.
 
 Debt: the SPV (first tracking name), the capital stack from the case research's tranche summary,
-every instrument that needs the site finished plus the tenant's own V1 notes exposed to the site
-(instrument `exposure_links`, role Tenant), each with its size (F/R/M as filed), the latest dealer
-quote (R), the Marden price and recovery (price / recovery models; n/d until they run), the
-recovery inputs the recovery model reports, the named lenders and filed holders.
+every instrument that needs the site finished, the sponsor equity of the stack (first loss) and the
+tenant's own V1 notes exposed to the site (instrument `exposure_links`, role Tenant), each with its
+size (F/R/M as filed), the latest dealer quote (R), the Marden price and recovery (price / recovery
+models; n/d until they run), the inputs of the `recovery` model's waterfall for the main instrument
+(powered shell: shell value, comparable value per MW, claims ahead; GPU pool: collateral value, value
+per unit, claims ahead; what model v0 leaves out stays bracketed with where it will come from), the
+named lenders and filed holders.
 Lease: the terms as filed or reported (parties, rent start, outside date, force majeure, rent, term,
 termination, guarantee); a term nobody has sourced is n/d with where it will come from. What the
-terms mean for lenders and today's position need the cushion model: n/d until it runs.
+terms mean for lenders (finished before / after the outside date: the cushion model; force majeure
+accepted: the force majeure term as recorded) and today's position need the cushion model: n/d until
+it runs. A lease no term of which is filed says so in its note.
 """
 
 from __future__ import annotations
@@ -25,6 +30,7 @@ from marden.readmodels.views.sites_common import (
     dealer_quote,
     holders,
     holders_note,
+    is_sourced,
     latest_output,
     main_instrument,
     msourced,
@@ -44,8 +50,6 @@ from marden.readmodels.views.sites_detail import marden_price, recovery_value
 KIND_LABEL = {"bond": "Bond", "construction_loan": "Construction loan", "term_loan": "Term loan",
               "ddtl": "Delayed-draw term loan", "abs": "ABS", "facility": "Facility", "other": "Other"}
 LOAN_KINDS = frozenset({"construction_loan", "term_loan", "ddtl", "facility"})
-RECOVERY_INPUTS = (("shell_value", "Shell value"), ("equipment", "Equipment"), ("reletting_months", "Re-letting time"),
-                   ("claims_ahead", "Claims ahead of the loan"))
 
 
 def tenant_notes(conn: Conn, site: Row) -> list[Doc]:
@@ -122,18 +126,79 @@ def lenders(conn: Conn, slug: str) -> list[Doc]:
     return out
 
 
+def _money_b(value: Any) -> str | None:
+    if not isinstance(value, int | float):
+        return None
+    return f"${value:,.1f}B" if abs(value) >= 1 else f"${value * 1000:,.0f}mm"
+
+
+def _model_value(out: Row | None, value: str | None) -> Doc:
+    """A recovery-model figure as Sourced<string>, carrying the output's own source and method."""
+    meta = output_field(out, "recovery")
+    if not is_sourced(meta):
+        return msourced(out, value)
+    return {**meta, "value": value}
+
+
+def _input(out: Row | None, label: str, value: str | None, pending: str) -> Doc:
+    item: Doc = {"label": label, "value": _model_value(out, value)}
+    if value is None:
+        item["pending"] = pending
+    return item
+
+
+def recovery_inputs(out: Row | None) -> list[Doc]:
+    """The recovery model's waterfall inputs for the instrument (marden.models.recovery basis)."""
+    method = output_field(out, "method")
+    basis = output_field(out, "basis") or {}
+    value_b = output_field(out, "valueB", "value")
+    ahead, pari = basis.get("seniorClaimsB"), basis.get("pariClaimsB")
+    claims = None
+    if isinstance(ahead, int | float):
+        claims = f"{_money_b(ahead) if ahead else '$0'} ahead"
+        if isinstance(pari, int | float) and pari:
+            claims += f"; {_money_b(pari)} at the same rank"
+    if method == "gpu_collateral":
+        units, per_unit, pool = basis.get("units"), basis.get("valuePerUnitUsd"), basis.get("poolBalanceB")
+        if claims and isinstance(pool, int | float):
+            claims += f"; pool balance {_money_b(pool)}"
+        return [
+            _input(out, "Collateral value", _money_b(value_b), "GPU units and value per unit"),
+            _input(out, "Value per GPU", f"${per_unit:,.0f} a unit" if isinstance(per_unit, int | float) else None,
+                   "rental index and depreciation"),
+            _input(out, "Units", f"{units:,.0f}" if isinstance(units, int | float) else None, "facility filings"),
+            _input(out, "Claims ahead of the loan", claims, "facility terms"),
+        ]
+    comps = [c for c in basis.get("comps") or [] if isinstance(c, dict)]
+    median = basis.get("compMedianUsdPerMw")
+    per_mw = (f"${median / 1e6:,.1f}mm per gross MW, median of {len(comps)} sites"
+              if isinstance(median, int | float) else None)
+    not_in_v0 = " ".join(str(x) for x in basis.get("notInV0") or []).lower()
+    return [
+        _input(out, "Powered shell value", _money_b(value_b),
+               "from comparable sites, once completion is known" if method == "powered_shell"
+               else "recovery model"),
+        _input(out, "Value per MW of comparable sites", per_mw, "from comparable sales"),
+        _input(out, "Equipment on site", None, "from invoices and liens"),
+        _input(out, "Re-letting time", None,
+               "months, by market; not in model v0" if "re-letting" in not_in_v0 else "months, by market"),
+        _input(out, "Claims ahead of the loan", claims, "county recorder lien search"),
+    ]
+
+
 def recovery_card(conn: Conn, parties: dict[str, Row], main: Doc | None) -> Doc:
     out = latest_output(conn, "recovery", "instrument", main["id"]) if main else None
-    inputs_out = output_field(out, "inputs")
-    inputs = []
-    for key, label in RECOVERY_INPUTS:
-        value = inputs_out.get(key) if isinstance(inputs_out, dict) else None
-        item: Doc = {"label": label, "value": msourced(out, text_of(value) if not isinstance(value, dict) else value)}
-        if item["value"]["value"] is None:
-            item["pending"] = "recovery model"
-        inputs.append(item)
     return {"ifWalks": party_label(parties, "tenant") or "n/d",
-            "range": recovery_value(conn, main["id"]) if main else nd("M"), "inputs": inputs}
+            "range": recovery_value(conn, main["id"]) if main else nd("M"), "inputs": recovery_inputs(out)}
+
+
+def equity_rows(conn: Conn, slug: str, stack: list[Doc]) -> list[Doc]:
+    """The stack's equity as rows of the instruments table: first loss, no quote or price."""
+    sponsor = known_facts(conn, "site", slug, ["sponsor"]).get("sponsor")
+    sub = text_of(sponsor["value"]) if sponsor else None
+    return [{"instrumentId": None, "payerSlug": None, "name": part["label"], "sub": sub or "Sponsor equity",
+             "sizeB": part["amountB"], "quote": None, "mardenPrice": None, "recovery": "first loss"}
+            for part in stack if part["kind"] == "equity"]
 
 
 def debt_tab(conn: Conn, slug: str) -> Doc | None:
@@ -146,9 +211,10 @@ def debt_tab(conn: Conn, slug: str) -> Doc | None:
     notes = tenant_notes(conn, site)
     main = main_instrument(instruments)
     names = list(site.get("tracking_names") or [])
+    stack = capital_stack(conn, slug)
     doc: Doc = {
-        "capitalStack": capital_stack(conn, slug),
-        "instruments": [instrument_row(conn, i) for i in instruments]
+        "capitalStack": stack,
+        "instruments": [instrument_row(conn, i) for i in instruments] + equity_rows(conn, slug, stack)
         + [instrument_row(conn, i, tenant["entity_id"] if tenant else None) for i in notes],
         "recovery": recovery_card(conn, parties, main),
         "lenders": lenders(conn, slug),
@@ -224,26 +290,38 @@ def lease_tab(conn: Conn, slug: str) -> Doc | None:
     facts = known_facts(conn, "site", slug, LEASE_FACTS)
     parties = chain_parties(conn, slug)
     tenant = party_label(parties, "tenant")
-    fm = _structure_term(conn, slug, "force majeure")
+    fm = _text(_structure_term(conn, slug, "force majeure"))
     cushion = latest_output(conn, "cushion", "site", slug)
     terms = [
         _term("parties", "Parties", _text(facts.get("lease_tenant")), "lease or tenant filing"),
         _term("rent_start", "Rent start", _text(facts.get("rent_start")), "lease or landlord filing"),
         _term("outside_date", "Outside date", _lease_outside(facts, cushion),
               "lease, offering memorandum or credit agreement"),
-        _term("force_majeure", "Force majeure", _text(fm), "lease or tenant notice"),
+        _term("force_majeure", "Force majeure", fm, "lease or tenant notice"),
         _term("rent", "Rent", _rent(facts), "lease or landlord filing"),
         _term("term", "Term", _term_years(facts), "lease or landlord filing"),
         _term("termination", "Termination rights", _text(facts.get("lease_termination")), "lease"),
         _term("guarantee", "Parent guarantee", _text(facts.get("lease_guarantee")), "lease or guaranty"),
     ]
     today = output_field(cushion, "leasePosition")
+    outcomes = [o for o in (output_field(cushion, "leaseOutcomes") or []) if isinstance(o, dict)]
+    if fm["value"] is not None:
+        outcomes.append({"label": "Force majeure accepted",
+                         "text": "The outside date may move by the force majeure period, if the lease allows it. "
+                                 "On record:", "value": fm})
+    else:
+        outcomes.append({"label": "Force majeure accepted",
+                         "text": "The outside date may move by the force majeure period, if the lease allows it "
+                                 "[from the lease]"})
     doc: Doc = {
         "title": f"{tenant}'s lease" if tenant else "Lease",
         "terms": terms,
-        "outcomes": [o for o in (output_field(cushion, "leaseOutcomes") or []) if isinstance(o, dict)],
+        "outcomes": outcomes,
         "today": msourced(cushion, today) if today is not None else nd("M"),
     }
+    known = [t["value"] for t in terms if t["value"]["value"] is not None]
+    if not any(v["tag"] == "F" for v in known):
+        doc["note"] = "The lease is not public. Terms come from filings and press, and are marked where unknown."
     # Today's position is colored like the cushion chip (spec 03 bands: < 0 red, 0-3 amber), only when
     # the model gives both a position and a cushion.
     months = output_field(cushion, "projection", "cushionMonths", "value")

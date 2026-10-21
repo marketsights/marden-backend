@@ -1,0 +1,56 @@
+{
+ "case": "local_dona_ana_bocc_2026_10_13",
+ "prompt_version": "0.1",
+ "model": "claude-sonnet-5-5",
+ "tool_input": {
+  "facts": [
+   {
+    "subject_kind": "site",
+    "subject_name": "Project Jupiter",
+    "subject_identifier": null,
+    "field": "opposition_event",
+    "value_number": null,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": "{\"kind\":\"presentation\",\"body\":\"Doña Ana County Board of County Commissioners\",\"date\":\"2026-10-13\",\"outcome\":\"on the agenda\",\"case_number\":null}",
+    "as_of": "2026-10-13",
+    "quote": "Presentation and Update by Project Jupiter Representatives",
+    "page": 3,
+    "confidence": 0.93,
+    "note": null
+   },
+   {
+    "subject_kind": "site",
+    "subject_name": "Project Jupiter",
+    "subject_identifier": null,
+    "field": "opposition_event",
+    "value_number": null,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": "{\"kind\":\"appointment\",\"body\":\"Doña Ana County Board of County Commissioners\",\"date\":\"2026-10-13\",\"outcome\":\"on the agenda\",\"case_number\":null}",
+    "as_of": "2026-10-13",
+    "quote": "Appointment of Don Bassett and Marcus Wells as the District 4\nmembers to Community Monitoring Committee Related to Project\nJupiter.",
+    "page": 2,
+    "confidence": 0.93,
+    "note": null
+   }
+  ],
+  "subjects": [
+   {
+    "name": "Project Jupiter",
+    "kind": "site",
+    "identifiers": [],
+    "role": "site"
+   },
+   {
+    "name": "Doña Ana County Board of County Commissioners",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "county"
+   }
+  ],
+  "summary": "Amended agenda for the Doña Ana County BOCC meeting of Oct 13, 2026. Two Project Jupiter items: a presentation/update and an appointment to the Community Monitoring Committee. All other items are unrelated."
+ }
+}

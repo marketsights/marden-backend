@@ -64,20 +64,34 @@ def write_output(
 
 def output_on(conn: Conn, model: str, subject_type: str, subject_id: str, day: date) -> Row | None:
     """The output stored for exactly that day (any version; the newest written wins)."""
-    return conn.execute(
+    row = conn.execute(
         """SELECT * FROM model_output WHERE model = %s AND subject_type = %s AND subject_id = %s AND as_of = %s
            ORDER BY created_at DESC, id DESC LIMIT 1""",
         (model, subject_type, subject_id, day),
     ).fetchone()
+    _note(row)
+    return row
 
 
 def latest_output(conn: Conn, model: str, subject_type: str, subject_id: str, on_or_before: date) -> Row | None:
     """The newest output dated on or before `on_or_before` (what a snapshot of that day shows)."""
-    return conn.execute(
+    row = conn.execute(
         """SELECT * FROM model_output WHERE model = %s AND subject_type = %s AND subject_id = %s AND as_of <= %s
            ORDER BY as_of DESC, created_at DESC, id DESC LIMIT 1""",
         (model, subject_type, subject_id, on_or_before),
     ).fetchone()
+    _note(row)
+    return row
+
+
+def _note(row: Row | None) -> None:
+    """Record a stored output read as a model input (marden.models.pit.audit): public on its as-of day."""
+    if row is None:
+        return
+    from marden.models import pit  # lazy: pit imports the read-model context, which imports this module's users
+
+    pit.note("model_output", f"{row['subject_type']}:{row['subject_id']}", row["model"], row["as_of"], row["as_of"],
+             f"model {row['model']} {row['version']}")
 
 
 def outputs_between(

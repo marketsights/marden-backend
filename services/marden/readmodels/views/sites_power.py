@@ -11,7 +11,12 @@ schedule). 'Permitted on-site GW' is a
 Marden count (M) left n/d until a permit-count model runs. The plant card embeds the `plant_row`
 document (On-site power view) of the site's main plant when it has been built.
 
-Buildings: the linked campuses' buildings with footprints (types.ts Building) and the main plant.
+Buildings: the linked campuses' buildings with footprints (types.ts Building), the main plant and the
+totals (planned, shells up, energized, progress) counted as the header and the lists count the
+buildings (views/sites.building_count): from the building records, or, while the campus has none,
+from its own `building_count` / `buildings_operational` facts, each with that fact's source. Shells up
+counts records that are operating or have a certificate of occupancy (n/d until one does);
+construction progress stays n/d until a source states it.
 """
 
 from __future__ import annotations
@@ -19,6 +24,7 @@ from __future__ import annotations
 from marden.core.db import Conn, Row
 from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.registry import builder
+from marden.readmodels.views.sites import building_count
 from marden.readmodels.views.sites_common import (
     Doc,
     day,
@@ -209,6 +215,43 @@ def build_power(conn: Conn, slug: str) -> Doc | None:
     return power_tab(conn, slug)
 
 
+SUMMARY_FACTS = ("building_count", "buildings_operational", "sqft_note")
+
+
+def _first(facts: list[dict[str, Row]], field: str) -> Row | None:
+    return next((f[field] for f in facts if f.get(field)), None)
+
+
+def buildings_summary(conn: Conn, slug: str, campuses: list[Row], docs: list[Doc]) -> Doc | None:
+    """The Buildings tab totals (SiteBuildingsExtras.summary), the same count as the header's."""
+    count = building_count(conn, slug)
+    if count is None:
+        return None
+    total, built = count["value"]["total"], count["value"]["built"]
+    meta = {k: v for k, v in count.items() if k != "value"}
+    planned: Doc = {"value": {**meta, "value": total}, "note": "Building records on the linked campus"}
+    energized: Doc = {"value": {**meta, "value": built}, "note": "Buildings recorded as operating"}
+    if not docs:
+        facts = [known_facts(conn, "campus", c["id"], SUMMARY_FACTS) for c in campuses]
+        if row := _first(facts, "building_count"):
+            planned["value"] = with_value(row, total)
+        note = _first(facts, "sqft_note")
+        planned["note"] = ((text_of(note["value"]) if note else None)
+                           or "Reported for the campus; no building records yet")
+        if row := _first(facts, "buildings_operational"):
+            energized["value"] = with_value(row, built)
+            energized["note"] = f"Reported operating by {row.get('source_name') or 'the source'}"
+    shells = [d for d in docs if d["status"]["value"] == "Operating" or d["coDate"]["value"] is not None]
+    return {
+        "planned": planned,
+        "shellsUp": {"value": {**meta, "value": len(shells)} if shells else nd("M"),
+                     "note": "Operating or with a certificate of occupancy" if shells
+                     else "Waiting on building permits or the Sentinel-2 change run"},
+        "energized": energized,
+        "progress": {"value": nd("R"), "note": "No source states construction progress yet"},
+    }
+
+
 def buildings_tab(conn: Conn, slug: str) -> Doc | None:
     if site_row(conn, slug) is None:
         return None
@@ -221,6 +264,8 @@ def buildings_tab(conn: Conn, slug: str) -> Doc | None:
         doc["plant"] = plant
     if campuses:
         doc["linkApproved"] = approved
+    if (summary := buildings_summary(conn, slug, campuses, buildings)) is not None:
+        doc["summary"] = summary
     return doc
 
 

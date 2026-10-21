@@ -37,6 +37,7 @@ API should return 404 (not 503) for collateral on non-GPU instruments.
 | marden-readiness-a | wf_2ca3d0cf-311 | org roles Marden-owned (no Clerk roles; admins can't change owners); resolve the 7 grid-region review items |
 | marden-data-gaps | wf_5fca7cc9-15c | power-plant locations/county/EIA match (all 74 had none), plant air permits from state records, dc lastChange ordering bug, favicon |
 Shared local dev servers: API :4000 (dev auth), web :3000. FRED was in maintenance at 18:14 UTC; retry scheduled 20:16 UTC (ICE BofA OAS needed by the tier curves).
+Done: org roles Marden-owned (Clerk only for identity/membership/invites with org:member; admins can't manage owners; OrganizationSwitcher 'Manage' goes to /account) and all 16 grid-region review items on the 7 sites resolved from 8 SEC filings (wf_2ca3d0cf-311, reviewed). Open: apps/api stream-python test needs stream_event.user_id in the API test schema.
 Done: structured collectors reviewed (wf_c66027de-835): all 11 idempotent on a second live run; N-PORT 22,720 holdings; new index 20261021200000_fact_subject_known (lookups 157 ms -> 0.26 ms); FERC retries Cloudflare 52x; N-PORT fx_convention now tag M.
 Done: live updates (patchOn/mergeOn, structural sharing; e2e/live-updates.mjs; 23/23 screens load real data or an honest not-built state).
 Done: per-product access + ERCOT prices/load zones + ERCOT GIS from MIS (wf_5a24c3b6-9b2, reviewed). Decided: trial orgs get no product until staff grant it; one shared permission list is fine until a second product ships.

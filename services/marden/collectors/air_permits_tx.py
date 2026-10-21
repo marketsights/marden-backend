@@ -57,6 +57,7 @@ STOP_STATUSES = frozenset({401, 403, 429})
 CR_LIMIT = 5000
 CR_PAGES = 4
 PROJECTS_PER_FAMILY = 4
+NOT_PUBLIC = "tceq_not_public_html"
 MAX_DOWNLOADS = 60  # per run; the rest wait for the next weekly run (stored documents are never refetched)
 TERMS_CR = (
     "Checked 2026-10-21. TCEQ Central Registry data as published by TCEQ on the Texas Open Data Portal "
@@ -215,14 +216,19 @@ class RecordsOnline:
         """The stored copy of a Records Online file, else the file downloaded once (PDFs only). Files of matched
         permits are queued for extraction; files read only to check a near miss are not."""
         if doc := documents.latest_document(SOURCE_RO.id, row.url):
-            return doc
+            return doc if doc.doc_type != NOT_PUBLIC else None
         if self.downloads >= MAX_DOWNLOADS:
             self.info["downloads_deferred"] = self.info.get("downloads_deferred", 0) + 1
             return None
         self.downloads += 1
         resp = get(self.fetcher, SOURCE_RO.id, row.url, self.info)
         if not resp.content.startswith(b"%PDF"):
-            self.info.setdefault("not_pdf", []).append(row.content_id)  # metadata page of a non-public rendition
+            # TCEQ answers a file without a public rendition with its metadata page: kept, so it is not asked again
+            self.info.setdefault("not_public", []).append(row.content_id)
+            self.stats.document(documents.record_document(
+                SOURCE_RO.id, row.url, resp.content, content_type=resp.content_type, doc_type=NOT_PUBLIC,
+                title=f"{row.series} {row.primary} project {row.secondary}: {row.title} (no public rendition)",
+                doc_date=row.begin, external_id=row.content_id))
             return None
         doc = documents.record_document(
             SOURCE_RO.id, row.url, resp.content, content_type="application/pdf", doc_type="tceq_" + _slug(row.title),
@@ -276,12 +282,17 @@ def family_permit(fam: tx.Family, cr: dict[str, Permit], f: Facility, ro: Record
     main = cr.get(fam.number) or next((cr[i] for i in ids if i in cr), None)
     acts = tx.actions(fam)
     reads = []
+    psd = any(i.startswith("PSDTX") for i in fam.ids)
     for project in sorted((p for p in fam.projects if p != "-"), reverse=True)[:PROJECTS_PER_FAMILY]:
         docs = tx.project_rows(fam, project)
-        pick = ([r for r in docs if r.title == "Technical Review"] or
-                [r for r in docs if r.title == "Final Action" and not any(i.startswith("PSDTX") for i in fam.ids)])
-        if pick and (doc := ro.file(pick[-1])):
-            reads.append((project, pick[-1], doc))
+        # the newest public technical review (each id of a PSD family files its own copy; drafts may be the only
+        # public one), and for a standard permit or registration also its final-action letter (expiry, MAERT)
+        for wanted in ("Technical Review", None if psd else "Final Action"):
+            for row in sorted((r for r in docs if r.title == wanted), key=lambda r: r.begin or date.min,
+                              reverse=True)[:3]:
+                if doc := ro.file(row):
+                    reads.append((project, row, doc))
+                    break
     permit = Permit(
         tx.AGENCY, fam.number, ids, type="Title V" if fam.fop else ("PSD" if any(i.startswith("PSDTX") for i in ids)
                                                                      else None),

@@ -10,7 +10,7 @@
   "title": "EX-99.1",
   "date": "2026-08-11"
  },
- "note": "CoreWeave Q2 2026 earnings release (EX-99.1), highlights",
+ "note": "CoreWeave Q2 2026 earnings release (EX-99.1), highlights; both customer lists (new wins and existing customers) are customers",
  "excerpt": "Additional Second Quarter 2026 Financial Highlights\n\nRevenue backlog1 was approximately $104 billion as of June 30, 2026.\n\n1 Does not include more than $25 billion of net new customer commitments added in early Q3. Revenue backlog includes remaining performance obligations, plus other amounts we estimate will be recognized as revenue in future periods under committed customer contracts, in each case, subject to the satisfaction of delivery and availability of service requirements.\nSecond Quarter 2026 Highlights\n\n•Customer Wins across AI Labs, Hyperscalers, and Enterprises\n\n◦Partner of choice for leading enterprises and AI pioneers, including Bentley Systems, Caterpillar, Grammarly, Isomorphic Labs, and Sunday Robotics\n\n◦Expanded relationships with existing enterprise and AI native customers including Cognition, Databricks, Hudson River Trading, Periodic Labs, Rescale, and Runway ML\n\n•Continued Rapid Scaling of Purpose-Built AI Infrastructure\n\n◦Expanded active power by nearly 500 MWs to reach 1.5 GW\n\n◦Grew total contracted power to approximately 3.7 GW while further diversifying portfolio of providers and expanding powered land footprint\n\n•",
  "gold": [
   {
@@ -40,6 +40,16 @@
     "Hudson River Trading"
    ],
    "quote": "Expanded relationships with existing enterprise and AI native customers including Cognition, Databricks, Hudson River Trading, Periodic Labs, Rescale, and Runway ML"
+  },
+  {
+   "field": "top_customers",
+   "subject_kind": "entity",
+   "value": [
+    "Bentley Systems",
+    "Caterpillar",
+    "Grammarly"
+   ],
+   "quote": "Partner of choice for leading enterprises and AI pioneers, including Bentley Systems, Caterpillar, Grammarly, Isomorphic Labs, and Sunday Robotics"
   }
  ]
 }

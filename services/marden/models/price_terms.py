@@ -165,9 +165,32 @@ def load_instruments(conn: Conn, ids: Sequence[str] | None = None, *, issuers: S
                                r["site_slug"]) for r in rows}
     if not out:
         return out
-    for r in pit.fact_rows(conn, business_today(), "instrument", list(out), TERM_FIELDS):
+    # Static contract terms are read with today's knowledge (the archive dates its term records the day it
+    # was compiled, 2026-10-20) and count as public from the instrument's issue date: `note_terms`.
+    with pit.unaudited():
+        rows = pit.fact_rows(conn, business_today(), "instrument", list(out), TERM_FIELDS)
+    for r in rows:
         out[r["subject_id"]].facts.setdefault(r["field"], r)
     return out
+
+
+def note_terms(inst: Instrument, as_of: date, first_obs: date | None) -> None:
+    """Record an instrument's static terms (and its issue comp) as inputs of a run (pit.audit): public on the
+    issue date, else on its first public price observation (it traded, so its terms were out), else on
+    the record's own date (which a backtest then reports as late)."""
+    if not pit.auditing():
+        return
+    issued = inst.issue_date if inst.issue_date is not None and inst.issue_date <= as_of else None
+    for fld, r in sorted(inst.facts.items()):
+        public, basis = r["valid_from"], ""
+        if issued is not None:
+            public, basis = min(public, issued), "static term: public at issue"
+        elif first_obs is not None:
+            public, basis = min(public, first_obs), "static term: public by its first observation"
+        pit.note("terms", f"instrument:{inst.id}", fld, r["valid_from"], public, r.get("source_name"), basis)
+    if inst.comp is not None:
+        pit.note("terms", f"instrument:{inst.id}", "issue_comp", inst.comp["issue_date"], inst.comp["issue_date"],
+                 inst.comp.get("source_name"), f"{inst.comp['id']} (dated its issue day)")
 
 
 def load_comps(conn: Conn, as_of: date) -> list[dict[str, Any]]:

@@ -6,10 +6,12 @@ authorization, which is Marden's alone.
 ## The model
 
 - **Clerk is identity only.** It holds users, organizations (firms), membership, invitations, MFA and
-  SSO. The production Clerk instance is shared with another product, so Marden never creates, reads,
-  assigns or changes a Clerk role or permission, and never changes the Clerk instance. Every invitation
-  Marden sends uses Clerk's built-in basic member role (`org:member`); a Clerk role on a membership,
-  whoever set it, means nothing to Marden.
+  SSO. The production Clerk instance is shared with another product, so the API never reads, creates,
+  assigns or changes a Clerk role or permission, and never changes the instance's settings. Every
+  invitation Marden sends uses Clerk's built-in basic member role (`org:member`); a Clerk role on a
+  membership, whoever set it, means nothing to Marden. `marden-front-end/scripts/clerk-setup.mjs` only
+  lists the instance's roles to check that `org:member` exists; with `--apply` the one setting it may
+  change is turning organizations on, never a role or a role setting.
 - **Marden's Postgres decides access.**
   - A firm (`org`) holds **products** (`org_product`), each on a plan, with a seat limit and dates.
   - Each member holds a **role per product** (`member_product_role`). No row means no access to that
@@ -86,7 +88,9 @@ Marden's, never Clerk's.
 | Rows that existed before this change: their role was mirrored from Clerk and is kept as it was. | unchanged | `clerk` |
 
 - One org's joins take turns (a transaction advisory lock), so two members joining at the same moment
-  cannot both be first. Each join is audit-logged: action `member.join`, meta `{ role, rule,
+  cannot both be first. "First" means the first membership event Marden applies to an org with no
+  members; a delayed or retried webhook for the org's creator can arrive after another member's, so
+  staff check a new firm's `membership` rows before giving it a product. Each join is audit-logged: action `member.join`, meta `{ role, rule,
   invitationId }`.
 - **Invitations** (`org_invitation`). `POST /api/account/invites` asks Clerk for an organization
   invitation with the basic member role, then records the Marden role on Marden's row: Clerk invitation
@@ -102,12 +106,23 @@ Marden's, never Clerk's.
 - **Rules** (`apps/api/src/lib/member-rules.ts`):
   - only org owners and admins invite, change roles, assign product roles and remove members;
   - an admin cannot invite an owner, make someone an owner, or change or remove an owner's org role or
-    product roles: 403 `admins_cannot_manage_owners`. Owners can do all of these;
+    product roles: 403 `admins_cannot_manage_owners`. Owners can do all of these. Because the newest
+    open invitation decides the role, an admin also cannot invite an address that holds an open owner
+    invitation (same 403);
   - the last owner cannot be removed or demoted: 409 `last_owner`.
 - **Clerk webhooks never change a role.** `organizationMembership.created` creates the membership with the
   role above; `organizationMembership.updated` creates it if Marden has not seen it yet and otherwise
   changes nothing; `organizationMembership.deleted` deletes it with its product roles. The `role` field
   of these events is never read.
+- **Removals made in Clerk.** Membership is Clerk's, so a removal made outside Marden (Clerk's dashboard,
+  the other product, or a Clerk organization admin using Clerk's own UI or API) deletes the Marden
+  membership too; the owner rules and the last-owner rule are Marden API rules and do not bind Clerk.
+  Someone removed in Clerk and added back joins again under the rules above (as a viewer unless an open
+  invitation says otherwise). Marden invitations give only `org:member`, which cannot manage members in
+  Clerk; the org's creator holds Clerk's creator role, and memberships from before this change may hold
+  Clerk roles mirrored from Marden. The web app's organization switcher sends "Manage" to Marden's
+  Account page (`organizationProfileMode="navigation"`), so Marden never shows Clerk's organization
+  profile, its Clerk roles or its invite and remove controls.
 
 ## Tables
 
@@ -144,7 +159,7 @@ Migrations: `db/migrations/20261021180000_product_access.sql` (products) and
 | --- | --- | --- |
 | `GET /api/me` | any member | `{ user, org: { id, name }, orgRole, products: [{ id, name, plan, status, role, seats, seatsUsed }], permissions, staff }`. `products` lists the org's live products; `role` is the caller's role, or null when none was assigned. `products: []` means the org has no live product. |
 | `GET /api/account` | any member | `team[]`: each member with their org `role` and `products: [{ productId, role }]`. `products[]`: the org's products, live or not: `{ id, name, plan, status, seats, seatsUsed, startsOn, endsOn, live }`. Plus `seats` (member count) and `security`. |
-| `POST /api/account/invites` | org owner or admin | Body `{ email, role }`, `role` default `viewer`. Clerk invitation with the basic member role; the Marden role goes to `org_invitation`. Answers 201 `{ invitationId, email, role }`. Admin inviting an owner: 403 `admins_cannot_manage_owners`. No Clerk secret key: 503. Audit action `member.invite`, meta `{ email, role }`. |
+| `POST /api/account/invites` | org owner or admin | Body `{ email, role }`, `role` default `viewer`. Clerk invitation with the basic member role; the Marden role goes to `org_invitation`. Answers 201 `{ invitationId, email, role }`. Admin inviting an owner, or an address with an open owner invitation: 403 `admins_cannot_manage_owners`. No Clerk secret key: 503. Audit action `member.invite`, meta `{ email, role }`. |
 | `PATCH /api/account/members/:id` | org owner or admin | Body `{ role }`. Marden's tables only, no Clerk call. Answers the member. 403 `admins_cannot_manage_owners`, 409 `last_owner`, 404 `member`. Audit action `member.role`. |
 | `DELETE /api/account/members/:id` | org owner or admin | Ends the Clerk membership and deletes the Marden one with its product roles. 204; same refusals as above; no Clerk secret key (outside dev mode): 503. Audit action `member.remove`. |
 | `PATCH /api/account/members/:id/products` | org owner or admin | Body `{ productId, role }`, where `role` null removes the role. Answers the member. Only an owner changes an owner's product roles: 403 `admins_cannot_manage_owners`. Seat limit: 409 `seat_limit` with `seats` and `used`. Unknown member: 404 `member`. Product the org does not hold: 404 `product`. Audit action `member.product_role`, meta `{ productId, from, to }`. |

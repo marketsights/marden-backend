@@ -13,7 +13,6 @@ imagery from Sentinel-2 facts; documents are the latest filed records (F first).
 
 from __future__ import annotations
 
-import re
 from datetime import date
 
 from marden.core.db import Conn
@@ -46,7 +45,7 @@ from marden.readmodels.views.sites_common import (
     with_value,
 )
 from marden.readmodels.views.sites_links import imagery
-from marden.readmodels.views.sites_tabs import evidence_records, opposition_tab, site_event_log
+from marden.readmodels.views.sites_tabs import evidence_records, opposition_tab, site_event_log, story_key
 
 RECOVERY_FACTS = ("recovery_waterfall", "recovery_project", "recovery_gpu")
 
@@ -66,11 +65,7 @@ def facts_line(summary: Doc, buildings: Doc | None) -> str:
     return " · ".join(parts) or "n/d"
 
 
-def _story_key(title: str) -> str:
-    """One key per story: the same headline syndicated by several outlets ('… - Yahoo Finance',
-    '… - TheStreet') is one material event, not five."""
-    text = re.sub(r"\s+-\s+[^-]{2,40}$", "", title or "")
-    return re.sub(r"[^a-z0-9]+", " ", text.lower().replace("\u2019", "'")).strip()
+_story_key = story_key  # one key per story (views/sites_tabs.story_key)
 
 
 def marden_price(conn: Conn, instrument_id: str) -> Doc:

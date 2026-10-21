@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from marden.agents import extract
-from marden.agents.config import AgentSettings, PROMPT_VERSION
+from marden.agents.config import PROMPT_VERSION, AgentSettings
 from marden.agents.extract import Candidate
 from marden.agents.sections import split
 from marden.agents.text import DocText, normalize, read_plain

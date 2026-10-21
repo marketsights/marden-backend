@@ -39,7 +39,7 @@
 
 - **Web (`@clerk/nextjs`):**
   - `clerkMiddleware` protects every app route; public routes are sign-in and the 403/404 pages only.
-  - `<OrganizationSwitcher>` in the header; `useCan` reads the user's Marden permissions from `GET /api/me`.
+  - `<OrganizationSwitcher>` in the header; its "Manage" opens Marden's Account page (navigation mode), never Clerk's organization profile, which would show Clerk roles and invite or remove outside Marden's rules. `useCan` reads the user's Marden permissions from `GET /api/me`.
 - **API (`@clerk/fastify`):** every request runs these steps in order.
   1. Verify the Clerk session token (signature, expiry, issuer, authorized party = the web origin).
   2. Resolve the active Clerk organization to the Marden organization by `clerk_org_id`.

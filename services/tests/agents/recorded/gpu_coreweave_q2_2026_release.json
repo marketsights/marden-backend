@@ -1,0 +1,82 @@
+{
+ "case": "gpu_coreweave_q2_2026_release",
+ "prompt_version": "0.1",
+ "model": "claude-sonnet-5-5",
+ "tool_input": {
+  "facts": [
+   {
+    "subject_kind": "entity",
+    "subject_name": "Company (not named in excerpt)",
+    "subject_identifier": null,
+    "field": "backlog_rpo_usd",
+    "value_number": 104000000000,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": null,
+    "as_of": "2026-06-30",
+    "quote": "Revenue backlog1 was approximately $104 billion as of June 30, 2026.",
+    "page": 1,
+    "confidence": 0.9,
+    "note": "Approximately $104 billion; footnote excludes more than $25 billion of net new customer commitments added in early Q3."
+   },
+   {
+    "subject_kind": "entity",
+    "subject_name": "Company (not named in excerpt)",
+    "subject_identifier": null,
+    "field": "active_it_mw",
+    "value_number": 1500,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": null,
+    "as_of": "2026-06-30",
+    "quote": "Expanded active power by nearly 500 MWs to reach 1.5 GW",
+    "page": 1,
+    "confidence": 0.88,
+    "note": "Level is 1.5 GW; the nearly 500 MW is the increase. As-of is quarter end."
+   },
+   {
+    "subject_kind": "entity",
+    "subject_name": "Company (not named in excerpt)",
+    "subject_identifier": null,
+    "field": "contracted_mw",
+    "value_number": 3700,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": null,
+    "as_of": "2026-06-30",
+    "quote": "Grew total contracted power to approximately 3.7 GW",
+    "page": 1,
+    "confidence": 0.88,
+    "note": "Approximately 3.7 GW."
+   },
+   {
+    "subject_kind": "entity",
+    "subject_name": "Company (not named in excerpt)",
+    "subject_identifier": null,
+    "field": "top_customers",
+    "value_number": null,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": "[\"Bentley Systems\",\"Caterpillar\",\"Grammarly\",\"Isomorphic Labs\",\"Sunday Robotics\"]",
+    "as_of": null,
+    "quote": "Partner of choice for leading enterprises and AI pioneers, including Bentley Systems, Caterpillar, Grammarly, Isomorphic Labs, and Sunday Robotics",
+    "page": 1,
+    "confidence": 0.6,
+    "note": "Customer wins named in Q2 highlights; other expanded-relationship customers (Cognition, Databricks, Hudson River Trading, Periodic Labs, Rescale, Runway ML) listed separately."
+   }
+  ],
+  "subjects": [
+   {
+    "name": "Company (not named in excerpt)",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "issuer"
+   }
+  ],
+  "summary": "Q2 2026 earnings release excerpt (issuer not named in text): backlog ~$104B at 2026-06-30, active power 1.5 GW, contracted ~3.7 GW, named customer wins."
+ }
+}

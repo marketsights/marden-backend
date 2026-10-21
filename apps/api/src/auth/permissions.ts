@@ -20,7 +20,7 @@ export const PRODUCT_USE = ['watchlist:write', 'alerts:write', 'stress:run', 'st
 const ORG_READ = ['account:read', 'me:read'] as const;
 const ORG_ADMIN = ['members:invite', 'members:manage'] as const;
 const ORG_OWNER = ['billing:manage', 'org:delete'] as const;
-const STAFF = ['review:approve', 'ops:read', 'products:manage'] as const;
+const STAFF = ['review:read', 'review:approve', 'documents:upload', 'documents:read', 'ops:read', 'products:manage'] as const;
 /** No session: liveness probe, CORS preflight, signature-verified Clerk webhook. */
 export const PUBLIC_PERMISSIONS = ['public:health', 'public:preflight', 'webhook:clerk'] as const;
 
@@ -132,6 +132,17 @@ export const ROUTE_RULES: Readonly<Record<string, RouteRule>> = {
   'GET /api/gpus/:model': g('gpus:read'),
   'GET /api/leases': g('leases:read'),
   'GET /api/leases/:id': g('leases:read'),
+  // The agent system (docs/agents.md): staff upload documents, follow their processing, work the review queue.
+  'POST /api/documents': staff('documents:upload'),
+  'GET /api/documents': staff('documents:read'),
+  'GET /api/documents/:id': staff('documents:read'),
+  'GET /api/uploads/:id': staff('documents:read'),
+  'GET /api/agents/status': staff('documents:read'),
+  'GET /api/review': staff('review:read'),
+  'GET /api/review/:id': staff('review:read'),
+  'POST /api/review/:id/approve': staff('review:approve'),
+  'POST /api/review/:id/reject': staff('review:approve'),
+  'POST /api/review/:id/edit': staff('review:approve'),
   'GET /api/stream': o('stream:read'),
   'GET /api/me': { permission: 'me:read', scope: 'self', plans: ALL },
   'POST /api/webhooks/clerk': pub('webhook:clerk'),

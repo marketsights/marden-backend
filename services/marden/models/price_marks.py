@@ -27,6 +27,7 @@ from datetime import date, timedelta
 
 from marden.core.db import Conn
 from marden.core.licensing import show_unlicensed_prices, unlicensed_source_names
+from marden.models import pit
 
 NPORT_LAG_DAYS = 60
 BDC_LAG_DAYS = {"10-Q": 45, "10-K": 90}
@@ -130,7 +131,13 @@ def load(conn: Conn, as_of: date, instrument_ids: Sequence[str], *, kinds: Seque
         out[iid].append(Obs(iid, period, public, statistics.median(prices), "bdc",
                             f"BDC {form} median of {len(prices)} funds ({period.isoformat()})", None, len(prices),
                             min(prices), max(prices)))
-    return {k: sorted(v, key=lambda o: (o.day, o.source)) for k, v in out.items()}
+    result = {k: sorted(v, key=lambda o: (o.day, o.source)) for k, v in out.items()}
+    if pit.auditing():
+        for iid, items in result.items():
+            for o in items:
+                pit.note("price_obs", f"instrument:{iid}", o.source, o.day, o.public, o.source_name,
+                         "fund mark: public after the filing lag" if o.stale else "")
+    return result
 
 
 def daily(obs: Sequence[Obs], sources: Sequence[str] = ("trace", "exchange", "nport")) -> dict[date, Obs]:

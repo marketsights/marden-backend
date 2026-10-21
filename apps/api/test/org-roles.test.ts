@@ -102,6 +102,23 @@ describe('Marden-owned org roles', () => {
     expect((await invite(u.extra, 'friend@fund.test', 'viewer')).statusCode).toBe(403);
   });
 
+  it("stops an admin from replacing an owner's pending owner invitation; the owner can", async () => {
+    const before = calls.length;
+    expect((await invite(u.owner, 'chair@fund.test', 'owner')).statusCode).toBe(201);
+    // The newest open invitation decides the role on joining, so a lesser one from an admin is refused.
+    for (const role of ['viewer', 'admin']) {
+      expect((await invite(u.analyst, 'Chair@Fund.test', role)).json()).toMatchObject({ reason: 'admins_cannot_manage_owners' });
+    }
+    expect(calls.length).toBe(before + 1);
+    // Admins still invite anyone else; the owner can replace their own invitation.
+    expect((await invite(u.analyst, 'deputy@fund.test', 'admin')).statusCode).toBe(201);
+    expect((await invite(u.owner, 'chair@fund.test', 'admin')).statusCode).toBe(201);
+    const open = await db.query(
+      `SELECT role, invited_by FROM org_invitation WHERE org_id = $1 AND email = 'chair@fund.test' AND status = 'pending' ORDER BY created_at, role`, [org],
+    );
+    expect(open.rows).toEqual([{ role: 'owner', invited_by: u.owner }, { role: 'admin', invited_by: u.owner }]);
+  });
+
   it('ignores revoked and expired invitations', async () => {
     const revoked = (await invite(u.owner, 'gone@fund.test', 'admin')).json<{ invitationId: string }>();
     const revoke = { type: 'organizationInvitation.revoked', timestamp: Date.now(), data: { id: revoked.invitationId, organization_id: org, status: 'revoked', role: 'org:member' } };

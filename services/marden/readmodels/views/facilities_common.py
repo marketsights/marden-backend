@@ -10,10 +10,10 @@ buildings, plants and units as Marden knew them on the build date.
 - `financed` (FinancedLink) is the campus's approved site link only (spec 16: no link without an
   approved evidence record): the site's chain status from the `status` model and the debt of the
   instruments that need the site finished. Proposed links never show.
-- `lastChange` (campus and plant rows) is the newest of all the subject's dated changes (`Change`):
-  value changes and first values of the History tab, records (events) and large-load queue listings,
-  ranked by date (valid_from / event date), then learned_at, then kind and row id. Every kind competes
-  on its date, so an older record never hides a newer value change.
+- `lastChange` (campus and plant rows) is the newest material dated change (`Change`): value changes
+  of the History tab's fields, records (events) and large-load queue listings on one scale, by date
+  (valid_from / event date), then learned_at, then kind, field order and row id. First values and
+  the first-seen date are not changes; they show only while the subject has none.
 """
 
 from __future__ import annotations
@@ -272,17 +272,20 @@ def _shown(value: Any) -> str | None:
 
 
 class Change(NamedTuple):
-    """A dated change on a subject: its DcHistoryEvent and what `last_change` ranks it by. `kind`
-    (FIRST_SEEN < FIRST_VALUE < VALUE_CHANGE < QUEUE < RECORD) orders changes of the same date learned
-    at the same instant; `row_id` (the fact's or event's id) then makes the order total."""
+    """A dated change on a subject: its DcHistoryEvent and what `last_change` ranks it by. Changes of
+    the same date learned at the same instant are ordered by `kind` (FIRST_SEEN < FIRST_VALUE <
+    VALUE_CHANGE < QUEUE < RECORD), then `order` (the field's place in its history list, 0 = most
+    material), then `row_id` (the fact's or event's id), which makes the order total."""
 
     entry: Doc
     learned_at: datetime
     kind: int
+    order: int
     row_id: int
 
 
 FIRST_SEEN, FIRST_VALUE, VALUE_CHANGE, QUEUE, RECORD = range(5)
+CHANGE_KINDS = (VALUE_CHANGE, QUEUE, RECORD)  # first values and first seen are not changes
 
 
 def history_entries(changes: Iterable[Change]) -> list[Doc]:
@@ -315,28 +318,19 @@ def fact_changes(
                     "after": after,
                     "evidence": fact_evidence(row, text),
                 }
-                out.append(Change(entry, row["learned_at"], VALUE_CHANGE if seen else FIRST_VALUE, row["id"]))
+                kind = VALUE_CHANGE if seen else FIRST_VALUE
+                out.append(Change(entry, row["learned_at"], kind, fields.index(field), row["id"]))
             prev, seen = after, True
     return out
 
 
 def event_changes(events: Sequence[Row]) -> list[Change]:
     """Each record (event: permit, docket, filing, queue status or COD change) as a change."""
-    return [
-        Change(
-            {
-                "date": e["event_date"].isoformat(),
-                "field": "record",
-                "before": None,
-                "after": e["title"],
-                "evidence": event_evidence(e),
-            },
-            e["learned_at"],
-            RECORD,
-            e["id"],
-        )
-        for e in events
-    ]
+
+    def entry(e: Row) -> Doc:
+        return {"date": e["event_date"].isoformat(), "field": "record", "before": None, "after": e["title"]}
+
+    return [Change({**entry(e), "evidence": event_evidence(e)}, e["learned_at"], RECORD, 0, e["id"]) for e in events]
 
 
 def queue_text(field: str, value: Any) -> str | None:
@@ -366,16 +360,25 @@ def queue_changes(conn: Conn, subject_type: str, subject_id: str) -> list[Change
                     "after": text,
                     "evidence": fact_evidence(row, f"Large-load queue: {text}"),
                 }
-                out.append(Change(entry, row["learned_at"], QUEUE, row["id"]))
+                out.append(Change(entry, row["learned_at"], QUEUE, 0, row["id"]))
     return out
 
 
+def change_rank(c: Change) -> tuple[str, datetime, int, int, int]:
+    """Newest first: date (valid_from / event date), learned_at, kind, field order, row id."""
+    return (c.entry["date"], c.learned_at, c.kind, -c.order, c.row_id)
+
+
 def last_change(changes: Iterable[Change], facts: dict[str, Row]) -> Doc | None:
-    """`lastChange`: the newest dated change of any kind (value change, first value of a tracked
-    field, first seen, queue listing, record), by date (valid_from / event date), then learned_at,
-    then kind and row id; else the newest fact Marden holds on the subject; None (n/d) when it holds
-    none. An older record never hides a newer value change."""
-    best = max(changes, key=lambda c: (c.entry["date"], c.learned_at, c.kind, c.row_id), default=None)
+    """`lastChange`: the newest material dated change, by `change_rank`: a value change (before ->
+    after) of a tracked field, a record (event) or an operator queue listing, all on one scale, so a
+    record never hides a newer value change or the reverse. A first value (n/d -> value: the History
+    tab's first status / MW, dated by the snapshot that first held it) and the first-seen date are
+    not changes: the newest of them shows only while the subject has no change, then the newest
+    fact; None (n/d) when it holds none."""
+    changes = list(changes)
+    best = max((c for c in changes if c.kind in CHANGE_KINDS), key=change_rank, default=None)
+    best = best or max(changes, key=change_rank, default=None)
     if best is not None:
         return best.entry["evidence"]
     dated = [r for r in facts.values() if r["valid_from"] <= day()]

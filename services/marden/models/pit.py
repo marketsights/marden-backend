@@ -17,12 +17,20 @@ backtest and reads only what was public by that day:
   inputs too (docs/methods/licensing.md).
 
 Every read returns rows newest valid_from first, so one-row-per-item fields keep all their items.
+
+Input audit: inside `with pit.audit() as used:` every row these reads return (and every input the models
+note themselves: price observations, stored model outputs, static instrument terms) is appended to `used`
+as an `Input` with the day it became public, so a backtest can be checked for look-ahead
+(`late_inputs(used, as_of)` must be empty; `python -m marden model price|cushion --audit-inputs`).
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from datetime import date, timedelta
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from marden.core.db import Conn, Row
@@ -32,6 +40,77 @@ from marden.readmodels.context import business_today
 NPORT_LAG_DAYS = 60
 XBRL_LAG_DAYS = 40
 EIA_860M_RELEASE_DAY = 24
+
+
+@dataclass(frozen=True)
+class Input:
+    """One input a model read: what it is, the record's own date and the first day it was public."""
+
+    kind: str  # 'fact' | 'event' | 'price_obs' | 'model_output' | 'terms' | 'series'
+    subject: str  # '<subject_type>:<subject_id>' (or the instrument id for prices)
+    field: str
+    record_date: date
+    public: date
+    source: str
+    basis: str = ""  # how `public` was set when it is not the record date
+
+
+_AUDIT: ContextVar[list[Input] | None] = ContextVar("marden_pit_audit", default=None)
+
+
+@contextmanager
+def audit() -> Iterator[list[Input]]:
+    """Collect every input read in this block (see the module docstring)."""
+    used: list[Input] = []
+    token = _AUDIT.set(used)
+    try:
+        yield used
+    finally:
+        _AUDIT.reset(token)
+
+
+@contextmanager
+def unaudited() -> Iterator[None]:
+    """Reads in this block are not recorded; the caller notes what it uses with its own public date."""
+    token = _AUDIT.set(None)
+    try:
+        yield
+    finally:
+        _AUDIT.reset(token)
+
+
+def auditing() -> bool:
+    return _AUDIT.get() is not None
+
+
+def note(kind: str, subject: str, field: str, record_date: date | datetime, public: date | datetime,
+         source: str | None, basis: str = "") -> None:
+    used = _AUDIT.get()
+    if used is None:
+        return
+    rd = record_date.date() if isinstance(record_date, datetime) else record_date
+    pub = public.date() if isinstance(public, datetime) else public
+    used.append(Input(kind, subject, field, rd, pub, source or "", basis))
+
+
+def late_inputs(used: Sequence[Input], as_of: date | str) -> list[Input]:
+    """The inputs that were not yet public on `as_of` (a backtest must have none)."""
+    day = date.fromisoformat(as_of) if isinstance(as_of, str) else as_of
+    return [i for i in used if i.public > day]
+
+
+def audit_report(used: Sequence[Input], as_of: date | str) -> tuple[list[str], int]:
+    """Lines summarising an audited run's inputs, and the number not yet public on `as_of`."""
+    as_of = date.fromisoformat(as_of) if isinstance(as_of, str) else as_of
+    late = late_inputs(used, as_of)
+    lines = [f"inputs read: {len(used)} (as of {as_of.isoformat()})"]
+    for kind in sorted({i.kind for i in used}):
+        items = [i for i in used if i.kind == kind]
+        newest = max(i.public for i in items)
+        lines.append(f"  {kind:13} {len(items):7}  latest public {newest.isoformat()}")
+    lines.append(f"not yet public on {as_of.isoformat()}: {len(late)}")
+    lines += [f"  LATE {i.kind} {i.subject} {i.field} public {i.public} ({i.source})" for i in late[:20]]
+    return lines, len(late)
 
 
 def is_backtest(as_of: date) -> bool:
@@ -92,6 +171,10 @@ def fact_rows(
     rows = conn.execute(sql, params).fetchall()
     if backtest:
         rows = [r for r in rows if public_date(r) <= as_of]
+    if auditing():
+        for r in rows:
+            note("fact", f"{r['subject_type']}:{r['subject_id']}", r["field"], r["valid_from"], public_date(r),
+                 r.get("source_name"))
     return rows
 
 
@@ -135,4 +218,11 @@ def event_rows(
         sql += " AND (event_date <= %(day)s OR learned_at < (%(day)s::date + 1)::timestamptz)"
     sql += _licence_clause(params)
     sql += " ORDER BY subject_id, event_date DESC, id DESC"
-    return conn.execute(sql, params).fetchall()
+    rows = conn.execute(sql, params).fetchall()
+    if auditing():
+        for r in rows:
+            scheduled = r["event_date"] > as_of  # a dated-ahead hearing or deadline: public once learned
+            note("event", f"{r['subject_type']}:{r['subject_id']}", r["kind"], r["event_date"],
+                 r["learned_at"] if scheduled else r["event_date"], r.get("source_name"),
+                 "scheduled: public when learned" if scheduled else "")
+    return rows

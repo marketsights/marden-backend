@@ -8,8 +8,8 @@ and summarises these docs) and `plant_detail` (PowerPlantDetail).
   computed in code, tagged with the weakest unit fact); else the plant's capacity as stated; else n/d.
 - Air permit: the plant's `air_permit` fact (agency, number, type, URL); its status from the permit
   docket entity's newer status when Marden watches it (TCEQ 'PENDING' -> Permit pending ...). A PSD
-  permit is a major-source permit ('Major'). Filed / decided dates and amendments stay n/d until the
-  permit collectors record them.
+  permit is a major-source permit ('Major'). Filed / decided dates and amendments come from the
+  `air_permits` collector's value (filed, issued, amendments); an older record without them stays n/d.
 - Fuel supply: the fuel line (pipeline / lateral plant) serving the same campus, or the plant itself
   when it is one: its FERC / state docket and the planned in-service dates as stated.
 - Grid mode from the served campus's power source (On-site gas -> Islanded, Grid / Hybrid -> Grid-tied).
@@ -71,9 +71,12 @@ PERMIT_STATUS = {
     "approved": "Permitted",
     "final": "Permitted",
     "withdrawn": "Withdrawn",
+    "cancelled": "Withdrawn",
     "denied": "Denied",
 }
-PERMIT_TYPES = {"PSD": "Major"}
+# Agency permit kinds (air_permits collector) -> the card's type: PSD is a major-source permit; a Texas NSR
+# permit outside PSD and a permit-by-rule registration are minor authorizations.
+PERMIT_TYPES = {"PSD": "Major", "NSR": "Minor", "PBR": "Minor"}
 GRID_MODES = {"On-site gas": "Islanded", "Grid": "Grid-tied", "Hybrid": "Grid-tied"}
 
 
@@ -166,11 +169,20 @@ def air_permit(conn: Conn, facts: dict[str, Row]) -> Doc | None:
         "number": str(v["number"]),
         "type": PERMIT_TYPES.get(kind, kind) if isinstance(kind, str) else None,
         "status": PERMIT_STATUS.get(str(stated).strip().lower()) if stated else None,
-        "filed": None,
-        "decided": None,
+        "filed": _iso_day(v.get("filed")),
+        "decided": _iso_day(v.get("issued")),
         "url": v.get("url") or row.get("source_url") or "",
-        "amendments": [],
+        "amendments": [
+            {"date": a["date"], "text": str(a.get("text") or ""), "tag": row["tag"],
+             "sourceName": row.get("source_name") or "", "sourceUrl": a.get("url") or v.get("url") or ""}
+            for a in v.get("amendments") or [] if isinstance(a, dict) and _iso_day(a.get("date"))
+        ],
     }
+
+
+def _iso_day(value: Any) -> str | None:
+    """A permit collector's ISO date ('2025-01-22'); anything else is n/d."""
+    return value if isinstance(value, str) and len(value) == 10 and value[4] == "-" and value[7] == "-" else None
 
 
 def row_permit(permit: Doc | None) -> Doc | None:

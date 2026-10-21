@@ -16,7 +16,7 @@ import { notFound, unavailable } from '../errors.js';
 import { checkInvite, checkRemoval, checkRoleChange } from '../lib/member-rules.js';
 import { getOrg, getUser, lockMembers, removeMember, setMemberRole, team } from '../queries/account.js';
 import { audit } from '../queries/audit.js';
-import { recordInvitation } from '../queries/org-roles.js';
+import { hasOpenOwnerInvitation, recordInvitation } from '../queries/org-roles.js';
 import { orgProducts } from '../queries/products.js';
 import { param, parseBody } from './serve.js';
 
@@ -99,7 +99,11 @@ export function accountRoutes(app: FastifyInstance, deps: AccountDeps): void {
   app.post('/api/account/invites', async (req, reply) => {
     const auth = authOf(req);
     const body = parseBody(inviteSchema, req.body);
-    checkInvite(auth.orgRole, body.role);
+    // The newest open invitation decides the role on joining, so an admin may not replace an owner's
+    // pending owner invitation.
+    const ownerInvited = auth.orgRole !== 'owner'
+      && await db.withOrg(auth.orgId, (c) => hasOpenOwnerInvitation(c, auth.orgId, body.email));
+    checkInvite(auth.orgRole, body.role, ownerInvited);
     if (!deps.clerkAdmin) throw unavailable('clerk_backend_api_not_configured');
     // Clerk sends the email and, on acceptance, creates the membership (basic member role); the Marden
     // role travels in org_invitation and is applied when the membership webhook arrives.

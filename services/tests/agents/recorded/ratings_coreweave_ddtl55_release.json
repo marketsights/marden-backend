@@ -1,0 +1,94 @@
+{
+ "case": "ratings_coreweave_ddtl55_release",
+ "prompt_version": "0.1",
+ "model": "claude-sonnet-5-5",
+ "tool_input": {
+  "facts": [
+   {
+    "subject_kind": "instrument",
+    "subject_name": "DDTL 5.5 Facility",
+    "subject_identifier": null,
+    "field": "rating",
+    "value_number": null,
+    "value_text": "Moody's Ba2",
+    "value_date": null,
+    "value_bool": null,
+    "value_json": null,
+    "as_of": "2026-08-10",
+    "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
+    "page": 1,
+    "confidence": 0.95,
+    "note": null
+   },
+   {
+    "subject_kind": "instrument",
+    "subject_name": "DDTL 5.5 Facility",
+    "subject_identifier": null,
+    "field": "rating",
+    "value_number": null,
+    "value_text": "Fitch BB+",
+    "value_date": null,
+    "value_bool": null,
+    "value_json": null,
+    "as_of": "2026-08-10",
+    "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
+    "page": 1,
+    "confidence": 0.95,
+    "note": null
+   },
+   {
+    "subject_kind": "instrument",
+    "subject_name": "DDTL 5.5 Facility",
+    "subject_identifier": null,
+    "field": "rating_action",
+    "value_number": null,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": "{\"agency\":\"Moody's\",\"rating\":\"Ba2\",\"outlook\":null,\"watch\":null,\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
+    "as_of": "2026-08-10",
+    "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
+    "page": 1,
+    "confidence": 0.9,
+    "note": null
+   },
+   {
+    "subject_kind": "instrument",
+    "subject_name": "DDTL 5.5 Facility",
+    "subject_identifier": null,
+    "field": "rating_action",
+    "value_number": null,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": "{\"agency\":\"Fitch\",\"rating\":\"BB+\",\"outlook\":null,\"watch\":null,\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
+    "as_of": "2026-08-10",
+    "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
+    "page": 1,
+    "confidence": 0.9,
+    "note": null
+   }
+  ],
+  "subjects": [
+   {
+    "name": "DDTL 5.5 Facility",
+    "kind": "instrument",
+    "identifiers": [],
+    "role": "facility"
+   },
+   {
+    "name": "CoreWeave Financing DDTL V-V, LLC",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "issuer"
+   },
+   {
+    "name": "CoreWeave, Inc.",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "borrower"
+   }
+  ],
+  "summary": "CoreWeave's $2.6B DDTL 5.5 Facility closed Aug 10, 2026 with ratings of Ba2 (Moody's) and BB+ (Fitch); no outlooks stated."
+ }
+}

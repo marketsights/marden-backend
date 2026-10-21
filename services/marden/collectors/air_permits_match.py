@@ -46,7 +46,7 @@ PERMIT_WORDS = re.compile(r"\b(air|permit|registration|NSR|PSD|TCEQ|NMED|DNR)\b"
 PARTY_ROLES = frozenset({"developer_builder", "power_supplier"})
 # Single words that name no company on their own (queue-match@0.1's list covers places and resources).
 WEAK_SINGLE = frozenset({"associates", "private", "build", "builder", "owner", "owners", "affiliate", "last", "rep",
-                         "filings", "state", "public", "district", "cooperative", "electric", "utilities"})
+                         "filings", "state", "public", "district", "cooperative", "electric", "utilities", "transfer"})
 
 
 @dataclass
@@ -154,8 +154,12 @@ PROFILE_SQL = """
 SELECT p.id, p.name, p.state, p.county,
        (SELECT jsonb_object_agg(f.field, f.value) FROM fact_current f
          WHERE f.subject_type = 'plant' AND f.subject_id = p.id
-           AND f.field IN ('operator', 'owner', 'parties', 'serves_text', 'dockets', 'air_permit', 'technology',
+           AND f.field IN ('operator', 'owner', 'parties', 'serves_text', 'dockets', 'technology',
                            'operator_entity_id')) AS facts,
+       -- an earlier record's permit (seed archive), never this collector's own: a match must not feed itself
+       (SELECT f.value FROM fact f WHERE f.subject_type = 'plant' AND f.subject_id = p.id AND f.field = 'air_permit'
+           AND f.status = 'published' AND f.producer <> 'collector:air_permits'
+         ORDER BY f.valid_from DESC, f.learned_at DESC, f.id DESC LIMIT 1) AS prior_permit,
        (SELECT array_agg(DISTINCT c.county) FROM plant_serves ps JOIN campus c ON c.id = ps.campus_id
          WHERE ps.plant_id = p.id AND c.county IS NOT NULL AND c.state = p.state) AS campus_counties
   FROM power_plant p
@@ -205,7 +209,7 @@ def profile(row: dict[str, Any], county_list: list[tuple[str, ...]], entity_name
                 names.append((note.split("|")[0], "plant party note"))
     if isinstance(eid := facts.get("operator_entity_id"), str) and eid in entity_names:
         names.append((entity_names[eid], "operator entity"))
-    permit = facts.get("air_permit")
+    permit = row.get("prior_permit")
     if isinstance(permit, dict):
         names.append((permit.get("applicant"), "air permit applicant (earlier record)"))
     place = {w for c in counties for w in c} | set(tokens(row["state"]))

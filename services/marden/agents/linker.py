@@ -208,8 +208,15 @@ def write_link(conn: db.Conn, *, document_id: int | None, job_id: int | None, me
     return int(row["id"]), str(row["status"])
 
 
+# How a filing names its own registrant; with the filing's CIK these are the filer itself.
+SELF_NAMES = frozenset({"registrant", "the registrant", "company", "the company", "we", "us", "our company",
+                        "issuer", "the issuer"})
+
+
 def resolve(m: Mention, *, filer: tuple[str, str] | None, links: dict[str, str]) -> tuple[str, str, str, float] | None:
     """(subject_type, subject_id, method, score) without the model, or None."""
+    if m.kind == "entity" and filer and re.sub(r"\s+", " ", m.name.strip().lower()) in SELF_NAMES:
+        return (*filer, "identifier", 100.0)
     for ident in m.identifiers:
         if (hit := by_identifier(m.kind, ident)) is not None:
             return (*hit, "identifier", 100.0)

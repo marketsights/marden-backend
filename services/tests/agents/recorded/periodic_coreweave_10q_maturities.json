@@ -1,0 +1,34 @@
+{
+ "case": "periodic_coreweave_10q_maturities",
+ "prompt_version": "0.1",
+ "model": "claude-sonnet-5-5",
+ "tool_input": {
+  "facts": [
+   {
+    "subject_kind": "entity",
+    "subject_name": "the Company",
+    "subject_identifier": null,
+    "field": "debt_maturities",
+    "value_number": null,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": "{\"2026\":4413000000,\"2027\":6184000000,\"2028\":4416000000,\"2029\":2421000000,\"2030\":3221000000,\"thereafter\":14896000000}",
+    "as_of": "2026-06-30",
+    "quote": "Remaining portion of 2026 $ 4,413\n\n2027 6,184\n\n2028 4,416\n\n2029 2,421\n\n2030 3,221\n\nThereafter 14,896",
+    "page": 1,
+    "confidence": 0.9,
+    "note": "Future principal payments of total debt, table in millions; registrant name not stated in excerpt."
+   }
+  ],
+  "subjects": [
+   {
+    "name": "the Company",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "borrower"
+   }
+  ],
+  "summary": "10-Q excerpt giving the future principal payments on total debt as of June 30, 2026, by year. I recorded it as debt_maturities."
+ }
+}

@@ -176,10 +176,12 @@ def read_pdf(data: bytes) -> DocText:
 
     with pymupdf.open(stream=data, filetype="pdf") as pdf:
         pages = [_tidy(page.get_text("text")) for page in pdf]
+        images = sum(len(page.get_images()) for page in pdf)
         title = (pdf.metadata or {}).get("title") or None
     text, spans = _join_pages(pages)
     chars = sum(len(p) for p in pages)
-    scanned = bool(pages) and chars < 40 * len(pages)
+    # Scanned: page images and (almost) no text layer. Short text pages without images are just short.
+    scanned = bool(pages) and images > 0 and chars < 40 * len(pages)
     return DocText("pdf", text, spans, scanned=scanned, title=title)
 
 

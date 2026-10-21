@@ -1,0 +1,34 @@
+{
+ "case": "power_ercot_llwg_feb2026",
+ "prompt_version": "0.1",
+ "model": "claude-sonnet-5-5",
+ "tool_input": {
+  "facts": [
+   {
+    "subject_kind": "entity",
+    "subject_name": "ERCOT",
+    "subject_identifier": null,
+    "field": "energized_mw",
+    "value_number": 8876,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": null,
+    "as_of": null,
+    "quote": "Of the 8876 MW that have received Approval to Energize, ERCOT has observed a non-simultaneous monthly peak consumption of",
+    "page": 1,
+    "confidence": 0.85,
+    "note": "MW approved to energize. Observation month printed as February 2025 in a report dated 2026-03; possible typo, quoted as written."
+   }
+  ],
+  "subjects": [
+   {
+    "name": "ERCOT",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "ISO"
+   }
+  ],
+  "summary": "ERCOT February TAC large-load report: 8876 MW have received Approval to Energize. Observed non-simultaneous peak was 3998 MW and simultaneous peak was 3846 MW, both printed as February 2025, which may be a typo. Only the 8876 MW figure is recorded as a fact."
+ }
+}

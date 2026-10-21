@@ -232,7 +232,7 @@ def terms(inst: Row, facts: dict[str, Row]) -> dict[str, dict[str, Any]]:
         facts.get("issuer_name") or facts.get("source_urls"),
         text_of(facts["issuer_name"]["value"]) if facts.get("issuer_name") else inst.get("issuer_name"),
     )
-    put("Coupon", facts.get("coupon"), text_of(facts["coupon"]["value"]) if facts.get("coupon") else None)
+    put("Coupon", facts.get("coupon"), coupon_text(facts))
     if facts.get("rate_text"):
         put("Rate", facts["rate_text"], text_of(facts["rate_text"]["value"]))
     mat = facts.get("maturity") or facts.get("maturity_text")
@@ -271,12 +271,39 @@ def terms(inst: Row, facts: dict[str, Row]) -> dict[str, dict[str, Any]]:
     return out
 
 
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+_ISO_DAY = re.compile(r"^(\d{4})-(\d{2})(?:-(\d{2}))?$")
+
+
+def date_words(text: str) -> str:
+    """'2031-02' -> 'Feb 2031', '2030-04-15' -> 'Apr 15, 2030'; other text unchanged."""
+    m = _ISO_DAY.match(text.strip())
+    if not m or not 1 <= int(m.group(2)) <= 12:
+        return text
+    month = _MONTHS[int(m.group(2)) - 1]
+    return f"{month} {int(m.group(3))}, {m.group(1)}" if m.group(3) else f"{month} {m.group(1)}"
+
+
+def coupon_text(facts: dict[str, Row]) -> str | None:
+    """'9.00% fixed': the filed coupon with its filed type (fixed, floating) when the text lacks it."""
+    coupon = text_of(facts["coupon"]["value"]) if facts.get("coupon") else None
+    kind = text_of(facts["coupon_type"]["value"]) if facts.get("coupon_type") else None
+    if coupon and kind and kind.lower() not in coupon.lower():
+        return f"{coupon} {kind.lower()}"
+    return coupon
+
+
 def facts_line(facts: dict[str, Row]) -> str:
-    """'Senior unsecured · 9.00% · $1.75B · matures 2031-02' from the instrument's facts."""
+    """'Senior unsecured · 144A · 9.00% fixed · $1.75B · matures Feb 2031' from the instrument's facts
+    (spec 07 header: seniority, format, size, ...)."""
     parts: list[str] = []
-    for field in ("seniority", "coupon"):
-        if facts.get(field) and text_of(facts[field]["value"]):
-            parts.append(text_of(facts[field]["value"]))  # type: ignore[arg-type]
+    if facts.get("seniority") and text_of(facts["seniority"]["value"]):
+        parts.append(text_of(facts["seniority"]["value"]))  # type: ignore[arg-type]
+    if facts.get("is_144a") and facts["is_144a"]["value"] is True:
+        parts.append("144A")
+    coupon = coupon_text(facts)
+    if coupon:
+        parts.append(coupon)
     if facts.get("amount_usd") and money_text(facts["amount_usd"]["value"]):
         basis = facts.get("amount_basis")
         parts.append(
@@ -284,5 +311,5 @@ def facts_line(facts: dict[str, Row]) -> str:
         )  # type: ignore[operator]
     mat = maturity_text(facts)
     if mat:
-        parts.append(f"matures {mat}")
+        parts.append(f"matures {date_words(mat)}")
     return " · ".join(parts)

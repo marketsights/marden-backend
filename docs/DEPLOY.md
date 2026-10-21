@@ -2,7 +2,7 @@
 
 Owner decisions (docs/STATUS.md): Railway Hobby now (Pro once a fund uses it), one Railway project `core` with three services `web`, `api`, `worker`; Neon Postgres only (project `core`, branch `production`, database `app`, role `app_rw`); Cloudflare R2 for raw files and backups (buckets `core-raw`, `core-snapshots`, `core-backups`); no Redis, no Neon Functions / Realtime / AI gateway; email via Postmark or Resend.
 
-Everything below is config as code in the two repositories. Nothing has been deployed from this sandbox (it has no Railway token and cannot open TCP connections to Neon). The images were built and run locally (see "What was proved locally" at the end).
+Everything below is config as code in the two repositories (an equivalent Render Blueprint, `render.yaml`, is described in docs/DEPLOY-render.md; the images are the same). Nothing has been deployed from this sandbox (it has no Railway token and cannot open TCP connections to Neon). The images were built and run locally (see "What was proved locally" at the end).
 
 | Service | Repository | Config file | Image | Start command | Public |
 | --- | --- | --- | --- | --- | --- |
@@ -46,7 +46,7 @@ Without all three R2 variables the worker still runs: the raw store refuses loca
 5. Variables: section 4. Set them **before** the first deploy: a web deploy without Clerk keys fails its healthcheck (fail closed), and an API without them refuses to start.
 6. DNS (wherever marden.ai is hosted): add the two CNAME records Railway shows for `app` and `api` (if the zone is on Cloudflare, start with the proxy off, "DNS only", until Railway has issued the certificates).
 
-What the config files set (all three are validated against Railway's schema in the tests):
+What the config files set (validated against Railway's published schema when written; the tests check every key is a Railway key, the Dockerfile paths, the pre-deploy command and the drain budgets):
 
 | | api | worker | web |
 | --- | --- | --- | --- |
@@ -152,14 +152,14 @@ The owner decided to share the `marden.ai` production instance with the other ap
 Install the Railway CLI on your machine (`npm i -g @railway/cli`, `railway login`, then `railway link` in each repository and pick project `core`).
 
 1. **Variables** for all three services (section 4).
-2. **api** → Deploy. Its pre-deploy runs `marden-migrate` against Neon: watch the deploy log for `migrate: dbmate migrate (N migration files …)` and one `Applied:` line per migration. `/healthz` must turn 200. Check: `railway ssh --service api -- marden-migrate status` shows `Pending: 0`.
+2. **api** → Deploy. Its pre-deploy runs `marden-migrate` against Neon: watch the deploy log for `migrate: dbmate migrate (N migration files …)` and one `Applied:` line per migration. `/healthz` must turn 200. Check: `railway ssh --service api`, then `marden-migrate status` shows `Pending: 0`.
 3. **Seed** (`seed all`: sites, instruments, holdings, facilities, cases) from your machine, because the seed archive `marden_data_2026-10-20.zip` is not in any image. `railway run` injects the worker's variables (Neon direct URL, R2) into a local process:
    ```sh
    unzip marden_data_2026-10-20.zip -d ~/marden-seed
    cd marden-backend/services
-   railway run --service worker -- env MARDEN_SEED_DIR=~/marden-seed uv run python -m marden seed all
+   railway run --service worker -- env MARDEN_SEED_DIR="$HOME/marden-seed" uv run python -m marden seed all
    ```
-   It prints each loader's exit code and the table counts at the end; any non-zero exit stops it. Then the legacy price loaders (docs/methods/licensing.md): `seed legacy_trace`, `seed legacy_frankfurt`, `seed legacy_yahoo`, the same way.
+   Use `"$HOME/marden-seed"` rather than `~` if your shell does not expand it there. Set the worker's R2 variables first: with them the loaders store raw files in `core-raw`; without them `railway run` would write raw files to your own disk, where the worker cannot read them. It prints each loader's exit code and the table counts at the end; any non-zero exit stops it. Then the legacy price loaders (docs/methods/licensing.md): `seed legacy_trace`, `seed legacy_frankfurt`, `seed legacy_yahoo`, the same way.
 4. **worker** → Deploy. From now on the schedules run by themselves (every collector at its cadence, models every minute on dirty inputs and on their daily/weekly clocks, read models every 30 s, nightly rebuild, nightly backup).
 5. **Collectors once now**, so the first day has data without waiting for each cadence. Inside the worker container (its own network and R2 credentials):
    ```sh
@@ -228,6 +228,18 @@ Restore an R2 dump into a fresh database (never over `app`), from inside the wor
 | `FRED_API_KEY`, ERCOT API key/account (and FINRA once licensed) | worker | those collectors record a missing credential |
 | DNS CNAMEs for `app` and `api` | custom domains | use the `*.up.railway.app` domains meanwhile (set `WEB_ORIGIN` to the web's) |
 
-## What was proved locally
+## What was proved locally (2026-10-21, this sandbox, Docker 29)
 
-See the deploy section of docs/STATUS.md for the latest run; the commands were: building all three Dockerfiles; `marden-migrate` from the image against an empty database (all migrations applied once, the second run applied nothing, a Neon-style `channel_binding=require` URL accepted); the worker image's start command for 60 s against a scratch database (jobs picked, periodic tasks run, backup recorded `not_configured`, SIGTERM drained and exited 0); the API image in production mode (fail-closed config, `/healthz`, 401s, SIGTERM drain); the web image without Clerk keys ("Sign-in is not configured", `/healthz` 503, `/api/*` reaching the API); and `scripts/smoke.sh` against those containers.
+The images were built from a snapshot (git HEAD plus these deploy changes), with the official base images plus this sandbox's egress-proxy CA (local only; Railway builds from the official images), and run with `--network host` against the local Postgres 16. Throwaway values only: a locally generated RS256 key pair stood in for Clerk; no real credential was used.
+
+| Check | Command (abridged) | Result |
+| --- | --- | --- |
+| Images build | `docker build -f apps/api/Dockerfile .`, `-f services/Dockerfile .`, web `docker build --build-arg API_ORIGIN=… .` | all three built; users `node`, `marden` (uid 10001), `node`; worker has `pg_dump` 18.6, dbmate 2.37.0, `marden-migrate` |
+| Migrate from empty | `createdb marden_migrate_check`; `docker run -e DATABASE_URL_UNPOOLED='…?sslmode=disable&channel_binding=require' marden-worker marden-migrate` | 13/13 migrations applied in 3 s; second run applied nothing; `marden-migrate status` → `Pending: 0`; no password in the output. The working tree's 14 migrations (incl. the new agents one) also applied cleanly to another empty database with `scripts/migrate.sh`. Both databases dropped |
+| Worker start command, 60 s | `docker run marden-worker` (CMD `python -m marden worker`) on a migrated scratch database, one `ops.backup_db` job queued first | "Starting worker on all queues"; 70 periodic schedules registered; the queued backup ran and recorded `not_configured` (R2 variables named); periodic jobs ran: `readmodels.rebuild_dirty` ×5 (every 30 s), `models.run_dirty` ×3, `alerts.scan` ×3, `alerts.digests`, `queue.retry_stalled`, `collect.sec_xbrl_on_filing`, `collect.sec_index` (its fetches failed without the proxy and the failure was recorded on the source run, as designed). 120 log lines, all JSON, no password. `docker stop` (SIGTERM): "Stop requested" → "worker stopped" in 1 s, exit 0 |
+| API refuses dev auth | `docker run -e MARDEN_AUTH_MODE=dev -e NODE_ENV=development -e RAILWAY_ENVIRONMENT_NAME=production marden-api` | exits: "MARDEN_AUTH_MODE=dev is refused on a deployed environment (RAILWAY_ENVIRONMENT_NAME is set)"; with NODE_ENV=production: "refused when NODE_ENV=production"; production without Clerk keys: "CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY are required" |
+| API in production mode | `docker run marden-api` with Clerk-format test keys, `TRUST_PROXY=1`, `PORT=4610` | listening (this host has no IPv6, so `HOST=::` fell back to 0.0.0.0 with a warning); `/healthz` 200 `{"ok":true,"db":"ok","commit":"1da78a7d6bf2"}`, `cache-control: no-store`, HSTS |
+| API drains on SIGTERM | a client holds an idle keep-alive connection; `docker stop` | "shutting down: draining requests" → "shutdown complete" in 256 ms, exit 0 (before the idle-connection sweep added in `src/shutdown.ts`, the held connection kept the close open until the 20 s timeout and exit 1) |
+| Web without Clerk keys | `docker run -e API_ORIGIN=http://127.0.0.1:4610 -e RAILWAY_ENVIRONMENT_NAME=local-proof marden-web` | `/` 200 "Sign-in is not configured" (names the missing variables, no development sign-in); `/healthz` 503 `{"ok":false,"auth":"unconfigured"}`; `/api/me` through the rewrite → the API's 401; SIGTERM exit 0 in 0.2 s |
+| Smoke test | `SMOKE_TOKEN=<local test token> scripts/smoke.sh --api http://127.0.0.1:4610 --web http://127.0.0.1:3610 --expect-auth unconfigured` | 21 passed, 0 failed, including `/api/me` 200 and `/api/stream` opening a `text/event-stream` both directly and through the web app's rewrite with a signed token; the token never appears in the output. Against the shared dev API (dev auth on) the same script fails 3 checks and exits 1 |
+| Backup with the image's tools | `marden.core.backup.dump_to_file` in the worker image | pg_dump 18.6 against Postgres 16: 176 kB custom-format archive, 393 entries by `pg_restore --list` |

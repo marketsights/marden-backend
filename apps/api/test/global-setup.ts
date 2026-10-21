@@ -17,7 +17,7 @@ const BASE_URL = process.env.DATABASE_URL ?? 'postgres://marden:marden@localhost
 /** The migrations the API's tables come from, in order (core, per-product access, per-member alerts and
  * stream_event.user_id, Marden-owned org roles, saved views). */
 const MIGRATIONS = ['20261021100000_core.sql', '20261021180000_product_access.sql', '20261021223000_alert_engine.sql',
-  '20261021234100_marden_org_roles.sql', '20261021235500_saved_view.sql']
+  '20261021234100_marden_org_roles.sql', '20261021235500_saved_view.sql', '20261022001000_agents.sql']
   .map((name) => fileURLToPath(new URL(`../../../db/migrations/${name}`, import.meta.url)));
 
 export function withSearchPath(url: string, schema: string): string {

@@ -10,9 +10,13 @@ function assertManager(actor: Role): void {
   if (!MANAGERS.includes(actor)) throw forbidden('role_lacks_permission');
 }
 
-export function checkInvite(actor: Role, role: Role): void {
+/**
+ * `openOwnerInvitation`: the address already holds an open owner invitation to this org. The newest
+ * open invitation decides the role on joining, so an admin's new one would replace an owner's choice.
+ */
+export function checkInvite(actor: Role, role: Role, openOwnerInvitation = false): void {
   assertManager(actor);
-  if (actor !== 'owner' && role === 'owner') throw forbidden('admins_cannot_manage_owners');
+  if (actor !== 'owner' && (role === 'owner' || openOwnerInvitation)) throw forbidden('admins_cannot_manage_owners');
 }
 
 export function checkRoleChange(actor: Role, target: Role, next: Role, owners: number): void {

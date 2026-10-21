@@ -94,6 +94,18 @@ export async function recordInvitation(c: Queryable, inv: InvitationRow): Promis
   );
 }
 
+/** True when an open (pending, unexpired) Marden invitation to this org for this address carries owner. */
+export async function hasOpenOwnerInvitation(c: Queryable, orgId: string, email: string): Promise<boolean> {
+  const res = await c.query(
+    `SELECT 1 FROM org_invitation
+     WHERE org_id = $1 AND email = $2 AND status = 'pending' AND role = 'owner'
+       AND (expires_at IS NULL OR expires_at >= now())
+     LIMIT 1`,
+    [orgId, email.toLowerCase()],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
 /** Clerk revoked the invitation: nobody joins through it any more. */
 export async function revokeInvitation(c: Queryable, id: string): Promise<void> {
   await c.query(`UPDATE org_invitation SET status = 'revoked' WHERE id = $1 AND status = 'pending'`, [id]);

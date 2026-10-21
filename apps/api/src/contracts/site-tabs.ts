@@ -97,6 +97,8 @@ export interface SiteEvent extends Evidence {
   ruleHit: string | null;
   /** "Cushion +1 → −2 months", "Green → red". */
   changed: string | null;
+  /** Later press reports of the same event (same rule within 30 days, or the same headline elsewhere). */
+  reports?: number;
 }
 export interface SiteEventsTab {
   /** Card title, e.g. "The chain broke on Jul 9; the loan repriced on Sep 19". */

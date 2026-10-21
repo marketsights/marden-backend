@@ -49,12 +49,34 @@ HOLDER_FILINGS = ("N-PORT", "10-Q")
 _MEDIAN_N = re.compile(r"median of (\d+) funds")
 
 
-def fund_marks(gap_out: Row | None, lines: list[Row]) -> dict[str, Any] | None:
-    """Funds' last marks: low, high, which filings and their date (n/d when no fund files a mark).
+def marks_of_holders(gap_out: Row | None) -> dict[str, Any] | None:
+    """The range of the last mark each holder filed (the 'mark_gap' holder rows), dated by the newest
+    filing among them: the marks the mark gap averages (spec 07 Rules), so the KPI strip, the chart
+    and the holders table show the same funds. None without holder rows."""
+    rows = [h for h in (_holder(r) for r in gap_rows(gap_out)) if h is not None]
+    if not rows:
+        return None
+    marks = [h["lastMark"] for h in rows]
+    return {
+        "low": round(min(marks), 4),
+        "high": round(max(marks), 4),
+        "filing": " and ".join(sorted({h["filing"] for h in rows})),
+        "date": max(h["filingDate"] for h in rows),
+    }
 
-    Without the 'mark_gap' output: the holders' latest filed lines (holder_lines) that carry a mark,
-    on the newest report date at least two funds share (the median rule of the N-PORT loaders), else
-    the newest date."""
+
+def fund_marks(gap_out: Row | None, lines: list[Row]) -> dict[str, Any] | None:
+    """Funds' last marks: low, high, which filings and the newest filing date (n/d when no fund files
+    a mark).
+
+    With the 'mark_gap' holder rows: the range of every holder's last mark (marks_of_holders); the
+    model's own `fundMarks` covers only the newest filing date, which leaves out holders whose
+    latest mark is older but still in the gap. Without rows: the model's `fundMarks`, else the
+    holders' latest filed lines (holder_lines) that carry a mark, on the newest report date at least
+    two funds share (the median rule of the N-PORT loaders), else the newest date."""
+    from_rows = marks_of_holders(gap_out)
+    if from_rows is not None:
+        return from_rows
     given = output_field(gap_out, "fundMarks")
     if isinstance(given, dict) and num(given.get("low")) is not None and num(given.get("high")) is not None:
         return {

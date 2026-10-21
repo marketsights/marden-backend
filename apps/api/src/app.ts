@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import { currentHolder, ensureDevIdentity } from './auth/access.js';
@@ -17,6 +18,7 @@ import { createDb, type Db } from './db.js';
 import { HttpError } from './errors.js';
 import { asOfOf } from './lib/params.js';
 import { accountRoutes } from './routes/account.js';
+import { agentRoutes, uploadMaxBytes } from './routes/agents.js';
 import { dataCenterRoutes, powerPlantRoutes } from './routes/data-centers.js';
 import { exportRoutes } from './routes/export.js';
 import { infoRoutes } from './routes/info.js';
@@ -85,6 +87,7 @@ function registerRoutes(app: FastifyInstance, r: RouteDeps): void {
   productAccessRoutes(app, { db, products: r.products });
   infoRoutes(app, db);
   exportRoutes(app, db);
+  agentRoutes(app, db);
   webhookRoutes(app, { db, secret: r.webhookSecret, streams: r.hub });
   streamRoutes(app, r.hub);
 }
@@ -102,6 +105,8 @@ async function registerHttpPlugins(app: FastifyInstance, config: AppConfig): Pro
     exposedHeaders: ['x-request-id', 'content-disposition'],
     maxAge: 600,
   });
+  // Multipart only for staff document uploads (POST /api/documents); one file, size-limited.
+  await app.register(multipart, { limits: { fileSize: uploadMaxBytes(), files: 1, fields: 12 } });
   await app.register(rateLimit, {
     global: true,
     hook: 'preHandler',

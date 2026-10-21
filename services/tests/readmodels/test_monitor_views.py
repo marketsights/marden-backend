@@ -279,10 +279,13 @@ def test_risk_list_from_the_fixture(monitor):
     assert doc["week"] == FIXTURE["week"] and doc["note"] == FIXTURE["note"]
     assert doc["earlierCalls"] == FIXTURE["earlierCalls"]
     for row, raw in zip(doc["rows"], FIXTURE["rows"], strict=True):
-        for k in ("rank", "instrumentId", "name", "size", "why", "fundMark", "gap", "odds", "move"):
+        for k in ("rank", "instrumentId", "name", "size", "why", "fundMark", "gap", "move"):
             assert row[k] == raw[k], k
-        for k in ("price", "change1w"):  # an M value gets the output's method version when it has none
-            assert row[k] == {**raw[k], "methodVersion": "risk_list v0.1"} if raw[k] else row[k] is None
+        # An M value names its source and gets the output's method version when it has none (hard rule 4).
+        source = {"sourceName": "Marden risk list model"}
+        assert row["odds"] == {**source, **raw["odds"]}
+        for k in ("price", "change1w"):
+            assert row[k] == {**source, **raw[k], "methodVersion": "risk_list v0.1"} if raw[k] else row[k] is None
     nxt = build("risk_list", later)
     assert [r["move"] for r in nxt["rows"]] == [{"kind": "same"}] * len(FIXTURE["rows"])  # same ranks as last week
     assert nxt["note"] == {"title": "", "paragraphs": []}  # no note drafted for that week

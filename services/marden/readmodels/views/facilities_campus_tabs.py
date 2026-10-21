@@ -216,7 +216,7 @@ def campus_changes(conn: Conn, campus_id: str) -> list[Change]:
             "after": "First seen",
             "evidence": fact_evidence(row, f"First seen in Marden's records {when}", when),
         }
-        out.append(Change(entry, row["learned_at"], FIRST_SEEN, row["id"]))
+        out.append(Change(entry, row["learned_at"], FIRST_SEEN, 0, row["id"]))
     return out
 
 

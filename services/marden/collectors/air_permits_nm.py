@@ -53,7 +53,8 @@ http.set_rate_limit(HOST, 0.5)
 http.set_rate_limit("service.web.env.nm.gov", 0.5)
 http.set_rate_limit("cloud.env.nm.gov", 0.5)
 NUMBER = re.compile(r"assigned Permit No\.?\s*(\d{3,6})")
-APPLICANT = re.compile(r"\b([A-Z][\w&.,' -]{2,80}?(?:LLC|L\.L\.C\.|Inc\.?|Company|Corporation|LP))\s*(?:,)?\s+at\s+")
+TITLE_APPLICANT = re.compile(r"Air Quality Permit for\s+(.+?(?:LLC|L\.L\.C\.|Inc\.?|Company|Corporation|L\.?P\.?))\s", re.S)
+APPLICANT = re.compile(r"^\s*([A-Z][^\n]{2,80}?)\s+at\s+[^\n]*?has submitted", re.M)
 FACILITY = re.compile(r"permit to construct the [\"“]([^\"”]+?)\.?[\"”]")
 COUNTY = re.compile(r"\bin\s+([A-Z][a-zñ]+(?:\s[A-Z][a-zñ]+)?)\s+County\b")
 EMISSION = re.compile(r"(Nitrogen Oxides|Carbon Monoxide|Volatile Organic Compounds|Sulfur Dioxide|Particulate Matter "
@@ -88,8 +89,15 @@ def post(fetcher: Fetcher, base: str, post_id: int, stats: RunStats, info: dict[
 
 
 def links(data: dict[str, Any]) -> list[tuple[str, str]]:
+    """(first link, full text) of each paragraph / list item: dates often sit outside the link ('New Source Review
+    Application (received 4/27/26)')."""
     body = data.get("content", {}).get("rendered", "")
-    return [(u, " ".join(html.unescape(re.sub(r"<[^>]+>", "", t)).split())) for u, t in LINK.findall(body)]
+    out = []
+    for seg in re.split(r"<(?:li|p|br|tr)\b[^>]*>", body, flags=re.I):
+        if m := LINK.search(seg):
+            label = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", seg)).split())
+            out.append((m.group(1), label))
+    return out
 
 
 def _short_date(s: str) -> date | None:
@@ -123,17 +131,19 @@ def notice_actions(items: list[tuple[str, str]]) -> list[Action]:
 def legal_notice(body: str) -> dict[str, Any]:
     flat = text.squash(body)
     number = NUMBER.search(flat)
-    applicant = APPLICANT.search(flat)
+    applicant = TITLE_APPLICANT.search(body[:600]) or APPLICANT.search(body)
     facility = FACILITY.search(flat)
     county = COUNTY.search(flat)
-    gen = GENERATION.search(flat)
-    sentence = next((s for s in re.split(r"(?<=\.)\s+", flat) if gen and gen.group(0) in s), None)
+    sentences = re.split(r"(?<=\.)\s+", flat)
+    sentence = (next((s for s in sentences if re.search(r"power generation|generat\w+ electricity", s, re.I)), None)
+                or next((s for s in sentences if GENERATION.search(s)), None))
     emissions = [{"pollutant": m.group(2), "value": float(m.group(3).replace(">", "").replace(",", "").strip()),
-                  "unit": "tpy", "less_than": False, "more_than": ">" in m.group(3), "quote": m.group(0)}
+                  "unit": "tpy", "more_than": ">" in m.group(3), "quote": m.group(0),
+                  "basis": "estimated in the application (legal notice)"}
                  for m in EMISSION.finditer(flat)]
     return {
         "number": number.group(1) if number else None, "number_quote": number.group(0) if number else None,
-        "applicant": applicant.group(1).strip() if applicant else None,
+        "applicant": " ".join(applicant.group(1).split()) if applicant else None,
         "facility": facility.group(1).strip() if facility else None,
         "county": county.group(1) if county else None, "county_quote": county.group(0) if county else None,
         "generation": sentence, "units": text.unit_statements(flat), "emissions": emissions,
@@ -211,7 +221,7 @@ def run_nm(plants: list[PlantProfile], fetcher: Fetcher, stats: RunStats, info: 
             # the search also reads post bodies: keep posts whose title carries the phrase
             if contains(tokens(html.unescape(str(hit.get("title", "")))), tuple(term.split())):
                 seen.setdefault(int(hit["id"]), hit)
-    info["posts"] = {i: html.unescape(str(h.get("title"))) for i, h in sorted(seen.items())}
+    info["posts"] = {str(i): html.unescape(str(h.get("title"))) for i, h in sorted(seen.items())}
     facilities = []
     for post_id in sorted(seen):
         data, doc_id = post(fetcher, NOTICES, post_id, stats, info)

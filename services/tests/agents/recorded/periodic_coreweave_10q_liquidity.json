@@ -1,0 +1,34 @@
+{
+ "case": "periodic_coreweave_10q_liquidity",
+ "prompt_version": "0.1",
+ "model": "claude-sonnet-5-5",
+ "tool_input": {
+  "facts": [
+   {
+    "subject_kind": "entity",
+    "subject_name": "Registrant",
+    "subject_identifier": null,
+    "field": "cash_usd",
+    "value_number": 5524000000,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": null,
+    "as_of": "2026-06-30",
+    "quote": "Cash and cash equivalents $ 5,524 $ 3,127",
+    "page": 1,
+    "confidence": 0.93,
+    "note": "Table in millions; registrant name not stated in excerpt."
+   }
+  ],
+  "subjects": [
+   {
+    "name": "Registrant",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "borrower"
+   }
+  ],
+  "summary": "Liquidity table from a 10-Q (filed 2026-08-12) shows cash and cash equivalents of $5,524 million at June 30, 2026. Total liquidity includes undrawn availability, so I did not record it as cash."
+ }
+}

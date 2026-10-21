@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Construction Permit Search - AQRR</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/css/css.min.css" />
+    <link rel="stylesheet" href="/css/site.css" />
+    <link rel="stylesheet" href="/css/Custom.css" />
+    <link rel="stylesheet" href="/lib/jquery.datatables/css/fixedHeader.dataTables.min.css" />
+    <link rel="stylesheet" href="/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="/lib/bootstrap-fileinput/css/fileinput.min.css" />
+    <link rel="stylesheet" href="/lib/bootstrap-fileinput/themes/explorer/theme.min.css" />
+    <script src="/lib/jquery/dist/jquery.min.js"></script>
+    <script src="/lib/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="/js/modernizr.min.js"></script>
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/jqueryval.min.js"></script>
+    <script src="/js/jquery-ui.js"></script>
+    <script src="/lib/jquery-validation/dist/additional-methods.min.js"></script>
+    <link rel="stylesheet" href="/css/jquery-ui.css" />
+    <script src="/js/bootstrapFiles.min.js"></script>
+    <link rel="stylesheet" href="/lib/select2/css/select2.min.css" />
+    <script src="/lib/select2/js/select2.min.js"></script>
+    <script src="/lib/bootbox.js/bootbox.min.js"></script>
+    <script src="/js/HandleError.js" type="text/javascript"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-000EMG9R1H"></script>
+    <script src="/js/Custom/Layout.js" type="text/javascript"></script>
+    <script src="/lib/bootbox/bootbox.js" type="texttext/javascript"></script>
+    <script src="/lib/bootstrap-fileinput/js/fileinput.min.js" type="text/javascript"></script>
+    <script src="/lib/bootstrap-fileinput/js/plugins/buffer.min.js" type="text/javascript"></script>
+    <script src="/lib/bootstrap-fileinput/js/plugins/filetype.min.js" type="text/javascript"></script>
+    <script src="/lib/bootstrap-fileinput/js/plugins/piexif.min.js" type="text/javascript"></script>
+    <script src="/lib/bootstrap-fileinput/js/plugins/sortable.min.js" type="text/javascript"></script>
+    <script src="/lib/bootstrap-fileinput/themes/explorer/theme.min.js" type="text/javascript"></script>
+    <script src="/js/moment.min.js"></script>
+    <script src="/js/datetime-moment.js"></script>
+    <script src="/lib/jquery.datatables/js/dataTables.buttons.min.js"></script>
+</head>
+<body>
+
+
+
+
+<script src="/js/Gritter.js"></script>
+
+    <div class="container navbar-fixed-top">
+        <div class="row">
+            <div class="col-12">
+                <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                    <div class="navbar-header">
+                        <div class="header"><img alt="DNR Header" height="50" style="margin-top: -15px; margin-bottom: -15px" src="/img/DNR_blueheader.png" /></div>
+                    </div>
+
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-SupportedContent" aria-controls="navbar-SupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+
+                    <div class="collapse navbar-collapse" id="navbar-SupportedContent">
+                        <ul class="navbar-nav mr-auto">
+                            <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/Home/Contact">Contact</a></li>
+                            <li class="dropdown nav-item">
+                                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" aria-expanded="false" style="color:black;">
+                                    Help<span class="caret"></span>
+                                </a>
+                                <ul class="dropdown-menu" style="width:210px;">
+                                    <li class="nav-item"><a class="nav-link" target="_blank" href="/Documents/AQRR Public User Guide ADA.pdf">Public User Guide</a></li>
+                                    <div class="dropdown-divider m-0 p-0"></div>
+                                    <li class="nav-item dropdown-submenu">
+                                        <a class="dropdown-item" href="#">Video Tutorial</a>
+                                        <ul class="dropdown-menu" style="width: 210px; color: red;">
+                                            <li class="nav-item"><a class="nav-link" target="_blank" href="https://youtu.be/B1eBPQizD44">Login and Account Setup</a></li>
+                                            <div class="dropdown-divider m-0 p-0"></div>
+                                            <li class="nav-item"><a class="nav-link" target="_blank" href="https://youtu.be/VqbYTgXXHcQ?si=zpZiyB6ka9B4pzjE">Manage Account Functions</a></li>
+                                            <div class="dropdown-divider m-0 p-0"></div>
+                                            <li class="nav-item"><a class="nav-link" target="_blank" href="https://youtu.be/f_27A8JeISo?si=cq2GAPJBrCN5nKhV">Dashboard Tutorial</a></li>
+                                            <div class="dropdown-divider m-0 p-0"></div>
+                                            <li class="nav-item"><a class="nav-link" target="_blank" href="https://youtu.be/wJytOVAZmik?si=6unM8_4jrI-y6-Jo">Upload Compliance Reports</a></li>
+                                            <div class="dropdown-divider m-0 p-0"></div>
+                                            <li class="nav-item"><a class="nav-link" target="_blank" href="https://youtu.be/8o6N6pBYEfI?si=X6ioxh-8yaJg4X_3">Submit Compliance Reports</a></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <ul class="form-inline me-2 me-lg-0 navbar-nav ms-auto">
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row appname">
+            <div class="col-12">
+                <h1 class="appname">Construction Permit Search</h1>
+                <hr style="margin-top: 0; margin-bottom: 5px;" />
+            </div>
+        </div>
+        <div class="row body-content">
+            <div class="col-12">
+                <script type="text/javascript" src="/js/Custom/CPSCommon.js"></script>
+
+<h3>Construction Permit Search <span id="searchType"></span></h3>
+<input type="hidden" id="incomingPermitNumber" />
+<div class="row">
+    <div class="col-3">
+        <div class="row">
+            <div class="col">
+                <button id="CitySearchLink" class="btn btn-secondary w-100 selection">City Search</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <button id="CountySearchLink" class="btn btn-secondary w-100 selection">County Search</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <button id="PlantNameSearchLink" class="btn btn-secondary w-100 selection">Plant Name Search</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <button id="PlantNumberSearchLink" class="btn btn-secondary w-100 selection">Plant Number Search</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <button id="PermitNumberSearchLink" class="btn btn-secondary w-100 selection">Permit Number Search</button>
+            </div>
+        </div>
+            <div class="row">
+                <div class="col">
+                    <a class="btn btn-primary w-100" href="/ConPermitSearch">Main Menu</a>
+                </div>
+            </div>
+    </div>
+    <div class="col-9 border-start">
+        <span id="mainWindowContent">
+<div id="isResult" style="display:none"></div>
+<div id="plantHeader" class="col-12">
+    <div class="row">
+        <div class="col-5 text-end">
+            County Name:
+        </div>
+        <div class="col-7 text-start">
+Adair            
+        </div>
+        <div class="col-5 text-end">
+            City Name:
+        </div>
+        <div class="col-7 text-start">
+            Creston
+        </div>
+        <div class="col-5 text-end">
+            Plant Name:
+        </div>
+        <div class="col-7 text-start">
+            Orient Energy Center
+        </div>
+        <div class="col-5 text-end">
+            Plant Number:
+        </div>
+        <div class="col-7 text-start">
+            01-09-001
+        </div>
+    </div>
+</div>
+<hr />
+<div id="permitsNote">
+    <div class="row">
+        <div class="col-1 text-end">Note:</div>
+        <div class="col-10 text-start">
+            This may not be a complete list of current construction permits. New permits are issued daily. Permits issued prior to 2000 may not have been imaged yet.
+            The images linked from this page are not actual permits. They are renditions of the actual permit. Some errors may have been introduced in imaging the actual permit.
+        </div>
+    </div>
+</div>
+<div id="permitsTable">
+    <input type="hidden" id="isResult" />
+    <table id="resultsTable" class="table table-striped table-light row-border justify-content-start" aria-label="List of results from city search">
+        <thead class="table-light">
+            <tr>
+                <th class="text-center">
+                    <span class="invisible">Download</span>
+                </th>
+                <th class="text-center">
+                    Permit Number
+                </th>
+                <th class="text-center">
+                    Project Number
+                </th>
+                <th class="text-center">
+                    Emission Point
+                </th>
+                <th class="text-center">
+                    Equipment Description
+                </th>
+                <th class="text-center">
+                    Date Issued
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+                <tr class="text-center">
+                        <td>
+                                <a class="btn btn-secondary" href="/ConPermitSearch/DownloadFile?dataString=%7B%22permitNumber%22%3A%2226-A-117%22,%22permitNumber2%22%3A%2226-A-117%22,%22projectNumber%22%3A%2225-350%22,%22emissionPointID%22%3A%22EP-1%22,%22emissionPointDescription%22%3A%22CT-1%20Stack%22,%22issueDate%22%3A%222026-04-30T00%3A00%3A00%22,%22fileName%22%3Anull,%22rescissionDate%22%3Anull,%22easyAirPermitID%22%3A48870,%22documentType%22%3Anull,%22facilityNumber%22%3A%2201-09-001%22,%22documentID%22%3A0%7D&amp;type=PERMIT_FILLED_OBJECT">Download</a>
+                        </td>
+                    <td id="permitNumber">
+                        26-A-117
+                    </td>
+                    <td>
+                        25-350
+                    </td>
+                    <td>
+                        EP-1
+                    </td>
+                    <td>
+                        CT-1 Stack
+                    </td>
+                    <td data-order="639131040000000000">
+                        4/30/2026
+                    </td>
+                </tr>
+                <tr class="text-center">
+                        <td>
+                                <a class="btn btn-secondary" href="/ConPermitSearch/DownloadFile?dataString=%7B%22permitNumber%22%3A%2226-A-118%22,%22permitNumber2%22%3A%2226-A-118%22,%22projectNumber%22%3A%2225-350%22,%22emissionPointID%22%3A%22EP-2%22,%22emissionPointDescription%22%3A%22CT-2%20Stack%22,%22issueDate%22%3A%222026-04-30T00%3A00%3A00%22,%22fileName%22%3Anull,%22rescissionDate%22%3Anull,%22easyAirPermitID%22%3A48871,%22documentType%22%3Anull,%22facilityNumber%22%3A%2201-09-001%22,%22documentID%22%3A0%7D&amp;type=PERMIT_FILLED_OBJECT">Download</a>
+                        </td>
+                    <td id="permitNumber">
+                        26-A-118
+                    </td>
+                    <td>
+                        25-350
+                    </td>
+                    <td>
+                        EP-2
+                    </td>
+                    <td>
+                        CT-2 Stack
+                    </td>
+                    <td data-order="639131040000000000">
+                        4/30/2026
+                    </td>
+                </tr>
+                <tr class="text-center">
+                        <td>
+                                <a class="btn btn-secondary" href="/ConPermitSearch/DownloadFile?dataString=%7B%22permitNumber%22%3A%2226-A-119%22,%22permitNumber2%22%3A%2226-A-119%22,%22projectNumber%22%3A%2225-350%22,%22emissionPointID%22%3A%22EP-3%22,%22emissionPointDescription%22%3A%22Dew%20Point%20Heater%20Stack%22,%22issueDate%22%3A%222026-04-30T00%3A00%3A00%22,%22fileName%22%3Anull,%22rescissionDate%22%3Anull,%22easyAirPermitID%22%3A48872,%22documentType%22%3Anull,%22facilityNumber%22%3A%2201-09-001%22,%22documentID%22%3A0%7D&amp;type=PERMIT_FILLED_OBJECT">Download</a>
+                        </td>
+                    <td id="permitNumber">
+                        26-A-119
+                    </td>
+                    <td>
+                        25-350
+                    </td>
+                    <td>
+                        EP-3
+                    </td>
+                    <td>
+                        Dew Point Heater Stack
+                    </td>
+                    <td data-order="639131040000000000">
+                        4/30/2026
+                    </td>
+                </tr>
+                <tr class="text-center">
+                        <td>
+                                <a class="btn btn-secondary" href="/ConPermitSearch/DownloadFile?dataString=%7B%22permitNumber%22%3A%2226-A-120%22,%22permitNumber2%22%3A%2226-A-120%22,%22projectNumber%22%3A%2225-350%22,%22emissionPointID%22%3A%22EP-4%22,%22emissionPointDescription%22%3A%22Emergency%20Generator%20Stack%22,%22issueDate%22%3A%222026-04-30T00%3A00%3A00%22,%22fileName%22%3Anull,%22rescissionDate%22%3Anull,%22easyAirPermitID%22%3A48873,%22documentType%22%3Anull,%22facilityNumber%22%3A%2201-09-001%22,%22documentID%22%3A0%7D&amp;type=PERMIT_FILLED_OBJECT">Download</a>
+                        </td>
+                    <td id="permitNumber">
+                        26-A-120
+                    </td>
+                    <td>
+                        25-350
+                    </td>
+                    <td>
+                        EP-4
+                    </td>
+                    <td>
+                        Emergency Generator Stack
+                    </td>
+                    <td data-order="639131040000000000">
+                        4/30/2026
+                    </td>
+                </tr>
+                <tr class="text-center">
+                        <td>
+                                <a class="btn btn-secondary" href="/ConPermitSearch/DownloadFile?dataString=%7B%22permitNumber%22%3A%2226-A-121%22,%22permitNumber2%22%3A%2226-A-121%22,%22projectNumber%22%3A%2225-350%22,%22emissionPointID%22%3A%22EP-5%22,%22emissionPointDescription%22%3A%22Fire%20Pump%20Engine%20Stack%22,%22issueDate%22%3A%222026-04-30T00%3A00%3A00%22,%22fileName%22%3Anull,%22rescissionDate%22%3Anull,%22easyAirPermitID%22%3A48874,%22documentType%22%3Anull,%22facilityNumber%22%3A%2201-09-001%22,%22documentID%22%3A0%7D&amp;type=PERMIT_FILLED_OBJECT">Download</a>
+                        </td>
+                    <td id="permitNumber">
+                        26-A-121
+                    </td>
+                    <td>
+                        25-350
+                    </td>
+                    <td>
+                        EP-5
+                    </td>
+                    <td>
+                        Fire Pump Engine Stack
+                    </td>
+                    <td data-order="639131040000000000">
+                        4/30/2026
+                    </td>
+                </tr>
+                <tr class="text-center">
+                        <td>
+                                <a class="btn btn-secondary" href="/ConPermitSearch/DownloadFile?dataString=%7B%22permitNumber%22%3A%2226-A-246%22,%22permitNumber2%22%3A%2226-A-246%22,%22projectNumber%22%3A%2226-153%22,%22emissionPointID%22%3A%22EP-6%22,%22emissionPointDescription%22%3A%22CT-3%20Stack%22,%22issueDate%22%3A%222026-06-11T00%3A00%3A00%22,%22fileName%22%3Anull,%22rescissionDate%22%3Anull,%22easyAirPermitID%22%3A49108,%22documentType%22%3Anull,%22facilityNumber%22%3A%2201-09-001%22,%22documentID%22%3A0%7D&amp;type=PERMIT_FILLED_OBJECT">Download</a>
+                        </td>
+                    <td id="permitNumber">
+                        26-A-246
+                    </td>
+                    <td>
+                        26-153
+                    </td>
+                    <td>
+                        EP-6
+                    </td>
+                    <td>
+                        CT-3 Stack
+                    </td>
+                    <td data-order="639167328000000000">
+                        6/11/2026
+                    </td>
+                </tr>
+        </tbody>
+    </table>
+</div>
+        </span>
+    </div>
+</div>
+<div class="col-12 text-center">
+    <hr style="margin-top: 0; margin-bottom: 5px;" />
+    Send questions and comments to <a href="/cdn-cgi/l/email-protection#dbbebaa8a2bab2a99bbfb5a9f5b2b4acbaf5bcb4ad"><span class="__cf_email__" data-cfemail="fd989c8e849c948fbd99938fd394928a9cd39a928b">[email&#160;protected]</span></a>
+</div>
+
+<div id="getByCityView" data-request-url="/ConPermitSearch/ByCityView"></div>
+<div id="cityAutoComplete" data-request-url="/ConPermitSearch/CityAutoComplete"></div>
+<div id="getByCity" data-request-url="/ConPermitSearch/GetConstructionPermitsByCity"></div>
+
+<div id="getByCountyView" data-request-url="/ConPermitSearch/ByCountyView"></div>
+<div id="countyAutoComplete" data-request-url="/ConPermitSearch/CountyAutoComplete"></div>
+<div id="getCitiesByCounty" data-request-url="/ConPermitSearch/GetCitiesByCounty"></div>
+
+<div id="getByPlantNameView" data-request-url="/ConPermitSearch/ByConstructionPermitPlantNameView"></div>
+<div id="plantNameAutoComplete" data-request-url="/ConPermitSearch/ConstructionPermitPlantNameAutoComplete"></div>
+
+<div id="getByPlantNumberView" data-request-url="/ConPermitSearch/ByConstructionPermitPlantNumberView"></div>
+<div id="plantNumberAutoComplete" data-request-url="/ConPermitSearch/ConstructionPermitPlantNumberAutoComplete"></div>
+
+<div id="getByPermitNumberView" data-request-url="/ConPermitSearch/ByConstructionPermitNumberView"></div>
+<div id="permitNumberAutoComplete" data-request-url="/ConPermitSearch/ConstructionPermitNumberAutoComplete"></div>
+
+<div id="getFileURL" data-request-url="/ConPermitSearch/GetFileURL"></div>
+            </div>
+        </div>
+        <div class="row footer">
+            <div class="col-8">
+                <a style="padding-right: 10px" target="_blank" href="https://www.iowa.gov" rel=noopener>State of Iowa</a>
+                <a style="padding-right: 10px" target="_blank" href="https://www.iowadnr.gov" rel=noopener>DNR Home</a>
+                <a style="padding-right: 10px" target="_blank" href="https://www.iowa.gov/pages/policies" rel=noopener>Site Policy</a>
+                <div style="display:inline-block">Leading Iowans in caring for our natural resources</div>
+            </div>
+            <div class="col-4 text-end">
+                Version: 1.4.1.24383
+            </div>
+        </div>
+    </div>
+    <div id="errorURL" data-request-url="/Home/Error"></div>
+    <div id="googleKey" data-google-key="G-000EMG9R1H"></div>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body>
+</html>

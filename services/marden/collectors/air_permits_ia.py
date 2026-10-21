@@ -35,6 +35,7 @@ from marden.collectors.air_permits_match import (
     Permit,
     PlantProfile,
     project_phrase,
+    same_name,
 )
 from marden.collectors.air_permits_tx import get
 from marden.collectors.iso_queue_match import contains, tokens
@@ -141,8 +142,8 @@ def facility(fetcher: Fetcher, plant_id: str, stats: RunStats, info: dict[str, A
         by_project[r.project].append(r)
     names = [head.get("Plant Name") or ""]
     generation = None
-    permits = []
-    for project, prow in sorted(by_project.items()):
+    projects = []
+    for project, prow in sorted(by_project.items(), key=lambda kv: (min((r.issued or date.max) for r in kv[1]), kv[0])):
         first = prow[0]
         pdf = documents.latest_document(SOURCE.id, first.url)
         if pdf is None:
@@ -159,46 +160,65 @@ def facility(fetcher: Fetcher, plant_id: str, stats: RunStats, info: dict[str, A
         names += [c["company"] or ""] + [d for d in c["domains"] if d not in {"iowadnr", "dnr", "gmail", "outlook"}]
         if c["process"] and GENERATION.search(c["process"]):
             generation = generation or f"Project/Process Description: {c['process']}"
-        src = {"url": first.url, "document_id": pdf.id, "project": project}
-        issued = min((r.issued for r in prow if r.issued), default=None)
-        permits.append(Permit(
-            AGENCY, f"Project {project}", [r.permit for r in prow], type="Construction permit", status="issued",
-            agency_status="issued", applicant=c["company"], issued=issued,
-            units=[dict(u, **src) for u in c["units"]], emission_limits=[dict(e, **src) for e in c["limits"]],
-            actions=[Action(issued, "final_action", f"Construction permits {', '.join(r.permit for r in prow)} issued "
-                            f"({c['project_description'] or 'project ' + project})", first.url, project,
-                            quote=f"Project Number: {project} Project Description: {c['project_description']} Date: "
-                                  f"{f"{c['date'].month}/{c['date'].day}/{c['date'].year}" if c['date'] else 'n/a'}", document_id=pdf.id)]
-            if issued else [],
-            url=url, quote=f"{head.get('Plant Name')} {head.get('Plant Number')}: "
-                           + "; ".join(f"{r.permit} {r.emission_point} {r.equipment} {r.issued}" for r in prow),
-            quote_loc="Iowa DNR construction permit search, plant page", document_id=doc_id,
-        ))
-    if not permits:
+        projects.append((project, prow, pdf, c))
+    if not projects:
         return None
     return Facility(SOURCE.id, AGENCY, "IA", head["Plant Number"], head.get("Plant Name") or head["Plant Number"],
-                    head.get("County Name"), sorted({n for n in names if n}), generation, permits, url, doc_id,
+                    head.get("County Name"), sorted({n for n in names if n}), generation,
+                    [plant_permit(head, projects, url, doc_id)], url, doc_id,
                     quote=f"County Name: {head.get('County Name')} City Name: {head.get('City Name')} Plant Name: "
                           f"{head.get('Plant Name')} Plant Number: {head.get('Plant Number')}")
 
 
+def plant_permit(head: dict[str, str], projects: list[tuple[str, list[PermitRow], Any, dict[str, Any]]], url: str,
+                 doc_id: int) -> Permit:
+    """A plant's construction permits as one permit card: the first project's permits, later projects (new or
+    changed emission units) as amendments; units and limits of every project, each with its project."""
+    actions, units, limits = [], [], []
+    for project, prow, pdf, c in projects:
+        src = {"url": prow[0].url, "document_id": pdf.id, "project": project}
+        units += [dict(u, **src) for u in c["units"]]
+        limits += [dict(e, **src) for e in c["limits"]]
+        issued = min((r.issued for r in prow if r.issued), default=None)
+        if issued:
+            when = f"{c['date'].month}/{c['date'].day}/{c['date'].year}" if c["date"] else "n/a"
+            actions.append(Action(issued, "final_action", f"Construction permits {', '.join(r.permit for r in prow)} "
+                                  f"issued ({c['project_description'] or 'project ' + project})", prow[0].url, project,
+                                  quote=f"Project Number: {project} Project Description: {c['project_description']} "
+                                        f"Date: {when}", document_id=pdf.id))
+    first_project, first_rows, _, first_c = projects[0]
+    ids = [r.permit for _, prow, _, _ in projects for r in prow]
+    return Permit(
+        AGENCY, ", ".join(r.permit for r in first_rows), ids, type="Construction permit", status="issued",
+        agency_status="issued", applicant=first_c["company"], issued=actions[0].day if actions else None,
+        units=units, emission_limits=limits, actions=actions, url=url,
+        quote=f"{head.get('Plant Name')} {head.get('Plant Number')}: " + "; ".join(
+            f"{r.permit} project {r.project} {r.emission_point} {r.equipment} issued {r.issued}"
+            for _, prow, _, _ in projects for r in prow),
+        quote_loc="Iowa DNR construction permit search, plant page", document_id=doc_id,
+    )
+
+
 def candidates(fetcher: Fetcher, plants: list[PlantProfile], stats: RunStats, info: dict[str, Any]) -> dict[str, str]:
-    """AQRR plant id -> plant name, for AQRR plant names that carry one of our plants' project phrases."""
+    """AQRR plant id -> plant name, for AQRR plant names that are our plant's name or carry its project phrase.
+    The autocomplete matches the start of a name, so it is asked for the first word of each plant name."""
     found: dict[str, str] = {}
+    asked: dict[str, list[str]] = {}
     for p in plants:
-        want = project_phrase(p.name)
-        if not want:
+        words = tokens(p.name)
+        if not words:
             continue
-        prefix = " ".join(w for w in tokens(p.name)[:2])
-        url = f"{BASE}/ConstructionPermitPlantNameAutoComplete?{urlencode({'prefix': prefix})}"
-        names = json.loads(get(fetcher, SOURCE.id, url, info).content)
-        info.setdefault("autocomplete", {})[prefix] = names
-        for name in names:
-            if not contains(tokens(name), want):
+        if words[0] not in asked:
+            url = f"{BASE}/ConstructionPermitPlantNameAutoComplete?{urlencode({'prefix': words[0]})}"
+            asked[words[0]] = json.loads(get(fetcher, SOURCE.id, url, info).content)
+        want = project_phrase(p.name)
+        for name in asked[words[0]]:
+            if not (same_name(name, p.name) or (want and contains(tokens(name), want))):
                 continue
             view = f"{BASE}/ByConstructionPermitPlantNameView?{urlencode({'prefix': name})}"
             for pid in SELECT.findall(get(fetcher, SOURCE.id, view, info).content.decode("utf-8", "replace")):
                 found.setdefault(pid, name)
+    info["autocomplete"] = asked
     return found
 
 

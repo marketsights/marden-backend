@@ -8,15 +8,26 @@ apps/api/src/contracts/site-tabs.ts).
 - Opposition: opposition events and the court proceedings Marden watches for the site (docket
   entities whose linked_sites names it); next hearing from those proceedings' next_dates.
   'Latest ruling' and 'impact if voided' (M) stay n/d until a ruling parser / model exists.
-- Material events: events approved as material or judged material by the archive
-  (materiality_note), and events the collectors flagged red or amber. Lanes come from the `status`
-  model's daily outputs since Jan 1 (empty until it runs); 'what it changed' is n/d until the
-  status and cushion models record it.
+- Material events: what changed a status or the cushion, and the records behind them, newest first:
+  * each change of a chain link's status between two `status` runs (link, rule codes from the
+    rule text, 'Green → amber', and the chain's own change on that run), dated by the record the
+    link cites when it falls between the two runs, else by the run;
+  * each move of the `cushion` model that is material (M1: 3+ months later; M2: below zero), with
+    the record of the milestone that moved it most ('Cushion +4 → -1 months', with a true minus);
+  * events approved as material or judged material by the archive (materiality_note) and events
+    the collectors flagged red or amber, one row per story: a headline syndicated by several
+    outlets is one row, and press reports with the same rule within 30 days of the first are that
+    first report's later coverage (`reports`). The archive's rule label is shown as words
+    ('sev 3: Force majeure' -> 'Force majeure') and names the chain link it is about where the
+    status rules tie it to one (force majeure: tenant).
+  Lanes come from the `status` model's daily outputs since Jan 1 (empty until it runs).
 """
 
 from __future__ import annotations
 
-from datetime import date
+import re
+from datetime import date, timedelta
+from itertools import pairwise
 from typing import Any
 
 from marden.core.db import Conn, Row
@@ -31,6 +42,7 @@ from marden.readmodels.views.sites_common import (
     material_events,
     materiality_notes,
     nd,
+    output_field,
     output_history,
     severity,
     site_events,
@@ -189,19 +201,166 @@ def opposition_tab(conn: Conn, slug: str) -> Doc:
 
 
 # ---------------------------------------------------------------- material events
-def site_event_log(conn: Conn, slug: str) -> list[Doc]:
+LINK_LABEL = {"end_user": "End user", "tenant": "Tenant", "developer": "Developer", "lenders": "Lenders"}
+STATUS_WORD = {"red": "red", "amber": "amber", "green": "green", "none": "no data"}
+RULE_LINK = {"force majeure": "Tenant", "tenant pull-out": "Tenant", "court case": "Opposition",
+             "moratorium": "Opposition"}
+RULE_CODE = re.compile(r"(?:^|[.;]\s+)([EDTLM][12])\b")
+COVERAGE_DAYS = 30
+MINUS = "\u2212"
+
+
+def story_key(title: str) -> str:
+    """One key per story: the same headline syndicated by several outlets ('… - Yahoo Finance',
+    '… - TheStreet') is one material event, not five."""
+    text = re.sub(r"\s+-\s+[^-]{2,40}$", "", title or "")
+    return re.sub(r"[^a-z0-9]+", " ", text.lower().replace("\u2019", "'")).strip()
+
+
+def rule_words(rule: str | None) -> str | None:
+    """The archive's rule label as words: 'sev 3: Force majeure' -> 'Force majeure'."""
+    if not rule:
+        return None
+    text = re.sub(r"^sev\s*\d+\s*:\s*", "", str(rule)).strip()
+    return text[:1].upper() + text[1:] if text else None
+
+
+def signed(months: float) -> str:
+    n = round(months)
+    return f"+{n}" if n > 0 else f"{MINUS}{abs(n)}" if n < 0 else "0"
+
+
+def _links(output: Any) -> dict[str, Doc]:
+    chain = output.get("chain") if isinstance(output, dict) else None
+    return {link["role"]: link for link in chain or [] if isinstance(link, dict) and link.get("role") in LINK_LABEL}
+
+
+def _codes(reason: str) -> str | None:
+    codes = list(dict.fromkeys(RULE_CODE.findall(reason or "")))
+    return ", ".join(codes) or None
+
+
+def status_changes(conn: Conn, slug: str, start: date) -> list[Doc]:
+    """One row per change of a link's status between consecutive `status` runs since `start`."""
+    history = output_history(conn, "status", "site", slug, start)
+    out: list[Doc] = []
+    for prev, cur in pairwise(history):
+        before, after = _links(prev["output"]), _links(cur["output"])
+        rows: list[Doc] = []
+        for role, link in after.items():
+            was = (before.get(role) or {}).get("status")
+            now = link.get("status")
+            if was not in STATUS_WORD or now not in STATUS_WORD or was == now:
+                continue
+            fact = link.get("fact") if isinstance(link.get("fact"), dict) else None
+            reason = str(link.get("reason") or "")
+            when = cur["as_of"].isoformat()
+            if fact and fact.get("value") and isinstance(fact.get("asOf"), str) \
+                    and prev["as_of"].isoformat() < fact["asOf"][:10] <= when:
+                when = fact["asOf"][:10]
+            text = _one_line(str(fact["value"]), 120) if fact and fact.get("value") else _one_line(
+                re.sub(r"^[EDTLM][12]\s+", "", reason.split(". ")[0]), 120)
+            rows.append({
+                "date": when, "text": text or f"{LINK_LABEL[role]} {STATUS_WORD[now]}",
+                "tag": fact.get("tag", "R") if fact else "M",
+                "sourceName": (fact.get("sourceName") or "") if fact else "Marden status model",
+                "sourceUrl": (fact.get("sourceUrl") or "") if fact else "",
+                "severity": now, "link": LINK_LABEL[role], "ruleHit": _codes(reason),
+                "changed": f"{STATUS_WORD[was].capitalize()} \u2192 {STATUS_WORD[now]}",
+            })
+        chain_was, chain_now = output_field(prev, "status"), output_field(cur, "status")
+        if rows and isinstance(chain_was, str) and isinstance(chain_now, str) and chain_was != chain_now:
+            worst = min(rows, key=lambda r: ("red", "amber", "green", "none").index(r["severity"]))
+            worst["changed"] += f"; chain {chain_was} \u2192 {chain_now}"
+        out.extend(rows)
+    return out
+
+
+def _cushion(output: Any) -> float | None:
+    months = ((output or {}).get("projection") or {}).get("cushionMonths") if isinstance(output, dict) else None
+    value = months.get("value") if isinstance(months, dict) else None
+    return value if isinstance(value, int | float) else None
+
+
+def _what_moved(output: dict[str, Any]) -> Doc | None:
+    """The record of the milestone that delays the projection most (the cushion model's basis)."""
+    delays = ((output.get("basis") or {}).get("delayMonths") or {}) if isinstance(output, dict) else {}
+    key = max(delays, key=delays.get) if isinstance(delays, dict) and delays else None
+    for ms in output.get("milestones") or []:
+        ev = ms.get("latestEvidence") if isinstance(ms, dict) else None
+        if ms.get("key") == key and isinstance(ev, dict) and ev.get("text"):
+            return {**ev, "text": _one_line(f"{ms.get('label')}: {ev['text']}", 120)}
+    return None
+
+
+def cushion_changes(conn: Conn, slug: str, start: date) -> list[Doc]:
+    """Material moves of the cushion between consecutive `cushion` runs: 3+ months later (M1) or
+    below zero (M2)."""
+    out: list[Doc] = []
+    previous: float | None = None
+    for row in output_history(conn, "cushion", "site", slug, start):
+        months = _cushion(row["output"])
+        if months is None:
+            continue
+        if previous is not None and months != previous:
+            rules = [code for code, hit in (("M1", months - previous <= -3), ("M2", months < 0 <= previous)) if hit]
+            if rules:
+                ev = _what_moved(row["output"]) or {
+                    "text": str(output_field(row, "driver") or "Projected completion moved"), "tag": "M",
+                    "sourceName": "Marden cushion model", "sourceUrl": ""}
+                out.append({
+                    "date": row["as_of"].isoformat(), "text": ev["text"], "tag": ev.get("tag") or "M",
+                    "sourceName": ev.get("sourceName") or "", "sourceUrl": ev.get("sourceUrl") or "",
+                    "severity": "red" if months < 0 else "amber", "link": "Schedule", "ruleHit": ", ".join(rules),
+                    "changed": f"Cushion {signed(previous)} \u2192 {signed(months)} months",
+                })
+        previous = months
+    return out
+
+
+def record_events(conn: Conn, slug: str) -> list[Doc]:
+    """Material and red / amber records, one row per story, oldest report first within a story."""
     events = site_events(conn, slug)
     notes = materiality_notes(conn, slug)
     material = {ev["id"]: note for ev, note in material_events(conn, slug, events)}
-    out = []
-    for ev in events:
+    rows: list[Doc] = []
+    stories: dict[str, Doc] = {}
+    coverage: dict[str, Doc] = {}
+    for ev in reversed(events):  # oldest first: the first report of a story stands for it
         if ev["id"] not in material and severity(ev) not in ("red", "amber"):
             continue
         note = material.get(ev["id"]) or notes.get((ev["event_date"].isoformat(), ev["title"]))
-        rule = ev.get("rule_code") or (note or {}).get("rule")
-        out.append({**event_evidence(ev), "severity": severity(ev), "link": AREA.get(ev["kind"], "Record"),
-                    "ruleHit": rule, "changed": None})
-    return out
+        rule = rule_words(ev.get("rule_code") or (note or {}).get("rule"))
+        key = story_key(ev["title"])
+        first = stories.get(key) if key else None
+        if first is None and ev["kind"] == "news" and rule:
+            lead = coverage.get(rule)
+            window = timedelta(days=COVERAGE_DAYS)
+            if lead is not None and date.fromisoformat(lead["date"]) + window >= ev["event_date"]:
+                first = lead
+        if first is not None:
+            first["reports"] = first.get("reports", 0) + 1
+            continue
+        row = {**event_evidence(ev), "severity": severity(ev),
+               "link": RULE_LINK.get((rule or "").lower(), AREA.get(ev["kind"], "Record")),
+               "ruleHit": rule, "changed": None}
+        rows.append(row)
+        if key:
+            stories[key] = row
+        if ev["kind"] == "news" and rule:
+            coverage[rule] = row
+    return rows
+
+
+def site_event_log(conn: Conn, slug: str) -> list[Doc]:
+    """Status changes, material cushion moves and material records since Jan 1 (records: all
+    past-dated), newest first; on one day, what changed a status before the records."""
+    start = date(day().year, 1, 1)
+    changes = status_changes(conn, slug, start) + cushion_changes(conn, slug, start)
+    rows = changes + record_events(conn, slug)
+    order = {id(r): i for i, r in enumerate(rows)}
+    rows.sort(key=lambda r: (r["date"], -order[id(r)]), reverse=True)
+    return rows
 
 
 def lanes(conn: Conn, slug: str, start: date) -> list[Doc]:

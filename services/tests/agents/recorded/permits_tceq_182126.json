@@ -1,0 +1,75 @@
+{
+ "case": "permits_tceq_182126",
+ "prompt_version": "0.1",
+ "model": "claude-sonnet-5-5",
+ "tool_input": {
+  "facts": [
+   {
+    "subject_kind": "plant",
+    "subject_name": "Longhorn Data Center",
+    "subject_identifier": "182126",
+    "field": "air_permit",
+    "value_number": null,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": "{\"number\":\"182126 / GHGPSDTX263 / PSDTX1688\",\"agency\":\"TCEQ\",\"type\":\"NSR initial (PSD, GHG PSD)\",\"status\":\"initial application submitted\",\"date\":null}",
+    "as_of": null,
+    "quote": "Crusoe Energy Systems LLC (CN606257079) has submitted an\napplication for an initial permit 182126, GHGPSDTX263, and PSDTX1688.",
+    "page": 1,
+    "confidence": 0.9,
+    "note": "Pending application, not an issued permit."
+   },
+   {
+    "subject_kind": "plant",
+    "subject_name": "Longhorn Data Center",
+    "subject_identifier": "182126",
+    "field": "emission_limits",
+    "value_number": null,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": "{\"basis\":\"proposed emissions, tons per year\",\"VOC\":\"815.59\",\"PM10\":\"451.10\",\"PM2.5\":\"313.20\",\"NOx\":\"760.33\",\"CO\":\"870.07\",\"SO2\":\"233.90\",\"HAPs\":\"49.77\"}",
+    "as_of": null,
+    "quote": "Below is the\ntotal amount for each pollutant that is proposed to be emitted each year for all the\nfacilities.",
+    "page": 1,
+    "confidence": 0.8,
+    "note": "Applicant-proposed totals, not permit limits; may change during technical review."
+   }
+  ],
+  "subjects": [
+   {
+    "name": "Longhorn Data Center",
+    "kind": "plant",
+    "identifiers": [
+     "182126",
+     "GHGPSDTX263",
+     "PSDTX1688",
+     "RN112029061"
+    ],
+    "role": "plant"
+   },
+   {
+    "name": "Crusoe Energy Systems LLC",
+    "kind": "entity",
+    "identifiers": [
+     "CN606257079"
+    ],
+    "role": "borrower"
+   },
+   {
+    "name": "Texas Commission on Environmental Quality",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "agency"
+   },
+   {
+    "name": "Taylor County",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "county"
+   }
+  ],
+  "summary": "TCEQ plain language summary of a pending initial NSR application (182126, GHGPSDTX263, PSDTX1688) by Crusoe Energy Systems LLC for the Longhorn Data Center in Abilene, Taylor County, with proposed annual emissions. No units, MW or dates are stated."
+ }
+}

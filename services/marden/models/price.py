@@ -27,12 +27,12 @@ from typing import Any
 
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
-from marden.models import price_marks, price_signals, price_tiers, runs
+from marden.models import pit, price_marks, price_signals, price_tiers, runs
 from marden.models.price_chain import Chain, gpu_half_lives, resolve
 from marden.models.price_curve import CurveBook, load_curves, year_frac
 from marden.models.price_facility import Ctx, price
 from marden.models.price_issuer import IssuerCurve, build, quote, raw_quote, straight_bonds
-from marden.models.price_terms import Instrument, attach, load_comps, load_instruments
+from marden.models.price_terms import Instrument, attach, load_comps, load_instruments, note_terms
 from marden.models.price_tiers import tier_of
 from marden.readmodels.context import business_today
 
@@ -203,7 +203,8 @@ def run_day(conn: Conn, day: date, ids: Sequence[str] | None = None, *,
     if book.curve(day) is None:
         raise ValueError(f"no Treasury curve public on or within a week before {day}")
     insts = load_instruments(conn, targets(conn))  # the whole universe: issuer curves need every bond
-    attach(insts, load_comps(conn, business_today()))
+    with pit.unaudited():  # issue comps are dated their issue day; the ones used are noted by note_terms
+        attach(insts, load_comps(conn, business_today()))
     priced = set(ids) if ids else set(insts)
     by_issuer = straight_bonds(insts)
     obs = price_marks.load(conn, day, list(insts))
@@ -238,6 +239,10 @@ def run_day(conn: Conn, day: date, ids: Sequence[str] | None = None, *,
         if out["price"] is not None and out["tier"] and out["yieldPct"] is not None and inst.terms:
             points.setdefault(out["tier"], []).append({"years": round(year_frac(day, inst.terms.maturity), 2),
                                                        "yieldPct": out["yieldPct"], "instrumentId": iid})
+    for iid, inst in insts.items():  # the static terms behind every price and issuer curve (input audit)
+        seen = obs.get(iid) or []
+        if (iid in prices and prices[iid].get("price") is not None) or (inst.issuer in corp and seen):
+            note_terms(inst, day, min((o.public for o in seen), default=None))
     curve_tiers = price_tiers.curve_doc(tiers, book, points)
     return {"as_of": day, "cds": cds, "prices": prices, "curve": curve_tiers, "fit": price_tiers.fit_doc(tiers),
             "fit_missing": tiers.missing, "book": book, "curves": curves}
