@@ -47,11 +47,11 @@ UNITS = {"mw_requested": "MW", "queue_date": "date", "actual_cod": "date", "with
 EVENT_FIELDS = ("status", "proposed_cod")
 BLANK = frozenset({"", "n/a", "na", "none", "null", "-", "--", "tbd", "not specified", "unknown"})
 STATUS_CLASSES = ("withdrawn", "retired", "in_service", "under_construction", "suspended", "active")
-_CLASS_RULES = (  # first match wins; tested against the lower-cased operator status
-    ("withdrawn", r"withdraw|retract|annul|cancel|terminat|rejected|^w$|^0$"),
+_CLASS_RULES = (  # first match wins; tested against the lower-cased operator status (words, not codes)
+    ("withdrawn", r"withdraw|retract|annul|cancel|(?<!pending )terminat"),
     ("retired", r"deactivat|retire"),
-    ("under_construction", r"partial|under construction|^uc|construction"),
-    ("in_service", r"in service|in-service|^i/s$|commercial|^c$|operat"),
+    ("under_construction", r"partial|construction|^uc\b"),
+    ("in_service", r"in service|in-service|^i/s$|commercial|operating"),
     ("suspended", r"suspend"),
 )
 LARGE_LOAD_KEYS = (
@@ -223,7 +223,7 @@ class QueueStore:
         self.counts[f"status_class:{values.get('status_class') or 'n/d'}"] += 1
         self.identities[sid] = (entry.queue_id, values.get("name"), values.get("state"), values.get("county"))
         before = {f: (self.prior.get((sid, f)) or (None,))[0] for f in EVENT_FIELDS}
-        is_new = not any(k[0] == sid for k in ((sid, f) for f in FIELDS) if k in self.prior)
+        is_new = not any((sid, f) in self.prior for f in FIELDS)
         for fld in FIELDS:
             if fld in values:
                 self._put(SUBJECT, sid, sid, fld, values[fld], day=entry.updated, source_url=source_url,
