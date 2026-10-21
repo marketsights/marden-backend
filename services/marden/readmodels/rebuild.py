@@ -3,6 +3,11 @@
 Each built doc is upserted into read_model (view, key, as_of = today in US Eastern), and when it
 differs from the previous snapshot the builder's StreamEvent is emitted in the same transaction,
 so the NOTIFY reaches the API only after the new doc is visible.
+
+`rebuild_all(view, as_of=<past day>)` backfills a past snapshot: builders then read facts as
+known that day (`context.known_facts` -> fact_asof), no live event is sent (screens show the
+latest snapshot) and dirty marks, which are about today's snapshot, are left in place. Snapshots
+dated after today are refused.
 """
 
 from __future__ import annotations
@@ -10,22 +15,17 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from marden.core import db, events
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, jsonb, sha256_hex, to_jsonable
+from marden.readmodels.context import building, business_today, snapshot_date
 from marden.readmodels.registry import Builder, Doc, get_builder, registered_views
 
 log = logging.getLogger(__name__)
-BUSINESS_TZ = ZoneInfo("America/New_York")
 DIRTY_BATCH = 500
-
-
-def business_today() -> date:
-    return datetime.now(BUSINESS_TZ).date()
 
 
 @dataclass
@@ -49,20 +49,22 @@ class RebuildStats:
 
 
 def upsert_doc(conn: Conn, view: str, key: str, doc: Doc, *, as_of: date | None = None) -> bool:
-    """Write today's snapshot of a doc. Returns True if it differs from the previous snapshot.
-    `inputs_hash` holds the sha256 of the doc's canonical JSON."""
+    """Write the snapshot of a doc for `as_of` (default today; never after today). Returns True if it
+    differs from the snapshot in force on that day. `inputs_hash` holds the sha256 of the canonical JSON."""
+    day = snapshot_date(as_of)
     normalized = to_jsonable(doc)
     digest = sha256_hex(canonical_json(normalized))
     prev = conn.execute(
-        "SELECT inputs_hash FROM read_model WHERE view = %s AND key = %s ORDER BY as_of DESC LIMIT 1",
-        (view, key),
+        """SELECT inputs_hash FROM read_model WHERE view = %s AND key = %s AND as_of <= %s
+           ORDER BY as_of DESC LIMIT 1""",
+        (view, key, day),
     ).fetchone()
     conn.execute(
         """INSERT INTO read_model (view, key, as_of, doc, built_at, inputs_hash)
            VALUES (%s, %s, %s, %s, now(), %s)
            ON CONFLICT (view, key, as_of) DO UPDATE
              SET doc = EXCLUDED.doc, built_at = EXCLUDED.built_at, inputs_hash = EXCLUDED.inputs_hash""",
-        (view, key, as_of or business_today(), jsonb(normalized), digest),
+        (view, key, day, jsonb(normalized), digest),
     )
     return prev is None or prev["inputs_hash"] != digest
 
@@ -71,7 +73,8 @@ class _Cycle:
     """One rebuild pass: writes docs and emits each distinct event once."""
 
     def __init__(self, as_of: date | None):
-        self.as_of = as_of
+        self.as_of = snapshot_date(as_of)
+        self.live = self.as_of == business_today()  # a backfilled past snapshot sends no live event
         self.stats = RebuildStats()
         self._emitted: set[str] = set()
 
@@ -83,7 +86,7 @@ class _Cycle:
         if not upsert_doc(conn, b.view, key, doc, as_of=self.as_of):
             return
         self.stats.changed += 1
-        payload = b.event_for(key, doc)
+        payload = b.event_for(key, doc) if self.live else None
         if payload is None:
             return
         fingerprint = canonical_json(payload)
@@ -110,7 +113,7 @@ def _rebuild_keys(cycle: _Cycle, b: Builder, keys: list[str]) -> None:
     assert b.build_one is not None
     for key in keys:
         try:
-            with db.transaction() as conn:
+            with building(cycle.as_of), db.transaction() as conn:
                 locked = conn.execute(
                     """SELECT key, marked_at FROM read_model_dirty WHERE view = %s AND key = %s
                        FOR UPDATE SKIP LOCKED""",
@@ -127,7 +130,7 @@ def _rebuild_keys(cycle: _Cycle, b: Builder, keys: list[str]) -> None:
 def _rebuild_view(cycle: _Cycle, b: Builder) -> None:
     assert b.build_many is not None
     try:
-        with db.transaction() as conn:
+        with building(cycle.as_of), db.transaction() as conn:
             locked = conn.execute(
                 "SELECT key, marked_at FROM read_model_dirty WHERE view = %s FOR UPDATE SKIP LOCKED",
                 (b.view,),
@@ -142,7 +145,10 @@ def _rebuild_view(cycle: _Cycle, b: Builder) -> None:
 
 
 def rebuild_dirty(*, limit: int = DIRTY_BATCH, as_of: date | None = None) -> RebuildStats:
-    """Build every dirty (view, key) that has a builder; others wait for theirs."""
+    """Build today's snapshot of every dirty (view, key) that has a builder; others wait for theirs.
+    Dirty marks are about today's snapshot: backfill a past day with `rebuild_all(view, as_of=day)`."""
+    if as_of is not None and as_of != business_today():
+        raise ValueError("rebuild_dirty builds today's snapshot; use rebuild_all(view, as_of=day) to backfill")
     with db.transaction() as conn:
         dirty = conn.execute(
             "SELECT view, key FROM read_model_dirty ORDER BY marked_at LIMIT %s", (limit,)
@@ -164,36 +170,42 @@ def rebuild_dirty(*, limit: int = DIRTY_BATCH, as_of: date | None = None) -> Reb
 
 
 def rebuild_all(view: str, *, as_of: date | None = None) -> RebuildStats:
-    """Rebuild every key of one view (nightly, after a builder change, or `marden rebuild <view>`)."""
+    """Rebuild every key of one view (nightly, after a builder change, or `marden rebuild <view>`).
+    With a past `as_of` it backfills that day's snapshot from what was known that day."""
     b = get_builder(view)
     if b is None:
         raise KeyError(f"no builder registered for view {view!r}; known: {registered_views()}")
     cycle = _Cycle(as_of)
     with db.transaction() as conn:
         started = conn.execute("SELECT clock_timestamp() AS t").fetchone()["t"]  # type: ignore[index]
+
+    def clear(conn: Conn, key: str | None) -> None:
+        if not cycle.live:
+            return  # dirty marks belong to today's snapshot
+        conn.execute(
+            """DELETE FROM read_model_dirty WHERE view = %s AND marked_at <= %s
+               AND (%s::text IS NULL OR key = %s)""",
+            (view, started, key, key),
+        )
+
     if b.build_many is not None:
         try:
-            with db.transaction() as conn:
+            with building(cycle.as_of), db.transaction() as conn:
                 for key, doc in b.build_many(conn):
                     cycle.write(conn, b, key, doc)
-                conn.execute(
-                    "DELETE FROM read_model_dirty WHERE view = %s AND marked_at <= %s", (view, started)
-                )
+                clear(conn, None)
         except Exception as exc:
             cycle.fail(view, "*", exc)
         return cycle.stats
 
     assert b.build_one is not None
-    with db.transaction() as conn:
+    with building(cycle.as_of), db.transaction() as conn:
         keys = b.all_keys(conn)
     for key in keys:
         try:
-            with db.transaction() as conn:
+            with building(cycle.as_of), db.transaction() as conn:
                 cycle.write(conn, b, key, b.build_one(conn, key))
-                conn.execute(
-                    "DELETE FROM read_model_dirty WHERE view = %s AND key = %s AND marked_at <= %s",
-                    (view, key, started),
-                )
+                clear(conn, key)
         except Exception as exc:
             cycle.fail(view, key, exc)
     return cycle.stats
