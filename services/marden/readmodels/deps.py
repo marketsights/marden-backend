@@ -201,6 +201,11 @@ def _install_defaults() -> None:
     # A fund's net assets (collectors/sec_nport) set the NAV share and NAV hit of its holder rows.
     depends("entity", "net_assets_usd", "instrument_detail", _FUND_INSTRUMENTS)
 
+    # Company construction in progress vs PP&E (collectors/sec_xbrl) is the GPU deployment page's
+    # companies chart (spec 19); the payer views already depend on every entity fact.
+    for prefix in ("construction_in_progress", "ppe_"):
+        depends("entity", prefix, "gpu_deployment", singleton)
+
     # Interconnection queue entries (collectors/iso_queue): a link to one of our campuses, sites or
     # plants changes that subject's power section. Status changes reach them as events and, for large
     # loads, as `large_load_queue_<iso>` facts on the subject itself.

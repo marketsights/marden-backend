@@ -97,8 +97,9 @@ class RunStats:
 
     def meta(self) -> dict[str, Any]:
         out = {k: v for k, v in self.__dict__.items() if k not in ("today", "since", "skipped", "concepts")}
-        out.update(today=self.today.isoformat(), since=self.since.isoformat(), skipped=dict(sorted(self.skipped.items())),
-                   concepts=dict(self.concepts.most_common()), errors=self.errors[:MAX_LISTED])
+        out.update(today=self.today.isoformat(), since=self.since.isoformat(),
+                   skipped=dict(sorted(self.skipped.items())), concepts=dict(self.concepts.most_common()),
+                   errors=self.errors[:MAX_LISTED])
         return out
 
     def summary(self) -> str:
