@@ -55,8 +55,8 @@ MIN_SINGLE = 4
 COMMON_SINGLE = frozenset("""
 lake river creek north south east west central county city town valley ridge hill hills park point
 solar wind storage battery gas hydro nuclear coal green blue red white black gold silver star sun
-united american national first texas ohio virginia york state states road highway meta
-""".split()) - {"meta"}
+united american national first texas ohio virginia york state states road highway
+""".split())
 
 
 def tokens(text: Any) -> list[str]:
@@ -117,16 +117,19 @@ class Target:
 
 def make_target(
     subject_type: str, id: str, name: str, state: str | None, county: str | None,
-    names: Iterable[tuple[str | None, str]],
+    names: Iterable[tuple[str | None, str]], place: str | None = None,
 ) -> Target | None:
+    """A matchable subject, or None without a US state, a county and a distinctive name. A phrase made
+    only of place words (the county, or the town in `place`, e.g. 'Childress') is not distinctive."""
+    places = tuple(tokens(county))
+    plain = set(places) | set(tokens(place)) | set(tokens(state))
     seen: dict[tuple[str, ...], str] = {}
     for text, origin in names:
         for part in split_names(text):
             words = phrase(part)
-            if words and words not in seen:
+            if words and words not in seen and not set(words) <= plain:
                 seen[words] = origin
     states = states_of(state)
-    places = tuple(tokens(county))
     if not (states and places and seen):
         return None
     return Target(subject_type, id, name, states, places, tuple(seen.items()))
@@ -141,7 +144,9 @@ def load_targets(conn: Conn) -> list[Target]:
                   coalesce(array_agg(e.name) FILTER (WHERE e.name IS NOT NULL), '{}') AS entity_names,
                   coalesce((SELECT array_agg(DISTINCT a) FROM chain_party c2 JOIN entity e2 ON e2.id = c2.entity_id,
                                    unnest(e2.aliases) a
-                            WHERE c2.site_slug = s.slug AND c2.role IN ('developer', 'tenant', 'end_user')), '{}') AS aliases
+                            WHERE c2.site_slug = s.slug AND c2.role IN ('developer', 'tenant', 'end_user')), '{}') AS aliases,
+                  (SELECT value #>> '{}' FROM fact_current f WHERE f.subject_type = 'site' AND f.subject_id = s.slug
+                     AND f.field = 'place' AND jsonb_typeof(f.value) = 'string') AS place
              FROM site s
              LEFT JOIN chain_party cp ON cp.site_slug = s.slug AND cp.role IN ('developer', 'tenant', 'end_user')
              LEFT JOIN entity e ON e.id = cp.entity_id
@@ -153,7 +158,7 @@ def load_targets(conn: Conn) -> list[Target]:
         names += [(p.split("|", 1)[1], f"site {p.split('|', 1)[0]}") for p in r["parties"]]
         names += [(n, "chain party entity") for n in r["entity_names"]]
         names += [(a, "chain party alias") for a in r["aliases"]]
-        if t := make_target("site", r["slug"], r["name"], r["state"], r["county"], names):
+        if t := make_target("site", r["slug"], r["name"], r["state"], r["county"], names, r["place"]):
             out.append(t)
     campuses = conn.execute(
         """SELECT c.id, c.name, c.aliases, c.county, c.state,
