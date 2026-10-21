@@ -32,7 +32,7 @@ from marden.readmodels.views.sites_tabs import LINK_LABEL, rule_words, signed, s
 WORD = {"red": "red", "amber": "amber", "green": "green", "none": "no data"}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def sites() -> list[str]:
     return copy_sites()
 
@@ -75,9 +75,7 @@ def test_every_status_change_is_a_row_with_its_rule_and_change(sites):
                 seen += 1
                 prefix = f"{WORD[was].capitalize()} → {WORD[now]}"
                 rows = [e for e in log if e["link"] == LINK_LABEL[link["role"]] and (e["changed"] or "").startswith(prefix)
-                        and cur["as_of"].isoformat() >= e["date"] > prev["as_of"].isoformat()
-                        or e["link"] == LINK_LABEL[link["role"]] and e["date"] == cur["as_of"].isoformat()
-                        and (e["changed"] or "").startswith(prefix)]
+                        and prev["as_of"].isoformat() < e["date"] <= cur["as_of"].isoformat()]
                 assert rows, (slug, link["role"], prefix, cur["as_of"])
                 codes = re.findall(r"(?:^|[.;]\s+)([EDTLM][12])\b", link.get("reason") or "")
                 assert rows[0]["ruleHit"] == (", ".join(dict.fromkeys(codes)) or None), (slug, rows[0])

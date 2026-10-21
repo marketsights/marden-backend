@@ -236,7 +236,7 @@ def terms(inst: Row, facts: dict[str, Row]) -> dict[str, dict[str, Any]]:
     if facts.get("rate_text"):
         put("Rate", facts["rate_text"], text_of(facts["rate_text"]["value"]))
     mat = facts.get("maturity") or facts.get("maturity_text")
-    put("Maturity", mat, maturity_text(facts))
+    put("Maturity", mat, date_words(maturity_text(facts) or "") or None)
     size = facts.get("amount_usd")
     if size is not None:
         basis = facts.get("amount_basis")
@@ -285,12 +285,15 @@ def date_words(text: str) -> str:
 
 
 def coupon_text(facts: dict[str, Row]) -> str | None:
-    """'9.00% fixed': the filed coupon with its filed type (fixed, floating) when the text lacks it."""
+    """'9.00% fixed': the filed coupon with its filed type (fixed, floating) when the text does not
+    already say it ('SOFR+4.00%' is floating as written)."""
     coupon = text_of(facts["coupon"]["value"]) if facts.get("coupon") else None
-    kind = text_of(facts["coupon_type"]["value"]) if facts.get("coupon_type") else None
-    if coupon and kind and kind.lower() not in coupon.lower():
-        return f"{coupon} {kind.lower()}"
-    return coupon
+    kind = (text_of(facts["coupon_type"]["value"]) or "").lower() if facts.get("coupon_type") else ""
+    if not coupon or kind not in ("fixed", "floating") or kind in coupon.lower():
+        return coupon
+    if kind == "floating" and re.search(r"sofr|libor|euribor|base rate|\+", coupon, re.I):
+        return coupon
+    return f"{coupon} {kind}"
 
 
 def facts_line(facts: dict[str, Row]) -> str:
