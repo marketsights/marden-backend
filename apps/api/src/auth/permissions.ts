@@ -1,49 +1,64 @@
-// The single access matrix (spec 23). Every registered route maps to one permission, a scope and the
-// plans allowed; the server refuses to start when a route has no entry (default deny).
+// The single access matrix (spec 23, docs/access-control.md). Every registered route maps to one
+// permission, a scope and the plans allowed; the server refuses to start when a route has no entry
+// (default deny). Who holds a permission is decided in grants.ts: org permissions come from the
+// membership role, product permissions from the member's roles on the firm's live products
+// (auth/products/<id>.ts), and staff add theirs.
 import type { Plan, Role } from '../contracts/app.js';
 
 export const ROLES: readonly Role[] = ['owner', 'admin', 'member', 'viewer'];
 export const PLANS: readonly Plan[] = ['trial', 'design_partner', 'paid'];
 
-const READ = [
+/** Product data. A product's matrix (auth/products/<id>.ts) grants a subset of these per role. */
+export const PRODUCT_READ = [
   'home:read', 'completion:read', 'sites:read', 'instruments:read', 'payers:read', 'risk:read',
   'track_record:read', 'sources:read', 'data_centers:read', 'power:read', 'obligations:read',
   'gpus:read', 'leases:read', 'search:read', 'stream:read', 'watchlist:read', 'alerts:read',
-  'stress:read', 'prefs:read', 'account:read', 'me:read',
+  'stress:read', 'prefs:read',
 ] as const;
-const USE = ['watchlist:write', 'alerts:write', 'stress:run', 'stress:save', 'export:xlsx'] as const;
-const ADMIN = ['members:invite', 'members:manage'] as const;
-const OWNER = ['billing:manage', 'org:delete'] as const;
-const STAFF = ['review:approve', 'ops:read'] as const;
+export const PRODUCT_USE = ['watchlist:write', 'alerts:write', 'stress:run', 'stress:save', 'export:xlsx'] as const;
+/** Org administration: from membership.role (the firm's own admin role), never from a product role. */
+const ORG_READ = ['account:read', 'me:read'] as const;
+const ORG_ADMIN = ['members:invite', 'members:manage'] as const;
+const ORG_OWNER = ['billing:manage', 'org:delete'] as const;
+const STAFF = ['review:approve', 'ops:read', 'products:manage'] as const;
 /** No session: liveness probe, CORS preflight, signature-verified Clerk webhook. */
 export const PUBLIC_PERMISSIONS = ['public:health', 'public:preflight', 'webhook:clerk'] as const;
 
-export type Permission =
-  | (typeof READ)[number] | 'prefs:write' | (typeof USE)[number] | (typeof ADMIN)[number]
-  | (typeof OWNER)[number] | (typeof STAFF)[number] | (typeof PUBLIC_PERMISSIONS)[number];
+export type ProductPermission = (typeof PRODUCT_READ)[number] | 'prefs:write' | (typeof PRODUCT_USE)[number];
+export type OrgPermission = (typeof ORG_READ)[number] | (typeof ORG_ADMIN)[number] | (typeof ORG_OWNER)[number];
+export type Permission = ProductPermission | OrgPermission | (typeof STAFF)[number] | (typeof PUBLIC_PERMISSIONS)[number];
 
-/** What each Marden role may do. Viewer: read only plus their own preferences (layout, alert settings). */
-export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
-  viewer: [...READ, 'prefs:write'],
-  member: [...READ, 'prefs:write', ...USE],
-  admin: [...READ, 'prefs:write', ...USE, ...ADMIN],
-  owner: [...READ, 'prefs:write', ...USE, ...ADMIN, ...OWNER],
+export const PRODUCT_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([...PRODUCT_READ, 'prefs:write', ...PRODUCT_USE]);
+export const ORG_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([...ORG_READ, ...ORG_ADMIN, ...ORG_OWNER]);
+
+/** What the org-level role may do on its own: see the account, manage members and product roles, billing. */
+export const ORG_ROLE_PERMISSIONS: Readonly<Record<Role, readonly OrgPermission[]>> = {
+  viewer: [...ORG_READ],
+  member: [...ORG_READ],
+  admin: [...ORG_READ, ...ORG_ADMIN],
+  owner: [...ORG_READ, ...ORG_ADMIN, ...ORG_OWNER],
 };
-/** Staff (app_user.is_staff, a @marden.ai address and MFA) add these on top of their org role. */
-export const STAFF_PERMISSIONS: readonly Permission[] = [...READ, ...STAFF];
+/**
+ * Staff (app_user.is_staff, a @marden.ai address and MFA) add these on top of whatever their roles
+ * grant: read every product's data, review, ops and the firms' product assignments. Not limited by
+ * product or plan.
+ */
+export const STAFF_PERMISSIONS: readonly Permission[] = [...PRODUCT_READ, ...ORG_READ, ...STAFF];
 
 /**
  * global: market data, same for every org. org: org-owned rows (watchlists, alerts, settings, saved
  * stress, team); handlers filter by the caller's org and answer 404 for another org's ids.
- * self: the caller's own identity. public: no session (signature-verified webhook, preflight, health).
+ * self: the caller's own identity. staff: cross-org administration by Marden staff.
+ * public: no session (signature-verified webhook, preflight, health).
  */
-export type Scope = 'global' | 'org' | 'self' | 'public';
+export type Scope = 'global' | 'org' | 'self' | 'staff' | 'public';
 
 export interface RouteRule { permission: Permission; scope: Scope; plans: readonly Plan[] }
 
 const ALL = PLANS;
 const g = (permission: Permission, plans: readonly Plan[] = ALL): RouteRule => ({ permission, scope: 'global', plans });
 const o = (permission: Permission, plans: readonly Plan[] = ALL): RouteRule => ({ permission, scope: 'org', plans });
+const staff = (permission: Permission): RouteRule => ({ permission, scope: 'staff', plans: ALL });
 const pub = (permission: Permission): RouteRule => ({ permission, scope: 'public', plans: [] });
 
 const SITE_TABS = ['evidence', 'power', 'opposition', 'events', 'debt', 'lease'] as const;
@@ -87,6 +102,9 @@ export const ROUTE_RULES: Readonly<Record<string, RouteRule>> = {
   'POST /api/account/invites': o('members:invite'),
   'PATCH /api/account/members/:id': o('members:manage'),
   'DELETE /api/account/members/:id': o('members:manage'),
+  'PATCH /api/account/members/:id/products': o('members:manage'),
+  'POST /api/admin/orgs/:orgId/products': staff('products:manage'),
+  'PATCH /api/admin/orgs/:orgId/products/:productId': staff('products:manage'),
   // Bulk export is a paid feature: trials can browse but not download tables.
   'GET /api/export/:table.xlsx': o('export:xlsx', ['design_partner', 'paid']),
   'GET /api/search': g('search:read'),
@@ -121,7 +139,20 @@ export function ruleFor(method: string, url: string): RouteRule | undefined {
   return ROUTE_RULES[routeKey(method, url)];
 }
 
-/** Clerk organization role -> Marden role. Anything else maps to no access. */
+const PERMISSION_PLANS = new Map<Permission, Set<Plan>>();
+for (const rule of Object.values(ROUTE_RULES)) {
+  const plans = PERMISSION_PLANS.get(rule.permission) ?? new Set<Plan>();
+  for (const plan of rule.plans) plans.add(plan);
+  PERMISSION_PLANS.set(rule.permission, plans);
+}
+
+/** The plans under which a permission is usable: the plan gates of the routes that use it (all plans when none). */
+export function plansFor(permission: Permission): readonly Plan[] {
+  const plans = PERMISSION_PLANS.get(permission);
+  return plans ? [...plans] : ALL;
+}
+
+/** Clerk organization role -> Marden org role (membership.role). Anything else maps to no membership. */
 export function roleFromClerk(clerkRole: string | null | undefined): Role | null {
   switch (clerkRole) {
     case 'org:owner': return 'owner';
@@ -133,21 +164,6 @@ export function roleFromClerk(clerkRole: string | null | undefined): Role | null
 }
 
 export const clerkRoleFor = (role: Role): string => `org:${role}`;
-
-export function permissionsFor(role: Role, staff: boolean): Permission[] {
-  const set = new Set<Permission>(ROLE_PERMISSIONS[role]);
-  if (staff) for (const p of STAFF_PERMISSIONS) set.add(p);
-  return [...set].sort();
-}
-
-export type Decision = { ok: true } | { ok: false; reason: 'role' | 'plan' };
-
-/** Role must hold the permission; the org's plan must be allowed (staff are not plan-limited). */
-export function decide(rule: RouteRule, who: { role: Role; staff: boolean; plan: Plan }): Decision {
-  if (!permissionsFor(who.role, who.staff).includes(rule.permission)) return { ok: false, reason: 'role' };
-  if (!who.staff && !rule.plans.includes(who.plan)) return { ok: false, reason: 'plan' };
-  return { ok: true };
-}
 
 /** Routes registered with Fastify that have no rule. The app refuses to start when this is non-empty. */
 export function unmappedRoutes(registered: Iterable<string>): string[] {

@@ -127,7 +127,7 @@ def _interconnections(s: Subject) -> list[Assignment]:
         review = _conflict("interconnection", inter)
         other = sorted({b["parent_id"] for b in bas if b["parent_id"] and b["parent_id"] != row["region_id"]})
         if review is None and other:
-            review = (f"balancing authorities containing the point ({', '.join(b['region_id'] for b in bas)}) include "
+            review = (f"balancing authorities at this location ({', '.join(b['region_id'] for b in bas)}) include "
                       f"one in {other[0]} per EIA-930; the NERC-region union says {row['region_id']}")
         loc = (f"spatial join: {s.where()} in {_feature(_hifld(sub)) if sub else 'HIFLD NERC Regions'} "
                f"({sub['region_id'] if sub else 'no subregion'}){_share(row)}; WECC -> Western, Texas RE -> ERCOT, "

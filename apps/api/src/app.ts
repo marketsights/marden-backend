@@ -5,10 +5,13 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
-import { ensureDevIdentity } from './auth/access.js';
+import { currentHolder, ensureDevIdentity } from './auth/access.js';
 import { createClerkAdmin, type ClerkAdmin } from './auth/clerk-admin.js';
 import { createClerkVerifier } from './auth/clerk.js';
+import { decide } from './auth/grants.js';
+import { ROUTE_RULES } from './auth/permissions.js';
 import { registerAuth, trackRoutes } from './auth/plugin.js';
+import { PRODUCTS, type ProductRegistry } from './auth/products/index.js';
 import { assertDevAuthAllowed, type AppConfig } from './config.js';
 import { createDb, type Db } from './db.js';
 import { HttpError } from './errors.js';
@@ -21,6 +24,7 @@ import { instrumentRoutes } from './routes/instruments.js';
 import { marketRoutes } from './routes/market.js';
 import { monitorRoutes } from './routes/monitor.js';
 import { prefsRoutes } from './routes/prefs.js';
+import { productAccessRoutes } from './routes/product-access.js';
 import { siteRoutes } from './routes/sites.js';
 import { stressRoutes } from './routes/stress.js';
 import { watchlistRoutes } from './routes/watchlist.js';
@@ -38,11 +42,14 @@ export interface AppDeps {
   config: AppConfig;
   db?: Db;
   clerkAdmin?: ClerkAdmin | null;
+  /** Product matrices (default PRODUCTS); tests pass more products. */
+  products?: ProductRegistry;
   /** Extra routes (tests use this to prove an unmapped route stops startup). */
   extraRoutes?: (app: FastifyInstance) => void;
 }
 
 const REQUEST_ID = /^[A-Za-z0-9._:-]{1,64}$/;
+const STREAM_RULE = ROUTE_RULES['GET /api/stream']!;
 
 function errorBody(err: FastifyError | HttpError): { status: number; body: Record<string, unknown> } {
   if (err instanceof HttpError) return { status: err.status, body: { error: err.code, ...err.details } };
@@ -52,7 +59,9 @@ function errorBody(err: FastifyError | HttpError): { status: number; body: Recor
   return { status, body: { error: status === 404 ? 'not_found' : 'bad_request', reason: err.message } };
 }
 
-interface RouteDeps { db: Db; clerkAdmin: ClerkAdmin | null; devMode: boolean; hub: StreamHub; webhookSecret: string | null }
+interface RouteDeps {
+  db: Db; clerkAdmin: ClerkAdmin | null; devMode: boolean; hub: StreamHub; webhookSecret: string | null; products: ProductRegistry;
+}
 
 function registerRoutes(app: FastifyInstance, r: RouteDeps): void {
   const { db } = r;
@@ -65,7 +74,8 @@ function registerRoutes(app: FastifyInstance, r: RouteDeps): void {
   watchlistRoutes(app, db);
   prefsRoutes(app, db);
   stressRoutes(app, db);
-  accountRoutes(app, { db, clerkAdmin: r.clerkAdmin, devMode: r.devMode });
+  accountRoutes(app, { db, clerkAdmin: r.clerkAdmin, devMode: r.devMode, products: r.products });
+  productAccessRoutes(app, { db, products: r.products });
   infoRoutes(app, db);
   exportRoutes(app, db);
   webhookRoutes(app, { db, secret: r.webhookSecret, streams: r.hub });
@@ -103,6 +113,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     if (process.env.NODE_ENV !== undefined) assertDevAuthAllowed(process.env.NODE_ENV);
   }
   const db = deps.db ?? createDb(config.databaseUrl);
+  const products = deps.products ?? PRODUCTS;
   const app = Fastify({
     logger: config.logLevel === false ? false : {
       level: config.logLevel,
@@ -143,16 +154,21 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     db,
     devMode,
     verify: devMode ? null : createClerkVerifier(config.clerk, config.webOrigins),
+    products,
   });
 
   const hub = new StreamHub(db, {
     connectionString: config.databaseUrlUnpooled, heartbeatMs: config.heartbeatMs, recheckMs: config.recheckMs,
     log: app.log,
+    allowed: async (who) => {
+      const holder = await currentHolder(db, who);
+      return holder !== null && decide(STREAM_RULE, holder, products).ok;
+    },
   });
   app.decorate('streams', hub);
   const clerkAdmin = deps.clerkAdmin === undefined ? createClerkAdmin(config.clerk.secretKey) : deps.clerkAdmin;
 
-  registerRoutes(app, { db, clerkAdmin, devMode, hub, webhookSecret: config.clerk.webhookSecret });
+  registerRoutes(app, { db, clerkAdmin, devMode, hub, webhookSecret: config.clerk.webhookSecret, products });
   deps.extraRoutes?.(app);
 
   app.addHook('onReady', async () => {

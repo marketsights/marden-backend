@@ -1,0 +1,15 @@
+Source: https://planetarycomputer.microsoft.com/terms (text rendered from the site bundle /assets/index-Cz6TJh1P.js), read 2026-10-21. Excerpt, verbatim sentences:
+
+Supplemental Terms of Use for Microsoft Planetary Computer Previews
+
+Last updated: January 2023
+
+Previews are provided solely for evaluation and testing.
+
+Previews are not meant for production use (though such use is not prohibited), especially to process personal data or other data that is subject to heightened compliance requirements.
+
+In certain circumstances, access to data hosted by the Services will require the use of a valid token issued by Microsoft.
+
+Tokens are active for a limited time period, and in certain cases, rate limiting may be put into place to limit the amount of egress against the Service’s datasets.
+
+Tokens may not be sublicensed to, distributed to, or shared with third parties (except to your employees, affiliates, contractors and vendors to perform work solely on your behalf, provided they are bound by the terms of these Supplemental Terms and you remain responsible for their compliance). Tokens may not be monetized or used for any other purpose that is not expressly permitted under these Supplemental Terms or the Documentation.

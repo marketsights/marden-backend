@@ -48,6 +48,8 @@ FILED_HOSTS = (
     "michigan.gov", "ohio.gov", "epa.ohio.gov", "deq.virginia.gov", "gaepd.org", "azdeq.gov",
     "in.gov", "pa.gov", "courtlistener.com", "pacer.uscourts.gov", "uscourts.gov",
     "civicclerk.com", "granicus.com", "legistar.com", "municode.com", "boarddocs.com",
+    "revize.com",  # county and city document CMS (e.g. Doña Ana County IRB ordinances)
+    "wfparish.org",  # West Feliciana Parish government (site plans, permits)
 )
 # Government hosts not listed above are filed records too (counties, state agencies).
 GOV_SUFFIXES = (".gov", ".us", ".gov.au")
@@ -136,11 +138,13 @@ def tag_for_basis(basis: str | None, url: str | None = None) -> str:
     """Map the archive's ``basis`` strings (disclosed / reported / presumed ...) to a tag.
 
     Presumed, inferred and assumed values are Marden judgments, so they are M (with a method
-    version set by the caller); disclosed is F; reported is R; otherwise the URL decides.
+    version set by the caller); disclosed is F unless the cited URL is not a filed record (a press
+    release, rating-agency note or news story is R: the fact is only as strong as the source shown);
+    reported is R; otherwise the URL decides.
     """
     b = (basis or "").strip().lower()
     if b.startswith(("disclosed", "filed")):
-        return "F"
+        return "R" if host_of(url) and tag_for_url(url) != "F" else "F"
     if b.startswith("reported"):
         return "R"
     if b.startswith(("presumed", "inferred", "assumed", "estimated", "derived")):

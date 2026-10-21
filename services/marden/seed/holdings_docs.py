@@ -1,8 +1,10 @@
 """docs/seed-data/unpriced.md from the database after the holdings loader (``--write-docs``).
 
-An instrument counts as priced when any seeded ``price_obs`` row with a price exists for it (dealer quote,
-fund mark or adjusted mark, from any loader). The reasons for the rest come from the instruments loader's
-``legacy_price_status`` facts and from the instrument's linked holding lines.
+An instrument counts as priced when a seeded ``price_obs`` row with a price exists for it (dealer quote,
+fund mark or adjusted mark, from any seed loader: its document is a seed file). Prices and holdings that
+collectors stored are not counted; generate it on a database the collectors have not written to (a row a
+collector stored first keeps the collector's document). The reasons for the rest come from the instruments
+loader's ``legacy_price_status`` facts and from the instrument's linked seeded holding lines.
 """
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from marden.core import db
+from marden.seed.common import SEED_SOURCE_ID
 from marden.seed.instruments_docs import STATUS_TEXT
 
 NAIC_ONLY = "held only in insurer NAIC Schedule D statements (held for legal review, never a price)"
@@ -22,14 +25,18 @@ NO_LEGACY = "no legacy price in the archive and no linked fund holding"
 
 def _rows(conn: Any) -> list[dict[str, Any]]:
     return conn.execute(
-        """SELECT i.id, i.name, i.issuer_name, i.kind, i.in_v1,
-                  EXISTS (SELECT 1 FROM price_obs p WHERE p.instrument_id = i.id AND p.price IS NOT NULL) AS priced,
-                  (SELECT count(*) FROM holding h WHERE h.instrument_id = i.id) AS n_hold,
-                  (SELECT count(*) FROM holding h WHERE h.instrument_id = i.id
+        """WITH seed_doc AS (SELECT id FROM document WHERE source_id = %(seed)s),
+                hold AS (SELECT h.* FROM holding h WHERE h.document_id IN (SELECT id FROM seed_doc))
+           SELECT i.id, i.name, i.issuer_name, i.kind, i.in_v1,
+                  EXISTS (SELECT 1 FROM price_obs p WHERE p.instrument_id = i.id AND p.price IS NOT NULL
+                            AND p.document_id IN (SELECT id FROM seed_doc)) AS priced,
+                  (SELECT count(*) FROM hold h WHERE h.instrument_id = i.id) AS n_hold,
+                  (SELECT count(*) FROM hold h WHERE h.instrument_id = i.id
                      AND h.filing_type <> 'NAIC Schedule D') AS n_fund,
                   (SELECT f.value #>> '{}' FROM fact_current f WHERE f.subject_type = 'instrument'
                      AND f.subject_id = i.id AND f.field = 'legacy_price_status') AS legacy
-             FROM instrument i ORDER BY i.id"""
+             FROM instrument i ORDER BY i.id""",
+        {"seed": SEED_SOURCE_ID},
     ).fetchall()
 
 

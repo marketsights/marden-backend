@@ -1,11 +1,12 @@
 // Org, team and membership reads/writes (Marden side of the Clerk sync).
-import type { Plan, Role, TeamMember } from '../contracts/app.js';
+import type { MemberProductRole, Role, TeamMember } from '../contracts/app.js';
 import type { Queryable } from '../db.js';
 
-export interface OrgRow { id: string; name: string; plan: Plan; created_at: Date }
+/** org.plan is deprecated (plans live on org_product) and not read here. */
+export interface OrgRow { id: string; name: string; created_at: Date }
 
 export async function getOrg(c: Queryable, orgId: string): Promise<OrgRow | null> {
-  const res = await c.query<OrgRow>(`SELECT id, name, plan, created_at FROM org WHERE id = $1`, [orgId]);
+  const res = await c.query<OrgRow>(`SELECT id, name, created_at FROM org WHERE id = $1`, [orgId]);
   return res.rows[0] ?? null;
 }
 
@@ -17,14 +18,18 @@ export async function getUser(c: Queryable, userId: string): Promise<{ id: strin
   return res.rows[0] ?? null;
 }
 
+/** Members with their org role and their roles on the org's products (live or not). */
 export async function team(c: Queryable, orgId: string): Promise<TeamMember[]> {
-  const res = await c.query<{ user_id: string; email: string; name: string | null; role: Role }>(
-    `SELECT m.user_id, u.email, u.name, m.role FROM membership m JOIN app_user u ON u.id = m.user_id
+  const res = await c.query<{ user_id: string; email: string; name: string | null; role: Role; products: MemberProductRole[] }>(
+    `SELECT m.user_id, u.email, u.name, m.role,
+       COALESCE((SELECT json_agg(json_build_object('productId', r.product_id, 'role', r.role) ORDER BY r.product_id)
+                 FROM member_product_role r WHERE r.org_id = m.org_id AND r.user_id = m.user_id), '[]'::json) AS products
+     FROM membership m JOIN app_user u ON u.id = m.user_id
      WHERE m.org_id = $1
      ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'member' THEN 2 ELSE 3 END, u.email`,
     [orgId],
   );
-  return res.rows.map((r) => ({ userId: r.user_id, email: r.email, name: r.name, role: r.role }));
+  return res.rows.map((r) => ({ userId: r.user_id, email: r.email, name: r.name, role: r.role, products: r.products }));
 }
 
 /**

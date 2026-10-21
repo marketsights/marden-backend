@@ -1,0 +1,23 @@
+APPENDIX A. PIA QUESTIONNAIRE RESULTS
+
+SECTION I: PURPOSE OF THE SYSTEM
+
+eLibrary is a database system that manages, stores, and retrieves electronic documents that have
+been received or issued by the Commission. Electronic issuances issued by the Commission and
+submissions (i.e., filings) submitted by both the Commission, regulated entities (e.g., utility
+companies), law firms and the public are contained in eLibrary. The public and FERC staff have
+access to eLibrary, and they have the ability to search the text of scanned documents using
+optical character recognition and the option to request that documents be printed or downloaded
+at one’s computer or in the Public Reference Room.
+
+SECTION III: ACCESS TO THE DATA
+    1. Who will have access to the data in the system? (Select users, managers, system
+       administrators, developers, other [specify].
+
+        End users, managers, system administrators, developers, and the public will have access
+        to the data in the system.
+
+    2. Comments: The following FERC staff have access to the data:
+
+        End Users: All end users have read access to the public data in the eLibrary repository.
+

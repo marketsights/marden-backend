@@ -124,7 +124,9 @@ def test_memo_structure_terms_and_dossier_evidence_keep_their_sources(loaded, co
     for s in memo["security"]:
         if s["basis"] == "disclosed" and s.get("q") and s["k"] != "Fund mark":
             f = terms[s["k"]]
-            assert f["tag"] == "F" and f["source_url"] == s["src"] and f["quote"] == " ".join(s["q"].split())
+            # disclosed is F when the cited URL is a filing, R when it is a press or agency page (common.tag_for_basis)
+            assert f["tag"] == common.tag_for_basis(s["basis"], s["src"]) and f["source_url"] == s["src"]
+            assert f["quote"] == " ".join(s["q"].split())
     not_disclosed = [s["k"] for s in memo["security"] if s["basis"] == "not disclosed"]
     open_q = _facts(committed, "site", "jupiter", "open_questions")[0]["value"]
     assert len(open_q) == len(memo["unknowns"]) + len(not_disclosed)

@@ -1112,6 +1112,21 @@ CREATE TABLE public.instrument (
 
 
 --
+-- Name: member_product_role; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.member_product_role (
+    org_id text NOT NULL,
+    user_id text NOT NULL,
+    product_id text NOT NULL,
+    role text NOT NULL,
+    granted_by text,
+    granted_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT member_product_role_role_check CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text, 'viewer'::text])))
+);
+
+
+--
 -- Name: membership; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1221,6 +1236,33 @@ CREATE TABLE public.org (
     plan text DEFAULT 'trial'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT org_plan_check CHECK ((plan = ANY (ARRAY['trial'::text, 'design_partner'::text, 'paid'::text])))
+);
+
+
+--
+-- Name: COLUMN org.plan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.org.plan IS 'Deprecated: plans live on org_product (per product). Kept for now; nothing reads it.';
+
+
+--
+-- Name: org_product; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.org_product (
+    org_id text NOT NULL,
+    product_id text NOT NULL,
+    plan text NOT NULL,
+    seats integer,
+    status text DEFAULT 'active'::text NOT NULL,
+    starts_on date NOT NULL,
+    ends_on date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT org_product_check CHECK (((ends_on IS NULL) OR (ends_on >= starts_on))),
+    CONSTRAINT org_product_plan_check CHECK ((plan = ANY (ARRAY['trial'::text, 'design_partner'::text, 'paid'::text]))),
+    CONSTRAINT org_product_seats_check CHECK (((seats IS NULL) OR (seats >= 0))),
+    CONSTRAINT org_product_status_check CHECK ((status = ANY (ARRAY['active'::text, 'suspended'::text, 'ended'::text])))
 );
 
 
@@ -1412,6 +1454,19 @@ ALTER TABLE public.procrastinate_workers ALTER COLUMN id ADD GENERATED ALWAYS AS
     NO MINVALUE
     NO MAXVALUE
     CACHE 1
+);
+
+
+--
+-- Name: product; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.product (
+    id text NOT NULL,
+    name text NOT NULL,
+    description text,
+    active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -1942,6 +1997,14 @@ ALTER TABLE ONLY public.instrument
 
 
 --
+-- Name: member_product_role member_product_role_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_product_role
+    ADD CONSTRAINT member_product_role_pkey PRIMARY KEY (org_id, user_id, product_id);
+
+
+--
 -- Name: membership membership_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1987,6 +2050,14 @@ ALTER TABLE ONLY public.obligation
 
 ALTER TABLE ONLY public.org
     ADD CONSTRAINT org_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: org_product org_product_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.org_product
+    ADD CONSTRAINT org_product_pkey PRIMARY KEY (org_id, product_id);
 
 
 --
@@ -2067,6 +2138,14 @@ ALTER TABLE ONLY public.procrastinate_periodic_defers
 
 ALTER TABLE ONLY public.procrastinate_workers
     ADD CONSTRAINT procrastinate_workers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: product product_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.product
+    ADD CONSTRAINT product_pkey PRIMARY KEY (id);
 
 
 --
@@ -2374,6 +2453,13 @@ CREATE INDEX instrument_site ON public.instrument USING btree (site_slug);
 
 
 --
+-- Name: member_product_role_product; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX member_product_role_product ON public.member_product_role USING btree (org_id, product_id);
+
+
+--
 -- Name: model_output_subject; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2392,6 +2478,13 @@ CREATE INDEX obligation_from ON public.obligation USING btree (from_entity_id);
 --
 
 CREATE INDEX obligation_to ON public.obligation USING btree (to_entity_id);
+
+
+--
+-- Name: org_product_product; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX org_product_product ON public.org_product USING btree (product_id);
 
 
 --
@@ -2723,6 +2816,30 @@ ALTER TABLE ONLY public.instrument
 
 
 --
+-- Name: member_product_role member_product_role_granted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_product_role
+    ADD CONSTRAINT member_product_role_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES public.app_user(id) ON DELETE SET NULL;
+
+
+--
+-- Name: member_product_role member_product_role_org_id_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_product_role
+    ADD CONSTRAINT member_product_role_org_id_product_id_fkey FOREIGN KEY (org_id, product_id) REFERENCES public.org_product(org_id, product_id) ON DELETE CASCADE;
+
+
+--
+-- Name: member_product_role member_product_role_org_id_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_product_role
+    ADD CONSTRAINT member_product_role_org_id_user_id_fkey FOREIGN KEY (org_id, user_id) REFERENCES public.membership(org_id, user_id) ON DELETE CASCADE;
+
+
+--
 -- Name: membership membership_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2776,6 +2893,22 @@ ALTER TABLE ONLY public.obligation
 
 ALTER TABLE ONLY public.obligation
     ADD CONSTRAINT obligation_to_entity_id_fkey FOREIGN KEY (to_entity_id) REFERENCES public.entity(id);
+
+
+--
+-- Name: org_product org_product_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.org_product
+    ADD CONSTRAINT org_product_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.org(id) ON DELETE CASCADE;
+
+
+--
+-- Name: org_product org_product_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.org_product
+    ADD CONSTRAINT org_product_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.product(id);
 
 
 --
@@ -2930,4 +3063,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261021100100'),
     ('20261021140000'),
     ('20261021150000'),
-    ('20261021170000');
+    ('20261021170000'),
+    ('20261021180000');

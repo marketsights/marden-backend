@@ -39,7 +39,7 @@ describe('Clerk session from the bearer or the __session cookie', () => {
   it('accepts a valid cookie session on a read', async () => {
     const res = await get('/api/me', cookie(await token(u.member)));
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ user: { id: u.member }, role: 'member' });
+    expect(res.json()).toMatchObject({ user: { id: u.member }, orgRole: 'member' });
   });
 
   it('verifies the cookie exactly like the bearer: tampered, expired, not yet valid, foreign, wrong party, wrong issuer', async () => {
@@ -73,7 +73,7 @@ describe('Clerk session from the bearer or the __session cookie', () => {
 
   it('lets a bearer decide when both are present: no fallback from a bad bearer to the cookie', async () => {
     const both = await get('/api/me', { ...bearer(await token(u.viewer)), ...cookie(await token(u.member)) });
-    expect(both.json()).toMatchObject({ role: 'viewer' });
+    expect(both.json()).toMatchObject({ orgRole: 'viewer' });
     const badBearer = await get('/api/me', { ...bearer('not-a-token'), ...cookie(await token(u.member)) });
     expect(badBearer.statusCode).toBe(401);
     const emptyBearer = await get('/api/me', { authorization: 'Bearer ', ...cookie(await token(u.member)) });

@@ -3,11 +3,11 @@ import http from 'node:http';
 
 export interface Sse { chunks: () => string; close: () => void; status: number; headers: http.IncomingHttpHeaders }
 
-export function connect(port: number, lastEventId?: string): Promise<Sse> {
+export function connect(port: number, lastEventId?: string, headers: Record<string, string> = {}): Promise<Sse> {
   return new Promise((resolve, reject) => {
     let buf = '';
     const req = http.get(
-      { host: '127.0.0.1', port, path: '/api/stream', headers: lastEventId ? { 'last-event-id': lastEventId } : {} },
+      { host: '127.0.0.1', port, path: '/api/stream', headers: { ...headers, ...(lastEventId ? { 'last-event-id': lastEventId } : {}) } },
       (res) => {
         res.setEncoding('utf8');
         res.on('data', (d: string) => (buf += d));

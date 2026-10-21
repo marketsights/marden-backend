@@ -51,7 +51,7 @@ facts dedupe on their key.
 | | | | group, entity_ids, tag}] |
 | site | chain_parties_presumed | - | memo.chain parties whose basis is presumed (M) |
 | obligation | edge_type | - | types.ts EdgeType of the edge |
-| obligation | linked_sites | - | site slugs the source links the edge to |
+| obligation | linked_sites | - | every site slug the edge's sources link it to (same list on each source's fact) |
 | obligation | linked_instruments | - | the linked cases' own instruments (aiwcredit.rowinfo.c) (M) |
 | obligation | payer_instruments | - | the payer's instruments exposed to the site (rowinfo.x tenant links) (M) |
 | obligation | conditions | - | contract, backstop, termination, renewal and coverage terms (text list) |

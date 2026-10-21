@@ -2,9 +2,12 @@
 // message id and safe out of order: each applied event is recorded in audit_log with its event time,
 // and an event older than the last one applied to the same subject (or older than a deletion of a
 // related user or org) is recorded as stale and not applied.
+// Product access is Marden's (docs/access-control.md): a new member gets no product role, except the
+// first member of an org that already holds live products, who becomes owner of each of them.
 import { roleFromClerk } from '../auth/permissions.js';
 import type { Queryable } from '../db.js';
 import { audit } from './audit.js';
+import { grantFirstMemberOwner } from './products.js';
 
 export interface ClerkEvent {
   type: string;
@@ -93,11 +96,13 @@ function membershipPlan(type: string, d: Record<string, unknown>): Plan | null {
       await c.query(`INSERT INTO app_user (id, email, name) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`, [
         userId, s(user.identifier) ?? '', fullName(user),
       ]);
-      await c.query(
+      const res = await c.query<{ inserted: boolean }>(
         `INSERT INTO membership (org_id, user_id, role) VALUES ($1, $2, $3)
-         ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+         ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role
+         RETURNING (xmax = 0) AS inserted`,
         [orgId, userId, role],
       );
+      if (res.rows[0]?.inserted) await grantFirstMemberOwner(c, orgId, userId);
     },
   };
 }

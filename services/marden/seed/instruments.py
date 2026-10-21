@@ -37,7 +37,6 @@ Facts (subject_type ``instrument``; tags per seed/instruments_facts.py):
 | identifiers                  | list      | [{type: cusip/isin/loanx/common_code, value, from}] (F if on N-PORT) |
 | issuer_fair_value_disclosure | text      | issuer 10-Q fair-value statement; a fact, not a price (F)            |
 | legacy_price_status          | text      | what became of the legacy px (blocked copy, recomputed, ...) (M)     |
-| price_basis                  | text      | seeded price evidence: 'fund marks', 'dealer quote (press)', 'none'  |
 """
 
 from __future__ import annotations
@@ -195,29 +194,22 @@ def _legacy_status(iid: str, row: dict[str, Any], arc: Archive, blocked: dict[st
     return P.NOT_A_FUND_FILING
 
 
-def _seeded_prices(conn: Conn, ids: list[str]) -> tuple[dict[str, set[str]], dict[str, float]]:
-    """Kinds of seeded price_obs per instrument and the latest price (any loader)."""
+def _seeded_prices(conn: Conn, ids: list[str]) -> dict[str, set[str]]:
+    """Kinds of price_obs per instrument stored from seed files (any seed loader), for the docs."""
     kinds: dict[str, set[str]] = defaultdict(set)
-    latest: dict[str, float] = {}
     for r in conn.execute(
-        """SELECT DISTINCT ON (instrument_id, kind) instrument_id, kind, price FROM price_obs
-           WHERE instrument_id = ANY(%s) AND price IS NOT NULL ORDER BY instrument_id, kind, obs_date DESC""",
-        (ids,),
+        """SELECT DISTINCT p.instrument_id, p.kind FROM price_obs p JOIN document d ON d.id = p.document_id
+           WHERE p.instrument_id = ANY(%s) AND p.price IS NOT NULL AND d.source_id = %s""",
+        (ids, SEED_SOURCE_ID),
     ).fetchall():
         kinds[r["instrument_id"]].add(r["kind"])
-    for r in conn.execute(
-        """SELECT DISTINCT ON (instrument_id) instrument_id, price FROM price_obs
-           WHERE instrument_id = ANY(%s) AND price IS NOT NULL ORDER BY instrument_id, obs_date DESC, price""",
-        (ids,),
-    ).fetchall():
-        latest[r["instrument_id"]] = float(r["price"])
-    return kinds, latest
+    return kinds
 
 
 def _write_facts(conn: Conn, arc: Archive, chunk: list[str], idents: dict[str, Any], kinds: dict[str, str],
                  status: dict[str, str], report: LoadReport) -> None:
     facts = FactWriter(conn)
-    seeded, latest = _seeded_prices(conn, chunk)
+    seeded = _seeded_prices(conn, chunk)
     for iid in chunk:
         row = arc.rows[iid]
         rows: list[F.FactRow] = F.terms_facts(iid, row, kinds[iid], AIDEBT)
@@ -225,7 +217,7 @@ def _write_facts(conn: Conn, arc: Archive, chunk: list[str], idents: dict[str, A
         rows += [rating] if rating else []
         if rating is None and (row.get("rating") or "").strip():
             report.skip("rating text says no instrument rating was found: not written", iid)
-        judged, skips = F.judgment_facts(row, AIDEBT, keep_price_flag=latest.get(iid, 100.0) < 90)
+        judged, skips = F.judgment_facts(row, AIDEBT)
         rows += judged
         for s in skips:
             report.skip(s, iid)
@@ -238,8 +230,7 @@ def _write_facts(conn: Conn, arc: Archive, chunk: list[str], idents: dict[str, A
                                   src["url"], AIDEBT, as_of(row.get("pxd"))))
         if status.get(iid):
             rows.append(F._m("legacy_price_status", status[iid], AIDEBT, F.LOADER_METHOD))
-        rows.append(F._m("price_basis", F.price_basis_value(seeded.get(iid, set())), AIDEBT, F.LOADER_METHOD))
-        report.price_kinds[iid] = seeded.get(iid, set())
+        report.price_kinds[iid] = seeded.get(iid, set())  # for the docs only, never a fact (other writers add prices)
         for fr in rows:
             res = facts.add(
                 "instrument", iid, fr.field, fr.value, tag=fr.tag, source_name=fr.source_name, source_url=fr.source_url,

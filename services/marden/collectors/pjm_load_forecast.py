@@ -45,7 +45,9 @@ CRON_UTC = "29 12 3 * *"  # the 3rd of each month, 12:29 UTC
 SOURCE = declare_source(
     SOURCE_ID, "PJM", "portal", f"https://{HOST}", 31 * 24 * 60,
     TERMS_NOTE.replace("Both exports are the public download buttons on the queue pages",
-                       "The load forecast workbooks are public downloads on the load forecast page"),
+                       "The load forecast workbooks are public downloads on the load forecast page")
+    .replace("One weekly run, 2 requests, PJM's own XML.",
+             "One monthly run, 2 requests (the page and Table B-9b, PJM's own workbook)."),
 )
 _LINK = re.compile(r'href="([^"]*total-load-adjustments-breakdown[^"]*\.xlsx)"', re.I)
 # Utility words in our facts -> (PJM zone, area within the zone or None for the whole zone).

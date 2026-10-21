@@ -1,11 +1,14 @@
-// Runs the spec 23 checks on every request: verify the session (401), resolve org + role (403),
-// check the route's permission and the org's plan (403). Unmapped routes stop the server from starting.
+// Runs the spec 23 checks on every request: verify the session (401), resolve org, org role and live
+// product roles (403), check the route's permission and the granting product's plan (403; no live
+// product role at all: 403 no_product). Unmapped routes stop the server from starting.
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Db } from '../db.js';
-import { forbidden, unauthorized } from '../errors.js';
+import { forbidden, noProduct, unauthorized } from '../errors.js';
 import { DEV_IDENTITY, resolveAccess, type AuthContext } from './access.js';
 import { sessionToken, type TokenVerifier } from './clerk.js';
-import { decide, routeKey, ruleFor, unmappedRoutes } from './permissions.js';
+import { decide, type Denial } from './grants.js';
+import { routeKey, ruleFor, unmappedRoutes } from './permissions.js';
+import type { ProductRegistry } from './products/index.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -20,6 +23,12 @@ export interface AuthOptions {
   db: Db;
   devMode: boolean;
   verify: TokenVerifier | null;
+  products: ProductRegistry;
+}
+
+function refusal(reason: Denial) {
+  if (reason === 'no_product') return noProduct();
+  return forbidden(reason === 'role' ? 'role_lacks_permission' : 'plan_lacks_permission');
 }
 
 /** The caller's context on a route that is not public. */
@@ -60,8 +69,8 @@ export function registerAuth(app: FastifyInstance, opts: AuthOptions): void {
     if (rule.scope === 'public') return;
     const identity = opts.devMode ? DEV_IDENTITY : await identify(req, opts.verify);
     const ctx = await resolveAccess(opts.db, identity, opts.devMode);
-    const decision = decide(rule, ctx);
-    if (!decision.ok) throw forbidden(decision.reason === 'role' ? 'role_lacks_permission' : 'plan_lacks_permission');
+    const decision = decide(rule, ctx, opts.products);
+    if (!decision.ok) throw refusal(decision.reason);
     req.auth = ctx;
     req.log = req.log.child({ userId: ctx.userId, orgId: ctx.orgId });
   });

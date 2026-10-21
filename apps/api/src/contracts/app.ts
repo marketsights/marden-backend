@@ -7,21 +7,40 @@ export type Plan = 'trial' | 'design_partner' | 'paid';
 
 export interface NotReadyBody { error: 'not_ready'; view: string; key: string }
 
-// GET /api/me
+export type ProductStatus = 'active' | 'suspended' | 'ended';
+
+// GET /api/me (docs/access-control.md). products: the org's live products (active, within dates);
+// role is the caller's role on it, null when none was assigned. [] = the org has no live product, and
+// every data route answers 403 { error: 'no_product' }.
+export interface MeProduct {
+  id: string; name: string; plan: Plan; status: ProductStatus; role: Role | null;
+  seats: number | null;                                // null = unlimited
+  seatsUsed: number;
+}
 export interface MeResponse {
   user: { id: string; email: string; name: string | null };
-  org: { id: string; name: string; plan: Plan };
-  role: Role;
-  staff: boolean;
+  org: { id: string; name: string };
+  orgRole: Role;                                       // membership.role: org administration only
+  products: MeProduct[];
   permissions: string[];
+  staff: boolean;
 }
 
-// GET /api/account
-export interface TeamMember { userId: string; email: string; name: string | null; role: Role }
+// GET /api/account, PATCH /api/account/members/:id(/products)
+export interface MemberProductRole { productId: string; role: Role }
+export interface TeamMember { userId: string; email: string; name: string | null; role: Role; products: MemberProductRole[] }
+/** One of the org's products, live or not (POST/PATCH /api/admin/orgs/:orgId/products answer this too). */
+export interface OrgProduct {
+  id: string; name: string; plan: Plan; status: ProductStatus;
+  seats: number | null; seatsUsed: number;
+  startsOn: string; endsOn: string | null;             // UTC calendar days; endsOn inclusive, null = open-ended
+  live: boolean;                                       // active and within dates today: grants access
+}
 export interface AccountResponse {
-  org: { id: string; name: string; plan: Plan; createdAt: string };
+  org: { id: string; name: string; createdAt: string };
   team: TeamMember[];
-  seats: { used: number; total: number | null };       // seat count is not stored yet: null = n/d
+  products: OrgProduct[];
+  seats: { used: number; total: number | null };       // members of the org; per-product seats are in products
   security: { authProvider: 'clerk' | 'dev'; mfaEnabled: boolean | null };
 }
 

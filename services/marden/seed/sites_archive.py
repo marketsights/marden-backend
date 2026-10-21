@@ -72,6 +72,7 @@ class Archive:
         self.read("aiwc/q3x/docs.json")
         self.read("aiwc/q3x/docs/library.json", as_of_value=lambda d: d.get("made"))
         self.read("aiwc/q3x/docs/tickers.json")
+        self.read("watch/ref_meta.json")  # SEC registrant names of the BDC universe, to check document CIKs
         self.read("aidebt.json")
         self.read("aiwcredit.json", as_of_value=lambda d: d.get("asof"))
         self.read("power.json", as_of_value=lambda d: d.get("asof"))

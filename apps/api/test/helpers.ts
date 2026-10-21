@@ -58,6 +58,7 @@ export interface AppOptions {
   clerkAdmin?: ClerkAdmin | null;
   env?: Record<string, string>;
   extraRoutes?: AppDeps['extraRoutes'];
+  products?: AppDeps['products'];
 }
 
 export async function makeApp(o: AppOptions): Promise<FastifyInstance> {
@@ -76,20 +77,43 @@ export async function makeApp(o: AppOptions): Promise<FastifyInstance> {
     db: o.db,
     clerkAdmin: o.clerkAdmin ?? null,
     ...(o.extraRoutes ? { extraRoutes: o.extraRoutes } : {}),
+    ...(o.products ? { products: o.products } : {}),
   });
   await app.ready();
   return app;
 }
 
-export interface Member { id: string; role: 'owner' | 'admin' | 'member' | 'viewer'; email?: string; staff?: boolean }
+type RoleName = 'owner' | 'admin' | 'member' | 'viewer';
 
-export async function seedOrg(db: Db, org: { id: string; plan?: string; members: Member[] }): Promise<void> {
-  await db.query(`INSERT INTO org (id, name, plan) VALUES ($1, $1, $2)`, [org.id, org.plan ?? 'paid']);
+/** role: the org-level membership role. products: product id -> role (default: the org role on every org product). */
+export interface Member { id: string; role: RoleName; email?: string; staff?: boolean; products?: Record<string, RoleName> }
+
+export interface OrgProductSeed {
+  productId: string; plan?: string; seats?: number | null; status?: string; startsOn?: string; endsOn?: string | null;
+}
+
+/** An org with members. products default: 'marden' on the org's plan (paid), unlimited, active since 2026-01-01. */
+export async function seedOrg(db: Db, org: { id: string; plan?: string; members: Member[]; products?: OrgProductSeed[] }): Promise<void> {
+  const plan = org.plan ?? 'paid';
+  await db.query(`INSERT INTO org (id, name, plan) VALUES ($1, $1, $2)`, [org.id, plan]);
+  const products = org.products ?? [{ productId: 'marden', plan }];
+  for (const p of products) {
+    await db.query(
+      `INSERT INTO org_product (org_id, product_id, plan, seats, status, starts_on, ends_on) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [org.id, p.productId, p.plan ?? plan, p.seats ?? null, p.status ?? 'active', p.startsOn ?? '2026-01-01', p.endsOn ?? null],
+    );
+  }
   for (const m of org.members) {
     await db.query(`INSERT INTO app_user (id, email, is_staff) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`, [
       m.id, m.email ?? `${m.id}@example.test`, m.staff ?? false,
     ]);
     await db.query(`INSERT INTO membership (org_id, user_id, role) VALUES ($1, $2, $3)`, [org.id, m.id, m.role]);
+    const roles = m.products ?? Object.fromEntries(products.map((p) => [p.productId, m.role]));
+    for (const [productId, role] of Object.entries(roles)) {
+      await db.query(`INSERT INTO member_product_role (org_id, user_id, product_id, role) VALUES ($1, $2, $3, $4)`, [
+        org.id, m.id, productId, role,
+      ]);
+    }
   }
 }
 

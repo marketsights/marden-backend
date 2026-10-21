@@ -32,14 +32,21 @@ def _dedupe(values: list[Any]) -> list[Any]:
     return out
 
 
+def _edge_sites(edge: Edge, slugs: dict[str, str]) -> list[str]:
+    """Every site any of the edge's records names (the obligation row's own site set). Each source file's
+    `linked_sites` fact carries the whole list: fact_current keeps one fact per field, so a per-file partial
+    list (CIFR_BLACKPEARL.json and CIFR_STINGRAY.json each name one site of the same guarantee) would hide
+    the other sites."""
+    return sorted({slugs[c] for c in edge.cases() if c in slugs})
+
+
 def _write_group(sink: FactSink, edge: Edge, records: list[Record], slugs: dict[str, str]) -> None:
     """Facts one source file contributes to one edge."""
     first, tag = records[0], weakest(r.tag for r in records)
     src = max((r.src for r in records), key=lambda s: s.as_of)
     url = first.url
     sink.add("obligation", edge.id, "edge_type", edge.type, src=src, url=url, tag=tag)
-    sites = sorted({slugs[r.case] for r in records if r.case in slugs})
-    sink.add("obligation", edge.id, "linked_sites", sites, src=src, url=url, tag=tag)
+    sink.add("obligation", edge.id, "linked_sites", _edge_sites(edge, slugs), src=src, url=url, tag=tag)
     if records[0].kind != "rowinfo":
         sink.add("obligation", edge.id, "conditions", _dedupe([c for r in records for c in r.conditions]),
                  src=src, url=url, tag=tag)

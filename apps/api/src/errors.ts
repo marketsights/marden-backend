@@ -19,6 +19,9 @@ export const unauthorized = (reason: string): HttpError => new HttpError(401, 'u
 
 export const forbidden = (reason: string): HttpError => new HttpError(403, 'forbidden', { reason });
 
+/** The caller's org holds no live product, or the caller has no role on one (docs/access-control.md). */
+export const noProduct = (): HttpError => new HttpError(403, 'no_product');
+
 export const badRequest = (reason: string, issues?: unknown): HttpError =>
   new HttpError(400, 'bad_request', issues === undefined ? { reason } : { reason, issues });
 

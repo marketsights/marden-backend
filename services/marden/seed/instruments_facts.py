@@ -90,11 +90,12 @@ def rating_fact(row: Mapping[str, Any], relpath: str) -> FactRow | None:
     return FactRow("rating", text, tag_for_url(None), source_name_for_url(None, fallback=ARCHIVE), None, relpath)
 
 
-def judgment_facts(row: Mapping[str, Any], relpath: str, *, keep_price_flag: bool) -> tuple[list[FactRow], list[str]]:
+def judgment_facts(row: Mapping[str, Any], relpath: str) -> tuple[list[FactRow], list[str]]:
     """Legacy research text and scores (M). Returns (facts, skip reasons).
 
     The 'price < 90' flag (and the legacy score built on it) came from legacy prices that are mostly
-    blocked copies; they are kept only when a price this loader could load is below 90.
+    blocked copies, so it is never carried over: a Marden model re-derives it from Marden prices. (Keeping it
+    when some loaded price is below 90 made these facts depend on what other writers had stored.)
     """
     out: list[FactRow] = []
     skips: list[str] = []
@@ -103,7 +104,7 @@ def judgment_facts(row: Mapping[str, Any], relpath: str, *, keep_price_flag: boo
         if text and text.lower() not in ("n/d", "none"):
             out.append(_m(field, text, relpath, LEGACY_AIDEBT))
     flags = list(row.get("flags") or [])
-    tainted = PRICE_BELOW_90 in flags and not keep_price_flag
+    tainted = PRICE_BELOW_90 in flags
     if tainted:
         flags.remove(PRICE_BELOW_90)
         skips.append("flag 'price < 90' dropped: derived from a legacy price that was not loaded")
@@ -141,6 +142,7 @@ def identifier_fact(ident: Identifiers, relpath: str) -> FactRow | None:
 
 
 def price_basis_value(kinds: set[str]) -> str:
+    """Docs only (v1-instruments.md): which kinds of seeded price an instrument has."""
     parts = []
     if "fund_mark" in kinds:
         parts.append("fund marks")

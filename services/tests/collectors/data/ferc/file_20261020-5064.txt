@@ -1,0 +1,41 @@
+Submission Description: (doc-less) Motion to Intervene of BlackFlare, Inc. under EL26-108-000.
+
+Submission Date:        10/20/2026 2:39:43 AM
+
+Filed Date:             10/20/2026 8:30:00 AM
+
+Dockets
+-------
+EL26-108-000         PJM Interconnection, L.L.C.
+
+Filing Party/Contacts:
+
+Filing Party                             Signer (Representative)                  Other Contact (Principal)               
+------------                             -----------------------                  -------------------------               
+BlackFlare, Inc.                         ia@blkfla.re                                                                     
+
+Basis for Intervening:
+UNITED STATES OF AMERICA
+FEDERAL ENERGY REGULATORY COMMISSION
+
+PJM Interconnection, L.L.C.
+Docket No. EL26-108-000
+
+**MOTION TO INTERVENE OF BLACKFLARE, INC.**
+
+Pursuant to Rule 214 of the Commission's Rules of Practice and Procedure, 18 C.F.R. § 385.214, BlackFlare, Inc. (BlackFlare) timely moves to intervene and requests party status in Docket No. EL26-108-000.
+
+BlackFlare is developing modular computational infrastructure integrated with co-located generation and supervisory controls. Its interests are developmental. The allocation of reliability procurement costs and the assignment of financial and contractual responsibilities can affect the design, financing, and commercial arrangements of emerging computational-load projects, including projects integrating their own generation. BlackFlare seeks to contribute that developer perspective to the Commission's consideration of the existing tariff and any remedies properly considered in this section 206 proceeding.
+
+The September 29, 2026 order, PJM Interconnection, L.L.C., 196 FERC ¶ 61,245, establishes a related section 205 paper hearing on cost allocation, Transmission Owner exit rules, and load-serving-entity collateral requirements, and opens this section 206 proceeding in anticipation of possible later tariff modifications. BlackFlare's interest concerns how those matters may affect prospective load-service arrangements and project development. It does not seek through this motion to reopen other RBP provisions accepted in that order.
+
+BlackFlare requests intervention on the public-interest basis in Rule 214(b)(2)(iii). Participation by a developer integrating computational demand, generation, and controls can assist consideration of how cost and financial-responsibility rules affect emerging infrastructure arrangements. BlackFlare does not rely on a claim that it presently operates a PJM facility or is currently subject to the proposed obligations.
+
+To the extent presently known, BlackFlare supports just, reasonable, and non-discriminatory rules that clearly identify the entities responsible for reliability procurement costs and associated financial obligations. It takes no position in this motion endorsing or opposing the RBP proposal as a whole and requests no particular substantive tariff change. It seeks the opportunity to address issues properly within this docket in subsequent filings authorized by the Commission's rules and orders.
+
+For these reasons, BlackFlare respectfully requests that the Commission permit its intervention and accord it party status in Docket No. EL26-108-000. BlackFlare designates Thomas McLaughlin, Chief Executive Officer, as its representative for service through the contact information entered with this filing.
+
+/s/ Thomas McLaughlin
+Chief Executive Officer
+BlackFlare, Inc.
+October 20, 2026

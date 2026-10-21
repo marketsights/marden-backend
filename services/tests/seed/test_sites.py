@@ -190,3 +190,40 @@ def test_power_source_and_party_splits_on_real_text(seed):
     assert got == {"JUPITER": "On-site gas", "ABILENE": "Hybrid", "APLD_PF1": "Grid"}
     lender = next(r for r in seed("aiwc/memo/VANTAGE_TX.json")["chain"] if r["role"] == "Lender")
     assert split_parties(lender["name"], "Lender") == [p.strip() for p in lender["name"].split(",")]
+
+
+def test_filed_tag_needs_a_filed_url(loaded, committed, seed):
+    """'disclosed' is F only when the URL shown is a filing; a press release or rating-agency page is R."""
+    rows = committed.execute(
+        "SELECT source_url FROM fact WHERE producer = 'seed:sites' AND tag = 'F' AND source_url IS NOT NULL"
+    ).fetchall()
+    assert rows and all(common.tag_for_url(r["source_url"]) == "F" for r in rows)
+    term = next(s for s in seed("aiwc/memo/QTS.json")["security"]
+                if s["basis"] == "disclosed" and "kbra.com" in str(s.get("src")))
+    assert common.tag_for_basis(term["basis"], term["src"]) == "R"
+    filed = next(s for s in seed("aiwc/memo/JUPITER.json")["security"]
+                 if s["basis"] == "disclosed" and "sec.gov" in str(s.get("src")))
+    assert common.tag_for_basis(filed["basis"], filed["src"]) == "F"
+    assert common.tag_for_basis("disclosed", None) == "F"  # memo.chain rows carry no URL (dictionary 3.6)
+
+
+def test_document_cik_of_another_registrant_is_not_attached(loaded, committed, seed):
+    """library.json files CIK 2052153 under 'Valor Compute (xAI)'; the BDC universe names that CIK Apollo
+    Origination II (UL) Capital Trust, so the party gets no CIK."""
+    rec = next(d for d in seed("aiwc/q3x/docs/library.json")["docs"] if str(d.get("cik")) == "2052153")
+    filer = dict(seed("watch/ref_meta.json")["universe"])["2052153"]
+    assert "valor" not in filer.lower()
+    holders = committed.execute("SELECT id, name FROM entity WHERE cik = '2052153'").fetchall()
+    assert not [h for h in holders if "valor" in h["name"].lower()]
+    assert committed.execute("SELECT 1 FROM entity WHERE name = %s", (rec["iss"].split(" (")[0],)).fetchone()
+
+
+def test_linked_sites_fact_lists_every_site_of_the_edge(loaded, committed):
+    """fact_current keeps one fact per field, so each source's linked_sites carries the edge's whole site list."""
+    rows = committed.execute(
+        "SELECT subject_id, value FROM fact WHERE subject_type = 'obligation' AND field = 'linked_sites'"
+    ).fetchall()
+    by_edge: dict[str, set[tuple[str, ...]]] = {}
+    for r in rows:
+        by_edge.setdefault(r["subject_id"], set()).add(tuple(r["value"]))
+    assert by_edge and all(len(v) == 1 for v in by_edge.values())

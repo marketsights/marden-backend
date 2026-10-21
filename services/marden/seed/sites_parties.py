@@ -18,6 +18,8 @@ from marden.seed.sites_entities import (
     TENANT_KIND,
     TENANT_TICKERS,
     Registry,
+    display_name,
+    norm,
     split_parties,
 )
 
@@ -109,11 +111,28 @@ def seed_groups(arc: Archive, reg: Registry) -> None:
             reg.grp[code] = eid
 
 
+def _registrants(arc: Archive) -> dict[str, str]:
+    """CIK -> SEC registrant name from the archive's SEC lists (ticker file, BDC universe)."""
+    out = {str(cik).lstrip("0"): name for cik, name in arc.data["watch/ref_meta.json"].get("universe") or []}
+    for listing in arc.tickers.values():
+        out.setdefault(listing.cik, listing.title)
+    return out
+
+
 def seed_documents_issuers(arc: Archive, reg: Registry) -> None:
+    """SEC document issuers with their CIK. A CIK that an SEC list names as another registrant is not
+    attached (library.json labels CIK 2052153, Apollo Origination II (UL) Capital Trust, 'Valor Compute')."""
+    registrants = _registrants(arc)
     for rel in ("aiwc/q3x/docs.json", "aiwc/q3x/docs/library.json"):
         for d in arc.data[rel]["docs"]:
             if d.get("iss") and d.get("cik"):
-                reg.resolve(d["iss"], "company", cik=d["cik"])
+                cik = str(d["cik"]).lstrip("0")
+                filer = registrants.get(cik)
+                if filer and not set(norm(filer).split()) & set(norm(display_name(d["iss"])).split()):
+                    reg.skipped.add(f"{d['iss']} (CIK {cik} is {filer} in the SEC lists: CIK not attached)")
+                    reg.resolve(d["iss"], "company")
+                    continue
+                reg.resolve(d["iss"], "company", cik=cik)
 
 
 def _issuer_kind(name: str, group_kind: str) -> str:

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marden.core import db
+from marden.seed import instruments_facts as F
 from marden.seed import instruments_prices as P
 from marden.seed.instruments_v1 import V1_PICKS
 
@@ -42,7 +43,7 @@ def render_v1(conn: Any, report: LoadReport) -> str:
     ids = [p.id for p in V1_PICKS]
     names = {r["id"]: r for r in conn.execute(
         "SELECT id, name, issuer_name, kind, site_slug FROM instrument WHERE id = ANY(%s)", (ids,)).fetchall()}
-    facts = _facts(conn, ids, ("amount_usd", "amount_basis", "maturity", "coupon", "price_basis"))
+    facts = _facts(conn, ids, ("amount_usd", "amount_basis", "maturity", "coupon"))
     seg_counts = Counter(p.segment for p in V1_PICKS)
     lines = [
         "# V1 instruments (50)",
@@ -87,7 +88,7 @@ def render_v1(conn: Any, report: LoadReport) -> str:
             f"| {n} | `{p.id}` | {r.get('name', '')} | {r.get('issuer_name', '')} | {r.get('kind', '')} | "
             f"{r.get('site_slug') or ''} | {_usd_b(facts.get((p.id, 'amount_usd')))} | "
             f"{facts.get((p.id, 'amount_basis')) or ''} | {facts.get((p.id, 'maturity')) or 'n/d'} | "
-            f"{facts.get((p.id, 'price_basis')) or 'none'} | {p.reason} |")
+            f"{F.price_basis_value(report.price_kinds.get(p.id, set()))} | {p.reason} |")
     return "\n".join(lines) + "\n"
 
 

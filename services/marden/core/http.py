@@ -336,6 +336,7 @@ def fetch_document(
     fetcher: Fetcher | None = None,
     conn: Conn | None = None,
     secret_params: dict[str, str] | None = None,
+    secret_headers: dict[str, str] | None = None,
 ) -> DocumentRow:
     """Fetch a URL for a source, store the raw bytes, insert `document` (idempotent).
 
@@ -345,6 +346,7 @@ def fetch_document(
 
     `secret_params` (an API key passed as a query parameter) are sent with the request but never
     stored or shown: the document keeps `url`, and their values are masked in errors and meta.
+    `secret_headers` (a subscription key or bearer token) are sent as request headers and never stored.
     """
     sources.require_collectable(source_id, conn=conn)
     fetcher = fetcher or default_fetcher()
@@ -360,7 +362,7 @@ def fetch_document(
     if secret_params:
         logging.getLogger("httpx").setLevel(logging.WARNING)  # httpx logs full request URLs at INFO
     try:
-        resp = fetcher.get(url, params=secret_params, validators=validators, use_cache=False)
+        resp = fetcher.get(url, params=secret_params, headers=secret_headers, validators=validators, use_cache=False)
     except FetchError as exc:
         if not secret_params:
             raise

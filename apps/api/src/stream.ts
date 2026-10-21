@@ -18,12 +18,17 @@ interface Client {
   orgId: string;
   userId: string;
   sessionId: string | null;
+  staff: boolean;
   res: ServerResponse;
   lastId: bigint;
   pending: StreamRow[] | null; // live rows that arrived while the replay was running
 }
 
-export interface StreamOptions { connectionString: string; heartbeatMs: number; recheckMs: number; log: FastifyBaseLogger }
+export interface StreamOptions {
+  connectionString: string; heartbeatMs: number; recheckMs: number; log: FastifyBaseLogger;
+  /** Re-check of a connected client (membership and a live product role that grants the stream); default: membership only. */
+  allowed?: (who: { orgId: string; userId: string; staff: boolean }) => Promise<boolean>;
+}
 
 export class StreamHub {
   private readonly clients = new Set<Client>();
@@ -134,10 +139,11 @@ export class StreamHub {
     for (const client of this.clients) this.write(client, `: heartbeat ${new Date().toISOString()}\n\n`);
   }
 
-  /** Spec 23: re-check access at least every 10 minutes; a removed member's stream closes. */
+  /** Spec 23: re-check access at least every 10 minutes; a removed member's (or lapsed product's) stream closes. */
   private async recheck(): Promise<void> {
     for (const client of [...this.clients]) {
-      const ok = await isMember(this.db, client.orgId, client.userId).catch(() => true);
+      const check = this.opts.allowed ? this.opts.allowed(client) : isMember(this.db, client.orgId, client.userId);
+      const ok = await check.catch(() => true);
       if (!ok) this.drop(client);
     }
   }
@@ -155,8 +161,11 @@ export class StreamHub {
     for (const c of [...this.clients]) if (c.userId === userId) this.drop(c);
   }
 
-  async attach(who: { orgId: string; userId: string; sessionId: string | null }, res: ServerResponse, lastEventId: bigint | null): Promise<Client> {
-    const client: Client = { ...who, res, lastId: 0n, pending: lastEventId === null ? null : [] };
+  async attach(
+    who: { orgId: string; userId: string; sessionId: string | null; staff?: boolean }, res: ServerResponse, lastEventId: bigint | null,
+  ): Promise<Client> {
+    const { orgId, userId, sessionId } = who;
+    const client: Client = { orgId, userId, sessionId, staff: who.staff ?? false, res, lastId: 0n, pending: lastEventId === null ? null : [] };
     this.clients.add(client);
     res.on('close', () => this.drop(client));
     res.write(`retry: 5000\n: connected\n\n`);

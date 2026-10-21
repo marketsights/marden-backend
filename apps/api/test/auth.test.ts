@@ -104,12 +104,18 @@ describe('auth (Clerk mode)', () => {
     expect(trial.json()).toMatchObject({ reason: 'plan_lacks_permission' });
   });
 
-  it('returns the caller from /api/me with role, plan and permissions', async () => {
+  it('returns the caller from /api/me with org role, products and permissions', async () => {
     const res = await get('/api/me', await token(u.member));
     expect(res.statusCode).toBe(200);
     const me = res.json();
-    expect(me).toMatchObject({ user: { id: u.member }, org: { id: orgA, plan: 'paid' }, role: 'member', staff: false });
-    expect(me.permissions).toContain('watchlist:write');
+    expect(me).toEqual({
+      user: { id: u.member, email: `${u.member}@example.test`, name: null },
+      org: { id: orgA, name: orgA },
+      orgRole: 'member',
+      products: [{ id: 'marden', name: 'Marden', plan: 'paid', status: 'active', role: 'member', seats: null, seatsUsed: 4 }],
+      permissions: expect.arrayContaining(['watchlist:write', 'account:read', 'me:read']),
+      staff: false,
+    });
     expect(me.permissions).not.toContain('members:manage');
   });
 
@@ -169,6 +175,12 @@ describe('auth (Clerk mode)', () => {
     const res = await get('/api/account', await token(u.viewer));
     expect(res.statusCode).toBe(200);
     expect(res.json().team.map((m: { role: string }) => m.role)).toEqual(['owner', 'admin', 'member', 'viewer']);
+    expect(res.json().team[0].products).toEqual([{ productId: 'marden', role: 'owner' }]);
+    expect(res.json().products).toEqual([{
+      id: 'marden', name: 'Marden', plan: 'paid', status: 'active', seats: null, seatsUsed: 4,
+      startsOn: '2026-01-01', endsOn: null, live: true,
+    }]);
+    expect(res.json().org).not.toHaveProperty('plan');
     expect(res.json().seats).toEqual({ used: 4, total: null });
   });
 });
