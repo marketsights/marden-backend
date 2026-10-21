@@ -106,10 +106,19 @@ class FredSeries:
     tag: str = "R"  # a third party's index value
     display_allowed: bool | None = None  # written as a fact when not None
     notice: str | None = None  # copyright notice fact
+    start: date | None = None  # fixed first observation date (keeps the URL stable); None = all FRED has
 
     @property
     def page_url(self) -> str:
         return f"https://{CSV_HOST}/series/{self.fred_id}"
+
+    @property
+    def csv_url(self) -> str:
+        return csv_url(self.fred_id) + (f"&cosd={self.start.isoformat()}" if self.start else "")
+
+    @property
+    def api_url(self) -> str:
+        return api_url(self.fred_id) + (f"&observation_start={self.start.isoformat()}" if self.start else "")
 
 
 def _ice(fred_id: str, series_id: str) -> FredSeries:
@@ -209,11 +218,11 @@ def fetch_series(source_id: str, series: FredSeries, fetcher: Fetcher | None) ->
     key = get_settings().fred_api_key
     if key:
         return fetch_document(
-            source_id, api_url(series.fred_id), doc_type="fred_api_json", title=f"FRED {series.fred_id}",
+            source_id, series.api_url, doc_type="fred_api_json", title=f"FRED {series.fred_id}",
             external_id=series.fred_id, fetcher=fetcher, secret_params={"api_key": key},
         )
     return fetch_document(
-        source_id, csv_url(series.fred_id), doc_type="fredgraph_csv", title=f"FRED {series.fred_id}",
+        source_id, series.csv_url, doc_type="fredgraph_csv", title=f"FRED {series.fred_id}",
         external_id=series.fred_id, fetcher=fetcher,
     )
 

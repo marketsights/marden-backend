@@ -1397,6 +1397,22 @@ ALTER TABLE public.procrastinate_workers ALTER COLUMN id ADD GENERATED ALWAYS AS
 
 
 --
+-- Name: queue_project; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.queue_project (
+    id text NOT NULL,
+    iso text NOT NULL,
+    queue_id text NOT NULL,
+    name text,
+    state text,
+    county text,
+    first_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT queue_project_check CHECK ((id = ((iso || ':'::text) || queue_id)))
+);
+
+
+--
 -- Name: read_model; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2009,6 +2025,22 @@ ALTER TABLE ONLY public.procrastinate_workers
 
 
 --
+-- Name: queue_project queue_project_iso_queue_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.queue_project
+    ADD CONSTRAINT queue_project_iso_queue_id_key UNIQUE (iso, queue_id);
+
+
+--
+-- Name: queue_project queue_project_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.queue_project
+    ADD CONSTRAINT queue_project_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: read_model_dirty read_model_dirty_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2349,6 +2381,13 @@ CREATE UNIQUE INDEX procrastinate_jobs_queueing_lock_idx_v1 ON public.procrastin
 --
 
 CREATE INDEX procrastinate_periodic_defers_job_id_fkey_v1 ON public.procrastinate_periodic_defers USING btree (job_id);
+
+
+--
+-- Name: queue_project_place; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX queue_project_place ON public.queue_project USING btree (state, county);
 
 
 --
@@ -2792,4 +2831,5 @@ ALTER TABLE ONLY public.watchlist_item
 
 INSERT INTO public.schema_migrations (version) VALUES
     ('20261021100000'),
-    ('20261021100100');
+    ('20261021100100'),
+    ('20261021140000');
