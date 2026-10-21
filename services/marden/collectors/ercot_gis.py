@@ -31,16 +31,15 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
-import httpx
-
 from marden import cli
+from marden.collectors import ercot_api
+from marden.collectors.ercot_api import API_HOST, TOKEN_HOST, NeedsKey, id_token  # noqa: F401  (shared auth)
 from marden.collectors.ercot_gis_parse import parse_workbook, report_month
 from marden.collectors.iso_queue import QueueStore
 from marden.collectors.rates_common import ParseError, RunStats, collect, print_stats, today_et
-from marden.core import db, documents, http, sources
-from marden.core.config import get_settings
+from marden.core import db, documents, sources
 from marden.core.documents import DocumentRow
-from marden.core.http import Fetcher, FetchError, default_fetcher
+from marden.core.http import Fetcher, default_fetcher
 from marden.core.queue import app
 from marden.core.sources import declare_source
 
@@ -48,11 +47,7 @@ SOURCE_ID = "ercot_gis"
 SOURCE_NAME = "ERCOT"
 PRODUCER = "collector:ercot_gis"
 EMIL_ID = "pg7-200-er"
-API_HOST = "api.ercot.com"
 ARCHIVE_URL = f"https://{API_HOST}/api/public-reports/archive/{EMIL_ID}"
-TOKEN_HOST = "ercotb2c.b2clogin.com"
-TOKEN_URL = f"https://{TOKEN_HOST}/ercotb2c.onmicrosoft.com/B2C_1_PUBAPI-ROPC-FLOW/oauth2/v2.0/token"
-CLIENT_ID = "fec253ea-0d06-4272-a5e6-b478baeecd70"  # ERCOT's published Public API client id
 PRODUCT_URL = "https://www.ercot.com/mp/data-products/data-product-details?id=PG7-200-ER"
 CRON_UTC = "17 13 * * 2"  # Tuesdays 13:17 UTC
 LIST_DAYS = 120  # archive window listed each run (about four monthly reports)
