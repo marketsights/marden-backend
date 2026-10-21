@@ -253,7 +253,8 @@ def ensure_entity(
         found = row["id"]
         conn.execute(
             """UPDATE entity SET
-                 aliases = (SELECT array_agg(DISTINCT a) FROM unnest(aliases || %(al)s::text[]) a),
+                 aliases = coalesce((SELECT array_agg(DISTINCT a) FROM unnest(aliases || %(al)s::text[]) a),
+                                    '{}'),
                  cik = coalesce(cik, %(cik)s), ticker = coalesce(ticker, %(ticker)s),
                  parent_id = coalesce(parent_id, %(parent)s)
                WHERE id = %(id)s""",
