@@ -44,13 +44,14 @@ type Served = Over<NonNullable<T.PowerPlantDetail['servedCampus']>, { status: N<
 export type PlantDetailDoc = Over<T.PowerPlantDetail, PlantOver & {
   unitRows: UnitDoc[]; permit: N<Over<T.AirPermit, PermitOver>>; fuel: N<Fuel>; servedCampus: N<Served> }>;
 export type PlantPageDoc = Over<T.PowerPlantPage, { rows: PlantRowDoc[]; asOf: N<string> }>;
+export type BuildingDoc = T.Building & { inService: T.Sourced<string> };
 """
 
 # Response type (with the n/d allowances above) of each facility view's document.
 VIEW_TYPES = {
     "dc_row": "DcRowDoc",
     "dc_detail": "DcDetailDoc",
-    "dc_tab:buildings": "T.Building[]",
+    "dc_tab:buildings": "BuildingDoc[]",  # + inService (date in service, n/d until a record dates it)
     "dc_tab:records": "T.DcRecord[]",
     "dc_tab:history": "T.DcHistoryEvent[]",
     "dc_tab:capacity": "T.CapacityEstimate[]",

@@ -74,15 +74,6 @@ export function stressRequestFromQuery(q: Query): StressRunRequest {
   return parsed.data;
 }
 
-/** The table rows of a finished run (StressResult.rows, ContagionResult.instruments); null for anything else (e.g. queued). */
-export function stressResultRows(result: unknown): Record<string, unknown>[] | null {
-  if (typeof result !== 'object' || result === null) return null;
-  const r = result as { rows?: unknown; instruments?: unknown };
-  if (Array.isArray(r.rows)) return r.rows as Record<string, unknown>[];
-  if (Array.isArray(r.instruments)) return r.instruments as Record<string, unknown>[];
-  return null;
-}
-
 interface SavedRow {
   id: string; name: string; request: SavedStress['request']; result: unknown;
   ran_at: Date | null; created_at: Date; user_id: string | null;

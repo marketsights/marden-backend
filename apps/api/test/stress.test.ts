@@ -19,6 +19,24 @@ CREATE OR REPLACE FUNCTION stress_run(req jsonb) RETURNS jsonb LANGUAGE sql AS $
       'why', 'Delay of ' || (req->'params'->>'months') || ' months, ' || (req->>'severity'),
       'priceNow', 97.2, 'priceAfter', 92.6, 'holders', 'Test bank')))
 $$`;
+/** A stand-in stress_run shaped like the real model's answer: rows out of order, the tenant's notes, one unpriced row. */
+const MODEL_RUN = `
+CREATE OR REPLACE FUNCTION stress_run(req jsonb) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object(
+    'status', 'done', 'asOf', '2026-10-21',
+    'basis', jsonb_build_object('methodVersion', 'stress v0.1 (model v0)', 'sites', jsonb_build_object('jupiter', jsonb_build_object('rule', 'T1'))),
+    'kpis', jsonb_build_object('exposedB', 74.45, 'valueLostB', 0.964, 'valueLostPct', 1.29, 'loansBelow95', '[]'::jsonb, 'fundsHit', 1381),
+    'flow', '[]'::jsonb,
+    'rows', jsonb_build_array(
+      jsonb_build_object('instrumentId', 'notes:oracle', 'name', 'oracle notes (53 issues)', 'sizeB', jsonb_build_object('value', 119.5, 'tag', 'F', 'asOf', '2026-10-21', 'sourceName', 'Marden instrument facts (sum)'),
+        'why', 'Tenant''s own notes re-priced', 'priceNow', 77.092, 'priceAfter', 72.458, 'holders', '7123 fund lines'),
+      jsonb_build_object('instrumentId', 'EX-ABILENE-000', 'name', 'Stargate Abilene Phase 1 construction loan', 'sizeB', jsonb_build_object('value', 2.3, 'tag', 'M', 'asOf', '2026-10-20', 'sourceName', 'Marden research archive'),
+        'why', 'Tenant oracle cut to BB+', 'ruleCode', 'T1', 'priceNow', 99.407, 'priceAfter', 98.762, 'holders', 'no fund holds it'),
+      jsonb_build_object('instrumentId', 'EX-UNPRICED-1', 'name', 'Unpriced loan', 'sizeB', jsonb_build_object('value', 1, 'tag', 'R', 'asOf', '2026-10-20', 'sourceName', 'Press'),
+        'why', 'Tenant oracle cut to BB+', 'ruleCode', 'T1', 'priceNow', 95, 'priceAfter', null, 'holders', ''),
+      jsonb_build_object('instrumentId', 'EX-SALINE-308', 'name', 'Saline Project bonds', 'sizeB', jsonb_build_object('value', 14, 'tag', 'M', 'asOf', '2026-10-20', 'sourceName', 'Marden research archive'),
+        'why', 'Tenant oracle cut to BB+', 'ruleCode', 'T1', 'priceNow', 85.244, 'priceAfter', 82.867, 'holders', 'Pimco Income Fund +343 more')))
+$$`;
 const QUEUED_RUN = `CREATE OR REPLACE FUNCTION stress_run(req jsonb) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{"status":"queued","jobId":"job-1"}'::jsonb $$`;
 /** Queued on the first call, done on the next (the model's worker stored the result in between). */
 const QUEUED_THEN_DONE = `
@@ -75,11 +93,32 @@ describe('stress', () => {
     await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer);
     const sheet = wb.worksheets[0];
     const header = (sheet?.getRow(1).values as unknown[]).filter(Boolean);
-    expect(header).toEqual(expect.arrayContaining(['instrumentId', 'name', 'sizeB', 'why', 'priceNow', 'priceAfter', 'holders']));
+    expect(header).toEqual(['instrumentId', 'instrument', 'sizeB', 'why', 'rule', 'priceNow', 'priceAfter', 'change', 'holders']);
     const cells = (sheet?.getRow(2).values as unknown[]).filter((v) => v !== undefined);
-    expect(cells).toEqual(expect.arrayContaining(['ST-TEST-LOAN', 15, 'Delay of 9 months, severe', 97.2, 92.6]));
+    expect(cells).toEqual(['ST-TEST-LOAN', 'Test construction loan', 15, 'Delay of 9 months, severe', '—', 97.2, 92.6, -4.6, 'Test bank']);
     const sources = wb.worksheets[1];
     expect(sources?.rowCount).toBeGreaterThan(1); // sizeB is a Sourced value: listed with its tag
+  });
+
+  it('exports the debt-hit table as the screen shows it: its columns, worst first, notes last, model prices tagged M', async () => {
+    await db.query(MODEL_RUN);
+    const res = await get('/api/export/stress.xlsx?scenario=tenant_downgrade&severity=base&tenant=oracle&rating=BB%2B');
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-disposition']).toContain('2026-10-21');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer);
+    const data = wb.worksheets[0]!;
+    const values = (n: number) => (data.getRow(n).values as unknown[]).slice(1);
+    expect(values(1)).toEqual(['instrumentId', 'instrument', 'sizeB', 'why', 'rule', 'priceNow', 'priceAfter', 'change', 'holders']);
+    expect(values(2)).toEqual(['EX-SALINE-308', 'Saline Project bonds', 14, 'Tenant oracle cut to BB+', 'T1', 85.244, 82.867, -2.377, 'Pimco Income Fund +343 more']);
+    expect(values(3)[0]).toBe('EX-ABILENE-000');
+    expect(values(4)).toEqual(['EX-UNPRICED-1', 'Unpriced loan', 1, 'Tenant oracle cut to BB+', 'T1', 95, 'n/d', 'n/d', 'n/d']);
+    expect(values(5).slice(0, 5)).toEqual(['notes:oracle', 'oracle notes (53 issues)', 119.5, 'Tenant\'s own notes re-priced', '—']);
+    expect(data.rowCount).toBe(5);
+    const sources = wb.worksheets[1]!;
+    const lines = Array.from({ length: sources.rowCount - 1 }, (_, i) => (sources.getRow(i + 2).values as unknown[]).slice(1));
+    expect(lines).toContainEqual(['EX-SALINE-308', 'priceAfter', 82.867, 'M', 'Marden stress model', '', '2026-10-21', 'stress v0.1 (model v0)']);
+    expect(lines).toContainEqual(['EX-SALINE-308', 'sizeB', 14, 'M', 'Marden research archive', '', '2026-10-20', '']);
   });
 
   it('passes the same request to the run endpoint', async () => {

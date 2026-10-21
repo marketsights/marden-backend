@@ -1,6 +1,6 @@
 {
  "case": "periodic_coreweave_10q_liquidity",
- "prompt_version": "0.1",
+ "prompt_version": "0.2",
  "model": "claude-sonnet-5-5",
  "tool_input": {
   "facts": [
@@ -18,7 +18,7 @@
     "quote": "Cash and cash equivalents $ 5,524 $ 3,127",
     "page": 1,
     "confidence": 0.9,
-    "note": "Table in millions; registrant name not printed in excerpt."
+    "note": "Table in millions; June 30, 2026 column. Registrant name not printed in excerpt."
    }
   ],
   "subjects": [
@@ -29,6 +29,6 @@
     "role": "borrower"
    }
   ],
-  "summary": "Liquidity table gives cash and cash equivalents of $5,524 million at June 30, 2026. The excerpt doesn't name the registrant."
+  "summary": "Only cash and cash equivalents of $5,524 million at June 30, 2026 is a stated in-scope fact. Total liquidity includes undrawn availability, so it was not recorded."
  }
 }

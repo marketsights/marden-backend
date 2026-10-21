@@ -8,6 +8,8 @@
     agents review list | approve ID | reject ID --reason R | edit ID --value V --quote Q
     agents backfill [--limit N]            old documents through the Message Batches API (half price)
     agents eval [--area A] [--recorded]    precision / recall per area on the gold set
+    agents recheck [--doc ID]              re-run the code checks on published / waiting agent facts (a
+                                           published one that fails is withdrawn to review)
 """
 
 from __future__ import annotations
@@ -201,3 +203,16 @@ def eval_command(args: argparse.Namespace) -> int:
     report = run_eval(areas=args.area, recorded=args.recorded, record=args.record)
     _print(report)
     return 0 if report.get("status") == "ok" else 3
+
+
+def _recheck_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--doc", type=int, help="only this document's candidates")
+
+
+@cli.action("agents", "recheck", help="Re-run the code checks on published and waiting agent facts",
+            configure=_recheck_args)
+def recheck_command(args: argparse.Namespace) -> int:
+    from marden.agents.publish import recheck
+
+    _print(recheck(document_id=args.doc))
+    return 0

@@ -2,7 +2,10 @@
 (DcRecord[]), `dc_tab:history` (DcHistoryEvent[]) and `dc_tab:capacity` (CapacityEstimate[]).
 
 - Buildings: the campus's building rows with footprints, each with its own facts (sites_links.building_doc,
-  the same shape the site Buildings tab shows).
+  the same shape the site Buildings tab shows), plus `inService`: the date the building came into
+  service as its record states it (`construction_end`, e.g. Epoch AI's imagery estimate, tag R, until
+  a certificate of occupancy or energization record is found); n/d when no record dates it.
+  `firstVisible` stays the first date the building shows in imagery (`construction_start`).
 - Records: every source document Marden holds for the campus, newest first: published events
   (dockets, agendas, filings, press), the monthly Sentinel-2 images, the large-load requests and
   the other documents its facts were read from (one record per document URL; the spatial joins and
@@ -36,7 +39,7 @@ from marden.readmodels.views.facilities_common import (
     history_entries,
     subject_events,
 )
-from marden.readmodels.views.sites_common import Doc, day, event_evidence, fact_evidence, latest_output
+from marden.readmodels.views.sites_common import Doc, day, event_evidence, fact_evidence, latest_output, nd, with_value
 from marden.readmodels.views.sites_links import building_doc
 from marden.readmodels.views.sites_text import text_of
 
@@ -225,8 +228,23 @@ def campus_history(conn: Conn, campus_id: str) -> list[Doc]:
 
 
 # ---------------------------------------------------------------- buildings and capacity
+IN_SERVICE = "construction_end"
+
+
+def in_service(conn: Conn, building_id: str) -> Doc:
+    """Sourced date (YYYY-MM-DD) the building came into service, or n/d."""
+    row = known_facts(conn, "building", building_id, [IN_SERVICE]).get(IN_SERVICE)
+    if row is None or not isinstance(row["value"], str) or not re.match(r"^\d{4}-\d{2}-\d{2}", row["value"]):
+        return nd("R")
+    return with_value(row, row["value"][:10])
+
+
 def building_docs(conn: Conn, campus_id: str) -> list[Doc]:
-    return [d for b in campus_buildings(conn, campus_id) if (d := building_doc(conn, b)) is not None]
+    out = []
+    for b in campus_buildings(conn, campus_id):
+        if (doc := building_doc(conn, b)) is not None:
+            out.append({**doc, "inService": in_service(conn, b["id"])})
+    return out
 
 
 def capacity_estimates(conn: Conn, campus: Row) -> list[Doc]:

@@ -1,6 +1,6 @@
 {
  "case": "lease_apld_building4",
- "prompt_version": "0.1",
+ "prompt_version": "0.2",
  "model": "claude-sonnet-5-5",
  "tool_input": {
   "facts": [
@@ -49,7 +49,7 @@
     "as_of": null,
     "quote": "Three (3) Extension Options, each to extend the\nTerm of all the Data Halls for an Extension Term of sixty (60) months",
     "page": 1,
-    "confidence": 0.93,
+    "confidence": 0.9,
     "note": null
    },
    {
@@ -66,7 +66,7 @@
     "quote": "Phase 1: 25,000 kW",
     "page": 1,
     "confidence": 0.9,
-    "note": "Phase 1; each of Phases 1-6 is 25,000 kW"
+    "note": "Phase 1; each of Phases 1-6 is stated as 25,000 kW"
    },
    {
     "subject_kind": "site",
@@ -81,7 +81,7 @@
     "as_of": null,
     "quote": "a guaranty by Applied Digital Corporation, a Nevada corporation (“Landlord\nGuarantor”)",
     "page": 1,
-    "confidence": 0.93,
+    "confidence": 0.9,
     "note": "Landlord guaranty, not tenant guarantee"
    }
   ],
@@ -93,16 +93,16 @@
     "role": "site"
    },
    {
-    "name": "APLD ELN-02 C LLC",
-    "kind": "entity",
-    "identifiers": [],
-    "role": "landlord"
-   },
-   {
     "name": "CoreWeave, Inc.",
     "kind": "entity",
     "identifiers": [],
     "role": "tenant"
+   },
+   {
+    "name": "APLD ELN-02 C LLC",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "landlord"
    },
    {
     "name": "Applied Digital Corporation",
@@ -111,6 +111,6 @@
     "role": "guarantor"
    }
   ],
-  "summary": "Basic lease info for CoreWeave lease of Building ELN04; term, dates, rent redacted. Six phases of 25,000 kW each."
+  "summary": "Basic lease info for Building ELN04: tenant CoreWeave, landlord APLD ELN-02 C LLC, 6 phases of 25 MW, extension options, landlord guaranty. Dates, term and rent redacted."
  }
 }

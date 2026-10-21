@@ -1,8 +1,9 @@
 // Response shapes for endpoints whose payload handoff/api/types.ts leaves open
 // (me, account, sources health, search, saved stress, home, track record, GPU index). types.ts stays a
 // verbatim copy of the handoff.
+import type * as GeoJSON from 'geojson';
 import type {
-  ChainStatus, Evidence, GpuModelDetail, GpuPricePoint, GpuProviderPrice, LinkStatus, RiskList, Sourced, StressRequest,
+  ChainStatus, DataCenterSummary, Evidence, GpuModelDetail, GpuPricePoint, GpuProviderPrice, LinkStatus, RiskList, Sourced, StressRequest,
 } from './types.js';
 
 export type Role = 'owner' | 'admin' | 'member' | 'viewer';
@@ -88,6 +89,26 @@ export interface SavedView {
   name: string;
   query: string;                                       // the screen's URL query without '?', e.g. 'tenant=Oracle&sort=-debt'
   createdAt: string;
+}
+
+// ---------- Data centers (spec 14) ----------
+
+/**
+ * GET /api/data-centers/summary as served: types.ts DataCenterSummary plus the counts the KPI strip and
+ * footer show ("30 of 72 buildings built", "facility MW known for 10 of 16 campuses (62%)").
+ * coverage[].known: campuses with the field on record; 'buildings' = campuses with a building record.
+ */
+export interface DataCenterSummaryResponse extends Omit<DataCenterSummary, 'coverage'> {
+  buildingsBuilt: number;
+  coverage: { field: string; pct: number; known: number }[];
+}
+
+/** One ISO/RTO service area (HIFLD "Independent System Operators", tag F), simplified for the map. */
+export interface IsoBoundaryProps { id: string; label: string; name: string; source: Sourced<string> }
+/** GET /api/grid/iso-rto: the US ISO/RTO boundaries layer of the Data centers map (spec 14 Map view). */
+export interface IsoBoundaries {
+  type: 'FeatureCollection';
+  features: { type: 'Feature'; id: string; geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon; properties: IsoBoundaryProps }[];
 }
 
 // ---------- Monitor area (specs 01, 12, 19): read models home, track_record, gpus ----------

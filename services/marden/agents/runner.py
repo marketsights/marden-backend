@@ -45,7 +45,11 @@ def sweep() -> dict[str, Any]:
     status = detect_backend(settings)
     record_status(status, settings.models)
     out: dict[str, Any] = {"backend": status.kind, "detail": status.detail}
-    out["uploads_stored"] = store_uploads()  # raw first, whatever the backend
+    try:
+        out["uploads_stored"] = store_uploads()  # raw first, whatever the backend
+    except Exception as exc:  # one bad upload must not stop people's decisions or the queue
+        log.exception("agents sweep: storing uploads failed")
+        out["uploads_stored"], out["uploads_error"] = 0, f"{type(exc).__name__}"
     out["decisions"] = len(apply_pending())  # people's decisions never wait for a model
     if not status.configured:
         out["status"] = "not_configured"

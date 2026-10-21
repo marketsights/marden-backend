@@ -148,7 +148,12 @@ def ingest_bytes(data: bytes, *, source_id: str, url: str, filename: str | None,
 
 
 def store_uploads(limit: int = 50) -> int:
-    """agent_upload rows (from the API) -> raw store + document; the staged bytes are cleared."""
+    """agent_upload rows (from the API) -> raw store + document; the staged bytes are cleared.
+
+    When the raw store itself is unavailable (a deployed service without R2) the uploads stay pending with
+    that error recorded (GET /api/uploads/:id shows it) and are stored once R2 is configured."""
+    from marden.core.rawstore import RawStoreError
+
     stored = 0
     with db.transaction() as conn:
         ensure_intake_sources(conn)
@@ -166,13 +171,17 @@ def store_uploads(limit: int = 50) -> int:
                     filename=up["filename"], title=up["title"], doc_date=up["doc_date"], links=up["links"],
                     filed=up["filed"], meta={"upload_id": up["id"], "uploaded_by": up["uploaded_by"],
                                              "source_url": up["source_url"]}, conn=conn)
+            except RawStoreError as exc:
+                conn.execute("UPDATE agent_upload SET error = %s WHERE id = %s",
+                             (f"not stored yet: {exc}"[:500], upload_id))
+                break  # every other upload would fail the same way
             except (ValueError, OSError) as exc:
                 conn.execute("UPDATE agent_upload SET status = 'failed', error = %s WHERE id = %s",
                              (str(exc)[:500], upload_id))
                 continue
             conn.execute(
-                """UPDATE agent_upload SET status = 'stored', document_id = %s, data = NULL, stored_at = now()
-                   WHERE id = %s""", (doc.id, upload_id))
+                """UPDATE agent_upload SET status = 'stored', document_id = %s, data = NULL, stored_at = now(),
+                          error = NULL WHERE id = %s""", (doc.id, upload_id))
             stored += 1
     return stored
 

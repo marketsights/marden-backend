@@ -13,13 +13,20 @@ the computed numbers and the fact references. No language model writes alert or 
 
 | Trigger | Before / after | Rerun guard |
 | --- | --- | --- |
-| A published event (not a scheduled `catalyst`) dated in the window | the event text (`is_material`) | `alert_trigger` row `event:<id>` |
-| A published `rating` / `rating_summary` fact | the subject's previous rating fact | `alert_trigger` row `fact:<id>` |
+| A published event (not a scheduled `catalyst`) dated in the window, or a late one (below) | the event text (`is_material`) | `alert_trigger` row `event:<id>` |
+| A published `rating` / `rating_summary` fact (same window and late rule) | the subject's previous rating fact | `alert_trigger` row `fact:<id>` |
 | A model output: `status`, `cushion`, `price`, `mark_gap` | the last output the engine evaluated for that subject (`alert_state`); a subject seen for the first time starts from its newest output dated before the window (a baseline, not news) | `alert_state` hash; findings also write `alert_trigger` `model:<model>:<type>:<id>:<as_of>:<hash>` |
 
 A live scan looks back 3 days for anything not yet evaluated, so an event approved in the review queue or a
 model run reaches watchers within about a minute. Outputs dated before the evaluated one (a backtest run for
 a past day) are never news.
+
+Late arrivals: an event or rating fact dated up to 14 days back (`LATE_DAYS`) is still news when Marden learned
+it (`learned_at`) after the engine's first evaluation (the oldest `alert_trigger.evaluated_at`; a backfill
+counts): an 8-K filed four business days after the event, a candidate approved in the review queue days after
+extraction. It is alerted live (timed when it fires, so it is in that day's digest) and dated on its own day.
+Rows Marden learned before the engine first ran are history; before any evaluation exists, nothing older than
+the 3-day window is evaluated. Anything dated more than 14 days back is not alerted.
 
 ## Rules (codes)
 
@@ -105,6 +112,13 @@ and 2 instruments): 3,051 triggers (1,201 events, 415 rating facts, 1,435 model-
 Findings by rule (all names): PX 417, MK 252, L2 27, L1 18, M1 13, M4 10, T1 6, E1 5, OP 5, D1 3, M3 3,
 D2 1, M2 1, T2 1. Alerts to the watching member: 31 (PX 6, L2 5, E1 4, L1 4, M1 3, M4 3, MK 2, D1 1, M2 1,
 OP 1, T2 1; 9 red), with 6 repeat articles joined to an earlier alert. A second run wrote nothing.
+Rerun at 23:06 UTC the same day, after the price, mark-gap, cushion and status models had re-run: 20 changed
+model outputs evaluated, none material, no alert, no stream event, no email row (outbox empty).
+
+On a new database (Neon) the backfill is optional: the worker starts before any firm holds the product or
+watches a name (docs/DEPLOY.md section 7), so its first scans evaluate the recent rows with nobody to alert
+and start the engine (the late-arrival line). A firm gets alerts for what comes in after it starts watching;
+the history is on the screens, not in Alerts.
 
 ## Limits (v0.1)
 

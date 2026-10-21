@@ -10,7 +10,7 @@ import { badRequest, notFound, notReady } from '../errors.js';
 import { mondayOf } from '../queries/risk-list.js';
 import { sourcesHealth } from '../queries/sources.js';
 import { queryRows } from '../queries/rows.js';
-import { runStress, stressModelAvailable, stressRequestFromQuery, stressResultRows } from '../queries/stress.js';
+import { runStress, stressModelAvailable, stressRequestFromQuery } from '../queries/stress.js';
 import { watchedSiteSlugs, watchRows } from '../queries/watchlist.js';
 import { filterCompletion, filterInstruments, filterObligations, filterSites, wantsWatchlist } from './doc-filters.js';
 import { gpuDeploymentRows, gpuModelPartRows, gpuModelRows, gpuProviderRows } from './gpu-export.js';
@@ -22,6 +22,7 @@ import { filterPayers, payerIndexRow, payerSiteRows } from './payer-filters.js';
 import type { RowViewDef } from './row-query.js';
 import { DC_ROWS, PLANT_ROWS } from './row-views.js';
 import { siteExport } from './site-export.js';
+import { stressExportRows } from './stress-export.js';
 import { toWatchItem } from './watch-items.js';
 
 export interface ExportCtx { db: Db; q: Query; orgId: string; asOf: string | null }
@@ -122,14 +123,15 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     const d = filterObligations(await doc<ObligationGraph>(ctx, 'obligations', 'all'), ctx.q);
     return { view: 'obligations', asOf: d.asOf, rows: asRows(d.edges) };
   },
-  // ?scenario=&severity=&<param>= as on /stress: the run's debt-hit rows (StressResult.rows, or
-  // ContagionResult.instruments), straight from the stress model; 503 until the model is deployed.
+  // ?scenario=&severity=&<param>= as on /stress: the run's debt-hit table (StressResult.rows, or
+  // ContagionResult.instruments) in the screen's columns and order (lib/stress-export.ts), from the
+  // stress model; 503 until the model is deployed or while the run is only queued.
   stress: async (ctx) => {
     const request = stressRequestFromQuery(ctx.q);
     if (!(await stressModelAvailable(ctx.db))) throw notReady('model:stress', request.scenario);
-    const rows = stressResultRows(await runStress(ctx.db, request));
-    if (rows === null) throw notReady('model:stress', request.scenario);
-    return { view: 'model:stress', asOf: null, rows };
+    const table = stressExportRows(await runStress(ctx.db, request));
+    if (table === null) throw notReady('model:stress', request.scenario);
+    return { view: 'model:stress', asOf: table.asOf, rows: table.rows };
   },
   // Track record (spec 12): the backtest's cases, the models table and the collector heartbeats, as on screen.
   'track-record': async (ctx) => {

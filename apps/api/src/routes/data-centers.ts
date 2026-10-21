@@ -6,6 +6,7 @@ import { notReady } from '../errors.js';
 import { filterRecords } from '../lib/doc-filters.js';
 import { asOfOf, queryOf } from '../lib/params.js';
 import { DC_ROWS, PLANT_ROWS } from '../lib/row-views.js';
+import { isoBoundaries } from '../queries/grid.js';
 import { dataCenterSummary, powerPlantSummary } from '../queries/row-summaries.js';
 import { listRows, rowScope } from './row-list.js';
 import { CAMPUS, keyed, param, PLANT, serveDoc } from './serve.js';
@@ -22,6 +23,12 @@ export function dataCenterRoutes(app: FastifyInstance, db: Db): void {
   });
 
   app.get('/api/data-centers/:id', async (req) => serveDoc(db, 'dc_detail', keyed(CAMPUS, param(req, 'id')), asOfOf(req)));
+
+  // Map layer "ISO/RTO boundaries" (spec 14 Map view): US ISO/RTO service areas from HIFLD, simplified.
+  app.get('/api/grid/iso-rto', async (_req, reply) => {
+    reply.type('application/geo+json');
+    return isoBoundaries(db);
+  });
 
   // One table row (DataCenterRow): a `campus` stream event names only the id, so open tables and
   // maps load just that row and merge it in place instead of reloading the page of 50.

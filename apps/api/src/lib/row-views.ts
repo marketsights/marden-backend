@@ -10,6 +10,14 @@ const watchlistPred: FilterDef['pred'] = (_p, ctx) =>
 
 const financedPred: FilterDef['pred'] = () => `jsonb_typeof(r.doc -> 'financed') = 'object'`;
 
+/**
+ * Any of the requested values found inside the field, case-insensitive. Developer, tenant and utility
+ * are written as the record states them ("Oracle (end user OpenAI)", "AEP Texas North"), so "Oracle"
+ * or "AEP" typed into the chip has to match part of the text (strpos: no LIKE wildcards to escape).
+ */
+const containsAny = (p: string): FilterDef['pred'] => (ph) =>
+  `EXISTS (SELECT 1 FROM unnest(${ph}::text[]) v WHERE strpos(${low(p)}, v) > 0)`;
+
 const anyText = (arrayExpr: string, ph: string): string =>
   `EXISTS (SELECT 1 FROM jsonb_array_elements_text(${arrayExpr}) x WHERE x ILIKE ${ph})`;
 
@@ -47,9 +55,9 @@ export const DC_ROWS: RowViewDef = {
     { param: 'state', kind: 'list', pred: inList('state') },
     { param: 'county', kind: 'list', pred: inList('county') },
     { param: 'status', kind: 'list', pred: inList('status,value') },
-    { param: 'developer', kind: 'list', pred: inList('developer,value') },
-    { param: 'tenant', kind: 'list', pred: inList('tenant,value') },
-    { param: 'utility', kind: 'list', pred: inList('utility,value') },
+    { param: 'developer', kind: 'list', pred: containsAny('developer,value') },
+    { param: 'tenant', kind: 'list', pred: containsAny('tenant,value') },
+    { param: 'utility', kind: 'list', pred: containsAny('utility,value') },
     { param: 'iso', kind: 'list', pred: inList('iso,value') },
     { param: 'powerSource', kind: 'list', pred: inList('powerSource,value') },
     { param: 'mwMin', kind: 'number', pred: (p) => `${numAt('facilityMw,value')} >= ${p}` },

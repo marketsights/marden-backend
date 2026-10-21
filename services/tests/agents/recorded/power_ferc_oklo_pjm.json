@@ -1,6 +1,6 @@
 {
  "case": "power_ferc_oklo_pjm",
- "prompt_version": "0.1",
+ "prompt_version": "0.2",
  "model": "claude-sonnet-5-5",
  "tool_input": {
   "facts": [
@@ -25,9 +25,7 @@
    {
     "name": "Oklo Inc.",
     "kind": "entity",
-    "identifiers": [
-     "EL26-101-000"
-    ],
+    "identifiers": [],
     "role": "complainant"
    },
    {
@@ -37,6 +35,6 @@
     "role": "respondent"
    }
   ],
-  "summary": "FERC order issued 2026-09-24 denying Oklo's complaint against PJM (EL26-101-000) and dismissing the waiver request as moot. The 750 MW project is generation, not load, so it is not recorded."
+  "summary": "FERC denied Oklo's complaint against PJM (EL26-101-000) on 2026-09-24 and dismissed the waiver request as moot. The 750 MW project is generation, so I did not record it as load."
  }
 }

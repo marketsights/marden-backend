@@ -1,6 +1,6 @@
 {
  "case": "periodic_coreweave_10q_maturities",
- "prompt_version": "0.1",
+ "prompt_version": "0.2",
  "model": "claude-sonnet-5-5",
  "tool_input": {
   "facts": [
@@ -18,7 +18,7 @@
     "quote": "Remaining portion of 2026 $ 4,413\n\n2027 6,184\n\n2028 4,416\n\n2029 2,421\n\n2030 3,221\n\nThereafter 14,896",
     "page": 1,
     "confidence": 0.9,
-    "note": "Registrant name not stated in the excerpt; table in millions."
+    "note": "Registrant name not given in the excerpt; amounts in millions converted to USD."
    }
   ],
   "subjects": [

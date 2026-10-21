@@ -4,7 +4,8 @@ Resolution, best first; only the first three are accepted without a person:
     identifier  an identifier printed in the document matches exactly: CUSIP / ISIN (instrument), CIK / LEI
                 (entity), EIA plant id, permit number or docket number on a plant or site, ISO queue id; or
                 the SEC filer itself (the filing's CIK) named exactly
-    upload      staff tied the uploaded document to this subject
+    upload      staff tied the uploaded document to this subject and the mention is its name or an alias
+                exactly (a mention under another name is only proposed for that subject)
     confirmed   a person accepted this mention -> subject link before (agent_link, status accepted)
     name        the normalized name equals a record's name or alias (proposed)
     agent       the linker model chose among fuzzy candidates, with an exact passage as evidence (proposed);
@@ -226,17 +227,26 @@ def resolve(m: Mention, *, filer: tuple[str, str] | None, links: dict[str, str])
     for ident in m.identifiers:
         if (hit := by_identifier(m.kind, ident)) is not None:
             return (*hit, "identifier", 100.0)
+    guess: tuple[str, str, str, float] | None = None
     if m.kind in links:
         rec = next((r for r in index().get(m.kind) or [] if r.subject_id == links[m.kind]), None)
-        if rec is not None and (fuzz.token_set_ratio(m.key, mention_key(rec.name)) >= 80 or len(links) == 1):
-            return m.kind, rec.subject_id, "upload", 100.0
+        if rec is not None:
+            # Staff tied the document to this subject: a mention that names it exactly (name or alias) is
+            # accepted. Any other mention of the same kind may be a different site or instrument the document
+            # also discusses ('Building 3' in a Building 4 lease scores high on fuzzy matching), so it is only
+            # proposed; once a person confirms it, the same mention is accepted on later documents.
+            if any(mention_key(n) == m.key for n in _names(rec)):
+                return m.kind, rec.subject_id, "upload", 100.0
+            score = max(fuzz.token_set_ratio(m.key, mention_key(n)) for n in _names(rec))
+            if score >= 80 or len(links) == 1:
+                guess = (m.kind, rec.subject_id, "name", float(score))
     if (hit2 := confirmed(m.kind, m.name)) is not None:
         return m.kind, hit2[1], "confirmed", 100.0
     rec = exact_name(m.kind, m.name)
     if rec is not None:
         method = "identifier" if filer and (rec.subject_type, rec.subject_id) == filer else "name"
         return rec.subject_type, rec.subject_id, method, 100.0
-    return None
+    return guess
 
 
 def linker_tool() -> dict[str, Any]:

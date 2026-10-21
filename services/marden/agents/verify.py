@@ -63,10 +63,11 @@ def describe(i: int, c: Candidate, doc: DocText) -> str:
     unit = f" ({spec.unit})" if spec.unit and spec.unit != "date" else ""
     value = json.dumps(c.value, ensure_ascii=False) if not isinstance(c.value, str) else c.value
     passage = context(doc, c.hit) if c.hit is not None else c.quote
-    note = f"\nextractor's note: {c.note}" if c.note else ""
+    # The extractor's own note is never shown: it is the extractor's reasoning (the verifier must judge from the
+    # passage alone), and it is model output derived from untrusted document text.
     return (f"<fact id=\"{i}\">\nfield: {c.field}{unit} - {spec.desc}\nsubject: {c.subject_kind} "
             f"\"{c.subject_name}\"{f' ({c.subject_identifier})' if c.subject_identifier else ''}\n"
-            f"value: {value}\nas_of: {c.as_of.isoformat() if c.as_of else 'n/a'}{note}\n"
+            f"value: {value}\nas_of: {c.as_of.isoformat() if c.as_of else 'n/a'}\n"
             f"quoted: \"{c.quote}\"\n<passage>\n{passage}\n</passage>\n</fact>")
 
 

@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db.js';
+import { resetIsoBoundaryCache } from '../src/queries/grid.js';
 import { clearReadModels, makeApp, putReadModel, sourced, testDb } from './helpers.js';
 
 const today = new Date().toISOString().slice(0, 10);
@@ -139,6 +140,69 @@ describe('data centers and power plants', () => {
     expect(all.coverage.find((c: { field: string }) => c.field === 'facilityMw').pct).toBeCloseTo(66.7, 1);
     const tx = await json('/api/data-centers/summary?state=TX');
     expect(tx.campuses).toBe((await json('/api/data-centers?state=TX')).total);
+  });
+
+  it('counts built buildings and the campuses behind each coverage rate', async () => {
+    const all = await json('/api/data-centers/summary');
+    expect(all).toMatchObject({ buildings: 6, buildingsBuilt: 3 });
+    const field = (f: string) => all.coverage.find((c: { field: string }) => c.field === f);
+    expect(field('facilityMw')).toEqual({ field: 'facilityMw', pct: 66.7, known: 2 });
+    expect(field('tenant')).toEqual({ field: 'tenant', pct: 0, known: 0 });
+    expect(field('buildings')).toEqual({ field: 'buildings', pct: 100, known: 3 });
+    const nm = await json('/api/data-centers/summary?state=NM');
+    expect(nm).toMatchObject({ campuses: 1, buildings: 2, buildingsBuilt: 1 });
+    expect(nm.coverage.find((c: { field: string }) => c.field === 'facilityMw')).toEqual({ field: 'facilityMw', pct: 0, known: 0 });
+  });
+
+  it('matches developer, tenant and utility on part of the recorded text', async () => {
+    expect(await ids('developer=crus&sort=name')).toEqual(['dc-a']);
+    expect(await ids('utility=ONC&sort=name')).toEqual(['dc-a', 'dc-b', 'dc-c']);
+    expect(await ids('utility=AEP')).toEqual([]);
+    expect(await ids('tenant=oracle')).toEqual([]); // tenant n/d on every test row
+    expect((await json('/api/data-centers/summary?utility=oncor&state=TX')).campuses).toBe(2);
+  });
+
+  it('serves the ISO/RTO boundaries layer from grid_region, simplified, with its source', async () => {
+    resetIsoBoundaryCache();
+    await db.query(
+      `INSERT INTO grid_region (id, kind, name, country, geom, meta) VALUES
+         ('iso:TESTRTO', 'iso_rto', 'Test Regional Transmission Organization', 'US',
+          ST_Multi(ST_GeomFromText('POLYGON((-100 30, -95.000001 30, -95 30, -95 35, -100 35, -100 30))', 4326)),
+          '{"label": "TESTRTO", "hifld": {"as_of": "2022-12-15", "source_url": "https://example.test/hifld-iso.gpkg"}}'),
+         ('iso:TESTCA', 'iso_rto', 'Test Canadian operator', 'CA',
+          ST_Multi(ST_GeomFromText('POLYGON((-80 50, -79 50, -79 51, -80 50))', 4326)), '{}'),
+         ('iso:TESTNOGEOM', 'iso_rto', 'Registered without polygon', 'US', NULL, '{}')`,
+    );
+    try {
+      const res = await app.inject({ method: 'GET', url: '/api/grid/iso-rto' });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toContain('application/geo+json');
+      const fc = res.json();
+      expect(fc.type).toBe('FeatureCollection');
+      const ids = fc.features.map((f: { id: string }) => f.id);
+      expect(ids).toContain('iso:TESTRTO');
+      expect(ids).not.toContain('iso:TESTCA');
+      expect(ids).not.toContain('iso:TESTNOGEOM');
+      const rto = fc.features.find((f: { id: string }) => f.id === 'iso:TESTRTO');
+      expect(rto.properties).toEqual({
+        id: 'iso:TESTRTO', label: 'TESTRTO', name: 'Test Regional Transmission Organization',
+        source: {
+          value: 'Test Regional Transmission Organization', tag: 'F', sourceName: 'HIFLD Independent System Operators',
+          sourceUrl: 'https://example.test/hifld-iso.gpkg', asOf: '2022-12-15',
+        },
+      });
+      // The near-duplicate vertex at -95.000001 is simplified away: a closed ring of 5 points.
+      const ring = rto.geometry.type === 'MultiPolygon' ? rto.geometry.coordinates[0][0] : rto.geometry.coordinates[0];
+      expect(['Polygon', 'MultiPolygon']).toContain(rto.geometry.type);
+      expect(ring).toHaveLength(5);
+      // Unchanged rows: the cached body; a changed row is picked up.
+      await db.query(`UPDATE grid_region SET name = 'Renamed operator', updated_at = now() + interval '1 second' WHERE id = 'iso:TESTRTO'`);
+      const again = (await app.inject({ method: 'GET', url: '/api/grid/iso-rto' })).json();
+      expect(again.features.find((f: { id: string }) => f.id === 'iso:TESTRTO').properties.name).toBe('Renamed operator');
+    } finally {
+      await db.query(`DELETE FROM grid_region WHERE id IN ('iso:TESTRTO', 'iso:TESTCA', 'iso:TESTNOGEOM')`);
+      resetIsoBoundaryCache();
+    }
   });
 
   it('filters plants and builds the plant KPI strip', async () => {

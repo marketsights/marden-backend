@@ -124,6 +124,7 @@ export const ROUTE_RULES: Readonly<Record<string, RouteRule>> = {
   'GET /api/data-centers/:id/records': g('data_centers:read'),
   'GET /api/data-centers/:id/history': g('data_centers:read'),
   'GET /api/data-centers/:id/capacity': g('data_centers:read'),
+  'GET /api/grid/iso-rto': g('data_centers:read'),
   'GET /api/power-plants': g('power:read'),
   'GET /api/power-plants/summary': g('power:read'),
   'GET /api/power-plants/:id': g('power:read'),

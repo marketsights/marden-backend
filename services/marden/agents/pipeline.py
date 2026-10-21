@@ -75,23 +75,30 @@ def chosen_sections(sections: list[Section], ids: list[str], max_sections: int) 
 
 
 def _extract_all(llm: Llm, job: dict[str, Any], doc: Any, text: DocText, data: bytes, sections: list[Section],
-                 route: router.Route) -> tuple[list[Candidate], list[dict[str, Any]], str, bool]:
+                 route: router.Route) -> tuple[list[Candidate], list[dict[str, Any]], str, bool, list[str]]:
     cands: list[Candidate] = []
     subjects: list[dict[str, Any]] = []
     summaries: list[str] = []
+    problems: list[str] = []
     complete = True
     for area, ids in route.areas.items():
-        for section in chosen_sections(sections, ids, llm.settings.max_sections):
+        wanted = chosen_sections(sections, ids, len(sections))
+        if len(wanted) > llm.settings.max_sections:  # said, not silently dropped
+            problems.append(f"{area}: {llm.settings.max_sections} of {len(wanted)} sections read "
+                            "(MARDEN_AGENT_MAX_SECTIONS)")
+        for section in wanted[:llm.settings.max_sections]:
             out = extract.extract(llm, area, doc, text, section, data, job["id"])
             if out is None:
                 complete = False
                 continue
-            got, subs, summary = out
+            got, subs, summary, problem = out
             cands += got
             subjects += subs
             if summary:
                 summaries.append(summary)
-    return cands, subjects, " ".join(summaries)[:1500] or route.summary, complete
+            if problem:
+                problems.append(f"{area}:{section.id} {problem}")
+    return cands, subjects, " ".join(summaries)[:1500] or route.summary, complete, problems
 
 
 def run_job(job_id: int, llm: Llm) -> JobOutcome:
@@ -117,7 +124,7 @@ def run_job(job_id: int, llm: Llm) -> JobOutcome:
                           {"summary": "no area", "doc_kind": route.doc_kind})
         if text.scanned and llm.backend is not None and llm.backend.view != "native":
             return finish(job, "failed", "scanned document: needs the Anthropic API (native PDF reading)")
-        cands, subjects, summary, complete = _extract_all(llm, job, doc, text, data, sections, route)
+        cands, subjects, summary, complete, problems = _extract_all(llm, job, doc, text, data, sections, route)
         if not complete:
             return JobOutcome(job_id, "waiting", "extract")
         set_job(job_id, stage="extracted")
@@ -147,8 +154,12 @@ def run_job(job_id: int, llm: Llm) -> JobOutcome:
     stats["summary"] = (f"{stats['published']} published, {stats['review']} to review, {stats['rejected']} rejected"
                         + (f", {stats['duplicate']} already published" if stats.get("duplicate") else ""))
     set_job(job_id, stage="published")
-    state = "needs_review" if stats["review"] else "published"
-    return finish(job, state, "", stats)
+    if problems:  # a section the model did not read completely: a person looks at the document
+        stats["incomplete"] = problems
+        stats["summary"] += f"; incomplete reads: {', '.join(problems)}"
+    state = "needs_review" if stats["review"] or problems else "published"
+    detail = f"incomplete model reads: {', '.join(problems)}" if problems else ""
+    return finish(job, state, detail, stats)
 
 
 def enqueue_document(document_id: int, *, priority: int = 50, reason: str = "manual",

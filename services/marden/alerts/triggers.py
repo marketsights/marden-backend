@@ -3,8 +3,12 @@
     for trigger in event_triggers(conn, start, today): ...
     for trigger in model_triggers(conn, start, today): ...
 
-Events: published, not a scheduled catalyst, dated in the window, never evaluated (alert_trigger).
-Rating facts: a published `rating` / `rating_summary` that differs from the subject's previous one.
+Events: published, not a scheduled catalyst, never evaluated (alert_trigger), dated in the window, or dated up
+to LATE_DAYS back when Marden learned of it after the engine first ran (an 8-K filed four business days after
+the event, a candidate approved in the review queue days later). The engine's first evaluation is the line
+between history (rows loaded before alerts existed are never news) and news.
+Rating facts: a published `rating` / `rating_summary` that differs from the subject's previous one; the same
+window and late rule.
 Model outputs (status, cushion, price, mark_gap): model_output keeps one row per subject and as-of day and
 replaces it on a rerun, so the engine keeps the last output it evaluated per subject (alert_state) as the
 "before" of the next change. A subject the engine has not seen starts from its newest output dated before
@@ -16,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from marden.alerts import rules
@@ -27,6 +31,7 @@ from marden.core.jsonutil import hash_parts
 RATING_FIELDS = ("rating", "rating_summary")
 SCHEDULED_KINDS = ("catalyst",)
 MODELS = ("status", "cushion", "price", "mark_gap")
+LATE_DAYS = 14  # an event or rating learned (or approved) late still reaches watchers when dated this recently
 
 
 @dataclass
@@ -57,14 +62,30 @@ class Trigger:
         return sorted({c for f in self.findings for c in f.codes})
 
 
+# ------------------------------------------------------------------ late arrivals
+def engine_started(conn: Conn) -> datetime | None:
+    """When the engine first evaluated anything (a backfill counts): rows learned after it are news."""
+    row = conn.execute("SELECT min(evaluated_at) AS at FROM alert_trigger").fetchone()
+    return row["at"] if row else None
+
+
+def window(conn: Conn, start: date, today: date) -> dict[str, Any]:
+    """Query parameters: the scan window, and the late window with the line between history and news (no
+    line before the engine's first evaluation: then nothing older than the window is evaluated)."""
+    return {"start": start, "today": today, "late": min(start, today - timedelta(days=LATE_DAYS)),
+            "since": engine_started(conn)}
+
+
 # ------------------------------------------------------------------ events
 def event_triggers(conn: Conn, start: date, today: date) -> Iterator[Trigger]:
     rows = conn.execute(
         """SELECT e.* FROM event e
-           WHERE e.status = 'published' AND e.kind <> ALL(%s) AND e.event_date BETWEEN %s AND %s
+           WHERE e.status = 'published' AND e.kind <> ALL(%(scheduled)s)
+             AND (e.event_date BETWEEN %(start)s AND %(today)s
+                  OR (e.event_date BETWEEN %(late)s AND %(today)s AND e.learned_at >= %(since)s))
              AND NOT EXISTS (SELECT 1 FROM alert_trigger t WHERE t.trigger_key = 'event:' || e.id)
            ORDER BY e.event_date, e.id""",
-        (list(SCHEDULED_KINDS), start, today),
+        {**window(conn, start, today), "scheduled": list(SCHEDULED_KINDS)},
     ).fetchall()
     for event in rows:
         tab = "opposition" if event["kind"] == "opposition" else "events"
@@ -81,10 +102,12 @@ def event_triggers(conn: Conn, start: date, today: date) -> Iterator[Trigger]:
 def fact_triggers(conn: Conn, start: date, today: date) -> Iterator[Trigger]:
     rows = conn.execute(
         """SELECT f.* FROM fact f
-           WHERE f.status = 'published' AND f.field = ANY(%s) AND f.valid_from BETWEEN %s AND %s
+           WHERE f.status = 'published' AND f.field = ANY(%(fields)s)
+             AND (f.valid_from BETWEEN %(start)s AND %(today)s
+                  OR (f.valid_from BETWEEN %(late)s AND %(today)s AND f.learned_at >= %(since)s))
              AND NOT EXISTS (SELECT 1 FROM alert_trigger t WHERE t.trigger_key = 'fact:' || f.id)
            ORDER BY f.valid_from, f.id""",
-        (list(RATING_FIELDS), start, today),
+        {**window(conn, start, today), "fields": list(RATING_FIELDS)},
     ).fetchall()
     for fact in rows:
         prior = conn.execute(

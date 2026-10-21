@@ -1,7 +1,8 @@
 // KPI strips for Data centers and On-site power, computed over the same filtered rows as the table,
 // so "counts on the KPI strip equal the filtered table totals" (spec 14, 15). Sums skip unknown (n/d)
 // values; MW by status lists only statuses with at least one known value.
-import type { DataCenterSummary, PowerPlantSummary } from '../contracts/types.js';
+import type { DataCenterSummaryResponse } from '../contracts/app.js';
+import type { PowerPlantSummary } from '../contracts/types.js';
 import type { Db } from '../db.js';
 import { asOfDay } from '../lib/params.js';
 import { latestRowsSql, numAt, txt } from '../lib/row-query.js';
@@ -9,6 +10,8 @@ import { DC_ROWS, PLANT_ROWS } from '../lib/row-views.js';
 import { filteredRows, type RowScope } from './rows.js';
 
 const COVERAGE_FIELDS = ['developer', 'tenant', 'status', 'facilityMw', 'itMw', 'powerSource', 'utility', 'iso', 'onlineYear'];
+/** Campuses with at least one building record (the footer's "buildings 11 of 16"). */
+const HAS_BUILDINGS = `coalesce(${numAt('buildings,total')}, 0) > 0`;
 
 const sumBy = (groupExpr: string, valueExpr: string, labelKey: string): string => `
   (SELECT coalesce(jsonb_agg(jsonb_build_object('${labelKey}', g, 'mw', mw) ORDER BY g), '[]'::jsonb)
@@ -17,19 +20,23 @@ const sumBy = (groupExpr: string, valueExpr: string, labelKey: string): string =
 
 export type Summary<T> = { available: number } & T;
 
-export async function dataCenterSummary(db: Db, scope: RowScope): Promise<Summary<DataCenterSummary>> {
+export async function dataCenterSummary(db: Db, scope: RowScope): Promise<Summary<DataCenterSummaryResponse>> {
   const { params, cte } = filteredRows(DC_ROWS, scope);
   const dayPh = params.add(asOfDay(scope.asOf));
   const isNew = `left(${txt('firstSeen')}, 10) > (${dayPh}::date - 7)::text`;
-  const coverage = COVERAGE_FIELDS.map(
-    (f) => `jsonb_build_object('field', '${f}', 'pct', round(100.0 * count(*) FILTER (
-      WHERE jsonb_typeof(r.doc #> '{${f},value}') <> 'null') / nullif(count(*), 0), 1))`,
-  ).join(', ');
-  const res = await db.query<Summary<DataCenterSummary> & { financedCount: number; financedDebt: number | null }>(
+  const fill = (field: string, known: string) =>
+    `jsonb_build_object('field', '${field}', 'pct', round(100.0 * count(*) FILTER (WHERE ${known}) / nullif(count(*), 0), 1),
+      'known', count(*) FILTER (WHERE ${known}))`;
+  const coverage = [
+    ...COVERAGE_FIELDS.map((f) => fill(f, `jsonb_typeof(r.doc #> '{${f},value}') <> 'null'`)),
+    fill('buildings', HAS_BUILDINGS),
+  ].join(', ');
+  const res = await db.query<Summary<DataCenterSummaryResponse> & { financedCount: number; financedDebt: number | null }>(
     `${cte} SELECT
       (SELECT count(*) FROM latest)::int AS available,
       (SELECT count(*) FROM filtered)::int AS campuses,
       (SELECT coalesce(sum(${numAt('buildings,total')}), 0) FROM filtered r)::int AS buildings,
+      (SELECT coalesce(sum(${numAt('buildings,built')}), 0) FROM filtered r)::int AS "buildingsBuilt",
       ${sumBy(txt('status,value'), numAt('facilityMw,value'), 'status')} AS "mwByStatus",
       jsonb_build_object(
         'count', (SELECT count(*) FROM filtered r WHERE ${isNew}),

@@ -19,6 +19,7 @@ from marden.alerts.triggers import extract
 from marden.readmodels.context import BUSINESS_TZ
 
 SITE, OTHER = "jupiter", "abilene"
+RATED = "databank-abs"
 EMAIL_VARS = ("RESEND_API_KEY", "POSTMARK_TOKEN", "ALERT_EMAIL_PROVIDER", "ALERT_FROM_EMAIL", "ALERT_LINK_SECRET",
               "MARDEN_APP_URL")
 
@@ -160,3 +161,77 @@ def test_repeats_of_one_matter_join_the_first_alert(firms):
     assert not [a for a in mine if a["trigger_key"] == f"event:{second['id']}"]
     trig = rows("SELECT * FROM alert_trigger WHERE trigger_key = %s", (f"event:{second['id']}",))
     assert trig and trig[0]["material"] and trig[0]["alerts"] == 0  # evaluated, joined, no new alert
+
+
+def _learned_now(table: str, row_id: int) -> None:
+    """Marden learns the row now (after the engine's first evaluation): the copied values stay as they are."""
+    with psycopg.connect(TEST_URL, autocommit=True) as c:
+        c.execute(f"UPDATE {table} SET learned_at = clock_timestamp() WHERE id = %s", (row_id,))
+
+
+def _watermark_before(first_day) -> None:
+    """The documented first step on a new database: a backfill (here of one day), which starts the engine."""
+    engine.scan(since=first_day, today=first_day, dry_run=True)
+    assert rows("SELECT 1 FROM alert_trigger LIMIT 1"), "the backfill evaluated nothing"
+
+
+def test_late_events_reach_watchers_once(firms):
+    """A material event dated beyond the live window (but within LATE_DAYS) is history while Marden learned it
+    before the engine started, and news once Marden learns it after: alerted once per watcher, then never again."""
+    from marden.alerts.triggers import LATE_DAYS
+    from marden.models.materiality import is_material
+
+    events = rows("SELECT * FROM event WHERE subject_id = %s AND kind <> 'catalyst' ORDER BY event_date, id", (SITE,))
+    material = [e for e in events if is_material(e) or e["kind"] == "opposition"]
+    if not material or events[0]["event_date"] >= material[-1]["event_date"]:
+        pytest.skip("no material event after the site's first event")
+    late = material[-1]
+    today = late["event_date"] + timedelta(days=engine.LIVE_DAYS + 3)
+    assert today - late["event_date"] <= timedelta(days=LATE_DAYS)
+    _watermark_before(events[0]["event_date"])
+
+    engine.scan(today=today)  # live: the event is dated 6 days back and was learned before the engine started
+    key = f"event:{late['id']}"
+    assert not rows("SELECT 1 FROM alert_trigger WHERE trigger_key = %s", (key,))
+
+    _learned_now("event", late["id"])
+    engine.scan(today=today)
+    trig = rows("SELECT * FROM alert_trigger WHERE trigger_key = %s", (key,))
+    assert trig and trig[0]["material"] and not trig[0]["dry_run"]
+    holding = rows("""SELECT a.* FROM alert a WHERE a.trigger_key = %s
+                        OR a.sources @> jsonb_build_array(jsonb_build_object('key', %s::text))""", (key, key))
+    by_user: dict[str, int] = {}
+    for a in holding:
+        by_user[a["user_id"]] = by_user.get(a["user_id"], 0) + 1
+    assert by_user == {"a1": 1, "a2": 1, "b1": 1}  # once per watcher (its own alert, or joined to the matter's)
+    own = [a for a in holding if a["trigger_key"] == key]
+    assert all(not a["backfill"] and a["read_at"] is None for a in own)
+    streamed = {s["payload"]["alert"]["id"] for s in rows(
+        "SELECT payload FROM stream_event WHERE payload->>'type' = 'alert'")}
+    assert {str(a["id"]) for a in own} <= streamed
+
+    count = len(rows("SELECT id FROM alert"))
+    assert engine.scan(today=today).triggers == 0 and len(rows("SELECT id FROM alert")) == count
+
+
+def test_late_rating_facts_follow_the_same_line():
+    from marden.alerts.triggers import fact_triggers
+    from marden.core import db
+
+    copy_sites([SITE, RATED])  # databank-abs: instruments with published rating facts
+    facts = rows("SELECT * FROM fact WHERE field IN ('rating', 'rating_summary') AND status = 'published' "
+                 "ORDER BY valid_from DESC, id DESC LIMIT 1")
+    events = rows("SELECT event_date FROM event WHERE kind <> 'catalyst' ORDER BY event_date LIMIT 1")
+    if not facts or not events or events[0]["event_date"] >= facts[0]["valid_from"]:
+        pytest.skip("no rating fact (or no earlier event) in the copied rows")
+    fact = facts[0]
+    today = fact["valid_from"] + timedelta(days=engine.LIVE_DAYS + 3)
+    _watermark_before(events[0]["event_date"])
+
+    def selected() -> bool:
+        with db.connection() as conn:
+            return any(t.key == f"fact:{fact['id']}" for t in fact_triggers(conn, today - timedelta(days=3), today))
+
+    assert not selected()  # learned before the engine started: history
+    _learned_now("fact", fact["id"])
+    assert selected()

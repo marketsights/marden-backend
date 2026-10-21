@@ -1,6 +1,6 @@
 {
  "case": "permits_tceq_182126",
- "prompt_version": "0.1",
+ "prompt_version": "0.2",
  "model": "claude-sonnet-5-5",
  "tool_input": {
   "facts": [
@@ -13,12 +13,12 @@
     "value_text": null,
     "value_date": null,
     "value_bool": null,
-    "value_json": "{\"number\":\"182126 / GHGPSDTX263 / PSDTX1688\",\"agency\":\"TCEQ\",\"type\":\"NSR initial (PSD, GHG PSD)\",\"status\":\"initial application submitted; pending\",\"date\":null}",
+    "value_json": "{\"number\":\"182126 / GHGPSDTX263 / PSDTX1688\",\"agency\":\"TCEQ\",\"type\":\"NSR initial (PSD, GHG PSD)\",\"status\":\"initial application, pending\",\"date\":null}",
     "as_of": null,
     "quote": "Crusoe Energy Systems LLC (CN606257079) has submitted an\napplication for an initial permit 182126, GHGPSDTX263, and PSDTX1688.",
     "page": 1,
-    "confidence": 0.93,
-    "note": "Pending application, not issued; summary says information may change during technical review."
+    "confidence": 0.9,
+    "note": "Summary values may change during technical review."
    },
    {
     "subject_kind": "plant",
@@ -31,9 +31,9 @@
     "value_bool": null,
     "value_json": "{\"basis\":\"proposed emissions, tons per year\",\"VOC\":\"815.59\",\"PM10\":\"451.10\",\"PM2.5\":\"313.20\",\"NOx\":\"760.33\",\"CO\":\"870.07\",\"SO2\":\"233.90\",\"HAPs\":\"49.77\"}",
     "as_of": null,
-    "quote": "Below is the\ntotal amount for each pollutant that is proposed to be emitted each year for all the\nfacilities.",
+    "quote": "VOC\n815.59\nPM10\n451.10\nPM2.5\n313.20\nNOx\n760.33\nCO\n870.07\nSO2\n233.90\nHAPs\n49.77",
     "page": 1,
-    "confidence": 0.85,
+    "confidence": 0.8,
     "note": "Proposed totals requested by applicant, not permit limits; may change during technical review."
    }
   ],
@@ -58,6 +58,6 @@
     "role": "applicant"
    }
   ],
-  "summary": "TCEQ plain language summary of pending initial air permit application for Crusoe's Longhorn Data Center, with proposed annual emissions."
+  "summary": "TCEQ plain language summary: pending initial NSR/PSD/GHG PSD application for Longhorn Data Center with proposed annual emissions."
  }
 }

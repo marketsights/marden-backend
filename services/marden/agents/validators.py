@@ -8,6 +8,11 @@ Hard checks reject a candidate outright (an extracted value without its exact pa
                      '5.50%' for 550 bp, '1.35x')
     year_in_quote    a date field's year is written in the quote
     range            numbers and dates within sane bounds for the unit
+    value_numbers    text, list and object values: every number in the value (a JSON number, '760.33', the
+                     '5.50%' in 'Term SOFR + 5.50%') is written in the quote, with its scale word or a table's
+                     stated scale; ISO dates inside a value are not amounts and are left to the verifier
+    identifier_in_document  identifiers inside an object value (docket, permit or case number, queue id) are
+                     printed somewhere in the document (they key later subject links)
 Soft checks send a candidate to review instead of publishing it:
     implied_scale    the number matches only through a table's unstated scale ('in thousands')
     month_in_quote   a date's (or month's) month is not written in the quote
@@ -106,6 +111,77 @@ def _date_value(value: str) -> date | None:
         return None
 
 
+_ISO_VALUE = re.compile(r"^\d{4}-\d{2}(-\d{2})?$")
+ID_KEYS = frozenset({"number", "docket", "case_number", "permit", "permit_number", "queue_id", "cusip", "isin", "lei",
+                     "cik", "accession"})
+GENERIC_TYPES = ("usd", "mw", "bp", "pct")
+_ID_SPLIT = re.compile(r"\s*(?:[,;/&|]|\band\b|\s)\s*")
+
+
+def _value_parts(value: Any, key: str | None, numbers: list[tuple[str, Any]], idents: list[str]) -> None:
+    """Collect the numbers ('json', n) / ('text', (n, suffix)) and identifiers inside a text, list or object value."""
+    if isinstance(value, bool) or value is None:
+        return
+    if isinstance(value, int | float):
+        numbers.append(("json", float(value)))
+    elif isinstance(value, str):
+        s = value.strip()
+        if not s or _ISO_VALUE.match(s):
+            return
+        if key in ID_KEYS:
+            idents.append(s)
+            return
+        numbers.extend(("text", pair) for pair in numbers_in(s))
+    elif isinstance(value, list):
+        for item in value:
+            _value_parts(item, None, numbers, idents)
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            _value_parts(v, str(k).strip().lower(), numbers, idents)
+
+
+def _text_number_written(num: float, suffix: str, quote_numbers: list[tuple[float, str]]) -> bool:
+    scaled = num * (POWER.get(suffix) or SCALES.get(suffix, 1.0))
+    for qn, qs in quote_numbers:
+        if _close(num, qn) or _close(scaled, qn * (POWER.get(qs) or SCALES.get(qs, 1.0))):
+            return True
+    return False
+
+
+def value_number_checks(value: Any, quote: str, doc: DocText, hit: object) -> dict[str, Any]:
+    """Checks for the numbers and identifiers inside a text / list / object value (see the module docstring)."""
+    numbers: list[tuple[str, Any]] = []
+    idents: list[str] = []
+    _value_parts(value, None, numbers, idents)
+    out: dict[str, Any] = {}
+    if numbers:
+        scale = stated_scale(doc, hit)
+        in_quote = numbers_in(quote)
+        missing, implied_only = [], []
+        for kind, item in numbers:
+            if kind == "json":
+                if any(number_matches(item, vt, quote, scale)[0] for vt in GENERIC_TYPES):
+                    continue
+                if number_matches(item, "usd", quote, scale)[1]:
+                    implied_only.append(item)
+                    continue
+                missing.append(item)
+            elif not _text_number_written(item[0], item[1], in_quote):
+                missing.append(f"{item[0]:g}{(' ' + item[1]) if item[1] else ''}")
+        out["value_numbers"] = _check(not missing, True, "" if not missing else
+                                      "not written in the quote: " + ", ".join(str(m) for m in missing[:6]))
+        if implied_only and not missing:
+            out["implied_scale"] = _check(False, False, "matches only with an unstated table scale")
+    if idents:
+        full = normalize(doc.text).lower()
+        # '182126 / GHGPSDTX263 / PSDTX1688' or '182126, GHGPSDTX263 and PSDTX1688': each identifier on its own
+        tokens = [t for i in idents for t in _ID_SPLIT.split(normalize(i).lower()) if len(t) >= 3]
+        absent = [t for t in tokens if t not in full]
+        out["identifier_in_document"] = _check(not absent, True, "" if not absent else
+                                               "not in the document: " + ", ".join(absent[:4]))
+    return out
+
+
 def check_candidate(c: Candidate, doc: DocText, today: date | None = None) -> None:
     today = today or date.today()
     spec = fields_for(c.area).get(c.field)
@@ -138,6 +214,8 @@ def check_candidate(c: Candidate, doc: DocText, today: date | None = None) -> No
     elif c.value is not None and spec.vtype == "number":
         explicit, _ = number_matches(float(c.value), "number", quote)
         checks["number_in_quote"] = _check(explicit, True, "" if explicit else f"{c.value} not in the quote")
+    elif c.value is not None and spec.vtype in ("text", "list", "object"):
+        checks.update(value_number_checks(c.value, quote, doc, hit))
     if c.value is not None and spec.vtype in ("date", "month"):
         day = _date_value(str(c.value))
         checks["range"] = _check(day is not None and DATE_MIN <= day <= DATE_MAX, True, "date out of range")

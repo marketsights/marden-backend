@@ -1,6 +1,6 @@
 {
  "case": "power_ercot_llwg_feb2026",
- "prompt_version": "0.1",
+ "prompt_version": "0.2",
  "model": "claude-sonnet-5-5",
  "tool_input": {
   "facts": [
@@ -18,7 +18,7 @@
     "quote": "Of the 8876 MW that have received Approval to Energize, ERCOT has observed a non-simultaneous monthly peak consumption of",
     "page": 1,
     "confidence": 0.85,
-    "note": "MW approved to energize; report is the February 2026 TAC report but observation month is printed as February 2025 (as written)."
+    "note": "MW approved to energize; observation month printed as February 2025 in a report dated 2026-03 (possible typo, quoted as written)."
    }
   ],
   "subjects": [
@@ -29,6 +29,6 @@
     "role": "utility"
    }
   ],
-  "summary": "ERCOT TAC report: 8876 MW approved to energize; observed peaks are printed as February 2025."
+  "summary": "ERCOT February TAC report: 8876 MW approved to energize; observed peaks are described but not recorded under an allowed field."
  }
 }

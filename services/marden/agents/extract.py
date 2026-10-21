@@ -172,11 +172,16 @@ def parse(area: str, section: str, out: dict[str, Any] | None) -> tuple[list[Can
 
 
 def extract(llm: Llm, area: str, doc: Any, text: DocText, section: Section, data: bytes,
-            job_id: int | None) -> tuple[list[Candidate], list[dict[str, Any]], str] | None:
+            job_id: int | None) -> tuple[list[Candidate], list[dict[str, Any]], str, str | None] | None:
+    """(candidates, subjects, summary, problem). `problem` says why a read is incomplete: the model declined
+    ('refusal'), stopped at max_tokens ('truncated'), or answered without the tool call ('no answer'); the job
+    then goes to review instead of looking like a document with nothing in it."""
     native = bool(llm.backend and llm.backend.view == "native")
     res = llm.call(request(area, doc, text, section, data, job_id, native_pdf=native))
     if res is None:
         return None
     if res.stop_reason == "refusal":
-        return [], [], "refusal"
-    return parse(area, section.id, res.tool_input)
+        return [], [], "", "refusal"
+    cands, subjects, summary = parse(area, section.id, res.tool_input)
+    problem = "truncated" if res.stop_reason == "max_tokens" else ("no answer" if res.tool_input is None else None)
+    return cands, subjects, summary, problem

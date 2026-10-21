@@ -25,8 +25,8 @@ from dataclasses import dataclass, field
 
 from marden.core.config import ConfigError, deploy_marker, get_settings
 
-PROMPT_VERSION = "0.1"
-METHOD = "agents v0.1"
+PROMPT_VERSION = "0.2"
+METHOD = f"agents v{PROMPT_VERSION}"
 ROLES = ("router", "extractor", "verifier", "linker")
 
 # Current model ids (claude-api skill, 2026-10): Haiku for triage, Sonnet for extraction (spec 21), and a

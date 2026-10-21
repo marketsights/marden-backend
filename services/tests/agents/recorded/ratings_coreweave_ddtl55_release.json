@@ -1,6 +1,6 @@
 {
  "case": "ratings_coreweave_ddtl55_release",
- "prompt_version": "0.1",
+ "prompt_version": "0.2",
  "model": "claude-sonnet-5-5",
  "tool_input": {
   "facts": [
@@ -17,7 +17,7 @@
     "as_of": "2026-08-10",
     "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
     "page": 1,
-    "confidence": 0.95,
+    "confidence": 0.93,
     "note": null
    },
    {
@@ -33,7 +33,7 @@
     "as_of": "2026-08-10",
     "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
     "page": 1,
-    "confidence": 0.95,
+    "confidence": 0.93,
     "note": null
    },
    {
@@ -45,7 +45,7 @@
     "value_text": null,
     "value_date": null,
     "value_bool": null,
-    "value_json": "{\"agency\":\"Moody's\",\"rating\":\"Ba2\",\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
+    "value_json": "{\"agency\":\"Moody's\",\"rating\":\"Ba2\",\"outlook\":null,\"watch\":null,\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
     "as_of": "2026-08-10",
     "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
     "page": 1,
@@ -61,7 +61,7 @@
     "value_text": null,
     "value_date": null,
     "value_bool": null,
-    "value_json": "{\"agency\":\"Fitch\",\"rating\":\"BB+\",\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
+    "value_json": "{\"agency\":\"Fitch\",\"rating\":\"BB+\",\"outlook\":null,\"watch\":null,\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
     "as_of": "2026-08-10",
     "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
     "page": 1,
@@ -74,7 +74,7 @@
     "name": "DDTL 5.5 Facility",
     "kind": "instrument",
     "identifiers": [],
-    "role": "issuer"
+    "role": null
    },
    {
     "name": "CoreWeave, Inc.",
@@ -89,6 +89,6 @@
     "role": "issuer"
    }
   ],
-  "summary": "CoreWeave closed $2.6B DDTL 5.5 Facility, rated Ba2 by Moody's and BB+ by Fitch."
+  "summary": "CoreWeave's DDTL 5.5 Facility received Ba2 from Moody's and BB+ from Fitch."
  }
 }

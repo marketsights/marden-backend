@@ -19,7 +19,13 @@ from marden.agents.extract import Candidate
 from marden.agents.fields import all_fields
 from marden.agents.publish import release_after_link
 from marden.agents.text import find_quote, read_text
-from marden.agents.validators import check_candidate
+from marden.agents.validators import (
+    GENERIC_TYPES,
+    check_candidate,
+    number_matches,
+    stated_scale,
+    value_number_checks,
+)
 from marden.core import checks, db, documents
 from marden.core.checks import ValidationError
 from marden.core.facts import FactWriter
@@ -87,6 +93,16 @@ def edit_fact(conn: db.Conn, item: dict[str, Any], fact: dict[str, Any] | None, 
                          quote=quote, page=None, confidence=None)
         check_candidate(cand, text)
         failed = [f"{k}: {v.get('detail') or 'failed'}" for k, v in cand.checks.items() if v["hard"] and not v["ok"]]
+        if failed:
+            raise ValidationError("the edit fails the code checks: " + "; ".join(failed))
+    else:  # a field outside the agents' vocabulary: the numbers in the value must still be in the quote
+        hit, value = find_quote(text, quote), edit["value"]
+        if isinstance(value, int | float) and not isinstance(value, bool):
+            ok = any(number_matches(float(value), vt, quote, stated_scale(text, hit))[0] for vt in GENERIC_TYPES)
+            found = {"value_numbers": {"ok": ok, "hard": True, "detail": f"{value} is not written in the quote"}}
+        else:
+            found = value_number_checks(value, quote, text, hit)
+        failed = [f"{k}: {v.get('detail') or 'failed'}" for k, v in found.items() if v["hard"] and not v["ok"]]
         if failed:
             raise ValidationError("the edit fails the code checks: " + "; ".join(failed))
     tag = (fact or {}).get("tag") or "R"
