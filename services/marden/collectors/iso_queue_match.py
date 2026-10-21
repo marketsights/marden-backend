@@ -131,7 +131,7 @@ def make_target(
     only of place words (the county or the town in `place`, e.g. 'Childress') is not distinctive, nor
     is a one-word phrase that appears in the subject's address text `location` (e.g. 'Dalton')."""
     places = tuple(tokens(county))
-    plain = set(places) | set(tokens(place)) | set(tokens(state))
+    plain = set(places) | set(tokens(place)) | set(tokens(state)) | {"county", "parish", "city", "town", "us"}
     address = set(tokens(location))
     seen: dict[tuple[str, ...], str] = {}
     for text, origin in names:

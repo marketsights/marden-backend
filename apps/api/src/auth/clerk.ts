@@ -14,17 +14,42 @@ export interface Identity {
 
 export type TokenVerifier = (token: string) => Promise<Identity>;
 
-/** Session token from `Authorization: Bearer` or Clerk's same-site `__session` cookie. */
-export function sessionToken(req: FastifyRequest): string | null {
-  const header = req.headers.authorization;
-  if (header?.startsWith('Bearer ')) return header.slice(7).trim() || null;
-  const cookie = req.headers.cookie;
-  if (!cookie) return null;
-  for (const part of cookie.split(';')) {
-    const [name, ...rest] = part.trim().split('=');
-    if (name === '__session' && rest.length > 0) return decodeURIComponent(rest.join('=')) || null;
+/**
+ * Methods a cookie-only session may use. The web app calls the API same-origin (Next.js rewrites
+ * /api/*), so Clerk's `__session` cookie reaches it; that is how EventSource (/api/stream) and Excel
+ * links (/api/export/*.xlsx) authenticate, since neither can set a header. Both are reads. Writes
+ * must carry the bearer, so a cross-site form cannot ride the cookie (CSRF).
+ */
+const COOKIE_METHODS = new Set(['GET', 'HEAD']);
+
+/** Value of the first non-empty cookie with this name. */
+function cookieValue(header: string | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1 || part.slice(0, eq).trim() !== name) continue;
+    const raw = part.slice(eq + 1).trim();
+    let value = raw;
+    try {
+      value = decodeURIComponent(raw);
+    } catch {
+      // not URI-encoded: use as is
+    }
+    if (value) return value;
   }
   return null;
+}
+
+/**
+ * Session token from `Authorization: Bearer` or, on GET/HEAD, Clerk's same-site `__session` cookie.
+ * Either way it is verified the same way (createClerkVerifier). A bearer decides when present: a bad
+ * bearer is a 401 even when a valid cookie rides along, never a silent fallback to the cookie.
+ */
+export function sessionToken(req: FastifyRequest): string | null {
+  const header = req.headers.authorization;
+  if (header !== undefined && /^Bearer\s/i.test(header)) return header.replace(/^Bearer\s+/i, '').trim() || null;
+  if (!COOKIE_METHODS.has(req.method.toUpperCase())) return null;
+  return cookieValue(req.headers.cookie, '__session');
 }
 
 interface SessionClaims {
