@@ -106,7 +106,9 @@ Migration: `db/migrations/20261021180000_product_access.sql`.
 - Clerk webhooks keep creating and updating `org`, `app_user` and `membership` rows.
 - A new member gets **no product role** until an org owner or admin assigns one (fail closed). There is
   one exception: the **first member** of an org that already holds live products becomes `owner` of
-  each of them, seats permitting. That grant is audit-logged with `rule: 'first_member'`.
+  each of them, seats permitting. That grant is audit-logged with `rule: 'first_member'`. One org's
+  membership webhooks take this check in turn (a transaction advisory lock), so two members joining at
+  the same moment cannot both count as first.
 - A membership update never grants or changes product roles.
 - Removing a member deletes their product roles.
 

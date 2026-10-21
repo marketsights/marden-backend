@@ -86,6 +86,25 @@ describe('product roles and firm products', () => {
     expect((await assign(u.owner, u.member, { productId: 'marden', role: 'member' })).statusCode).toBe(200);
   });
 
+  it('holds the seat limit when assignments arrive at once', async () => {
+    const orgC = uid('org_conc');
+    const owner = uid('user_conc_owner');
+    const people = [1, 2, 3, 4, 5].map((i) => uid(`user_conc_${i}`));
+    await seedOrg(db, {
+      id: orgC, products: [{ productId: 'marden', seats: 3 }], // the owner holds one seat: two are free
+      members: [{ id: owner, role: 'owner' }, ...people.map((id) => ({ id, role: 'member' as const, products: {} }))],
+    });
+    try {
+      const answers = await Promise.all(people.map((id) =>
+        call('PATCH', `/api/account/members/${id}/products`, [owner, orgC], { productId: 'marden', role: 'viewer' })));
+      expect(answers.map((r) => r.statusCode).sort()).toEqual([200, 200, 409, 409, 409]);
+      const used = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM member_product_role WHERE org_id = $1`, [orgC]);
+      expect(used.rows[0]?.n).toBe(3);
+    } finally {
+      await dropOrgs(db, [orgC], [owner, ...people]);
+    }
+  });
+
   it('answers 404 for another org, an unknown member or product, 400 for a bad body', async () => {
     expect((await assign(u.owner, u.other, { productId: 'marden', role: 'viewer' })).statusCode).toBe(404);
     const unknown = await assign(u.owner, u.member, { productId: 'not-a-product', role: 'viewer' });

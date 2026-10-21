@@ -262,8 +262,14 @@ def test_backfilled_day_shows_only_what_was_known(seeded):
     rebuild_all("instrument_detail", as_of=before)
     rebuild_all("instrument_detail")
     past, today = _doc("instrument_detail", JUPITER, before), _doc("instrument_detail", JUPITER)
-    assert past["sizeB"]["value"] is None and past["terms"] == {} and past["marketCheck"] == {}
-    assert past["holders"]["count"] == 0 and past["recovery"]["value"] is None
+    assert past["sizeB"]["value"] is None and past["terms"] == {}
+    # Model outputs dated by that day (a price-model backtest run reads only what was public then) may
+    # show; nothing learned later does.
+    def known_then(v: dict) -> bool:
+        return v["value"] is None or (v["tag"] == "M" and v["asOf"] <= before.isoformat())
+
+    assert all(known_then(v) for v in past["marketCheck"].values())
+    assert past["holders"]["count"] == 0 and known_then(past["recovery"])
     assert today["sizeB"]["value"] is not None and today["terms"]
 
 

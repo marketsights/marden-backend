@@ -21,8 +21,11 @@ from __future__ import annotations
 
 import argparse
 import logging
+import time
 from datetime import date
 from typing import Any
+
+import psycopg
 
 from marden import cli
 from marden.core import db
@@ -37,6 +40,7 @@ from marden.readmodels.deps import mark_dirty_for
 log = logging.getLogger(__name__)
 
 DAILY_CRON = "40 9 * * *"
+WRITE_TRIES = 5
 PRICE_SOURCE = PRICE_LABEL
 
 
@@ -49,9 +53,40 @@ def _write_price_obs(conn: Conn, iid: str, day: date, out: dict[str, Any]) -> No
                           yield_pct=out.get("yieldPct"), spread_bp=out.get("spreadBp"), method_version=VERSION)
 
 
+def _write(run_id: int, day: date, result: dict[str, Any], *, partial: bool, mark: bool) -> None:
+    """Every write of one run, in one short transaction."""
+    with db.transaction() as conn:
+        reason = f"model_run:{run_id}"
+        for entity, doc in result["cds"].items():
+            runs.write_output(conn, run_id, "cds", VERSION, "entity", entity, day, doc)
+            if mark:
+                mark_dirty_for("entity", entity, "@model:cds", conn=conn, reason=reason)
+        for iid, out in result["prices"].items():
+            stored = week_change(conn, iid, day, out.get("price"))
+            if stored is not None:
+                out["change1w"] = stored
+                out.setdefault("basis", {})["change1wBasis"] = "stored output 7 days earlier"
+            elif out.get("change1w") is not None:
+                out.setdefault("basis", {})["change1wBasis"] = "this run's filtered path 7 days earlier"
+            runs.write_output(conn, run_id, MODEL, VERSION, "instrument", iid, day, out)
+            _write_price_obs(conn, iid, day, out)
+            if mark:
+                mark_dirty_for("instrument", iid, "@model:price", conn=conn, reason=reason)
+        if not partial:  # 'curve' is exactly CurveTier[]; the fit behind it is 'curve_fit'
+            runs.write_output(conn, run_id, "curve", VERSION, "series", "all", day,
+                              result["curve"])  # type: ignore[arg-type]
+            runs.write_output(conn, run_id, "curve_fit", VERSION, "series", "all", day,
+                              {**result["fit"], "missing": result["fit_missing"], "label": "Marden tier curves",
+                               "methodVersion": VERSION})
+            if mark:
+                mark_dirty_for("series", "all", "@model:curve", conn=conn, reason=reason)
+
+
 def run(as_of: date | None = None, ids: list[str] | None = None, *, trigger: str = "manual",
         mark: bool = True) -> dict[str, Any]:
-    """Run the price engine as of `as_of` (default today, US Eastern) for every target instrument or `ids`."""
+    """Run the price engine as of `as_of` (default today, US Eastern) for every target instrument or `ids`.
+    The computation reads in one transaction; the writes go in a second, short one, retried when it
+    deadlocks with another writer marking the same read models (it is idempotent)."""
     day = as_of or business_today()
     if day > business_today():
         raise ValueError(f"cannot run the price model for a future day ({day.isoformat()})")
@@ -59,29 +94,15 @@ def run(as_of: date | None = None, ids: list[str] | None = None, *, trigger: str
     try:
         with db.transaction() as conn:
             result = run_day(conn, day, ids)
-            reason = f"model_run:{run_id}"
-            for entity, doc in result["cds"].items():
-                runs.write_output(conn, run_id, "cds", VERSION, "entity", entity, day, doc)
-                if mark:
-                    mark_dirty_for("entity", entity, "@model:cds", conn=conn, reason=reason)
-            for iid, out in result["prices"].items():
-                stored = week_change(conn, iid, day, out.get("price"))
-                if stored is not None:
-                    out["change1w"] = stored
-                    out.setdefault("basis", {})["change1wBasis"] = "stored output 7 days earlier"
-                elif out.get("change1w") is not None:
-                    out.setdefault("basis", {})["change1wBasis"] = "this run's filtered path 7 days earlier"
-                runs.write_output(conn, run_id, MODEL, VERSION, "instrument", iid, day, out)
-                _write_price_obs(conn, iid, day, out)
-                if mark:
-                    mark_dirty_for("instrument", iid, "@model:price", conn=conn, reason=reason)
-            if not ids:  # 'curve' is exactly CurveTier[]; the fit behind it is 'curve_fit'
-                runs.write_output(conn, run_id, "curve", VERSION, "series", "all", day, result["curve"])  # type: ignore[arg-type]
-                runs.write_output(conn, run_id, "curve_fit", VERSION, "series", "all", day,
-                                  {**result["fit"], "missing": result["fit_missing"], "label": "Marden tier curves",
-                                   "methodVersion": VERSION})
-                if mark:
-                    mark_dirty_for("series", "all", "@model:curve", conn=conn, reason=reason)
+        for attempt in range(WRITE_TRIES):
+            try:
+                _write(run_id, day, result, partial=bool(ids), mark=mark)
+                break
+            except psycopg.errors.DeadlockDetected:
+                if attempt == WRITE_TRIES - 1:
+                    raise
+                log.warning("price run %s: deadlock while writing, retrying", run_id)
+                time.sleep(1.0 + attempt)
         runs.finish_run(run_id, ok=True, inputs_hash=inputs_hash(result))
     except Exception as exc:
         runs.finish_run(run_id, ok=False, error=f"{type(exc).__name__}: {exc}")

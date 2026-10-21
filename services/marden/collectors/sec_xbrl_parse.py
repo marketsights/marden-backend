@@ -78,6 +78,16 @@ FIELDS: tuple[FieldSpec, ...] = (
     # Amazon and NVIDIA tag their capex line this way (PP&E plus intangibles for NVIDIA).
     _spec("productive_asset_payments", DURATION, USD, "us-gaap:PaymentsToAcquireProductiveAssets"),
     _spec("revenue", DURATION, USD, "us-gaap:Revenues", "ifrs-full:Revenue"),
+    # Earnings lines for EBITDA (payer_capacity: lease-adjusted leverage = (debt + leases) / EBITDA).
+    # Filers tag depreciation alone (Oracle, Microsoft, Alphabet) or depreciation and amortization in one
+    # line (Amazon, Meta, CoreWeave): separate fields, with intangible amortization on its own.
+    _spec("operating_income", DURATION, USD, "us-gaap:OperatingIncomeLoss",
+          "ifrs-full:ProfitLossFromOperatingActivities"),
+    _spec("depreciation_amortization", DURATION, USD, "us-gaap:DepreciationDepletionAndAmortization",
+          "us-gaap:DepreciationAndAmortization", "ifrs-full:DepreciationAndAmortisationExpense"),
+    _spec("depreciation", DURATION, USD, "us-gaap:Depreciation", "ifrs-full:DepreciationExpense"),
+    _spec("amortization_intangibles", DURATION, USD, "us-gaap:AmortizationOfIntangibleAssets",
+          "ifrs-full:AmortisationExpense"),
     _spec("contract_revenue", DURATION, USD, "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
           "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax", "ifrs-full:RevenueFromContractsWithCustomers"),
     _spec("cash", INSTANT, USD, "us-gaap:CashAndCashEquivalentsAtCarryingValue", "ifrs-full:CashAndCashEquivalents"),
@@ -106,6 +116,8 @@ FIELDS: tuple[FieldSpec, ...] = (
     _spec("unrecorded_purchase_obligation", INSTANT, USD,
           "us-gaap:UnrecordedUnconditionalPurchaseObligationBalanceSheetAmount"),
     _spec("long_term_purchase_commitment", INSTANT, USD, "us-gaap:LongTermPurchaseCommitmentAmount"),
+    # Backlog (spec 24 "Concentration": a payer's share of the payee's backlog).
+    _spec("remaining_performance_obligation", INSTANT, USD, "us-gaap:RevenueRemainingPerformanceObligation"),
     _spec("shares_outstanding", INSTANT, SHARES, "dei:EntityCommonStockSharesOutstanding"),  # cover page date
     _spec("common_shares_outstanding", INSTANT, SHARES, "us-gaap:CommonStockSharesOutstanding",
           "ifrs-full:NumberOfSharesOutstanding"),

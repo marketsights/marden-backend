@@ -119,9 +119,11 @@ def uncovered(conn: Conn, corp: set[str], straight: set[str]) -> dict[str, str]:
     """Issuers the engine is asked about but cannot give a bond-implied level: convert-only issuers and the
     V1 sites' tenants without straight bonds in the instrument table."""
     out: dict[str, str] = {}
+    with_bonds = {r["e"] for r in conn.execute(
+        "SELECT DISTINCT issuer_entity_id e FROM instrument WHERE kind = 'bond'").fetchall()}
     for r in conn.execute("SELECT DISTINCT issuer_entity_id e FROM instrument WHERE kind = 'convert' "
                           "AND issuer_entity_id IS NOT NULL").fetchall():
-        if r["e"] not in corp and r["e"] not in straight:
+        if r["e"] not in corp and r["e"] not in straight and r["e"] not in with_bonds:
             out[r["e"]] = "convertible notes only: the equity option is not modelled, so no bond-implied level"
     for r in conn.execute("""SELECT DISTINCT cp.entity_id e FROM chain_party cp JOIN site s ON s.slug = cp.site_slug
                               WHERE s.in_v1 AND cp.role = 'tenant' AND cp.entity_id IS NOT NULL""").fetchall():
@@ -170,13 +172,10 @@ def _inputs(inst: Instrument, out: dict[str, Any], ch: Chain | None, curves: dic
             "U.S. Treasury")
     if inst.terms is not None and inst.terms.floating:
         add("sofrPct", "SOFR", book.sofr_on(as_of), "%", "F", "Federal Reserve Bank of New York")
-    lam = today.get("tenantHazard") or today.get("issuerHazard") or today.get("obligorHazard")
-    if lam is not None and inst.terms is not None:
+    odds = basis.get("defaultOddsToMaturity")
+    if odds is not None and inst.terms is not None:
         t = max(year_frac(as_of, inst.terms.maturity), 0.0)
-        import math
-
-        add("impliedDefaultOdds", f"Credit-leg default odds to maturity ({t:.1f}y, model v0)",
-            round(1 - math.exp(-lam * t), 4), "share")
+        add("impliedDefaultOdds", f"Default odds to maturity ({t:.1f}y, risk-neutral, model v0)", odds, "share")
     return items
 
 

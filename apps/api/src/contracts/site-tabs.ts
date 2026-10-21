@@ -29,6 +29,7 @@ export interface SiteEvidenceTab {
 export interface PowerSourceTrack {
   /** "Gas pipeline", "Gas turbines", "Fuel cells", "Grid". */
   source: string;
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- known values for readers; any string is accepted (web app contract)
   status: 'Planned' | 'Slipped' | 'Withdrawn' | 'Denied' | 'Pending' | 'In service' | string;
   /** First record that dated this source: the start of its bar. */
   from: string;
@@ -124,6 +125,7 @@ export interface SiteDebtInstrument {
 export interface SiteDebtTab {
   /** SPV that borrows, e.g. "Red Chiles A–D LLC". */
   spvName?: string;
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- known values for readers; any string is accepted (web app contract)
   capitalStack: { label: string; kind: 'loan' | 'equity' | string; amountB: Sourced<number> }[];
   stackNote?: string;
   instruments: SiteDebtInstrument[];
@@ -139,6 +141,7 @@ export interface SiteDebtTab {
 
 // ---------- GET /api/sites/:slug/lease ----------
 export interface LeaseTerm {
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- known values for readers; any string is accepted (web app contract)
   key: 'parties' | 'rent_start' | 'outside_date' | 'force_majeure' | 'rent' | 'term' | 'termination' | 'guarantee' | string;
   label: string;
   /** value null = unknown; shown as "[pending]" when the API says where it will come from, else n/d. */

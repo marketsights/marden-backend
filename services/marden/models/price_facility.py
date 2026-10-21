@@ -230,9 +230,18 @@ def price(ctx: Ctx, inst: Instrument, ch: Chain | None, obs: list[Obs]) -> dict[
         "observationsUsed": len(filt.used), "lastObservation": filt.used[-1].label if filt.used else None,
         "today": {k: (round(v, 6) if isinstance(v, float) else v) for k, v in info.items()},
         "chain": ch.doc() if ch else None, "terms": _terms_doc(inst),
+        "defaultOddsToMaturity": round(_default_odds(hz, f_now.maturity_years), 4),
     }
     out["_week_ago_price"] = week
     return out
+
+
+def _default_odds(hz: Any, years: float) -> float:
+    """1 - S(T) under the day's intensity path (risk-neutral, uncalibrated)."""
+    grid = np.linspace(0.0, max(years, 1e-6), 241)
+    dt = np.diff(grid)
+    lam = np.full(len(dt), float(hz)) if not callable(hz) else np.asarray(hz(grid[:-1] + dt / 2.0), dtype=float)
+    return float(1.0 - math.exp(-float(np.sum(lam * dt))))
 
 
 def _tenant_var(info: dict[str, Any], ch: Chain | None) -> float:
