@@ -213,10 +213,15 @@ def scan(p: dict[str, Any], day: date, workers: int, step: int,
                     "stepDays": step}
 
 
-def _write(run_id: int, day: date, output: dict[str, Any], *, mark: bool) -> None:
+def subject_of(cases: list[str] | None) -> str:
+    """'all' for the published backtest; a run on some cases is stored apart so it never replaces it."""
+    return "all" if cases is None else "cases:" + ",".join(sorted(cases))
+
+
+def _write(run_id: int, day: date, output: dict[str, Any], *, mark: bool, subject: str = "all") -> None:
     with db.transaction() as conn:
-        runs.write_output(conn, run_id, MODEL, VERSION, "series", "all", day, output)
-        if mark and day == business_today():
+        runs.write_output(conn, run_id, MODEL, VERSION, "series", subject, day, output)
+        if mark and subject == "all" and day == business_today():
             mark_dirty(*VIEW, conn=conn, reason=f"model:{MODEL}@{run_id}")
 
 
@@ -239,7 +244,7 @@ def run(as_of: date | None = None, cases: list[str] | None = None, *, trigger: s
             markets = markets_of(conn, p, day)
         states, meta = scan(p, day, workers, step, refine)
         output = assemble(day, p, markets, states, {**meta, "mode": "full", "fullRunId": run_id})
-        _write(run_id, day, output, mark=mark and cases is None)
+        _write(run_id, day, output, mark=mark, subject=subject_of(cases))
         runs.finish_run(run_id, ok=True, inputs_hash=_digest(output))
     except Exception as exc:
         runs.finish_run(run_id, ok=False, error=f"{type(exc).__name__}: {exc}")

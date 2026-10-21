@@ -74,7 +74,7 @@ EVIDENCE: tuple[Statement, ...] = (
         "Pool (SPP).",
         (("iso", "SPP"),),
         (("site", "abernathy"), ("campus", "fluidstack-abernathy")),
-        "Item 1, HPC Platform and Development Pipeline: the Abernathy HPC Campus (Fluidstack joint venture)",
+        "Item 1 (Business), HPC Platform and Development Pipeline: the Abernathy HPC Campus (Fluidstack joint venture)",
     ),
     Statement(
         WULF_JV_DECK,
@@ -88,7 +88,7 @@ EVIDENCE: tuple[Statement, ...] = (
         "Electricity at Childress, Texas is sourced from ERCOT, the organization that operates Texas’ electrical grid.",
         (("iso", "ERCOT"),),
         (("site", "childress"), ("campus", "iren-childress")),
-        "Item 4, power procurement in Texas: IREN's Childress site",
+        "Item 5 (Operating and Financial Review and Prospects), electricity in Texas: IREN's Childress site",
     ),
     Statement(
         GLXY_10Q_2026Q2,
@@ -96,8 +96,8 @@ EVIDENCE: tuple[Statement, ...] = (
         "gross power capacity at our Helios campus.",
         (("iso", "ERCOT"),),
         (*HELIOS, ("campus", "galaxy-helios"), ("building", "galaxy-helios-b1")),
-        "Item 2, Data Centers: the Helios campus (Dickens County, TX), whose Phase I and Phase II leases to "
-        "CoreWeave are sites helios-1 and helios-2",
+        "Item 2 (MD&A), Data Centers segment: the Helios campus (Dickens County, TX), whose Phase I and Phase II "
+        "leases to CoreWeave are sites helios-1 and helios-2",
     ),
     Statement(
         MDU_10Q_2026Q2,
@@ -105,15 +105,16 @@ EVIDENCE: tuple[Statement, ...] = (
         (("iso", "MISO"),),
         (*POLARIS, ("campus", "apld-polaris-forge-1"), ("building", "apld-polaris-forge-1-b1"),
          ("building", "apld-polaris-forge-1-b2"), ("building", "apld-polaris-forge-1-b3")),
-        "Item 2, Electric: Montana-Dakota serves Applied Digital's Ellendale campus (Polaris Forge 1; its second "
-        "and third HPC buildings are sites polaris-forge-1 and polaris-forge-1-building-4)",
+        "Item 2 (MD&A), Outlook: Montana-Dakota serves Applied Digital's Ellendale campus (Polaris Forge 1; its "
+        "second and third HPC buildings are sites polaris-forge-1 and polaris-forge-1-building-4)",
     ),
     Statement(
         MDU_10Q_2026Q2,
         MDU_QUOTE,
         (("utility", "MONTANA-DAKOTA UTILITIES CO"),),
         POLARIS,
-        "Item 2, Electric: Montana-Dakota's electric service agreement for Applied Digital's Ellendale HPC buildings",
+        "Item 2 (MD&A), Outlook: Montana-Dakota's electric service agreement for Applied Digital's Ellendale HPC "
+        "buildings",
     ),
     Statement(
         CIFR_10K_2025,
@@ -121,7 +122,7 @@ EVIDENCE: tuple[Statement, ...] = (
         "interconnection approval of up to 100 MW.",
         (("iso", "ERCOT"),),
         (("site", "stingray"),),
-        "Item 1, Our Sites: the Stingray site (Andrews, Texas per Cipher's Form 8-K of 2026-06-15)",
+        "Item 1 (Business): the Stingray site (in Andrews, Texas per Cipher's Form 8-K of 2026-06-15)",
     ),
     Statement(
         CIFR_10K_2024,
@@ -130,6 +131,6 @@ EVIDENCE: tuple[Statement, ...] = (
         "returned to the Company if the Stingray Facility uses 100 MW by May 15, 2027.",
         (("utility", "ONCOR ELECTRIC DELIVERY COMPANY LLC"),),
         (("site", "stingray"),),
-        "Note 9, Security deposits: the Oncor facility extension deposit for the Stingray Facility",
+        "Financial statements, Note 9 (Security deposits): the Oncor deposit for the Stingray Facility",
     ),
 )

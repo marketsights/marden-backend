@@ -194,17 +194,20 @@ def test_run_shapes_the_output_for_the_read_models_and_marks_the_view(jupiter_ro
     assert out["scan"]["weekly"][0] == "2026-04-01" and out["scan"]["weekly"][-1] == business_today().isoformat()
     rows = committed.execute("SELECT model, subject_type, subject_id FROM model_output WHERE run_id = %s",
                              (result["run_id"],)).fetchall()
-    assert [(r["model"], r["subject_type"], r["subject_id"]) for r in rows] == [("track_record", "series", "all")]
+    # a run on some cases is stored apart from the published backtest ('all') and marks nothing
+    assert [(r["model"], r["subject_type"], r["subject_id"]) for r in rows] == [
+        ("track_record", "series", "cases:jupiter,the-barn")]
     assert committed.execute("SELECT count(*) n FROM price_obs WHERE kind = 'marden'").fetchone()["n"] == 0
-    # a run on a subset of cases is not the published backtest: it does not mark the screen
     assert committed.execute("SELECT count(*) n FROM read_model_dirty WHERE view = 'track_record'").fetchone()["n"] == 0
 
-    from marden.readmodels.views.track_record import build_track_record
+    from marden.readmodels.views.risk_list import earlier_call
+    from marden.readmodels.views.track_record import case_of
 
-    with db.transaction() as conn:
-        (key, doc), = list(build_track_record(conn))
-    assert key == "all" and doc["total"] == out["total"] and doc["published"] == out["published"]
-    assert {c["name"] for c in doc["cases"]} == {c["name"] for c in out["cases"]}
+    shown = [case_of(c) for c in out["cases"]]  # what the track_record read model keeps of each case
+    assert all(s is not None for s in shown)
+    assert {s["name"]: (s["flagged"], s["moved"], s["leadDays"]) for s in shown} == {
+        c["name"]: (c["flagged"], c["moved"], c["leadDays"]) for c in out["cases"]}
+    assert all(earlier_call(c) is not None for c in out["earlierCalls"])  # RiskList.earlierCalls entries
 
 
 def test_a_live_run_on_the_day_is_used_as_the_snapshot(jupiter_rows):
@@ -226,3 +229,15 @@ def test_a_new_price_marks_the_backtest_and_a_refresh_waits_for_a_full_run(jupit
         marks = triggers.dirty_marks(conn, "track_record")
     assert [k for k, _ in marks] == ["all"]
     assert "skipped" in tr.refresh(trigger="test")
+
+
+def test_the_published_output_marks_the_screen(committed):
+    from marden.models import runs
+
+    run_id = runs.start_run(tr.MODEL, tr.VERSION, trigger="test")
+    tr._write(run_id, business_today(), {"cases": []}, mark=True, subject=tr.subject_of(None))
+    tr._write(run_id, business_today(), {"cases": []}, mark=True, subject=tr.subject_of(["jupiter"]))
+    dirty = committed.execute("SELECT view, key FROM read_model_dirty").fetchall()
+    assert [(r["view"], r["key"]) for r in dirty] == [("track_record", "all")]
+    subjects = committed.execute("SELECT subject_id FROM model_output WHERE model = 'track_record' ORDER BY 1")
+    assert [r["subject_id"] for r in subjects.fetchall()] == ["all", "cases:jupiter"]
