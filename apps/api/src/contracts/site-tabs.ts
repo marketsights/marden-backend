@@ -53,7 +53,11 @@ export interface SitePowerTab {
   watched: { agency: string; what: string; cadence: string; url?: string }[];
   plant?: PowerPlantRow | null;
   /** In-service date history, newest first. */
-  history: { recorded: string; source: string; change: string; evidence: Evidence }[];
+  history: {
+    recorded: string; source: string; change: string; evidence: Evidence;
+    /** Other outlets' reports of the same development that day (same power source). */
+    reports?: { change: string; evidence: Evidence }[];
+  }[];
 }
 
 // ---------- GET /api/sites/:slug/opposition ----------

@@ -114,3 +114,22 @@ def test_power_history_names_the_power_source(sites):
     if copied_rows("SELECT 1 FROM fact WHERE subject_type = 'site' AND field IN ('schedule_change', 'rfs_statement') "
                    "AND status = 'published' LIMIT 1"):
         assert seen > 0
+
+
+def test_power_history_is_one_row_per_day_and_power_source(sites):
+    """Several outlets reporting the same development on the same day are one row, led by the filed
+    record (else the fullest report); the others are kept under `reports` with their own sources."""
+    folded = 0
+    for slug in sites:
+        rows = build("site_tab:power", slug)["history"]
+        keys = [(r["recorded"], r["source"]) for r in rows]
+        assert len(keys) == len(set(keys)), slug
+        for row in rows:
+            for report in row.get("reports", []):
+                folded += 1
+                assert power_source_of(report["change"]) == row["source"]
+                assert report["evidence"]["sourceName"] is not None
+                lead_filed = row["evidence"].get("tag") == "F"
+                assert lead_filed or report["evidence"].get("tag") != "F" or len(row["change"]) >= len(report["change"])
+    if "jupiter" in sites:
+        assert folded > 0  # Jupiter's Sep 24 force-majeure coverage came from several outlets

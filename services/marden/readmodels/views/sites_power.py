@@ -153,17 +153,27 @@ def power_source_of(text: str) -> str:
 
 
 def history(conn: Conn, slug: str) -> list[Doc]:
+    """One row per day and power source: outlets reporting the same development that day are one row,
+    led by the filed record (else the fullest report), with the others under `reports`."""
     rows = known_fact_rows(conn, "site", slug, ["schedule_change", "rfs_statement"])
-    out = []
+    groups: dict[tuple[str, str], list[tuple[Row, Doc]]] = {}
     for row in rows["schedule_change"] + rows["rfs_statement"]:
         v = row["value"] if isinstance(row["value"], dict) else {}
         when = v.get("date") if isinstance(v.get("date"), str) else row["valid_from"].isoformat()
         change = v.get("what") or v.get("text") or text_of(v)
         if not change:
             continue
-        out.append({"recorded": when, "source": power_source_of(str(change)), "change": str(change),
-                    "evidence": fact_evidence(row, str(change), when)})
-    out.sort(key=lambda h: h["recorded"], reverse=True)
+        item = {"recorded": when, "source": power_source_of(str(change)), "change": str(change),
+                "evidence": fact_evidence(row, str(change), when)}
+        groups.setdefault((when, item["source"]), []).append((row, item))
+    out = []
+    for members in groups.values():
+        members.sort(key=lambda m: (m[0]["tag"] != "F", -len(m[1]["change"]), m[0]["id"]))
+        lead = dict(members[0][1])
+        if len(members) > 1:
+            lead["reports"] = [{"change": m["change"], "evidence": m["evidence"]} for _, m in members[1:]]
+        out.append(lead)
+    out.sort(key=lambda h: (h["recorded"], h["source"]), reverse=True)
     return out
 
 
