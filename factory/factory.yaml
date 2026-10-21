@@ -1,0 +1,131 @@
+# Marden agent factory configuration. Paths are relative to this file.
+repo: ../marden                 # the product monorepo (main branch is the source of truth)
+main_branch: main
+state_db: state.db
+worktrees: ../wt                # one git worktree per running task
+logs: logs
+reports: reports
+roles_dir: roles
+
+# Concurrency and spend. Real limits are your API rate limits and budget, not the agent count.
+max_concurrency: 48
+role_limits:                    # caps per role so one kind of work cannot starve the rest
+  architect: 2
+  devops: 3
+  frontend: 18
+  backend: 14
+  data_eng: 16
+  extraction: 8
+  quant: 6
+  tester: 8
+  red_team: 4
+  fixer: 6
+  integrator: 4
+  planner: 4
+budget_usd: 2500                # hard stop for the whole run
+tick_sec: 3
+gate_timeout_min: 20
+max_total_tasks: 5000           # cap on tasks agents may create by splitting or discovery
+max_split: 25
+max_split_depth: 2
+max_discovered_per_task: 10
+max_discovery_depth: 3
+
+# How a task attempt is executed. {prompt_file} holds the role prompt + task + gates + last error.
+# Headless Claude Code in the task's own worktree; spend per attempt is capped by --max-budget-usd.
+worker_cmd: >-
+  claude -p --output-format json --permission-mode bypassPermissions
+  --model {model} --max-budget-usd {budget} < {prompt_file}
+worker_smoke: claude -p --output-format json "Reply with the word ok" --max-budget-usd 0.50 < /dev/null
+default_model: opus
+models:                         # cheaper models where the work is narrow
+  tester: sonnet
+  red_team: opus
+  extraction: sonnet
+  data_eng: sonnet
+  frontend: sonnet
+  backend: sonnet
+  fixer: opus
+  architect: opus
+  quant: opus
+  integrator: opus
+  planner: opus
+
+# Gates. A task lists gate names, optionally with an argument: "visual:completion".
+# Scripts live in the product repo under scripts/gates and are created by phase 0 tasks.
+gates:
+  static: scripts/gates/static.sh
+  unit: scripts/gates/unit.sh {area}
+  py: scripts/gates/py.sh {arg}       # e.g. py:collectors/eia-860m -> services/collectors/eia-860m
+  contract: scripts/gates/contract.sh {arg}
+  visual: scripts/gates/visual.sh {arg}
+  e2e: scripts/gates/e2e.sh {arg}
+  data: scripts/gates/data.sh {arg}
+  migrate: scripts/gates/migrate.sh
+  perf: scripts/gates/perf.sh {arg}
+  security: scripts/gates/security.sh {arg}
+  auth: scripts/gates/auth.sh {arg}       # auth:unit on merge; auth:live against the Clerk dev instance
+merge_gates:                    # re-run after rebasing onto the latest main
+  - scripts/gates/static.sh
+main_check: scripts/gates/main_check.sh   # full suite on main, run by the watchdog
+watchdog_min: 15
+max_main_fixes: 3            # main still red after this many fixer runs: halt the factory
+
+# Scope rules that let dozens of agents work at once without trampling each other.
+always_allowed:                 # every task may add tests and its own notes
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/test_*.py"
+  - "**/tests/**"
+  - "reports/findings/**"
+unscoped_roles: [architect, integrator]
+protected:                      # shared contracts change only through these roles
+  - glob: "packages/contracts/**"
+    roles: [architect, integrator]
+  - glob: "db/migrations/**"
+    roles: [architect, integrator, data_eng]
+  - glob: "scripts/gates/**"
+    roles: [architect, devops, integrator]
+noop_roles: [planner]
+
+# Code structure, checked by the factory itself on every task before its gates (lint rules on top come from static.sh).
+structure:
+  max_lines: {".ts": 300, ".tsx": 300, ".py": 400, ".sql": 600, ".css": 400, ".sh": 200}
+  max_lines_test: 600
+  max_file_kb: 512
+  banned_names: '^(misc|stuff|temp|tmp|new|old|final|copy|backup|test2|untitled|helpers2|utils2|foo|bar)$|(_v\d+|-v\d+|_old|-old|_new|-new|_copy|-copy|_final|-final|_bak|-bak)$'
+  never_commit: [".env", ".env.*", "**/.env", "**/.env.*", "**/*.pem", "**/*.key", "**/node_modules/**", "**/__pycache__/**"]
+  skip:                         # exempt from line caps and naming: inputs, generated and data files
+    - "handoff/**"
+    - "legacy/**"
+    - "packages/contracts/fixtures/**"
+    - "packages/contracts/generated/**"
+    - "**/generated/**"
+    - "db/migrations/**"
+    - "tests/golden/**"
+    - "**/*.snap"
+    - "**/*.lock"
+    - "pnpm-lock.yaml"
+    - "**/*.json"
+    - "**/*.md"
+    - "**/*.png"
+    - ".env.example"
+
+# Verification work created automatically as code lands, per area.
+follow_on:
+  tester: 4                     # a tester pass every 4 merges in an area
+  red_team: 10                  # a red-team pass every 10 merges in an area
+follow_on_gates:
+  tester: [static, "unit"]
+  red_team: [static]
+follow_on_outputs:
+  tester: ["**/*.test.ts", "**/*.test.tsx", "**/test_*.py", "**/tests/**", "reports/findings/**"]
+  red_team: ["reports/findings/**", "**/tests/**", "**/test_*.py", "**/*.test.ts"]
+
+# Preflight
+require_tools: [git, claude, node, pnpm, python3]
+require_env: [DATABASE_URL, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, RAILWAY_TOKEN, SEC_USER_AGENT, MARDEN_SEED_DIR, CLERK_PUBLISHABLE_KEY, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY, CLERK_WEBHOOK_SIGNING_SECRET]
+optional_env: [ANTHROPIC_API_KEY, POSTMARK_TOKEN, FRED_API_KEY, MARKET_DATA_API_KEY, GITHUB_REMOTE]
+
+push_on_exit:                   # only if GITHUB_REMOTE is set
+  - '[ -z "$GITHUB_REMOTE" ] || { git remote get-url origin >/dev/null 2>&1 || git remote add origin "$GITHUB_REMOTE"; git push origin main; } || true'

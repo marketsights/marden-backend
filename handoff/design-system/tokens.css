@@ -1,0 +1,50 @@
+/* Marden V1 design tokens. Use these names in Tailwind config and components. */
+:root {
+  /* Ink and surfaces */
+  --ink: #0C1222;          /* primary text */
+  --ink-2: #3A4152;        /* secondary text */
+  --ink-3: #5A6273;        /* labels, captions (passes 4.5:1 on white) */
+  --ground: #F5F6F8;       /* page background */
+  --surface: #FFFFFF;      /* cards, tables, sidebar */
+  --surface-2: #FAFBFC;    /* table header row */
+  --hover: #F7F8FB;        /* table row hover */
+  --line: #E2E5EB;         /* card borders */
+  --line-2: #EDEFF3;       /* row dividers */
+  --line-strong: #CDD2DC;  /* table header underline, inputs, buttons */
+
+  /* Brand (interactive only: links, selected nav, primary button, Model tag) */
+  --brand: #5E3BFF;
+  --brand-text: #4A2FE0;
+  --brand-tint: #EFEBFF;
+  --brand-ink: #3A22C9;
+
+  /* Status: fill (squares, bars) / text / background */
+  --red: #D92D20;    --red-fg: #A8200F;   --red-bg: #FDECEA;   --red-band: #F4B4AD;
+  --amber: #E5A000;  --amber-fg: #6E4600; --amber-bg: #FFF2CF; --amber-band: #F6CF7E;
+  --green: #2E9E62;  --green-fg: #11603B; --green-bg: #E3F4EA;
+  --grey: #D0D4DC;   --grey-fg: #434B5C;  --grey-bg: #EEF0F4;
+
+  /* Chart */
+  --range: #B8C2D6;        /* projected range band */
+  --deadline: #B42318;     /* lease outside date line */
+  --series-muted: #8A97B4;
+
+  /* Type */
+  --font: 'IBM Plex Sans', system-ui, sans-serif;  /* tabular numbers on: font-variant-numeric: tabular-nums */
+  --fs-body: 15px;
+  --fs-table: 15px;
+  --fs-small: 14px;        /* secondary lines under a value */
+  --fs-label: 13px;        /* uppercase labels, table headers; letter-spacing .05em */
+  --fs-tag: 11.5px;        /* F / R / M tag */
+  --fs-card-title: 17px;
+  --fs-h1: 22px;
+  --fs-kpi: 24px;
+  --fs-hero: 44px;
+
+  /* Shape and spacing (4px grid) */
+  --radius-sm: 6px;   /* buttons, chips, inputs */
+  --radius: 10px;     /* cards */
+  --pad-page: 24px;
+  --gap: 16px;
+  --sidebar-w: 212px;
+}

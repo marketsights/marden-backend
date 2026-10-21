@@ -1,0 +1,2 @@
+# Role: red team
+Try to break the area in your task and record what you find in `reports/findings/<area>-<date>.md`, with failing tests where possible. Check: authorization (can a user see another user's watchlist?), injection (SQL, prompt injection through scraped documents into extraction), SSRF and path traversal in collectors, secrets in logs, rate-limit abuse, data integrity (can an unsourced or contradictory fact reach a screen?), no holdings ever stored, alerts that fire wrongly. Each real finding becomes a `new_tasks` entry with severity in the title.

@@ -1,0 +1,3 @@
+[{"id":"L01","title":"Cushion months helper","role":"quant","phase":1,"area":"models",
+  "outputs":["models/cushion.py"],"gates":["py"],"budget_usd":1.0,"timeout_min":8,"max_attempts":2,
+  "params":{"brief":"Write models/cushion.py with cushion_months(outside_date: str, p50: str) -> int | None. Dates are 'YYYY-MM' or 'YYYY'. A bare year means December 31 of that year (state this in the docstring). Return whole months outside_date minus p50 (negative when p50 is later); None if outside_date is None. Add tests in tests/test_cushion.py covering Jupiter (outside '2028', p50 '2029-02' -> -2) and edge cases."}}]

@@ -1,0 +1,199 @@
+{
+ "asOf": "2026-10-19",
+ "total": 2,
+ "page": 1,
+ "pageSize": 50,
+ "rows": [
+  {
+   "id": "stargate-abilene",
+   "name": "Stargate Abilene",
+   "aliases": [
+    "Lancium Clean Campus",
+    "Longhorn Data Center"
+   ],
+   "county": "Taylor",
+   "state": "TX",
+   "lat": 32.36,
+   "lon": -99.73,
+   "developer": {
+    "value": "Crusoe",
+    "tag": "R",
+    "asOf": "2026-10-14",
+    "sourceUrl": "https://americanbuildout.com/stargate-abilene/",
+    "sourceName": "americanbuildout"
+   },
+   "tenant": {
+    "value": "Oracle (OpenAI end user)",
+    "tag": "R",
+    "asOf": "2026-10-14",
+    "sourceUrl": "https://americanbuildout.com/stargate-abilene/",
+    "sourceName": "americanbuildout"
+   },
+   "status": {
+    "value": "Operating",
+    "tag": "R",
+    "asOf": "2026-09-10",
+    "sourceUrl": "https://nextplatform.com/cloud/2026/09/14/despite-hefty-capital-investments-the-cloud-starts-paying-off-for-oracle/5296362",
+    "sourceName": "Oracle Q1 FY27 call"
+   },
+   "facilityMw": {
+    "value": 1200,
+    "tag": "R",
+    "asOf": "2026-10-14",
+    "sourceUrl": "https://americanbuildout.com/stargate-abilene/",
+    "sourceName": "americanbuildout"
+   },
+   "itMw": {
+    "value": null,
+    "tag": "R",
+    "asOf": "2026-10-19"
+   },
+   "buildings": {
+    "built": 6,
+    "total": 8
+   },
+   "powerSource": {
+    "value": "Hybrid",
+    "tag": "R",
+    "asOf": "2026-03-31",
+    "sourceUrl": "https://measuredai.substack.com/p/stargate-site-by-site-status",
+    "sourceName": "Measured AI"
+   },
+   "utility": {
+    "value": "AEP",
+    "tag": "R",
+    "asOf": "2026-03-31",
+    "sourceUrl": "https://measuredai.substack.com/p/stargate-site-by-site-status",
+    "sourceName": "Measured AI"
+   },
+   "iso": {
+    "value": "ERCOT",
+    "tag": "M",
+    "asOf": "2026-10-19",
+    "sourceName": "Boundary join"
+   },
+   "plantId": "crusoe-abilene",
+   "onlineYear": {
+    "value": 2025,
+    "tag": "R",
+    "asOf": "2026-10-15",
+    "sourceUrl": "https://aiwiki.ai/wiki/abilene_data_center",
+    "sourceName": "aiwiki"
+   },
+   "financed": {
+    "siteSlug": "abilene",
+    "siteName": "Abilene",
+    "chainStatus": "Strained",
+    "debtB": {
+     "value": 9.4,
+     "tag": "R",
+     "asOf": "2025-05-22",
+     "sourceUrl": "https://www.datacenterdynamics.com/en/news/crusoe-secures-116bn-in-debt-and-equity-for-openais-stargate-data-center-campus-in-abilene-texas/",
+     "sourceName": "DCD + Commercial Observer"
+    }
+   },
+   "lastChange": {
+    "date": "2026-09-10",
+    "text": "6 of 8 buildings delivered, 618 MW",
+    "tag": "R",
+    "sourceName": "Oracle Q1 FY27 call",
+    "sourceUrl": "https://nextplatform.com/cloud/2026/09/14/despite-hefty-capital-investments-the-cloud-starts-paying-off-for-oracle/5296362"
+   },
+   "firstSeen": "2026-10-19"
+  },
+  {
+   "id": "vantage-frontier",
+   "name": "Vantage Frontier",
+   "aliases": [
+    "Stargate Shackelford County"
+   ],
+   "county": "Shackelford",
+   "state": "TX",
+   "lat": 32.727,
+   "lon": -99.299,
+   "developer": {
+    "value": "Vantage Data Centers",
+    "tag": "R",
+    "asOf": "2025-12-15",
+    "sourceUrl": "https://www.datacenterdynamics.com/en/news/vantage-breaks-ground-on-texas-gigawatt-data-center-campus-for-openai/",
+    "sourceName": "DCD"
+   },
+   "tenant": {
+    "value": "Oracle (OpenAI end user)",
+    "tag": "R",
+    "asOf": "2025-12-15",
+    "sourceUrl": "https://www.datacenterdynamics.com/en/news/vantage-breaks-ground-on-texas-gigawatt-data-center-campus-for-openai/",
+    "sourceName": "DCD"
+   },
+   "status": {
+    "value": "Under construction",
+    "tag": "R",
+    "asOf": "2025-12-15",
+    "sourceUrl": "https://www.datacenterdynamics.com/en/news/vantage-breaks-ground-on-texas-gigawatt-data-center-campus-for-openai/",
+    "sourceName": "DCD"
+   },
+   "facilityMw": {
+    "value": null,
+    "tag": "R",
+    "asOf": "2026-10-19"
+   },
+   "itMw": {
+    "value": 1400,
+    "tag": "R",
+    "asOf": "2025-12-15",
+    "sourceUrl": "https://www.datacenterdynamics.com/en/news/vantage-breaks-ground-on-texas-gigawatt-data-center-campus-for-openai/",
+    "sourceName": "Vantage via DCD"
+   },
+   "buildings": {
+    "built": 0,
+    "total": 10
+   },
+   "powerSource": {
+    "value": "On-site gas",
+    "tag": "R",
+    "asOf": "2026-03-31",
+    "sourceUrl": "https://measuredai.substack.com/p/stargate-site-by-site-status",
+    "sourceName": "Measured AI"
+   },
+   "utility": {
+    "value": null,
+    "tag": "R",
+    "asOf": "2026-10-19"
+   },
+   "iso": {
+    "value": "ERCOT",
+    "tag": "M",
+    "asOf": "2026-10-19",
+    "sourceName": "Boundary join"
+   },
+   "plantId": "voltagrid-abi-1",
+   "onlineYear": {
+    "value": 2026,
+    "tag": "R",
+    "asOf": "2026-10-16",
+    "sourceUrl": "https://www.compute-atlas.com/facilities/vantage-frontier-shackelford-county-tx",
+    "sourceName": "Compute Atlas"
+   },
+   "financed": {
+    "siteSlug": "frontier",
+    "siteName": "Frontier",
+    "chainStatus": "Strained",
+    "debtB": {
+     "value": 23.0,
+     "tag": "R",
+     "asOf": "2026-10-19",
+     "sourceUrl": "https://www.compute-atlas.com/facilities/vantage-frontier-shackelford-county-tx",
+     "sourceName": "Reported"
+    }
+   },
+   "lastChange": {
+    "date": "2026-10-08",
+    "text": "Oracle trucking gas in to start work",
+    "tag": "R",
+    "sourceName": "Bloomberg via Yahoo Finance",
+    "sourceUrl": "https://finance.yahoo.com/energy/articles/oracle-trucks-natural-gas-data-150844664.html"
+   },
+   "firstSeen": "2026-10-19"
+  }
+ ]
+}

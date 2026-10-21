@@ -1,0 +1,38 @@
+repo: repo
+main_branch: main
+state_db: state.db
+worktrees: wt
+logs: logs
+reports: reports
+roles_dir: ../roles
+max_concurrency: 8
+role_limits: {frontend: 4, fixer: 2}
+budget_usd: 100
+tick_sec: 0.2
+gate_timeout_min: 1
+max_total_tasks: 500
+max_split: 25
+max_split_depth: 2
+max_discovered_per_task: 10
+worker_cmd: python3 {worktree}/../../../stub_worker.py
+worker_smoke: "true"
+default_model: none
+gates:
+  unit: test -d .git || test -f .git
+  static: "true"
+merge_gates: ["true"]
+main_check: "test ! -f BROKEN_MAIN"
+watchdog_min: 0
+always_allowed: ["**/tests/**"]
+unscoped_roles: []
+protected:
+  - glob: "contracts/**"
+    roles: [architect]
+noop_roles: [planner]
+follow_on: {tester: 3}
+follow_on_gates: {tester: [static]}
+follow_on_outputs: {tester: ["tests/**"]}
+require_tools: [git, python3]
+require_env: []
+optional_env: []
+push_on_exit: []

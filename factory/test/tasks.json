@@ -1,0 +1,733 @@
+[
+ {
+  "id": "F01",
+  "title": "scaffold",
+  "role": "architect",
+  "phase": 0,
+  "area": "core",
+  "outputs": [
+   "core/**"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "F02",
+  "title": "contracts",
+  "role": "architect",
+  "phase": 0,
+  "area": "contracts",
+  "outputs": [
+   "contracts/**"
+  ],
+  "deps": [
+   "F01"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "S01",
+  "title": "screen 1",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s1/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S02",
+  "title": "screen 2",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s2/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S03",
+  "title": "screen 3",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s3/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {
+    "fail_first": true
+   }
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S04",
+  "title": "screen 4",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s4/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S05",
+  "title": "screen 5",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s5/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {
+    "always_fail": true
+   }
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S06",
+  "title": "screen 6",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s6/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S07",
+  "title": "screen 7",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s7/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {
+    "split": [
+     {
+      "title": "a",
+      "outputs": [
+       "web/s7a/**"
+      ]
+     },
+     {
+      "title": "b",
+      "outputs": [
+       "web/s7b/**"
+      ],
+      "deps": [
+       "1"
+      ]
+     },
+     {
+      "title": "c",
+      "outputs": [
+       "web/s7c/**"
+      ]
+     }
+    ]
+   }
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S08",
+  "title": "screen 8",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s8/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S09",
+  "title": "screen 9",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s9/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {
+    "new": [
+     {
+      "title": "follow-up bug",
+      "role": "backend",
+      "outputs": [
+       "api/fix9/**"
+      ],
+      "gates": [
+       "static"
+      ]
+     }
+    ]
+   }
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S10",
+  "title": "screen 10",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s10/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S11",
+  "title": "screen 11",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s11/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {
+    "outside": true
+   }
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S12",
+  "title": "screen 12",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s12/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S13",
+  "title": "screen 13",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s13/**",
+   "web/shared.txt"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {
+    "file": "web/shared.txt"
+   }
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S14",
+  "title": "screen 14",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s14/**",
+   "web/shared.txt"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {
+    "file": "web/shared.txt"
+   }
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S15",
+  "title": "screen 15",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s15/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S16",
+  "title": "screen 16",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s16/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S17",
+  "title": "screen 17",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s17/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S18",
+  "title": "screen 18",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s18/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S19",
+  "title": "screen 19",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s19/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "S20",
+  "title": "screen 20",
+  "role": "frontend",
+  "phase": 1,
+  "area": "web",
+  "outputs": [
+   "web/s20/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static",
+   "unit"
+  ],
+  "params": {
+   "stub": {}
+  },
+  "max_attempts": 2
+ },
+ {
+  "id": "E01",
+  "title": "endpoint 1",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e1/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E02",
+  "title": "endpoint 2",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e2/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E03",
+  "title": "endpoint 3",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e3/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E04",
+  "title": "endpoint 4",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e4/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E05",
+  "title": "endpoint 5",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e5/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E06",
+  "title": "endpoint 6",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e6/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E07",
+  "title": "endpoint 7",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e7/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E08",
+  "title": "endpoint 8",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e8/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E09",
+  "title": "endpoint 9",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e9/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "E10",
+  "title": "endpoint 10",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "api/e10/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ]
+ },
+ {
+  "id": "P01",
+  "title": "protected violation",
+  "role": "backend",
+  "phase": 1,
+  "area": "api",
+  "outputs": [
+   "contracts/x/**"
+  ],
+  "deps": [
+   "F02"
+  ],
+  "gates": [
+   "static"
+  ],
+  "max_attempts": 1
+ },
+ {
+  "id": "H01",
+  "title": "needs a key",
+  "role": "devops",
+  "phase": 0,
+  "area": "infra",
+  "outputs": [
+   "infra/**"
+  ],
+  "needs_human": true
+ },
+ {
+  "id": "I01",
+  "title": "integrate",
+  "role": "integrator",
+  "phase": 2,
+  "area": "web",
+  "outputs": [
+   "integ/**"
+  ],
+  "deps": [
+   "S01",
+   "S02",
+   "S03",
+   "S04",
+   "S05",
+   "S06",
+   "S07",
+   "S08",
+   "S09",
+   "S10",
+   "S11",
+   "S12",
+   "S13",
+   "S14",
+   "S15",
+   "S16",
+   "S17",
+   "S18",
+   "S19",
+   "S20",
+   "E01",
+   "E02",
+   "E03",
+   "E04",
+   "E05",
+   "E06",
+   "E07",
+   "E08",
+   "E09",
+   "E10"
+  ],
+  "gates": [
+   "static"
+  ]
+ }
+]

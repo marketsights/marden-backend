@@ -1,0 +1,30 @@
+repo: repo
+main_branch: main
+state_db: state.db
+worktrees: wt
+logs: logs
+reports: reports
+roles_dir: ../../roles
+max_concurrency: 2
+budget_usd: 3
+tick_sec: 1
+gate_timeout_min: 3
+worker_cmd: >-
+  claude -p --output-format json --permission-mode bypassPermissions
+  --model {model} --max-budget-usd {budget} < {prompt_file}
+worker_smoke: claude -p --output-format json "Reply with the word ok" --max-budget-usd 0.50 < /dev/null
+default_model: sonnet
+gates:
+  py: scripts/gates/py.sh
+merge_gates: []
+main_check: "true"
+watchdog_min: 60
+always_allowed: ["tests/**", "**/test_*.py"]
+unscoped_roles: []
+protected: []
+noop_roles: []
+follow_on: {}
+require_tools: [git, claude, python3]
+require_env: []
+optional_env: []
+push_on_exit: []

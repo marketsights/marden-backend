@@ -1,0 +1,52 @@
+[
+  {
+    "id": "a1",
+    "at": "2026-10-19T06:00:00-04:00",
+    "headline": "CoreWeave 2031s down 4.1 pts to 79.4",
+    "tag": "M",
+    "ruleLabel": "Price threshold",
+    "refUrl": "/instruments/crwv-9-2031",
+    "read": false,
+    "emailed": true
+  },
+  {
+    "id": "a2",
+    "at": "2026-10-18T09:00:00-04:00",
+    "headline": "Nscale: Microsoft exits Loughton",
+    "tag": "R",
+    "ruleLabel": "End user exits",
+    "refUrl": "/instruments/nscale-facilities",
+    "read": false,
+    "emailed": true
+  },
+  {
+    "id": "a3",
+    "at": "2026-10-15T16:30:00-04:00",
+    "headline": "Oracle 5y CDS at a record 288bp",
+    "tag": "R",
+    "ruleLabel": "Tenant credit",
+    "refUrl": "/payers/oracle",
+    "read": false,
+    "emailed": true
+  },
+  {
+    "id": "a4",
+    "at": "2026-10-13T18:00:00-04:00",
+    "headline": "Jupiter cushion below zero: −2 months",
+    "tag": "M",
+    "ruleLabel": "Schedule",
+    "refUrl": "/sites/jupiter",
+    "read": false,
+    "emailed": true
+  },
+  {
+    "id": "a5",
+    "at": "2026-10-13T17:00:00-04:00",
+    "headline": "Jupiter gas pipeline now Feb 1 '27",
+    "tag": "F",
+    "ruleLabel": "Power event",
+    "refUrl": "/sites/jupiter?tab=power",
+    "read": false,
+    "emailed": true
+  }
+]

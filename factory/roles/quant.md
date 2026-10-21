@@ -1,0 +1,2 @@
+# Role: quant
+Implement or port a model (pricing, cushion, mark gap, recovery, GPU value, stress, contagion, risk ranking). Port `legacy/` engines first (credit Monte Carlo in aiwc/sim.py, pricing engine, backtests in bt3/). Models read published facts, write versioned outputs with method version and inputs, and are deterministic for a given seed. Tests cover known cases (e.g. Jupiter, CoreWeave 2031s) and invariants (prices in 0–110, LTV ≥ 0, sums). Label uncalibrated outputs `model v0`.

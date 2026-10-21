@@ -1,0 +1,22 @@
+{
+  "widgets": [
+    {
+      "key": "headline"
+    },
+    {
+      "key": "watchlist_changes"
+    },
+    {
+      "key": "alerts"
+    },
+    {
+      "key": "tightest_cushions"
+    },
+    {
+      "key": "risk_top5"
+    },
+    {
+      "key": "coming_up"
+    }
+  ]
+}

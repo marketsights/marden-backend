@@ -1,0 +1,169 @@
+{
+ "asOf": "2026-10-19",
+ "total": 2,
+ "page": 1,
+ "pageSize": 50,
+ "rows": [
+  {
+   "id": "crusoe-abilene",
+   "name": "Crusoe Abilene generation",
+   "county": "Taylor",
+   "state": "TX",
+   "lat": 32.36,
+   "lon": -99.73,
+   "serves": {
+    "id": "stargate-abilene",
+    "name": "Stargate Abilene"
+   },
+   "operator": {
+    "value": "Crusoe",
+    "tag": "F",
+    "asOf": "2025-01-22",
+    "sourceUrl": "https://records.tceq.texas.gov/cs/idcplg?IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&dID=8600163&Rendition=Web",
+    "sourceName": "TCEQ technical review"
+   },
+   "technology": "Simple-cycle turbine",
+   "units": {
+    "count": 10,
+    "byModel": [
+     {
+      "oem": "Solar Turbines",
+      "model": "Titan 350",
+      "count": 5
+     },
+     {
+      "oem": "GE Vernova",
+      "model": "LM2500",
+      "count": 5
+     }
+    ]
+   },
+   "permittedMw": {
+    "value": 360.5,
+    "tag": "F",
+    "asOf": "2025-01-22",
+    "sourceUrl": "https://records.tceq.texas.gov/cs/idcplg?IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&dID=8600163&Rendition=Web",
+    "sourceName": "TCEQ technical review (sum of unit ratings)"
+   },
+   "status": {
+    "value": "Operating",
+    "tag": "R",
+    "asOf": "2026-07-09",
+    "sourceUrl": "https://www.texastribune.org/2026/07/09/texas-data-centers-ai-power-plants-pollution-state-permits/",
+    "sourceName": "Texas Tribune"
+   },
+   "airPermit": {
+    "agency": "TCEQ",
+    "number": "177263",
+    "type": "Standard",
+    "status": "Permitted",
+    "decided": "2025-01-22",
+    "url": "https://records.tceq.texas.gov/cs/idcplg?IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&dID=8600163&Rendition=Web"
+   },
+   "fuelSupply": {
+    "value": null,
+    "tag": "R",
+    "asOf": "2026-10-19"
+   },
+   "gridMode": "Grid-tied",
+   "financed": {
+    "siteSlug": "abilene",
+    "siteName": "Abilene",
+    "chainStatus": "Strained",
+    "debtB": {
+     "value": 9.4,
+     "tag": "R",
+     "asOf": "2025-05-22",
+     "sourceUrl": "https://www.datacenterdynamics.com/en/news/crusoe-secures-116bn-in-debt-and-equity-for-openais-stargate-data-center-campus-in-abilene-texas/",
+     "sourceName": "DCD + Commercial Observer"
+    }
+   },
+   "lastChange": {
+    "date": "2026-07-09",
+    "text": "Reported built; permitted for continuous use",
+    "tag": "R",
+    "sourceName": "Texas Tribune",
+    "sourceUrl": "https://www.texastribune.org/2026/07/09/texas-data-centers-ai-power-plants-pollution-state-permits/"
+   }
+  },
+  {
+   "id": "voltagrid-abi-1",
+   "name": "VoltaGrid ABI-1",
+   "county": "Shackelford",
+   "state": "TX",
+   "lat": 32.727,
+   "lon": -99.299,
+   "serves": {
+    "id": "vantage-frontier",
+    "name": "Vantage Frontier"
+   },
+   "operator": {
+    "value": "VoltaGrid",
+    "tag": "F",
+    "asOf": "2025-12-17",
+    "sourceUrl": "https://www.tceq.texas.gov/downloads/permitting/air/bilingual/pending-permit-notices/182467-nori-english.pdf",
+    "sourceName": "TCEQ notice of receipt"
+   },
+   "technology": "Reciprocating engine",
+   "units": {
+    "count": 210,
+    "byModel": [
+     {
+      "oem": "INNIO Jenbacher",
+      "model": "J620 / J624 (split n/d)",
+      "count": 210
+     }
+    ]
+   },
+   "permittedMw": {
+    "value": 700,
+    "tag": "R",
+    "asOf": "2025-10-24",
+    "sourceUrl": "https://www.constructionowners.com/news/oracle-and-openai-to-power-new-texas-data-center-off-the-grid",
+    "sourceName": "Construction Owners (stated total; GEM lists 714 MW)"
+   },
+   "status": {
+    "value": "Permit pending",
+    "tag": "F",
+    "asOf": "2026-09-22",
+    "sourceUrl": "https://fractracker.org/2026/10/texas-data-center-permits-after-governor-halt/",
+    "sourceName": "TCEQ preliminary decision (via FracTracker)"
+   },
+   "airPermit": {
+    "agency": "TCEQ",
+    "number": "182467 / PSDTX1692",
+    "type": "Major",
+    "status": "Permit pending",
+    "decided": null,
+    "url": "https://www.tceq.texas.gov/downloads/permitting/air/bilingual/pending-permit-notices/182467-nori-english.pdf"
+   },
+   "fuelSupply": {
+    "value": "Energy Transfer, firm gas (lateral n/d)",
+    "tag": "R",
+    "asOf": "2025-10-16",
+    "sourceUrl": "https://pgjonline.com/news/2025/october/energy-transfer-to-supply-voltagrid-powering-oracle-s-23-gw-ai-data-centers",
+    "sourceName": "P&GJ"
+   },
+   "gridMode": "Islanded",
+   "financed": {
+    "siteSlug": "frontier",
+    "siteName": "Frontier",
+    "chainStatus": "Strained",
+    "debtB": {
+     "value": 23.0,
+     "tag": "R",
+     "asOf": "2026-10-19",
+     "sourceUrl": "https://www.compute-atlas.com/facilities/vantage-frontier-shackelford-county-tx",
+     "sourceName": "Reported"
+    }
+   },
+   "lastChange": {
+    "date": "2026-09-22",
+    "text": "Preliminary decision noticed; 30-day comment period",
+    "tag": "F",
+    "sourceName": "TCEQ (via FracTracker)",
+    "sourceUrl": "https://fractracker.org/2026/10/texas-data-center-permits-after-governor-halt/"
+   }
+  }
+ ]
+}

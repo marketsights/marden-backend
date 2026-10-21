@@ -1,0 +1,176 @@
+[
+  {
+    "id": "w1",
+    "kind": "site",
+    "refId": "jupiter",
+    "name": "Jupiter",
+    "typeLabel": "Site",
+    "sub": "OpenAI → Oracle",
+    "status": "Broken",
+    "cushionMonths": -2,
+    "price": null,
+    "change1w": null,
+    "markGap": null,
+    "nextCatalyst": "Fuel-cell permit pending"
+  },
+  {
+    "id": "w2",
+    "kind": "instrument",
+    "refId": "jupiter-loan",
+    "name": "Jupiter construction loan",
+    "typeLabel": "Loan",
+    "sub": "~$18.0B",
+    "status": "Broken",
+    "cushionMonths": -2,
+    "price": {
+      "value": 88.6,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "change1w": {
+      "value": -0.9,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "markGap": "no fund",
+    "nextCatalyst": "Syndication restart"
+  },
+  {
+    "id": "w3",
+    "kind": "instrument",
+    "refId": "crwv-9-2031",
+    "name": "CoreWeave 9.00% 2031",
+    "typeLabel": "Bond",
+    "sub": "$1.75B",
+    "status": "Strained",
+    "cushionMonths": null,
+    "price": {
+      "value": 79.4,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "change1w": {
+      "value": -4.1,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "markGap": {
+      "value": -19.9,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "nextCatalyst": "Q3 fund marks, late Nov"
+  },
+  {
+    "id": "w4",
+    "kind": "instrument",
+    "refId": "oracle-notes",
+    "name": "Oracle senior notes",
+    "typeLabel": "Bond",
+    "sub": "$125.3B · tenant",
+    "status": "Strained",
+    "cushionMonths": null,
+    "price": {
+      "value": 93.1,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "change1w": {
+      "value": -1.2,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "markGap": "traded",
+    "nextCatalyst": "Oracle results, mid-Dec"
+  },
+  {
+    "id": "w5",
+    "kind": "site",
+    "refId": "frontier",
+    "name": "Frontier",
+    "typeLabel": "Site",
+    "sub": "OpenAI → Oracle",
+    "status": "Strained",
+    "cushionMonths": 2,
+    "price": null,
+    "change1w": null,
+    "markGap": null,
+    "nextCatalyst": "First building, H2 '26"
+  },
+  {
+    "id": "w6",
+    "kind": "site",
+    "refId": "lighthouse",
+    "name": "Lighthouse",
+    "typeLabel": "Site",
+    "sub": "OpenAI → Oracle",
+    "status": "Strained",
+    "cushionMonths": 7,
+    "price": null,
+    "change1w": null,
+    "markGap": null,
+    "nextCatalyst": "Oracle collateral posting"
+  },
+  {
+    "id": "w7",
+    "kind": "instrument",
+    "refId": "anthropic-junior",
+    "name": "Anthropic junior chip debt",
+    "typeLabel": "Loan",
+    "sub": "Unbacked tranche",
+    "status": "Strained",
+    "cushionMonths": null,
+    "price": {
+      "value": 94.0,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "change1w": {
+      "value": -0.8,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "markGap": "private",
+    "nextCatalyst": "Next vehicle financing"
+  },
+  {
+    "id": "w8",
+    "kind": "instrument",
+    "refId": "barn-bonds",
+    "name": "The Barn bonds",
+    "typeLabel": "Bond",
+    "sub": "$14.0B",
+    "status": "Strained",
+    "cushionMonths": 11,
+    "price": {
+      "value": 99.0,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "change1w": {
+      "value": -0.2,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "markGap": {
+      "value": -0.7,
+      "tag": "M",
+      "asOf": "2026-10-19"
+    },
+    "nextCatalyst": "Q3 fund marks, late Nov"
+  },
+  {
+    "id": "w9",
+    "kind": "instrument",
+    "refId": "nscale-facilities",
+    "name": "Nscale GPU facilities",
+    "typeLabel": "Loan",
+    "sub": "size n/d",
+    "status": "Broken",
+    "cushionMonths": null,
+    "price": null,
+    "change1w": null,
+    "markGap": null,
+    "nextCatalyst": "Barstow deliveries"
+  }
+]

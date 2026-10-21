@@ -1,0 +1,332 @@
+{
+  "week": {
+    "start": "2026-10-13",
+    "end": "2026-10-19"
+  },
+  "rows": [
+    {
+      "rank": 1,
+      "instrumentId": "jupiter-loan",
+      "name": "Jupiter construction loan",
+      "size": "$18.0B",
+      "why": [
+        {
+          "date": "2026-10-13",
+          "text": "Pipeline now Feb 1 '27",
+          "tag": "F",
+          "sourceName": "FERC eLibrary",
+          "sourceUrl": ""
+        }
+      ],
+      "price": {
+        "value": 88.6,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "change1w": {
+        "value": -0.9,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "fundMark": "no fund holds it",
+      "gap": null,
+      "odds": {
+        "value": 0.78,
+        "tag": "M",
+        "asOf": "2026-10-19",
+        "methodVersion": "odds v0"
+      },
+      "move": {
+        "kind": "up",
+        "by": 1
+      }
+    },
+    {
+      "rank": 2,
+      "instrumentId": "crwv-9-2031",
+      "name": "CoreWeave 9.00% 2031",
+      "size": "$1.75B",
+      "why": [
+        {
+          "date": "2026-10-15",
+          "text": "CDS ~1,194bp; funds still mark near par",
+          "tag": "R",
+          "sourceName": "Press",
+          "sourceUrl": ""
+        }
+      ],
+      "price": {
+        "value": 79.4,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "change1w": {
+        "value": -4.1,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "fundMark": 99.3,
+      "gap": -19.9,
+      "odds": {
+        "value": 0.71,
+        "tag": "M",
+        "asOf": "2026-10-19",
+        "methodVersion": "odds v0"
+      },
+      "move": {
+        "kind": "up",
+        "by": 2
+      }
+    },
+    {
+      "rank": 3,
+      "instrumentId": "oracle-notes",
+      "name": "Oracle senior notes",
+      "size": "$125.3B",
+      "why": [
+        {
+          "date": "2026-10-15",
+          "text": "5y CDS record 288bp; tenant on 5 sites",
+          "tag": "R",
+          "sourceName": "Press",
+          "sourceUrl": ""
+        }
+      ],
+      "price": {
+        "value": 93.1,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "change1w": {
+        "value": -1.2,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "fundMark": "traded",
+      "gap": null,
+      "odds": {
+        "value": 0.52,
+        "tag": "M",
+        "asOf": "2026-10-19",
+        "methodVersion": "odds v0"
+      },
+      "move": {
+        "kind": "same"
+      }
+    },
+    {
+      "rank": 4,
+      "instrumentId": "anthropic-junior",
+      "name": "Anthropic junior chip debt",
+      "size": "~$22.5B",
+      "why": [
+        {
+          "date": "2026-10",
+          "text": "Yield 10%+, up from 8.5% in June; no backstop",
+          "tag": "R",
+          "sourceName": "Press",
+          "sourceUrl": ""
+        }
+      ],
+      "price": {
+        "value": 94.0,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "change1w": {
+        "value": -0.8,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "fundMark": "private",
+      "gap": null,
+      "odds": {
+        "value": 0.48,
+        "tag": "M",
+        "asOf": "2026-10-19",
+        "methodVersion": "odds v0"
+      },
+      "move": {
+        "kind": "new"
+      }
+    },
+    {
+      "rank": 5,
+      "instrumentId": "frontier-loan",
+      "name": "Frontier construction loan",
+      "size": "$23.0B",
+      "why": [
+        {
+          "date": "2026-H2",
+          "text": "First building due; cushion +2 mo",
+          "tag": "R",
+          "sourceName": "Press",
+          "sourceUrl": ""
+        }
+      ],
+      "price": {
+        "value": 96.0,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "change1w": {
+        "value": -0.3,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "fundMark": "no fund holds it",
+      "gap": null,
+      "odds": {
+        "value": 0.41,
+        "tag": "M",
+        "asOf": "2026-10-19",
+        "methodVersion": "odds v0"
+      },
+      "move": {
+        "kind": "same"
+      }
+    },
+    {
+      "rank": 6,
+      "instrumentId": "lighthouse-loan",
+      "name": "Lighthouse construction loan",
+      "size": "$15.0B",
+      "why": [
+        {
+          "date": "2026-07-10",
+          "text": "Oracle must post >$7B in LCs",
+          "tag": "R",
+          "sourceName": "Oracle",
+          "sourceUrl": ""
+        }
+      ],
+      "price": {
+        "value": 97.2,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "change1w": {
+        "value": 0.0,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "fundMark": "no fund holds it",
+      "gap": null,
+      "odds": {
+        "value": 0.33,
+        "tag": "M",
+        "asOf": "2026-10-19",
+        "methodVersion": "odds v0"
+      },
+      "move": {
+        "kind": "down",
+        "by": 1
+      }
+    },
+    {
+      "rank": 7,
+      "instrumentId": "nscale-facilities",
+      "name": "Nscale GPU facilities",
+      "size": "size n/d",
+      "why": [
+        {
+          "date": "2026-10-18",
+          "text": "Microsoft exits Loughton: no power until the 2030s",
+          "tag": "R",
+          "sourceName": "Press",
+          "sourceUrl": ""
+        }
+      ],
+      "price": null,
+      "change1w": null,
+      "fundMark": null,
+      "gap": null,
+      "odds": {
+        "value": 0.3,
+        "tag": "M",
+        "asOf": "2026-10-19",
+        "methodVersion": "odds v0"
+      },
+      "move": {
+        "kind": "new"
+      }
+    },
+    {
+      "rank": 8,
+      "instrumentId": "barn-bonds",
+      "name": "The Barn bonds",
+      "size": "$14.0B",
+      "why": [
+        {
+          "date": "2026-06-30",
+          "text": "Funds mark them 99.72; tenant is Oracle",
+          "tag": "F",
+          "sourceName": "N-PORT",
+          "sourceUrl": ""
+        }
+      ],
+      "price": {
+        "value": 99.0,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "change1w": {
+        "value": -0.2,
+        "tag": "M",
+        "asOf": "2026-10-19"
+      },
+      "fundMark": 99.72,
+      "gap": -0.7,
+      "odds": {
+        "value": 0.18,
+        "tag": "M",
+        "asOf": "2026-10-19",
+        "methodVersion": "odds v0"
+      },
+      "move": {
+        "kind": "same"
+      }
+    }
+  ],
+  "note": {
+    "title": "Jupiter moves to the top; CoreWeave holders face a 20-point markdown in November",
+    "paragraphs": [
+      {
+        "lead": "Jupiter moves to #1.",
+        "text": "Oracle's Oct 13 FERC letter puts the pipeline at Feb 1, 2027. Median completion is now Feb 2029, past the lease's 2028 outside date.",
+        "refs": [
+          "jupiter"
+        ]
+      },
+      {
+        "lead": "CoreWeave 2031s.",
+        "text": "Funds marked them 98.9–99.8 on Jun 30. At 79.4, Q3 filings due late November show a ~20-point markdown.",
+        "refs": [
+          "crwv-9-2031"
+        ]
+      },
+      {
+        "lead": "Oracle.",
+        "text": "5y CDS hit a record 288bp. Five site loans depend on its rent.",
+        "refs": [
+          "oracle"
+        ]
+      },
+      {
+        "lead": "New: Nscale.",
+        "text": "Microsoft left Loughton after the grid offered no power until the 2030s. Nscale also builds Barstow, Texas.",
+        "refs": [
+          "nscale"
+        ]
+      }
+    ]
+  },
+  "earlierCalls": [
+    {
+      "name": "Jupiter loan",
+      "flagged": "2026-03-20",
+      "moved": "2026-09-19",
+      "leadDays": 183
+    }
+  ]
+}

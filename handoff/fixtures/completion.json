@@ -1,0 +1,653 @@
+{
+  "asOf": "2026-10-19",
+  "summary": {
+    "pastOutside": {
+      "count": 1,
+      "debtB": 18.0,
+      "names": [
+        "Jupiter"
+      ]
+    },
+    "under3": {
+      "count": 1,
+      "debtB": 23.0,
+      "names": [
+        "Frontier"
+      ]
+    },
+    "slippedThisWeek": {
+      "count": 1,
+      "months": -3,
+      "record": {
+        "date": "2026-10-13",
+        "text": "Pipeline in service Feb 1 '27, Oracle to FERC",
+        "tag": "F",
+        "sourceName": "FERC eLibrary",
+        "sourceUrl": ""
+      }
+    },
+    "debtByBand": [
+      {
+        "band": "<0",
+        "debtB": 18.0
+      },
+      {
+        "band": "0-3",
+        "debtB": 23.0
+      },
+      {
+        "band": "6-12",
+        "debtB": 38.4
+      },
+      {
+        "band": "12+",
+        "debtB": 3.65
+      }
+    ]
+  },
+  "rows": [
+    {
+      "slug": "jupiter",
+      "name": "Jupiter",
+      "state": "NM",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "OpenAI",
+          "status": "amber",
+          "reason": "Needs new funding",
+          "ruleCode": "E1"
+        },
+        {
+          "role": "tenant",
+          "party": "Oracle",
+          "status": "red",
+          "reason": "BBB- with power withdrawn; force majeure notice",
+          "ruleCode": "T2"
+        },
+        {
+          "role": "developer",
+          "party": "STACK + BorderPlex",
+          "status": "amber",
+          "reason": "Pipeline slipped 3+ months",
+          "ruleCode": "D1"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "red",
+          "reason": "Loan quoted below 95",
+          "ruleCode": "L2"
+        }
+      ],
+      "projection": {
+        "p10": "2028-08",
+        "p50": "2029-02",
+        "p90": "2029-09",
+        "outsideDate": {
+          "value": "2028",
+          "tag": "R",
+          "asOf": "2026-10-19"
+        },
+        "cushionMonths": {
+          "value": -2,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "deltaWeek": {
+          "value": -3,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "outsideDateAssumed": "2028-12-31",
+        "oddsOfMissing": {
+          "value": 0.64,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "odds v0"
+        }
+      },
+      "driver": "Power",
+      "lastEvidence": {
+        "date": "2026-10-13",
+        "text": "Pipeline in service Feb 1 '27, Oracle to FERC",
+        "tag": "F",
+        "sourceName": "FERC eLibrary",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": 18.0,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "SMBC +19"
+    },
+    {
+      "slug": "frontier",
+      "name": "Frontier",
+      "state": "TX",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "OpenAI",
+          "status": "amber",
+          "reason": "Needs new funding",
+          "ruleCode": "E1"
+        },
+        {
+          "role": "tenant",
+          "party": "Oracle",
+          "status": "amber",
+          "reason": "Rated BBB-",
+          "ruleCode": "T1"
+        },
+        {
+          "role": "developer",
+          "party": "Vantage",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "green",
+          "reason": "Holding"
+        }
+      ],
+      "projection": {
+        "p10": "2027-03",
+        "p50": "2027-06",
+        "p90": "2027-11",
+        "outsideDate": {
+          "value": "2027-08",
+          "tag": "M",
+          "asOf": "2026-10-19"
+        },
+        "cushionMonths": {
+          "value": 2,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "deltaWeek": {
+          "value": 0,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        }
+      },
+      "driver": "Power",
+      "lastEvidence": {
+        "date": "2026-04-13",
+        "text": "5 buildings rising; no generators on site yet",
+        "tag": "R",
+        "sourceName": "Cleanview",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": 23.0,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "JPM, MUFG"
+    },
+    {
+      "slug": "barstow",
+      "name": "Barstow",
+      "state": "TX",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "Microsoft",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "tenant",
+          "party": "Nscale",
+          "status": "amber",
+          "reason": "Unrated",
+          "ruleCode": "T1"
+        },
+        {
+          "role": "developer",
+          "party": "Nscale",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "none",
+          "reason": "Not disclosed"
+        }
+      ],
+      "projection": {
+        "p10": "2026-12",
+        "p50": "2027-02",
+        "p90": "2027-05",
+        "outsideDate": {
+          "value": "2027-06",
+          "tag": "M",
+          "asOf": "2026-10-19"
+        },
+        "cushionMonths": {
+          "value": 4,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "deltaWeek": {
+          "value": 0,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        }
+      },
+      "driver": "Delivery",
+      "lastEvidence": {
+        "date": "2026-Q3",
+        "text": "GB300 deliveries start, 104k units",
+        "tag": "R",
+        "sourceName": "Press",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": null,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "n/d"
+    },
+    {
+      "slug": "vineland",
+      "name": "Vineland",
+      "state": "NJ",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "Microsoft",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "tenant",
+          "party": "Nebius",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "developer",
+          "party": "Nebius",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "none",
+          "reason": "Not disclosed"
+        }
+      ],
+      "projection": {
+        "p10": "2027-04",
+        "p50": "2027-06",
+        "p90": "2027-09",
+        "outsideDate": {
+          "value": "2027-12",
+          "tag": "M",
+          "asOf": "2026-10-19"
+        },
+        "cushionMonths": {
+          "value": 6,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "deltaWeek": {
+          "value": 0,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        }
+      },
+      "driver": "Delivery",
+      "lastEvidence": {
+        "date": "2026-02",
+        "text": "Tranche 2 of 9 delivered",
+        "tag": "R",
+        "sourceName": "Press",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": null,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "n/d"
+    },
+    {
+      "slug": "lighthouse",
+      "name": "Lighthouse",
+      "state": "WI",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "OpenAI",
+          "status": "amber",
+          "reason": "Needs new funding",
+          "ruleCode": "E1"
+        },
+        {
+          "role": "tenant",
+          "party": "Oracle",
+          "status": "amber",
+          "reason": "Must post contested collateral",
+          "ruleCode": "T1"
+        },
+        {
+          "role": "developer",
+          "party": "Vantage",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "green",
+          "reason": "Holding"
+        }
+      ],
+      "projection": {
+        "p10": "2027-07",
+        "p50": "2027-10",
+        "p90": "2028-03",
+        "outsideDate": {
+          "value": "2028-05",
+          "tag": "M",
+          "asOf": "2026-10-19"
+        },
+        "cushionMonths": {
+          "value": 7,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "deltaWeek": {
+          "value": 0,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        }
+      },
+      "driver": "Build",
+      "lastEvidence": {
+        "date": "2026-07-10",
+        "text": "Oracle must post >$7B in LCs",
+        "tag": "R",
+        "sourceName": "Oracle",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": 15.0,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "JPM, MUFG"
+    },
+    {
+      "slug": "abilene",
+      "name": "Abilene",
+      "state": "TX",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "OpenAI",
+          "status": "amber",
+          "reason": "Needs new funding",
+          "ruleCode": "E1"
+        },
+        {
+          "role": "tenant",
+          "party": "Oracle",
+          "status": "amber",
+          "reason": "Rated BBB-",
+          "ruleCode": "T1"
+        },
+        {
+          "role": "developer",
+          "party": "Crusoe",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "green",
+          "reason": "Holding"
+        }
+      ],
+      "projection": {
+        "p10": "2027-01",
+        "p50": "2027-03",
+        "p90": "2027-06",
+        "outsideDate": {
+          "value": "2027-12",
+          "tag": "M",
+          "asOf": "2026-10-19"
+        },
+        "cushionMonths": {
+          "value": 9,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "deltaWeek": {
+          "value": 0,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        }
+      },
+      "driver": "Build",
+      "lastEvidence": {
+        "date": "2026-03-06",
+        "text": "600 MW expansion reported cut",
+        "tag": "R",
+        "sourceName": "Press",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": 9.4,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "JPMorgan"
+    },
+    {
+      "slug": "the-barn",
+      "name": "The Barn",
+      "state": "MI",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "OpenAI",
+          "status": "amber",
+          "reason": "Needs new funding",
+          "ruleCode": "E1"
+        },
+        {
+          "role": "tenant",
+          "party": "Oracle",
+          "status": "amber",
+          "reason": "Rated BBB-",
+          "ruleCode": "T1"
+        },
+        {
+          "role": "developer",
+          "party": "Related",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "green",
+          "reason": "Holding"
+        }
+      ],
+      "projection": {
+        "p10": "2027-10",
+        "p50": "2028-01",
+        "p90": "2028-06",
+        "outsideDate": {
+          "value": "2028-12",
+          "tag": "M",
+          "asOf": "2026-10-19"
+        },
+        "cushionMonths": {
+          "value": 11,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "deltaWeek": {
+          "value": 0,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        }
+      },
+      "driver": "Permits",
+      "lastEvidence": {
+        "date": "2026-06-30",
+        "text": "Funds mark the bonds 99.72",
+        "tag": "F",
+        "sourceName": "N-PORT",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": 14.0,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "PIMCO"
+    },
+    {
+      "slug": "childress",
+      "name": "Childress",
+      "state": "TX",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "Microsoft",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "tenant",
+          "party": "IREN",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "developer",
+          "party": "IREN",
+          "status": "green",
+          "reason": "Holding"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "green",
+          "reason": "Holding"
+        }
+      ],
+      "projection": {
+        "p10": "2026-12",
+        "p50": "2027-02",
+        "p90": "2027-06",
+        "outsideDate": {
+          "value": "2028-04",
+          "tag": "M",
+          "asOf": "2026-10-19"
+        },
+        "cushionMonths": {
+          "value": 14,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        },
+        "deltaWeek": {
+          "value": 0,
+          "tag": "M",
+          "asOf": "2026-10-19",
+          "methodVersion": "cushion v0.1"
+        }
+      },
+      "driver": "Delivery",
+      "lastEvidence": {
+        "date": "2026-06-01",
+        "text": "$3.65B IG financing, Fitch A",
+        "tag": "R",
+        "sourceName": "Fitch",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": 3.65,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "GS, JPM"
+    },
+    {
+      "slug": "milam",
+      "name": "Milam",
+      "state": "TX",
+      "chain": [
+        {
+          "role": "end_user",
+          "party": "OpenAI",
+          "status": "amber",
+          "reason": "Needs new funding",
+          "ruleCode": "E1"
+        },
+        {
+          "role": "tenant",
+          "party": "—",
+          "status": "none",
+          "reason": "No tenant: OpenAI builds direct"
+        },
+        {
+          "role": "developer",
+          "party": "SB Energy",
+          "status": "none",
+          "reason": "No data"
+        },
+        {
+          "role": "lenders",
+          "party": "Lenders",
+          "status": "none",
+          "reason": "Not disclosed"
+        }
+      ],
+      "projection": null,
+      "driver": "Funding",
+      "lastEvidence": {
+        "date": "2026-09",
+        "text": "SB Energy IPO delayed",
+        "tag": "R",
+        "sourceName": "Press",
+        "sourceUrl": ""
+      },
+      "debtB": {
+        "value": null,
+        "tag": "R",
+        "asOf": "2026-10-19"
+      },
+      "leadLenders": "n/d"
+    }
+  ]
+}
