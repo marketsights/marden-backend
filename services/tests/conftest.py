@@ -103,3 +103,24 @@ def committed() -> Iterator[psycopg.Connection]:
 @pytest.fixture
 def raw_dir() -> Path:
     return Path(RAW_DIR)
+
+
+@pytest.fixture
+def take_view() -> Iterator:
+    """Lets a test register its own builder for a real view (names are checked against VIEWS);
+    whatever builder was registered before is restored afterwards."""
+    from marden.readmodels.registry import get_builder, register, unregister
+
+    saved: dict = {}
+
+    def take(view: str) -> str:
+        if view not in saved:
+            saved[view] = get_builder(view)
+        unregister(view)
+        return view
+
+    yield take
+    for view, previous in saved.items():
+        unregister(view)
+        if previous is not None:
+            register(previous)

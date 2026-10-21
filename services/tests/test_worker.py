@@ -5,7 +5,6 @@ from __future__ import annotations
 from marden import worker
 from marden.core.queue import app
 from marden.readmodels import builder, mark_dirty
-from marden.readmodels.registry import unregister
 
 
 def test_only_existing_tasks_are_registered():
@@ -20,21 +19,18 @@ def test_only_existing_tasks_are_registered():
     }
 
 
-def test_worker_runs_a_deferred_rebuild(committed):
-    view = "test_worker_view"
+def test_worker_runs_a_deferred_rebuild(committed, take_view):
+    view = take_view("track_record")
 
     @builder(view, many=True)
     def build(conn):
         yield "all", {"built_by": "worker"}
 
-    try:
-        mark_dirty(view, "all")
-        with app.open():
-            job_id = worker.rebuild_dirty_task.defer(timestamp=0)
-        worker.run_worker(queues=["readmodels"], concurrency=1, wait=False)
-        job = committed.execute("SELECT status FROM procrastinate_jobs WHERE id = %s", (job_id,)).fetchone()
-        assert job["status"] == "succeeded"
-        doc = committed.execute("SELECT doc FROM read_model WHERE view = %s", (view,)).fetchone()
-        assert doc["doc"] == {"built_by": "worker"}
-    finally:
-        unregister(view)
+    mark_dirty(view, "all")
+    with app.open():
+        job_id = worker.rebuild_dirty_task.defer(timestamp=0)
+    worker.run_worker(queues=["readmodels"], concurrency=1, wait=False)
+    job = committed.execute("SELECT status FROM procrastinate_jobs WHERE id = %s", (job_id,)).fetchone()
+    assert job["status"] == "succeeded"
+    doc = committed.execute("SELECT doc FROM read_model WHERE view = %s", (view,)).fetchone()
+    assert doc["doc"] == {"built_by": "worker"}

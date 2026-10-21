@@ -8,7 +8,11 @@
 
 A builder returns the exact response type from handoff/api/types.ts, or None when the subject
 no longer has a document. `event(key, doc)` returns the StreamEvent to emit when the doc changes;
-dc_*/plant_* views default to the campus/plant events.
+dc_*/plant_* views default to the campus/plant events. Views must be in `views.VIEWS`.
+
+Builders read facts with `marden.readmodels.known_facts` (fact_current for today's snapshot,
+fact_asof(day) when a past day is backfilled) and date every other read with `build_date()`;
+they never read the `fact` table directly.
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from marden.core.db import Conn
+from marden.readmodels.views import VIEWS, check_view
 
 Doc = dict[str, Any]
 BuildOne = Callable[[Conn, str], Doc | None]
@@ -53,16 +58,15 @@ def _plant_event(key: str, doc: Doc) -> dict[str, Any]:
 
 
 DEFAULT_EVENTS: dict[str, EventFn] = {
-    "dc_row": _campus_event,
-    "dc_detail": _campus_event,
-    "plant_row": _plant_event,
-    "plant_detail": _plant_event,
+    **{view: _campus_event for view in VIEWS if view.startswith(("dc_row", "dc_detail", "dc_tab:"))},
+    **{view: _plant_event for view in VIEWS if view.startswith("plant_")},
 }
 
 _BUILDERS: dict[str, Builder] = {}
 
 
 def register(b: Builder) -> Builder:
+    check_view(b.view)
     if (b.build_one is None) == (b.build_many is None):
         raise ValueError(f"builder {b.view!r} needs exactly one of build_one / build_many")
     if b.build_one is not None and b.keys is None:

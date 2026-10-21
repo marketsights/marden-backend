@@ -3,7 +3,8 @@
 `marden.core.facts` / `marden.core.records` call `mark_dirty_for` when a value is published; the
 dirty (view, key) pairs are rebuilt by `rebuild_dirty` within ~30 s. Field prefix '' matches every
 field, including the pseudo-fields '@price', '@event' and '@holding'. Later modules extend the
-table with `depends(...)`; marking a view that has no builder yet is harmless (it waits).
+table with `depends(...)`; marking a view that has no builder yet is harmless (it waits). Views
+must be in `marden.readmodels.views.VIEWS` (the contract with the API).
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 
 from marden.core import db
 from marden.core.db import Conn
+from marden.readmodels.views import CAMPUS_TABS, SITE_TABS, check_view
 
 KeyFn = Callable[[Conn, str], Iterable[str]]
 Pair = tuple[str, str]
@@ -29,10 +31,12 @@ def singleton(conn: Conn, subject_id: str) -> list[str]:
 
 
 def via(sql: str) -> KeyFn:
-    """Keys from a query taking the subject id as its only parameter (first column, nulls dropped)."""
+    """Keys from a query taking the subject id as its only parameter, `%s` or (to use it more than
+    once) `%(id)s`. First column, nulls dropped."""
+    named = "%(id)s" in sql
 
     def keys(conn: Conn, subject_id: str) -> list[str]:
-        rows = conn.execute(sql, (subject_id,)).fetchall()
+        rows = conn.execute(sql, {"id": subject_id} if named else (subject_id,)).fetchall()
         return [str(v) for r in rows if (v := next(iter(r.values()))) is not None]
 
     keys.__name__ = f"via({sql!r})"
@@ -51,7 +55,7 @@ _DEPS: list[Dep] = []
 
 
 def depends(subject_type: str, field_prefix: str, view: str, keys: KeyFn = same) -> None:
-    dep = Dep(subject_type, field_prefix, view, keys)
+    dep = Dep(subject_type, field_prefix, check_view(view), keys)
     if dep not in _DEPS:
         _DEPS.append(dep)
 
@@ -81,6 +85,7 @@ def _upsert(conn: Conn, pairs: Iterable[Pair], reason: str | None) -> None:
 
 
 def mark_dirty(view: str, key: str, *, conn: Conn | None = None, reason: str | None = None) -> None:
+    check_view(view)
     with db.transaction(conn) as c:
         _upsert(c, [(view, key)], reason)
 
@@ -100,10 +105,25 @@ def mark_dirty_for(
     return sorted(pairs)
 
 
-# ---------------------------------------------------------------- starter table
-SITE_TABS = ("evidence", "power", "opposition", "events", "debt", "lease", "buildings")
+# ---------------------------------------------------------------- default table
+# Which screens show a subject's values. Views rebuilt by their own task are in views.SCHEDULED_VIEWS.
 _INSTRUMENT_SITE = via("SELECT site_slug FROM instrument WHERE id = %s")
+_INSTRUMENT_CAMPUSES = via(
+    """SELECT l.campus_id FROM instrument i JOIN site_link l ON l.site_slug = i.site_slug
+       WHERE i.id = %s AND l.status = 'approved'"""
+)
+_INSTRUMENT_PAYERS = via(
+    """SELECT cp.entity_id FROM instrument i JOIN chain_party cp ON cp.site_slug = i.site_slug
+       WHERE i.id = %s AND cp.entity_id IS NOT NULL"""
+)
+_INSTRUMENT_COMPANIES = via(
+    """SELECT from_entity_id FROM obligation WHERE %(id)s = ANY(instrument_ids)
+       UNION SELECT to_entity_id FROM obligation WHERE %(id)s = ANY(instrument_ids)"""
+)
+_SITE_CAMPUSES = via("SELECT campus_id FROM site_link WHERE site_slug = %s AND status = 'approved'")
+_SITE_PAYERS = via("SELECT entity_id FROM chain_party WHERE site_slug = %s AND entity_id IS NOT NULL")
 _CAMPUS_SITES = via("SELECT site_slug FROM site_link WHERE campus_id = %s AND status = 'approved'")
+_CAMPUS_PLANTS = via("SELECT plant_id FROM plant_serves WHERE campus_id = %s")
 _BUILDING_CAMPUS = via("SELECT campus_id FROM building WHERE id = %s")
 _BUILDING_SITES = via(
     """SELECT l.site_slug FROM building b JOIN site_link l ON l.campus_id = b.campus_id
@@ -111,51 +131,67 @@ _BUILDING_SITES = via(
          AND (l.building_ids IS NULL OR b.id = ANY(l.building_ids))"""
 )
 _PLANT_CAMPUSES = via("SELECT campus_id FROM plant_serves WHERE plant_id = %s")
+_PLANT_SITES = via(
+    """SELECT l.site_slug FROM plant_serves ps JOIN site_link l ON l.campus_id = ps.campus_id
+       WHERE ps.plant_id = %s AND l.status = 'approved'"""
+)
 _UNIT_PLANT = via("SELECT plant_id FROM power_unit WHERE id = %s")
+_ENTITY_SITES = via("SELECT site_slug FROM chain_party WHERE entity_id = %s")
 _HOLDING_INSTRUMENT = via("SELECT instrument_id FROM holding WHERE id::text = %s")
 _HOLDING_LINKED = via("SELECT 'all' FROM holding WHERE id::text = %s AND instrument_id IS NOT NULL")
 _OBLIGATION_PAYER = via("SELECT from_entity_id FROM obligation WHERE id = %s")
+_OBLIGATION_COMPANIES = via(
+    """SELECT from_entity_id FROM obligation WHERE id = %(id)s
+       UNION SELECT to_entity_id FROM obligation WHERE id = %(id)s"""
+)
+
+
+def _many(subject_type: str, views: tuple[str, ...], keys: KeyFn = same) -> None:
+    for view in views:
+        depends(subject_type, "", view, keys)
+
+
+SITE_PAGE = ("site_detail", "site_schedule", "project_file", *(f"site_tab:{t}" for t in SITE_TABS))
+CAMPUS_PAGE = ("dc_row", "dc_detail", *(f"dc_tab:{t}" for t in CAMPUS_TABS))
+PLANT_PAGE = ("plant_row", "plant_detail", "plant_debt")
 
 
 def _install_defaults() -> None:
-    for view in ("site_detail", "site_schedule", "project_file", *(f"site_tab:{t}" for t in SITE_TABS)):
-        depends("site", "", view)
-    for view in ("sites", "completion", "home"):
-        depends("site", "", view, singleton)
+    _many("site", SITE_PAGE)
+    _many("site", ("sites", "completion", "home", "payers", "leases"), singleton)
+    _many("site", ("dc_row", "dc_detail"), _SITE_CAMPUSES)  # the campus row's financed site
+    _many("site", ("payer", "payer_capacity"), _SITE_PAYERS)
 
-    depends("instrument", "", "instrument_detail")
-    for view in ("instruments", "home"):
-        depends("instrument", "", view, singleton)
-    for view in ("site_detail", "site_tab:debt"):
-        depends("instrument", "", view, _INSTRUMENT_SITE)
-    for view in ("sites", "completion"):
-        depends("instrument", "", view, singleton)
+    _many("instrument", ("instrument_detail", "gpu_collateral"))
+    _many("instrument", ("instruments", "curve", "home", "sites", "completion", "payers", "obligations"), singleton)
+    _many("instrument", ("site_detail", "site_tab:debt", "project_file"), _INSTRUMENT_SITE)
+    _many("instrument", ("dc_row", "dc_detail"), _INSTRUMENT_CAMPUSES)
+    _many("instrument", ("payer", "payer_capacity"), _INSTRUMENT_PAYERS)
+    _many("instrument", ("obligation_company",), _INSTRUMENT_COMPANIES)
 
-    depends("campus", "", "dc_row")
-    depends("campus", "", "dc_detail")
-    for view in ("site_detail", "site_tab:buildings"):
-        depends("campus", "", view, _CAMPUS_SITES)
-    for view in ("dc_row", "dc_detail"):
-        depends("building", "", view, _BUILDING_CAMPUS)
-    depends("building", "", "site_tab:buildings", _BUILDING_SITES)
+    _many("campus", CAMPUS_PAGE)
+    _many("campus", ("gpu_deployment", "leases"), singleton)
+    _many("campus", ("site_detail", "site_tab:buildings", "site_tab:power"), _CAMPUS_SITES)
+    _many("campus", ("plant_row", "plant_detail"), _CAMPUS_PLANTS)  # plants list the campus they serve
+    _many("building", ("dc_row", "dc_detail", "dc_tab:buildings", "dc_tab:capacity"), _BUILDING_CAMPUS)
+    _many("building", ("site_tab:buildings",), _BUILDING_SITES)
 
-    depends("plant", "", "plant_row")
-    depends("plant", "", "plant_detail")
-    for view in ("dc_row", "dc_detail"):
-        depends("plant", "", view, _PLANT_CAMPUSES)
-    for view in ("plant_row", "plant_detail"):
-        depends("unit", "", view, _UNIT_PLANT)
+    _many("plant", PLANT_PAGE)
+    _many("plant", ("dc_row", "dc_detail"), _PLANT_CAMPUSES)
+    _many("plant", ("site_tab:power",), _PLANT_SITES)
+    _many("unit", ("plant_row", "plant_detail", "plant_debt"), _UNIT_PLANT)
 
-    depends("entity", "", "payer")
-    depends("entity", "", "obligations", singleton)
+    _many("entity", ("payer", "payer_capacity", "obligation_company"))
+    _many("entity", ("payers", "obligations"), singleton)
+    _many("entity", ("site_detail",), _ENTITY_SITES)  # chain parties (ratings, funding)
 
-    depends("holding", "", "instrument_detail", _HOLDING_INSTRUMENT)
-    depends("holding", "", "instruments", _HOLDING_LINKED)
+    _many("holding", ("instrument_detail",), _HOLDING_INSTRUMENT)
+    _many("holding", ("instruments",), _HOLDING_LINKED)
 
-    for view in ("obligations", "leases"):
-        depends("obligation", "", view, singleton)
-        depends("contract", "", view, singleton)
-    depends("obligation", "", "payer", _OBLIGATION_PAYER)
+    for subject_type in ("obligation", "contract"):
+        _many(subject_type, ("obligations", "leases", "payers"), singleton)
+        _many(subject_type, ("payer", "payer_capacity"), _OBLIGATION_PAYER)
+        _many(subject_type, ("obligation_company",), _OBLIGATION_COMPANIES)
 
 
 _install_defaults()

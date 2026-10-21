@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -37,7 +37,8 @@ def _mark(conn: Conn, subject_type: str, subject_id: str, field: str, reason: st
 
 class PriceWriter:
     """price_obs rows. Dedupe on instrument, date, kind, source (url or name), price; plus obs_at
-    when given, so distinct intraday prints at the same price are kept."""
+    (as UTC) when given, so distinct intraday prints at the same price are kept; plus yield and
+    spread when there is no price, so distinct yield-only quotes are kept."""
 
     def __init__(self, conn: Conn):
         self.conn = conn
@@ -61,6 +62,9 @@ class PriceWriter:
     ) -> WriteResult:
         checks.non_empty(instrument_id, "instrument_id")
         day = checks.not_future(obs_date, "obs_date")
+        if obs_at is not None and (obs_at.tzinfo is None or obs_at.utcoffset() is None):
+            raise ValidationError("obs_at must be timezone-aware (a naive time is ambiguous)")
+        obs_utc = obs_at.astimezone(UTC) if obs_at is not None else None
         if kind not in PRICE_KINDS:
             raise ValidationError(f"price kind must be one of {sorted(PRICE_KINDS)}, got {kind!r}")
         checks.tag(tag)
@@ -70,24 +74,28 @@ class PriceWriter:
         if kind == "marden" and tag != "M":
             raise ValidationError("Marden prices are model values (tag M)")
         price_text = checks.decimal_text(price, "price")
-        for name, val in (("yield_pct", yield_pct), ("spread_bp", spread_bp), ("volume", volume)):
-            checks.decimal_text(val, name)
-        if price_text is None and yield_pct is None and spread_bp is None:
+        yield_text = checks.decimal_text(yield_pct, "yield_pct")
+        spread_text = checks.decimal_text(spread_bp, "spread_bp")
+        checks.decimal_text(volume, "volume")
+        if price_text is None and yield_text is None and spread_text is None:
             raise ValidationError("a price observation needs a price, yield or spread")
         if price_text is not None and Decimal(price_text) < 0:
             raise ValidationError("price (percent of par) cannot be negative")
 
-        key = hash_parts(
+        parts: list[Any] = [
             "price_obs", instrument_id, day.isoformat(), kind, source_url or source_name, price_text,
-            obs_at.isoformat() if obs_at else None,
-        )
+            obs_utc.isoformat() if obs_utc else None,
+        ]
+        if price_text is None:
+            parts += [yield_text, spread_text]
+        key = hash_parts(*parts)
         row = self.conn.execute(
             """INSERT INTO price_obs (instrument_id, obs_date, obs_at, kind, price, yield_pct, spread_bp, volume,
                                       tag, source_name, source_url, method_version, document_id, dedupe_key)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                ON CONFLICT (dedupe_key) DO NOTHING RETURNING id""",
             (
-                instrument_id, day, obs_at, kind, price, yield_pct, spread_bp, volume, tag, source_name,
+                instrument_id, day, obs_utc, kind, price, yield_pct, spread_bp, volume, tag, source_name,
                 source_url, method_version, document_id, key,
             ),
         ).fetchone()
