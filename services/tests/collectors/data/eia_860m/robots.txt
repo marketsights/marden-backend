@@ -1,0 +1,31 @@
+User-agent: *
+Allow: /
+
+Disallow: /_*/
+Disallow: /archive/
+Disallow: /*archive/
+Disallow: /archive*/
+Disallow: /beta/
+Allow: /beta/international/
+Disallow: /cfapps/
+Disallow: /CFIDE/
+Disallow: /CFusionMX7/
+Disallow: /coal/annual/images/
+Disallow: /coal/images/
+Disallow: /dailyrpt
+Disallow: /global/
+Disallow: /images_old/
+Disallow: /maintenance/
+Disallow: /naturalgas/weekly/archivenew_ngwu
+# Disallow: /naturalgas/weekly/includes/archive.php
+Disallow: /oil_gas/
+Disallow: /oit/
+Disallow: /reports/
+Allow: /reports/upcoming.php
+Disallow: /rss
+Disallow: /scripts
+Disallow: /state/maps/Pipelines/
+Disallow: /styles
+Disallow: /survey
+Disallow: /w3c/
+Sitemap: https://www.eia.gov/sitemap.xml

@@ -1644,6 +1644,24 @@ CREATE TABLE public.stress_saved (
 
 
 --
+-- Name: us_county; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.us_county (
+    geoid text NOT NULL,
+    statefp text NOT NULL,
+    countyfp text NOT NULL,
+    stusps text NOT NULL,
+    name text NOT NULL,
+    namelsad text NOT NULL,
+    geom public.geometry(MultiPolygon,4326) NOT NULL,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT us_county_check CHECK ((geoid = (statefp || countyfp)))
+);
+
+
+--
 -- Name: watchlist_item; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2164,6 +2182,14 @@ ALTER TABLE ONLY public.stress_saved
 
 
 --
+-- Name: us_county us_county_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.us_county
+    ADD CONSTRAINT us_county_pkey PRIMARY KEY (geoid);
+
+
+--
 -- Name: watchlist_item watchlist_item_org_id_kind_ref_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2457,6 +2483,20 @@ CREATE INDEX review_open ON public.review_item USING btree (status, created_at) 
 --
 
 CREATE INDEX source_run_source ON public.source_run USING btree (source_id, started_at DESC);
+
+
+--
+-- Name: us_county_geom; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX us_county_geom ON public.us_county USING gist (geom);
+
+
+--
+-- Name: us_county_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX us_county_state ON public.us_county USING btree (stusps);
 
 
 --
@@ -2889,4 +2929,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261021100000'),
     ('20261021100100'),
     ('20261021140000'),
-    ('20261021150000');
+    ('20261021150000'),
+    ('20261021170000');

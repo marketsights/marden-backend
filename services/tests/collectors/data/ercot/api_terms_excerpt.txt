@@ -1,0 +1,3 @@
+https://www.ercot.com/help/terms/data-portal (fetched 2026-10-21; section H):
+
+H. Violations to ERCOT's Terms of Use Policy This policy applies to both: Automated screen scraping programs that access ERCOT URL(s);  Programs that use the Data Access Portal to query and download report data via the Data Access Portal or External Web Service (EWS); and Use of ERCOT's API in any other way. The objectives of this policy are to: Prevent overloading of ERCOT computing resources that may occur due to excessive queries. Ensure optimal transactional request/response performance to all Market Participants. Ensure a free exchange of information to benefit Market Participants.

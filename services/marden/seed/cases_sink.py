@@ -33,7 +33,7 @@ from marden.core.db import Conn
 from marden.core.facts import FactWriter
 from marden.core.jsonutil import canonical_json, hash_parts, jsonb
 from marden.core.records import EventWriter
-from marden.seed.cases_quarantine import mentions_blocked
+from marden.seed.cases_quarantine import drop_blocked, mentions_blocked
 from marden.seed.common import as_of, parse_date, producer, source_name_for_url, tag_for_basis, tag_for_url
 
 LOADER = "cases"
@@ -49,6 +49,21 @@ _ND = re.compile(
     r"(\.|\([^)]{0,80}\))?\s*$", re.I)
 _URL = re.compile(r"https?://[^\s'\"\]\),;]+")
 _PRESS_BASIS = re.compile(r"reuters|bloomberg|press|reported|\bft\b|wsj|dcd|news", re.I)
+_PARAPHRASE = re.compile(r"paraphras|not verbatim", re.I)
+# Archive-internal pointers ('local:aidebt.json row EX-...') mean nothing outside the archive.
+_LOCAL_PAREN = re.compile(r"\s*\([^()]*local:[^()]*\)")
+_LOCAL_REF = re.compile(
+    r"\s*(?:[-\u2013;,]\s*)?(?:per |see |as listed in |from )?local:\S+"
+    r"(?:\s+(?:rows?\s+)?[A-Z0-9]+-[A-Za-z0-9_\-/,.]+)?")
+
+
+def is_paraphrase(text: Any) -> bool:
+    """The archive marks some excerpts '(paraphrase)': they are not verbatim quotes."""
+    return isinstance(text, str) and bool(_PARAPHRASE.search(text))
+
+
+def drop_local_refs(text: str) -> str:
+    return _LOCAL_REF.sub("", _LOCAL_PAREN.sub("", text)).strip()
 
 
 def legacy_method(relpath: str) -> str:
@@ -92,7 +107,7 @@ def compact(value: Any) -> Any:
     if isinstance(value, list):
         return [v for v in (compact(x) for x in value) if not is_nd(v)]
     if isinstance(value, str):
-        return " ".join(value.split())
+        return " ".join(drop_local_refs(value).split())
     return value
 
 
@@ -147,6 +162,7 @@ class FactSink:
     skipped: Counter[str] = field(default_factory=Counter)
     created: int = 0
     seen: int = 0
+    keys: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         self.writer = FactWriter(self.conn)
@@ -158,6 +174,10 @@ class FactSink:
         """Write one published fact; None when the value is n/d. judged=True: the archive's own
         judgment (M, legacy-<file>); rule=True: mapped here by a fixed rule (M, RULES_VERSION)."""
         value = compact(value)
+        clean = drop_blocked(value)
+        if clean != value:
+            self.skipped["value text citing a blocked price source (removed)"] += 1
+            value = clean
         if is_nd(value):
             self.skipped[f"{subject_type}.{field_name}: n/d"] += 1
             return None
@@ -172,6 +192,9 @@ class FactSink:
         if text and mentions_blocked(text):
             self.skipped["quote citing a blocked price source (quote not kept)"] += 1
             text = None
+        if text and is_paraphrase(text):
+            self.skipped["paraphrased excerpt (not kept as a quote)"] += 1
+            text = None
         day = valid_from if isinstance(valid_from, date) else parse_date(valid_from)
         res = self.writer.add(
             subject_type, subject_id, field_name, value, tag=tag,
@@ -182,6 +205,9 @@ class FactSink:
         self.counts[(subject_type, field_name)] += 1
         self.seen += 1
         self.created += int(res.created)
+        if res.dedupe_key in self.keys:  # the archive repeats a record (same value, source and date)
+            self.skipped[f"{subject_type}.{field_name}: repeated record (written once)"] += 1
+        self.keys.add(res.dedupe_key)
         return res.id
 
     def fields(self) -> list[str]:
@@ -235,7 +261,7 @@ class ModelSink:
     def add(self, model: str, subject_type: str, subject_id: str, day: date, output: dict[str, Any]) -> None:
         from marden.readmodels.deps import mark_dirty_for
 
-        body = compact(output)
+        body = drop_blocked(compact(output))
         canonical_json(body)  # JSON-safe before the insert
         row = self.conn.execute(
             """INSERT INTO model_output (run_id, model, version, subject_type, subject_id, as_of, output)
@@ -250,7 +276,7 @@ class ModelSink:
 
 RETRYABLE = (psycopg.errors.DeadlockDetected, psycopg.errors.SerializationFailure,
              psycopg.errors.LockNotAvailable)
-_STATE = ("counts", "skipped", "created", "seen")
+_STATE = ("counts", "skipped", "created", "seen", "keys")
 
 
 @dataclass

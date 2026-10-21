@@ -1,0 +1,31 @@
+# Disallowing the following for all agents
+User-agent: *
+Disallow: /content/contours/
+Disallow: /static-assets/data/help/
+Disallow: /static-assets/css
+Disallow: /static-assets/scripts
+Disallow: /static-assets/js
+Disallow: /misapp
+Disallow: /remote-assets/
+Disallow: /content/wcm
+Disallow: /content/css
+Disallow: /content/news
+Disallow: /content/mkrules
+Disallow: /content/meetings
+Disallow: /content/gridinfo
+Disallow: /content/committees
+Disallow: /content/services
+Disallow: /content/mkinfo
+Disallow: /committeeslboardlsnpc
+Disallow: /widgets
+Disallow: /meetings
+Disallow: /tmaps
+Disallow: /AboutERCOT
+Disallow: /Application%20Data
+Disallow: /MATLAB
+Disallow: /mp/export?
+Disallow: /misdownload
+Disallow: /ical
+Disallow: /about/governance/biography/
+
+Sitemap: https://www.ercot.com/static-assets/data/sitemap.xml

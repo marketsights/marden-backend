@@ -11,7 +11,8 @@ TAGS = frozenset({"F", "R", "M"})
 SUBJECT_TYPES = frozenset(
     {"site", "campus", "building", "plant", "unit", "instrument", "entity", "contract", "obligation", "holding",
      "series",  # series: time series that are not instruments (rate curves, indexes); subject_id = series id
-     "queue_project"}  # an ISO/RTO interconnection queue entry; subject_id = queue_project.id ('<iso>:<queue id>')
+     "queue_project",  # an ISO/RTO interconnection queue entry; subject_id = queue_project.id ('<iso>:<queue id>')
+     "eia_generator"}  # an EIA-860M generator; subject_id '<EIA plant id>_<generator id>' (collectors/eia_860m)
 )
 SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
 PRODUCER = re.compile(r"^[a-z][a-z_]*:\S+$")

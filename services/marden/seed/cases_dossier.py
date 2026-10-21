@@ -13,7 +13,7 @@ from typing import Any
 
 from marden.seed.cases_archive import DOSSIER, Archive
 from marden.seed.cases_quarantine import PRICE_KEYS, scrub_text, strip
-from marden.seed.cases_sink import FactSink, first_url, is_nd, usd_m, weakest
+from marden.seed.cases_sink import FactSink, first_url, is_nd, is_paraphrase, usd_m, weakest
 from marden.seed.common import tag_for_url
 
 DRIVERS = ("power", "permits", "water", "construction", "tenant", "sponsor", "other")
@@ -37,10 +37,7 @@ def instrument_refs(arc: Archive, refs: list[Any]) -> list[str]:
             prefix, rest = iid.rsplit("-", 1)[0], ref[m.end():]
             last = int(iid.rsplit("-", 1)[1]) if iid.rsplit("-", 1)[1].isdigit() else None
             while last is not None and (more := _MORE.match(rest)):
-                if more.group(1):
-                    nxt = [int(more.group(1))]
-                else:
-                    nxt = list(range(last + 1, int(more.group(2)) + 1))
+                nxt = [int(more.group(1))] if more.group(1) else list(range(last + 1, int(more.group(2)) + 1))
                 found += [f"{prefix}-{n:03d}" for n in nxt]
                 last, rest = nxt[-1], rest[more.end():]
     return arc.known(found)
@@ -58,6 +55,7 @@ def _debt_item(arc: Archive, d: dict[str, Any]) -> tuple[dict[str, Any], str, li
         "drawn_asof": d.get("drawn_asof"), "commitment_usd": usd_m(d.get("commitment_m")),
         "holders": d.get("holders"), "covenants": d.get("covenants"), "note": scrub_text(d.get("note")),
         "instrument_ids": ids or None, "source_url": url,
+        "quote": None if is_paraphrase(d.get("quote")) else d.get("quote"),
     }
     tag = "M" if d.get("amt_inferred") else tag_for_url(url)
     return item, tag, ids
@@ -68,17 +66,18 @@ def _debt(sink: FactSink, arc: Archive, case: str, slug: str) -> None:
     items = [_debt_item(arc, d) for d in rows]
     if items:
         sink.add("site", slug, "debt_items", [i for i, _, _ in items], src=src, tag=weakest([t for _, t, _ in items]))
+    # The row's quote covers the row as a whole, so it stays in debt_items, not on each derived field.
     for d, (item, tag, ids) in zip(rows, items, strict=True):
-        url, quote = item.get("source_url"), d.get("quote")
+        url = item.get("source_url")
         for iid in ids:
-            sink.add("instrument", iid, "amortization", d.get("amort"), src=src, url=url, quote=quote, tag=tag)
-            sink.add("instrument", iid, "ranking_text", d.get("rank"), src=src, url=url, quote=quote, tag=tag)
+            sink.add("instrument", iid, "amortization", d.get("amort"), src=src, url=url, tag=tag)
+            sink.add("instrument", iid, "ranking_text", d.get("rank"), src=src, url=url, tag=tag)
             sink.add("instrument", iid, "holders_text", d.get("holders"), src=src, url=url, tag=tag)
             sink.add("instrument", iid, "covenants_text", d.get("covenants"), src=src, url=url, tag=tag)
-            sink.add("instrument", iid, "drawn_usd", usd_m(d.get("drawn_m")), src=src, url=url, quote=quote,
+            sink.add("instrument", iid, "drawn_usd", usd_m(d.get("drawn_m")), src=src, url=url,
                      unit="USD", valid_from=d.get("drawn_asof"), tag=tag)
             sink.add("instrument", iid, "commitment_usd", usd_m(d.get("commitment_m")), src=src, url=url,
-                     quote=quote, unit="USD", tag=tag)
+                     unit="USD", tag=tag)
 
 
 def _collateral(sink: FactSink, arc: Archive, case: str, slug: str) -> None:
@@ -136,11 +135,14 @@ def _risks(sink: FactSink, arc: Archive, case: str, slug: str) -> None:
                  "level": (drivers.get(driver) or {}).get("level")}
         if not (is_nd(value["status"]) and is_nd(value["detail"])):
             sink.add("site", slug, f"risk_{driver}", value, src=src, judged=True)
-        for e in r.get("evidence") or []:
+        for n, e in enumerate(r.get("evidence") or []):
             url = e.get("u") if isinstance(e.get("u"), str) and e["u"].startswith("http") else None
+            para = is_paraphrase(e.get("q"))  # a paraphrase is kept as the item's summary, not as a quote
+            # `item` (the position in the driver's list) keeps two excerpts of one article apart
             sink.add("site", slug, "risk_evidence",
-                     {"driver": driver, "date": e.get("d"), "headline": e.get("w"), "url": url},
-                     src=src, url=url, quote=e.get("q"), valid_from=e.get("d"))
+                     {"driver": driver, "item": n, "date": e.get("d"), "headline": e.get("w"), "url": url,
+                      "summary": e.get("q") if para else None},
+                     src=src, url=url, quote=None if para else e.get("q"), valid_from=e.get("d"))
 
 
 def _watch(sink: FactSink, arc: Archive, case: str, slug: str) -> None:

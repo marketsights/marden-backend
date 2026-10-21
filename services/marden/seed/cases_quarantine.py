@@ -47,10 +47,13 @@ OPS_FAC_KEYS = PRICE_KEYS | {"y", "sp", "b", "s"}
 # Trigger and recovery tables carry the legacy mark of each loan.
 TABLE_KEYS = PRICE_KEYS
 
-_BLOCKED = re.compile(
-    r"\bTRACE\b|last sale|Frankfurt|B[öo]rse|\bfinra\b|G-spread|Yahoo (?:chart|Finance quote)", re.I)
+# A blocked source named in text. TRACE is matched in capitals only ("trace" is an ordinary word)
+# and Frankfurt only as the exchange (the city appears in collateral descriptions).
+BLOCKED_SOURCE = (r"(?-i:\bTRACE\b)|\bFINRA\b|last sale|B[öo]rse Frankfurt|Frankfurt (?:last|fixing|price|quote|close)"
+                  r"|boerse-frankfurt|Deutsche B[öo]rse|G-spread|Yahoo (?:chart|Finance quote)")
+_BLOCKED = re.compile(BLOCKED_SOURCE, re.I)
 _PRICE_TEXT = re.compile(
-    r"\bTRACE\b|last sale|Frankfurt|B[öo]rse|\bfinra\b|G-spread"
+    BLOCKED_SOURCE +
     r"|\b(?:quote|mark|price|fair value|last|sale)\s+of\s+\d{2,4}(?:\.\d+)?"
     r"|\byields?\s+(?:about\s+|near\s+|~)?\d+(?:\.\d+)?\s?%"
     r"|\b\d+\s?bp\s+(?:over|above|below)\b|\bleaving\s+\d+\s?bp|\bthe price (?:already )?(?:pays|covers)"
@@ -82,6 +85,19 @@ def scrub_text(text: Any) -> str | None:
     kept = [s for s in _SENTENCE.split(text.strip()) if not _PRICE_TEXT.search(s)]
     out = " ".join(kept).strip()
     return out or None
+
+
+def drop_blocked(obj: Any) -> Any:
+    """Remove text that cites a blocked source: sentences of a string, and whole string members of
+    lists and dicts (e.g. a rating 'as shown on FINRA bond page'). Numbers are left alone."""
+    if isinstance(obj, str):
+        kept = [s for s in _SENTENCE.split(obj.strip()) if not _BLOCKED.search(s)]
+        return " ".join(kept).strip() or None
+    if isinstance(obj, list):
+        return [v for v in (drop_blocked(x) for x in obj) if v not in (None, "", [], {})]
+    if isinstance(obj, dict):
+        return {k: v for k, v in ((k, drop_blocked(x)) for k, x in obj.items()) if v not in (None, "", [], {})}
+    return obj
 
 
 def scrub_all(obj: Any) -> Any:

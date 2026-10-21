@@ -1,4 +1,5 @@
-"""grid_join: point-in-polygon facts on campuses, buildings, sites and plants; overlaps, retirements, seams; reruns.
+"""grid_join: point-in-polygon facts on campuses, buildings, sites and plants; stand-in points and county polygons for
+subjects without a point; overlaps, county splits, retirements, seams; reruns.
 
 Boundaries here are small test rectangles (the join logic is what is tested; the real HIFLD layers are read by
 the hifld_grid tests and the live run). Each rectangle carries the meta hifld_grid writes.
@@ -7,6 +8,8 @@ the hifld_grid tests and the live run). Each rectangle carries the meta hifld_gr
 from __future__ import annotations
 
 from datetime import date
+
+from psycopg.types.json import Jsonb
 
 from marden.collectors import grid_join, grid_registry, hifld_grid
 from marden.collectors.grid_store import Region, upsert
@@ -125,7 +128,9 @@ def test_join_publishes_unique_matches_and_flags_the_rest(committed):
 
     reviews = committed.execute("SELECT title, reason, payload FROM review_item ORDER BY title").fetchall()
     assert [r["title"] for r in reviews] == [
-        "site retired: which balancing_authority?", "site retired: which iso?", "site seam: which interconnection?"]
+        "site retired: which balancing_authority?", "site retired: which iso?", "site seam: which balancing_authority?",
+        "site seam: which interconnection?"]
+    assert seam["balancing_authority"][0]["status"] == "candidate"  # the seam puts the BA in doubt too
     dirty = {(r["view"], r["key"]) for r in committed.execute("SELECT view, key FROM read_model_dirty").fetchall()}
     assert ("site_detail", "in-pjm") in dirty and ("dc_row", "c1") in dirty and ("plant_row", "p1") in dirty
 
@@ -150,7 +155,7 @@ def test_rerun_writes_nothing_new(committed):
     first = grid_join.run()
     second = grid_join.run()
     assert second["ok"] and second["facts_new"] == 0 and second["facts_seen"] == first["facts_seen"] > 0
-    assert committed.execute("SELECT count(*) AS n FROM review_item").fetchone()["n"] == first["reviews"] == 3
+    assert committed.execute("SELECT count(*) AS n FROM review_item").fetchone()["n"] == first["reviews"] == 4
 
 
 def test_scheduled_daily_in_the_collect_queue():
@@ -158,3 +163,58 @@ def test_scheduled_daily_in_the_collect_queue():
     assert task.queue == "collect"
     assert {t.cron for (n, _), t in app.periodic_registry.periodic_tasks.items() if n == "collect.grid_join"} == {
         grid_join.CRON_UTC}
+
+
+def _county(conn, geoid: str, stusps: str, name: str, box: tuple[float, float, float, float]) -> None:
+    conn.execute(
+        """INSERT INTO us_county (geoid, statefp, countyfp, stusps, name, namelsad, geom, meta)
+           VALUES (%s, %s, %s, %s, %s, %s, ST_Multi(ST_MakeEnvelope(%s, %s, %s, %s, 4326)), %s)""",
+        (geoid, geoid[:2], geoid[2:], stusps, name, f"{name} County", *box,
+         Jsonb({"vintage": 2025, "scale": "1:5M", "document_id": 1, "source_url": "https://www2.census.gov/x.zip"})))
+
+
+def test_plants_without_a_location_use_their_served_campus_point(committed):
+    with db.transaction() as conn:
+        _setup(conn)
+        conn.execute("""INSERT INTO power_plant (id, name, state) VALUES ('p2', 'On-site plant', NULL),
+                                                                       ('p3', 'Plant in another state', 'WV');
+                        UPDATE campus SET state = 'OH' WHERE id = 'c1';
+                        INSERT INTO plant_serves (plant_id, campus_id) VALUES ('p2', 'c1'), ('p3', 'c1')""")
+    grid_join.run()
+    p2 = _facts(committed, "plant:p2")
+    assert {f: rows[0]["value"] for f, rows in p2.items()} == {
+        "interconnection": "Eastern", "iso": "PJM", "balancing_authority": "PJM"}  # no utility from a stand-in point
+    assert "served campus c1 point (plant has no location)" in p2["iso"][0]["quote_loc"]
+    assert p2["iso"][0]["status"] == "published"
+    assert _facts(committed, "plant:p3") == {}  # the campus is in another state: not a stand-in
+
+
+def test_subjects_without_a_point_are_placed_by_their_county_polygon(committed):
+    with db.transaction() as conn:
+        _setup(conn)
+        _county(conn, "39001", "OH", "Inside", (-84.9, 40.5, -84.6, 40.8))  # inside PJM and UTILITY ONE only
+        _county(conn, "39003", "OH", "Straddle", (-85.5, 39.5, -84.5, 39.8))  # half in PJM, half outside
+        conn.execute("""INSERT INTO site (slug, name, state, county) VALUES ('s-inside', 'S', 'OH', 'Inside County'),
+                            ('s-straddle', 'S2', 'OH', 'Straddle'), ('s-two', 'S3', 'OH', 'Inside; Straddle')""")
+    out = grid_join.run()
+    assert out["basis"]["county"] == 2
+    inside = _facts(committed, "site:s-inside")
+    assert {f: (rows[0]["value"], rows[0]["status"]) for f, rows in inside.items()} == {
+        "interconnection": ("Eastern", "published"), "iso": ("PJM", "published"),
+        "balancing_authority": ("PJM", "published"), "utility": ("UTILITY ONE", "published"),
+        "utility_territories": (["UTILITY ONE"], "published")}
+    assert inside["iso"][0]["quote_loc"].startswith("spatial join: county polygon Inside County, OH (us_county 39001")
+    assert "(100.0% of the county area)" in inside["iso"][0]["quote_loc"]
+
+    straddle = _facts(committed, "site:s-straddle")
+    isos = sorted((r["value"], r["status"], r["quote_loc"]) for r in straddle["iso"])
+    assert [(v, st) for v, st, _ in isos] == [("PJM", "candidate"), ("non-RTO", "candidate")]
+    assert "outside all Independent System Operators polygons" in isos[1][2]
+    assert straddle["balancing_authority"][0]["status"] == "candidate"
+    assert "utility" not in straddle
+    review = committed.execute("SELECT reason, payload FROM review_item WHERE title = 'site s-straddle: which iso?'"
+                               ).fetchone()
+    assert "only partly inside iso:PJM PJM Interconnection (50.0% of the county area)" in review["reason"]
+    assert sorted(c["value"] for c in review["payload"]["candidates"]) == ["PJM", "non-RTO"]
+    assert _facts(committed, "site:s-two") == {}  # two counties named: no single polygon
+    assert grid_join.run()["facts_new"] == 0
