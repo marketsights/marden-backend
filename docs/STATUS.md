@@ -28,7 +28,17 @@ Known open items from the reports: FRED ICE BofA series blocked pending ICE perm
 tests/test_worker.py needs updating for the new models.* and collect.* tasks; Yahoo robots.txt disallows all (owner decision covers it);
 API should return 404 (not 503) for collateral on non-GPU instruments.
 
-## Running when this was written (check with the workflow journals; rerun if lost)
+## Running as of 2026-10-21 ~18:45 UTC (re-run with Workflow({scriptPath, resumeFromRunId}) if lost)
+| Workflow | Run id | What |
+| --- | --- | --- |
+| marden-web-remaining-screens | wf_6239c834-ac7 | build + review Home, Customize, Watchlist, Payers/Payer, Stress, Risk list, Track record, Obligations, GPUs, Leases; final route walk + build |
+| marden-web-mockup-fidelity | wf_32d85200-a86 | element-by-element audit of every built screen/tab vs its mockup with real data; fix; verify; critic |
+| marden-saas-live | wf_49c2d294-54c | Railway/Neon/R2 deploy setup, alert engine + email, Claude extraction workers; review; end-to-end integration |
+| (agent) live updates | — | stream events patch the affected UI in place (patchOn), every screen checked in Chromium |
+Shared local dev servers: API :4000 (dev auth), web :3000. FRED was in maintenance at 18:14 UTC; retry scheduled 20:16 UTC (ICE BofA OAS needed by the tier curves).
+Done since the table below: price pulls reviewed and fixed (commit 454271d); FRED ICE series unblocked (7ef0e37). Open: clean Yahoo duplicates and the 107 intraday TRACE rows in the main DB after the price model run; rotate the Neon app_rw password (it was printed into a local agent log).
+
+### Earlier runs
 | Workflow | What | Script |
 | --- | --- | --- |
 | marden-seed-load | seed loaders waves 2–3 + verify (sites, instruments done) | `~/.claude/projects/.../workflows/scripts/marden-seed-load-*.js` |
