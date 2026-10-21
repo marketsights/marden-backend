@@ -21,8 +21,8 @@ const ORG_READ = ['account:read', 'me:read'] as const;
 const ORG_ADMIN = ['members:invite', 'members:manage'] as const;
 const ORG_OWNER = ['billing:manage', 'org:delete'] as const;
 const STAFF = ['review:read', 'review:approve', 'documents:upload', 'documents:read', 'ops:read', 'products:manage'] as const;
-/** No session: liveness probe, CORS preflight, signature-verified Clerk webhook. */
-export const PUBLIC_PERMISSIONS = ['public:health', 'public:preflight', 'webhook:clerk'] as const;
+/** No session: liveness probe, CORS preflight, signature-verified Clerk webhook, signed unsubscribe link. */
+export const PUBLIC_PERMISSIONS = ['public:health', 'public:preflight', 'webhook:clerk', 'public:unsubscribe'] as const;
 
 export type ProductPermission = (typeof PRODUCT_READ)[number] | 'prefs:write' | (typeof PRODUCT_USE)[number];
 export type OrgPermission = (typeof ORG_READ)[number] | (typeof ORG_ADMIN)[number] | (typeof ORG_OWNER)[number];
@@ -97,6 +97,10 @@ export const ROUTE_RULES: Readonly<Record<string, RouteRule>> = {
   'POST /api/alerts/read': o('alerts:write'),
   'GET /api/alert-settings': o('prefs:read'),
   'PUT /api/alert-settings': o('prefs:write'),
+  'GET /api/alert-delivery': o('prefs:read'),
+  // The link in an alert email: no session, the token is HMAC-signed for one member (lib/unsubscribe-token.ts).
+  'GET /api/email/unsubscribe': pub('public:unsubscribe'),
+  'POST /api/email/unsubscribe': pub('public:unsubscribe'),
   'GET /api/saved-views': o('prefs:read'),
   'POST /api/saved-views': o('prefs:write'),
   'DELETE /api/saved-views/:id': o('prefs:write'),

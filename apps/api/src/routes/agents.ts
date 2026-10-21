@@ -85,9 +85,8 @@ async function waitApplied(db: Db, id: string): Promise<Record<string, unknown> 
   }
 }
 
-export function agentRoutes(app: FastifyInstance, db: Db): void {
+function uploadRoutes(app: FastifyInstance, db: Db): void {
   const maxBytes = uploadMaxBytes();
-
   app.post('/api/documents', { bodyLimit: maxBytes + 1024 * 1024 }, async (req, reply) => {
     const auth = authOf(req);
     let parsed: ParsedUpload;
@@ -123,7 +122,9 @@ export function agentRoutes(app: FastifyInstance, db: Db): void {
       agents: { configured: agents.backend !== 'not_configured', backend: agents.backend, detail: agents.detail },
     });
   });
+}
 
+function statusRoutes(app: FastifyInstance, db: Db): void {
   app.get('/api/uploads/:id', async (req) => {
     const id = param(req, 'id');
     if (!/^\d+$/.test(id)) throw notFound('upload');
@@ -150,7 +151,9 @@ export function agentRoutes(app: FastifyInstance, db: Db): void {
   });
 
   app.get('/api/agents/status', async () => ({ ...(await agentStatus(db)), ...(await jobCounts(db)) }));
+}
 
+function reviewRoutes(app: FastifyInstance, db: Db): void {
   app.get('/api/review', async (req) => {
     const q = queryOf(req);
     const status = typeof q.status === 'string' ? q.status : 'open';
@@ -200,4 +203,10 @@ export function agentRoutes(app: FastifyInstance, db: Db): void {
       return reply.code(202).send({ ...d, status: 'pending' });
     });
   }
+}
+
+export function agentRoutes(app: FastifyInstance, db: Db): void {
+  uploadRoutes(app, db);
+  statusRoutes(app, db);
+  reviewRoutes(app, db);
 }

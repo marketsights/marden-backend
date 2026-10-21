@@ -94,6 +94,10 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     const d = await doc<LeaseMapPage>(ctx, 'leases', 'all');
     return { view: 'leases', asOf: d.asOf, rows: filterLeases(d.leases, ctx.q).map(leaseExportRow) };
   },
+  'lease-reconciliation': async (ctx) => {
+    const d = await doc<LeaseMapPage>(ctx, 'leases', 'all');
+    return { view: 'leases', asOf: d.asOf, rows: asRows(d.reconciliation) };
+  },
   // GPU index (spec 19): today's provider prices (?model=&term=), the models table (?term=), delivered vs energized.
   gpus: async (ctx) => {
     const d = await doc<GpuIndexPage>(ctx, 'gpus', 'all');

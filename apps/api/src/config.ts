@@ -31,6 +31,11 @@ export interface AppConfig {
   trustProxy: boolean | number;
   /** How long SIGTERM waits for in-flight requests before the process exits anyway (ms). */
   shutdownTimeoutMs: number;
+  /**
+   * Verifies the one-click unsubscribe links in alert emails (the worker signs them with the same value).
+   * null when ALERT_LINK_SECRET is unset or shorter than 32 characters: the links then answer 503.
+   */
+  alertLinkSecret: string | null;
   host: string;
   port: number;
 }
@@ -53,6 +58,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().default('info'),
   TRUST_PROXY: z.string().regex(/^(true|false|[0-9]{1,2})$/, 'must be true, false or a hop count').default('false'),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(20_000),
+  ALERT_LINK_SECRET: z.string().optional(),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(4000),
 });
@@ -65,6 +71,12 @@ function parseTrustProxy(v: string): boolean | number {
 }
 
 const blank = (v: string | undefined): string | null => (v && v.trim() !== '' ? v.trim() : null);
+
+/** ALERT_LINK_SECRET when long enough to sign links (services/marden/alerts/settings.py MIN_SECRET_LENGTH). */
+const linkSecret = (v: string | undefined): string | null => {
+  const s = blank(v);
+  return s !== null && s.length >= 32 ? s : null;
+};
 
 /** Clerk publishable keys are `pk_(test|live)_` + base64("<frontend api>$"). */
 export function issuerFromPublishableKey(key: string | null): string | null {
@@ -136,6 +148,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: e.LOG_LEVEL === 'silent' ? false : e.LOG_LEVEL,
     trustProxy: parseTrustProxy(e.TRUST_PROXY),
     shutdownTimeoutMs: e.SHUTDOWN_TIMEOUT_MS,
+    alertLinkSecret: linkSecret(e.ALERT_LINK_SECRET),
     host: e.HOST,
     port: e.PORT,
   };

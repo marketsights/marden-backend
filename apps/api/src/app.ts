@@ -19,6 +19,7 @@ import { HttpError } from './errors.js';
 import { asOfOf } from './lib/params.js';
 import { accountRoutes } from './routes/account.js';
 import { agentRoutes, uploadMaxBytes } from './routes/agents.js';
+import { alertDeliveryRoutes } from './routes/alert-delivery.js';
 import { dataCenterRoutes, powerPlantRoutes } from './routes/data-centers.js';
 import { exportRoutes } from './routes/export.js';
 import { infoRoutes } from './routes/info.js';
@@ -69,6 +70,7 @@ function errorBody(err: FastifyError | HttpError): { status: number; body: Recor
 
 interface RouteDeps {
   db: Db; clerkAdmin: ClerkAdmin | null; devMode: boolean; hub: StreamHub; webhookSecret: string | null; products: ProductRegistry;
+  alertLinkSecret: string | null;
 }
 
 function registerRoutes(app: FastifyInstance, r: RouteDeps): void {
@@ -81,6 +83,7 @@ function registerRoutes(app: FastifyInstance, r: RouteDeps): void {
   marketRoutes(app, db);
   watchlistRoutes(app, db);
   prefsRoutes(app, db);
+  alertDeliveryRoutes(app, { db, linkSecret: r.alertLinkSecret });
   savedViewRoutes(app, db);
   stressRoutes(app, db);
   accountRoutes(app, { db, clerkAdmin: r.clerkAdmin, devMode: r.devMode, products: r.products });
@@ -180,7 +183,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate('streams', hub);
   const clerkAdmin = deps.clerkAdmin === undefined ? createClerkAdmin(config.clerk.secretKey) : deps.clerkAdmin;
 
-  registerRoutes(app, { db, clerkAdmin, devMode, hub, webhookSecret: config.clerk.webhookSecret, products });
+  registerRoutes(app, {
+    db, clerkAdmin, devMode, hub, webhookSecret: config.clerk.webhookSecret, products,
+    alertLinkSecret: config.alertLinkSecret ?? null,
+  });
   deps.extraRoutes?.(app);
 
   app.addHook('onReady', async () => {

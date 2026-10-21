@@ -157,3 +157,24 @@ export interface TrackRecord {
 /** GET /api/gpus (spec 19 GPU index): index points, today's provider prices, value per unit by age. */
 export interface GpuValueCurve { model: string; launch: Sourced<string>; newPrice: Sourced<number>; points: GpuModelDetail['valueByAgeYears'] }
 export interface GpuIndexPage { asOf: string; index: GpuPricePoint[]; providers: GpuProviderPrice[]; valueByAge: GpuValueCurve[] }
+
+// GET /api/alert-delivery (spec 13 Alert delivery): whether alert email can go out and what happened to
+// the caller's recent alert emails (email_outbox, written by the worker). `email` is what the worker last
+// saw of its email configuration; configured false = no email is sent, rows end 'not_configured'.
+export type AlertEmailKind = 'instant' | 'daily_digest' | 'weekly_digest';
+export type AlertEmailStatus = 'queued' | 'sent' | 'failed' | 'not_configured' | 'cancelled';
+export interface AlertEmail {
+  id: string; kind: AlertEmailKind; subject: string; status: AlertEmailStatus; alerts: number;
+  createdAt: string; sentAt: string | null; attempts: number;
+  error: string | null;                                // why it failed or was cancelled (no secrets)
+}
+export interface AlertDelivery {
+  email: {
+    configured: boolean; provider: 'resend' | 'postmark' | null;
+    checkedAt: string | null;                          // null = the worker has not checked yet
+    reason: string | null;                             // staff only: the missing variable names (never values)
+  };
+  to: string;                                          // the address alert email goes to (the member's email)
+  counts: Record<AlertEmailStatus, number>;            // the caller's alert emails of the last 30 days
+  recent: AlertEmail[];                                // newest first, at most 10
+}

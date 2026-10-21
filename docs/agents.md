@@ -134,9 +134,37 @@ approve ID | reject ID --reason R | edit ID --value V --quote Q`.
 facts a careful analyst records, each with its quote; tests confirm every gold quote is in its excerpt and
 passes the code checks. `python -m marden agents eval` runs each area's specialist on its cases and reports
 precision and recall per area (`--recorded` replays the answers saved in `tests/agents/recorded/` with
-`--record`; CI uses the recorded answers). First live run (prompt 0.1, claude-sonnet-5-5 through the CLI
-fallback, 2026-10-21): 41 gold facts, precision 1.00, recall 0.95 (debt 18/19, gpu 4/5, every other area
-complete), 73,927 tokens.
+`--record`; CI uses the recorded answers). Live runs on 2026-10-21, prompt 0.1, claude-sonnet-5-5, 41 gold
+facts in 10 cases:
+
+| Backend | Precision | Recall | Missed | Tokens |
+| --- | --- | --- | --- | --- |
+| `claude` CLI fallback (first prompt text) | 1.00 | 0.95 | debt 1, gpu 1 | 73,927 |
+| Anthropic API (refined field definitions; the recorded set) | 1.00 | 0.93 | debt `events_of_default`, `change_of_control`; gpu one `top_customers` list | 58,316 (about $0.18) |
+
+## Live run (Anthropic API, 2026-10-21)
+
+Eight real stored documents through the whole pipeline (router, specialists, code checks, verifier, linker,
+publish), 145 s, about $2.02 (router $0.006, verifier $0.72; prompt caching read 103k tokens):
+
+| Document | Areas routed | Published | To review | Rejected | Tokens |
+| --- | --- | --- | --- | --- | --- |
+| CoreWeave 8-K (DDTL 5.5) | debt | 0 | 17 (instrument link proposed) | 0 | 46,012 |
+| CoreWeave DDTL 5.5 press release | debt, ratings, gpu | 0 | 10 | 0 | 39,898 |
+| CoreWeave Q2 2026 earnings release | gpu, periodic, debt | 3 | 4 | 0 | 62,191 |
+| CoreWeave 10-Q | 8 areas | 6 | 44 | 2 | 483,690 |
+| FERC order, Oklo (PJM) | power | 0 | 2 | 0 | 30,635 |
+| Applied Digital Building 4 lease (EX-10.1) | lease | 5 | 4 | 0 | 76,037 |
+| TCEQ permit 182126 summary | permits | 1 | 1 | 0 | 12,685 |
+| Doña Ana County BOCC agenda (Project Jupiter) | local | 0 | 2 | 0 | 44,307 |
+
+Published only where the code checks passed, the verifier agreed, the value is routine and unconflicted, and
+the subject was linked by identifier (filer CIK, permit number) or by the upload: CoreWeave active power
+1,500 MW, contracted power 3,700 MW and cash $5,524,000,000; the Building 4 landlord, 25 MW and extension
+options. Held for review: everything about an instrument linked only by name (the linker proposed the right
+one, DDTL 5.5), ratings (material), backlog $104B against the XBRL RPO $103.7B (conflict), lease tenant and
+force majeure terms (material), agenda events on Project Jupiter (proposed site link, model input), and the
+facts the verifier found unsupported.
 
 ## Cost and safety
 

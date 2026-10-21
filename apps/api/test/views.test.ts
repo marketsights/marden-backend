@@ -96,6 +96,8 @@ const APP_ROUTES = new Set([
   '/api/home/layout', '/api/stress/saved', '/api/stress/saved/:id', '/api/watchlist', '/api/watchlist/issuers/:id', '/api/alerts',
   '/api/alert-settings', '/api/saved-views', '/api/sources/health', '/api/account', '/api/search', '/api/stream', '/api/me',
   '/api/export/:table.xlsx', '/healthz',
+  // staff document agents: app tables (agent_job, agent_upload, review_item), not read models
+  '/api/documents', '/api/documents/:id', '/api/uploads/:id', '/api/agents/status', '/api/review', '/api/review/:id',
 ]);
 
 describe('view/key contract', () => {

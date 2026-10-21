@@ -25,6 +25,8 @@ Served by the Node/Fastify backend to our own web app. Session auth: Clerk sessi
 | GET | `/api/alerts` | Watchlist, Home | `Alert[]` |
 | POST | `/api/alerts/read` | Watchlist | — |
 | GET / PUT | `/api/alert-settings` | Watchlist, Account | `AlertSettings` |
+| GET | `/api/alert-delivery` | Account | `AlertDelivery` (app contract): whether alert email is configured, the caller's recent alert emails and their status |
+| GET / POST | `/api/email/unsubscribe?token=` | Alert emails | No session; HMAC-signed link for one member. GET shows a confirm page (changes nothing); POST (the button, or the RFC 8058 one-click POST) switches that email off |
 | GET | `/api/track-record` | Track record | cases, rules, models |
 | GET | `/api/sources/health` | Track record, sidebar footer | source heartbeats |
 | GET | `/api/account` | Account | team, plan, security |
