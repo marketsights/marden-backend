@@ -8,8 +8,9 @@ and note as they are and adds only what the output leaves out:
 
 - `week` = the key and the Sunday after it;
 - a row's `name` and `size` from the instrument when the output has none (its identity row and its
-  size fact as known on the build day); `price`, `change1w`, `fundMark` and `gap` stay null (n/d)
-  when the output has none, since a later price is not what the list was published with;
+  size fact as known on the build day); `price`, `change1w` and `fundMark` stay null (n/d) when the
+  output has none, since a later price is not what the list was published with; `gap` is the row's own
+  published price minus its published fund mark when the output gives both but no gap;
 - `odds` without a value is n/d under 'odds v0' (spec 00-global: uncalibrated until the backtest);
 - `move` against the previous published week when the output has none: 'new', 'up' / 'down' by the
   rank change, or 'same';
@@ -99,6 +100,17 @@ def fund_mark(raw: Any) -> float | str | None:
     return num(raw)
 
 
+def gap_of(raw: dict[str, Any]) -> float | None:
+    """The published gap, else the row's own published Marden price minus its average fund mark (spec 10
+    'Fund mark · gap'; the instruments' markGap is the same difference), n/d without both."""
+    if (gap := num(raw.get("gap"))) is not None:
+        return gap
+    price = raw.get("price")
+    value = num(price.get("value")) if isinstance(price, dict) else num(price)
+    mark = num(raw.get("fundMark"))
+    return round(value - mark, 2) if value is not None and mark is not None else None
+
+
 def risk_row(conn: Conn, out: Row, raw: dict[str, Any], before: dict[str, int] | None,
              names: dict[str, str]) -> Doc | None:
     """types.ts RiskRow from a published row, or None without an instrument and a rank."""
@@ -118,7 +130,7 @@ def risk_row(conn: Conn, out: Row, raw: dict[str, Any], before: dict[str, int] |
         "price": sourced_of(out, raw["price"], "number") if raw.get("price") is not None else None,
         "change1w": sourced_of(out, raw["change1w"], "number") if raw.get("change1w") is not None else None,
         "fundMark": fund_mark(raw.get("fundMark")),
-        "gap": num(raw.get("gap")),
+        "gap": gap_of(raw),
         "odds": odds,
         "move": move_of(raw.get("move"), iid, int(rank), before),
     }

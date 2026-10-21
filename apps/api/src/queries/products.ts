@@ -5,6 +5,7 @@ import type { ProductGrant } from '../auth/grants.js';
 import type { OrgProduct, Role } from '../contracts/app.js';
 import type { Queryable } from '../db.js';
 import { audit } from './audit.js';
+import { lockOrgJoins } from './org-roles.js';
 
 /** Today in UTC: org_product dates are calendar days in UTC, ends_on inclusive. */
 const TODAY = `(now() AT TIME ZONE 'UTC')::date`;
@@ -108,7 +109,7 @@ export async function assignProductRole(c: Queryable, a: Assignment): Promise<As
 export async function grantFirstMemberOwner(c: Queryable, orgId: string, userId: string): Promise<string[]> {
   // One org's membership webhooks take turns here, so two members joining at once cannot both see an
   // otherwise empty org and both become owner; the check below then sees the other's committed row.
-  await c.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`first_member:${orgId}`]);
+  await lockOrgJoins(c, orgId);
   const others = await c.query(`SELECT 1 FROM membership WHERE org_id = $1 AND user_id <> $2 LIMIT 1`, [orgId, userId]);
   if ((others.rowCount ?? 0) > 0) return [];
   const live = await c.query<{ product_id: string }>(

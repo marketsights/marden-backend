@@ -2,11 +2,14 @@
 // message id and safe out of order: each applied event is recorded in audit_log with its event time,
 // and an event older than the last one applied to the same subject (or older than a deletion of a
 // related user or org) is recorded as stale and not applied.
-// Product access is Marden's (docs/access-control.md): a new member gets no product role, except the
-// first member of an org that already holds live products, who becomes owner of each of them.
-import { roleFromClerk } from '../auth/permissions.js';
+// Roles are Marden's (docs/access-control.md). The Clerk instance is shared with another product, so a
+// Clerk organization role is never read: webhooks create and delete memberships, and Marden sets the
+// org role on creation (queries/org-roles.ts) and never changes it from a webhook. A new member gets no
+// product role, except the first member of an org that already holds live products, who becomes owner
+// of each of them.
 import type { Queryable } from '../db.js';
 import { audit } from './audit.js';
+import { createMembership, revokeInvitation } from './org-roles.js';
 import { grantFirstMemberOwner } from './products.js';
 
 export interface ClerkEvent {
@@ -29,7 +32,7 @@ interface Plan {
   orgId: string | null;
   userId: string | null;
   deletes: boolean;
-  apply: (c: Queryable) => Promise<void>;
+  apply: (c: Queryable, at: number) => Promise<void>;   // at: the event time in ms
 }
 
 const s = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
@@ -82,13 +85,12 @@ function membershipPlan(type: string, d: Record<string, unknown>): Plan | null {
   const orgId = s(org.id);
   const userId = s(user.user_id);
   if (!orgId || !userId) return null;
-  const role = type === 'organizationMembership.deleted' ? null : roleFromClerk(s(d.role));
+  const deletes = type === 'organizationMembership.deleted';
+  // d.role (the Clerk role) is deliberately not read: it may be set by the other product.
   return {
-    subject: `membership:${orgId}:${userId}`, related: [`user:${userId}`, `org:${orgId}`], orgId, userId,
-    deletes: role === null,
-    apply: async (c) => {
-      if (role === null) {
-        // Deleted, or a Clerk role Marden does not know: no access.
+    subject: `membership:${orgId}:${userId}`, related: [`user:${userId}`, `org:${orgId}`], orgId, userId, deletes,
+    apply: async (c, at) => {
+      if (deletes) {
         await c.query(`DELETE FROM membership WHERE org_id = $1 AND user_id = $2`, [orgId, userId]);
         return;
       }
@@ -96,14 +98,20 @@ function membershipPlan(type: string, d: Record<string, unknown>): Plan | null {
       await c.query(`INSERT INTO app_user (id, email, name) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`, [
         userId, s(user.identifier) ?? '', fullName(user),
       ]);
-      const res = await c.query<{ inserted: boolean }>(
-        `INSERT INTO membership (org_id, user_id, role) VALUES ($1, $2, $3)
-         ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role
-         RETURNING (xmax = 0) AS inserted`,
-        [orgId, userId, role],
-      );
-      if (res.rows[0]?.inserted) await grantFirstMemberOwner(c, orgId, userId);
+      // created, or updated before Marden saw it created: create it; an existing membership keeps its role.
+      const joined = await createMembership(c, { orgId, userId, identifier: s(user.identifier), at });
+      if (joined?.rule === 'first_member') await grantFirstMemberOwner(c, orgId, userId);
     },
+  };
+}
+
+/** Only a revocation matters: nobody joins through a revoked invitation. The role on it is Marden's. */
+function invitationPlan(type: string, d: Record<string, unknown>): Plan | null {
+  const id = s(d.id);
+  if (!id || type !== 'organizationInvitation.revoked') return null;
+  return {
+    subject: `invitation:${id}`, related: [], orgId: s(d.organization_id), userId: null, deletes: false,
+    apply: (c) => revokeInvitation(c, id),
   };
 }
 
@@ -112,6 +120,7 @@ function planFor(evt: ClerkEvent): Plan | null {
   if (kind === 'user') return userPlan(evt.type, evt.data);
   if (kind === 'organization') return orgPlan(evt.type, evt.data);
   if (kind === 'organizationMembership') return membershipPlan(evt.type, evt.data);
+  if (kind === 'organizationInvitation') return invitationPlan(evt.type, evt.data);
   return null;
 }
 
@@ -144,7 +153,7 @@ function subjectOf(evt: ClerkEvent, plan: Plan | null, msgId: string): { subject
 async function decide(c: Queryable, plan: Plan | null, at: number): Promise<Outcome> {
   if (!plan) return 'ignored';
   if (await isStale(c, plan, at)) return 'stale';
-  await plan.apply(c);
+  await plan.apply(c, at);
   return 'applied';
 }
 

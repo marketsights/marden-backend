@@ -1,5 +1,8 @@
 // Account (spec 13, 23, docs/access-control.md): team with per-product roles, the org's products and
 // seats, invites, org role changes and removals, and GET /api/me.
+// Roles are Marden's: an invite records the Marden role in org_invitation and asks Clerk for an
+// invitation with its basic member role; a role change writes Marden's tables and audit_log only.
+// Clerk is called for invitations and removals (membership existence), never for a role.
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { AuthContext } from '../auth/access.js';
@@ -13,6 +16,7 @@ import { notFound, unavailable } from '../errors.js';
 import { checkInvite, checkRemoval, checkRoleChange } from '../lib/member-rules.js';
 import { getOrg, getUser, lockMembers, removeMember, setMemberRole, team } from '../queries/account.js';
 import { audit } from '../queries/audit.js';
+import { recordInvitation } from '../queries/org-roles.js';
 import { orgProducts } from '../queries/products.js';
 import { param, parseBody } from './serve.js';
 
@@ -27,7 +31,7 @@ const ROLE = z.enum(['owner', 'admin', 'member', 'viewer']);
 const inviteSchema = z.strictObject({ email: z.email().max(320), role: ROLE.default('viewer') });
 const roleSchema = z.strictObject({ role: ROLE });
 
-/** Team changes go through Clerk; only dev mode (no Clerk) changes the local rows alone. */
+/** Removals end the Clerk membership too; only dev mode (no Clerk) changes the local rows alone. */
 function clerkFor(deps: AccountDeps): ClerkAdmin | null {
   if (!deps.clerkAdmin && !deps.devMode) throw unavailable('clerk_backend_api_not_configured');
   return deps.clerkAdmin;
@@ -42,14 +46,14 @@ async function changeMember(
   const { auth, userId, role } = change;
   const locked = await lockMembers(c, auth.orgId, userId);
   if (!locked.role) throw notFound('member');
-  const clerk = clerkFor(deps);
   if (role) {
     checkRoleChange(auth.orgRole, locked.role, role, locked.owners);
-    await clerk?.updateRole(auth.orgId, userId, role);
+    if (role === locked.role) return;
+    // Marden's role: no Clerk call (the Clerk membership keeps Clerk's basic member role).
     await setMemberRole(c, auth.orgId, userId, role);
   } else {
     checkRemoval(auth.orgRole, locked.role, locked.owners);
-    await clerk?.removeMember(auth.orgId, userId);
+    await clerkFor(deps)?.removeMember(auth.orgId, userId);
     await removeMember(c, auth.orgId, userId);
   }
   await audit(c, {
@@ -97,10 +101,17 @@ export function accountRoutes(app: FastifyInstance, deps: AccountDeps): void {
     const body = parseBody(inviteSchema, req.body);
     checkInvite(auth.orgRole, body.role);
     if (!deps.clerkAdmin) throw unavailable('clerk_backend_api_not_configured');
-    const invitation = await deps.clerkAdmin.invite(auth.orgId, body.email, body.role, auth.userId);
-    await audit(db, {
-      orgId: auth.orgId, userId: auth.userId, action: 'member.invite', target: `invitation:${invitation.id}`,
-      ip: req.ip, meta: { email: body.email, role: body.role },
+    // Clerk sends the email and, on acceptance, creates the membership (basic member role); the Marden
+    // role travels in org_invitation and is applied when the membership webhook arrives.
+    const invitation = await deps.clerkAdmin.invite(auth.orgId, body.email, auth.userId);
+    await db.withOrg(auth.orgId, async (c) => {
+      await recordInvitation(c, {
+        id: invitation.id, orgId: auth.orgId, email: body.email, role: body.role, invitedBy: auth.userId, expiresAt: invitation.expiresAt,
+      });
+      await audit(c, {
+        orgId: auth.orgId, userId: auth.userId, action: 'member.invite', target: `invitation:${invitation.id}`,
+        ip: req.ip, meta: { email: body.email, role: body.role },
+      });
     });
     return reply.code(201).send({ invitationId: invitation.id, email: body.email, role: body.role });
   });

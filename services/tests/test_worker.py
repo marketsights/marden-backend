@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from marden import worker
 from marden.core.queue import app
+from marden.plugins import load_plugins
 from marden.readmodels import builder, mark_dirty
 
 
@@ -15,7 +16,7 @@ def _core(name: str) -> bool:
 
 def test_only_existing_tasks_are_registered():
     assert [n for n in worker.registered_task_names() if _core(n)] == [
-        "queue.prune_jobs", "readmodels.rebuild_all", "readmodels.rebuild_dirty"
+        "ops.backup_db", "queue.prune_jobs", "queue.retry_stalled", "readmodels.rebuild_all", "readmodels.rebuild_dirty"
     ]
     for name in worker.registered_task_names():
         if not _core(name):
@@ -25,10 +26,13 @@ def test_only_existing_tasks_are_registered():
         "readmodels.rebuild_dirty": worker.REBUILD_DIRTY_CRON,
         "readmodels.rebuild_all": worker.REBUILD_ALL_CRON,
         "queue.prune_jobs": worker.PRUNE_JOBS_CRON,
+        "queue.retry_stalled": worker.RETRY_STALLED_CRON,
+        "ops.backup_db": worker.BACKUP_CRON,
     }
 
 
 def test_worker_runs_a_deferred_rebuild(committed, take_view):
+    load_plugins()  # as run_worker does, so the real track_record builder is registered before we take the view
     view = take_view("track_record")
 
     @builder(view, many=True)

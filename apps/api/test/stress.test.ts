@@ -122,4 +122,16 @@ describe('stress', () => {
     expect(body.savedAt).toBe(body.createdAt);
     expect((await get('/api/stress/saved')).json()[0]).toMatchObject({ id: body.id, savedAt: body.createdAt });
   });
+
+  it('stores the model result with a saved scenario when the model already has it, not a queued answer', async () => {
+    await db.query(ECHO_RUN);
+    const request = { scenario: 'power_delay', params: { months: 4 }, severity: 'base' };
+    const done = (await app.inject({ method: 'POST', url: '/api/stress/saved', payload: { name: 'Four months', request } })).json();
+    expect(done.result.rows[0]).toMatchObject({ instrumentId: 'ST-TEST-LOAN', why: 'Delay of 4 months, base' });
+    expect(done.ranAt).not.toBeNull();
+    expect((await get(`/api/stress/saved/${done.id}`)).json().result).toEqual(done.result);
+    await db.query(QUEUED_RUN);
+    const queued = (await app.inject({ method: 'POST', url: '/api/stress/saved', payload: { name: 'Queued', request } })).json();
+    expect(queued).toMatchObject({ result: null, ranAt: null });
+  });
 });

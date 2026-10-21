@@ -11,8 +11,8 @@ from typing import Any
 
 from marden.models.materiality import RULE_CODES, SEVERITY
 
-MINUS = "−"
-ARROW = "→"
+MINUS = "\u2212"
+ARROW = "\u2192"
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 TAG_LABEL = {"F": "filed", "R": "reported", "M": "Marden model"}
 ROLE_LABEL = {"end_user": "End user", "tenant": "Tenant", "developer": "Developer", "lenders": "Lenders"}
@@ -31,7 +31,7 @@ SHORT: dict[str, str] = {
     "M1": "Schedule slip", "M2": "Cushion below zero", "M3": "Power denied or withdrawn",
     "M4": "Tenant notice", "M5": "Lender action", "E1": "End user funding", "E2": "End user exits",
     "T1": "Tenant credit", "T2": "Tenant credit and power", "D1": "Developer slip", "D2": "Construction halted",
-    "L1": "Lenders: price 95–98", "L2": "Lenders: price below 95", "C3": "Cushion under 3 months",
+    "L1": "Lenders: price 95\u201398", "L2": "Lenders: price below 95", "C3": "Cushion under 3 months",
     "CX": "Cushion recovered", "PX": "Price threshold", "MK": "Fund mark filed", "RT": "Rating action",
     "OP": "Opposition",
 }
@@ -128,7 +128,7 @@ def day(value: Any) -> str:
 
 def clip(text: str, limit: int) -> str:
     text = " ".join(str(text).split())
-    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "\u2026"
 
 
 def value_text(value: Any) -> str:

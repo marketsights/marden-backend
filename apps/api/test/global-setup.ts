@@ -14,8 +14,8 @@ declare module 'vitest' {
 }
 
 const BASE_URL = process.env.DATABASE_URL ?? 'postgres://marden:marden@localhost:5432/marden?sslmode=disable';
-/** The migrations the API's tables come from, in order (core, then per-product access). */
-const MIGRATIONS = ['20261021100000_core.sql', '20261021180000_product_access.sql']
+/** The migrations the API's tables come from, in order (core, per-product access, Marden-owned org roles). */
+const MIGRATIONS = ['20261021100000_core.sql', '20261021180000_product_access.sql', '20261021234100_marden_org_roles.sql']
   .map((name) => fileURLToPath(new URL(`../../../db/migrations/${name}`, import.meta.url)));
 
 export function withSearchPath(url: string, schema: string): string {

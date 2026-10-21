@@ -8,7 +8,7 @@ import { stressRequestSchema } from '../lib/defaults.js';
 import { asOfOf } from '../lib/params.js';
 import { audit } from '../queries/audit.js';
 import {
-  getSaved, insertSaved, isPendingStress, isStressError, listSaved, runStressWaiting, stressModelAvailable,
+  getSaved, insertSaved, isPendingStress, isStressError, listSaved, runStress, runStressWaiting, stressModelAvailable,
 } from '../queries/stress.js';
 import { param, parseBody } from './serve.js';
 
@@ -31,8 +31,11 @@ export function stressRoutes(app: FastifyInstance, db: Db): void {
   app.post('/api/stress/saved', async (req, reply) => {
     const auth = authOf(req);
     const input = parseBody(saveSchema, req.body);
+    // Store the model's result with the scenario when it already has one (one call, no waiting), so
+    // Home's "Saved stress result" shows it at once; otherwise result stays null until the model runs it.
+    const result = (await stressModelAvailable(db)) ? await runStress(db, input.request) : null;
     const saved = await db.withOrg(auth.orgId, async (c) => {
-      const row = await insertSaved(c, auth, input);
+      const row = await insertSaved(c, auth, { ...input, result });
       await audit(c, {
         orgId: auth.orgId, userId: auth.userId, action: 'stress.save', target: `stress_saved:${row.id}`, ip: req.ip,
         meta: { name: input.name, scenario: input.request.scenario },

@@ -25,6 +25,7 @@ from marden.readmodels.views.monitor_common import Doc, is_iso_date, latest_outp
 
 BACKTEST = "track_record"
 STATUS_METHOD_URL = "docs/methods/status-rules-v0.1.md"
+FLAG_BASES = ("snapshot", "reconstructed")
 LINKS = (("E", "End user"), ("T", "Tenant"), ("D", "Developer"), ("L", "Lenders"))
 
 # What each model is built from, when it runs (ARCHITECTURE "Queue and schedule", spec 22 "What runs
@@ -138,7 +139,20 @@ def case_of(raw: Any) -> Doc | None:
         "moved": raw["moved"] if is_iso_date(raw.get("moved")) else None,
         "leadDays": int(lead) if lead is not None else None,
         "backtestRunning": bool(raw.get("backtestRunning")),
+        # spec 12: flags come only from snapshots taken at the time; a point-in-time reconstruction says so
+        "flagBasis": raw["flagBasis"] if raw.get("flagBasis") in FLAG_BASES else None,
     }
+
+
+def backtest_of(out: Any, body: dict[str, Any]) -> Doc | None:
+    """The backtest's method and how its flag dates were obtained (None until it has run)."""
+    if out is None:
+        return None
+    version = body.get("methodVersion") if isinstance(body.get("methodVersion"), str) else str(out["version"])
+    return {"methodVersion": version,
+            "methodUrl": body["methodUrl"] if isinstance(body.get("methodUrl"), str) else None,
+            "flagBasis": body["flagBasis"] if isinstance(body.get("flagBasis"), str) else None,
+            "asOf": out["as_of"].isoformat()}
 
 
 @builder("track_record", many=True)
@@ -156,5 +170,6 @@ def build_track_record(conn: Conn):
         "rules": status_rules(),
         "material": material_rules(),
         "statusMethod": {"version": _status_method(), "url": STATUS_METHOD_URL},
+        "backtest": backtest_of(out, body),
         "models": model_rows(conn),
     }

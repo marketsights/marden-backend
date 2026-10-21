@@ -152,8 +152,9 @@ def stress_result(conn: Conn, book: Book, sc: Scenario) -> dict[str, Any]:
     severe_nd = isinstance(sc.shock.spread_bp, float) and math.isnan(sc.shock.spread_bp)
     kpis = {"exposedB": round(exposed / 1e9, 3), "valueLostB": None if severe_nd else round(lost / 1e9, 3),
             "valueLostPct": None if severe_nd or not exposed else round(100 * lost / exposed, 2),
-            "tenantNotesLossB": None if notes_loss is None else round(notes_loss / 1e9, 3),
             "loansBelow95": sorted(below), "fundsHit": len(funds)}
+    if notes_loss is not None:  # optional in types.ts: present only when the scenario has a tenant with notes
+        kpis["tenantNotesLossB"] = round(notes_loss / 1e9, 3)
     return {"kpis": kpis, "flow": flow, "rows": rows, "missing": sorted(set(missing)),
             "basis": {"methodVersion": f"{METHOD} (model v0)", "label": sc.label, **sc.basis,
                       "shock": {"hazardMultiplier": {k: round(v, 4) for k, v in sc.shock.hazard_mult.items()},
@@ -218,7 +219,7 @@ def compute(conn: Conn, day: date) -> Batch:
         party = req["params"].get("tenant") or req["params"].get("endUser")
         if party and out["kpis"]["valueLostB"] is not None:
             batch.add("entity", party, {"stressSummary": {"scenario": label, "siteDebtLossB": out["kpis"]["valueLostB"],
-                                                          "notesLossB": out["kpis"]["tenantNotesLossB"] or 0.0},
+                                                          "notesLossB": out["kpis"].get("tenantNotesLossB") or 0.0},
                                         "basis": {"methodVersion": METHOD, "request": out["request"]}})
     for iid, rows in sorted(by_inst.items()):
         batch.add("instrument", iid, {"rows": rows, "basis": {"methodVersion": METHOD}})
@@ -330,7 +331,7 @@ def stress_cli(args: argparse.Namespace) -> int:
         if "kpis" in o:
             k = o["kpis"]
             print(f"  {sid:34} exposed ${k['exposedB']}B lost ${k['valueLostB']}B ({k['valueLostPct']}%) notes "
-                  f"{k['tenantNotesLossB']} <95 {len(k['loansBelow95'])} funds {k['fundsHit']} rows {len(o['rows'])}")
+                  f"{k.get('tenantNotesLossB')} <95 {len(k['loansBelow95'])} funds {k['fundsHit']} rows {len(o['rows'])}")
         elif "hops" in o:
             print(f"  {sid:34} at risk ${o['totalAtRiskB']}B hops {len(o['hops'])} instruments {len(o['instruments'])}")
     return 0

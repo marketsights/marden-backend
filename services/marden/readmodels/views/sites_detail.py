@@ -2,16 +2,18 @@
 `site_schedule` (GET /api/sites/:slug/schedule, SiteSchedule), specs 04 and 16.
 
 SiteDetail is the site's SiteSummary (views/sites.py: same chain, status, cushion and debt as the
-lists) plus the facts line ("2.46 GW · $18.0B debt · 4 buildings"), tracking names, tab counts
-(the same counts the Evidence, Opposition and Material events tabs list), the main instrument that
-needs the site finished (size, dealer quote R, Marden price and recovery from the price / recovery
-models, filed holders) and the material events. The Schedule tab's projection, milestones and
+lists) plus `buildings` (built / total on the linked campuses, as the lists count them), the facts
+line ("2.46 GW · $18.0B debt · 4 buildings"), tracking names, tab counts (the same counts the
+Evidence, Opposition and Material events tabs list), the main instrument that needs the site
+finished (size, dealer quote R, Marden price and recovery from the price / recovery models, filed
+holders) and the material events, one per story (a headline syndicated by several outlets once). The Schedule tab's projection, milestones and
 cushion history come from the `cushion` model; imagery from Sentinel-2 facts; documents are the
 latest filed records (F first).
 """
 
 from __future__ import annotations
 
+import re
 from datetime import date
 
 from marden.core.db import Conn
@@ -21,7 +23,7 @@ from marden.readmodels.views.instrument_detail import recovery as instrument_rec
 from marden.readmodels.views.instrument_inputs import latest_output as instrument_output
 from marden.readmodels.views.instruments import marden_price as instrument_price
 from marden.readmodels.views.instruments import marden_prices
-from marden.readmodels.views.sites import site_summary
+from marden.readmodels.views.sites import building_count, site_summary
 from marden.readmodels.views.sites_common import (
     Doc,
     day,
@@ -43,22 +45,32 @@ from marden.readmodels.views.sites_common import (
     site_slugs,
     with_value,
 )
-from marden.readmodels.views.sites_links import campus_buildings, imagery, linked_campuses
+from marden.readmodels.views.sites_links import imagery
 from marden.readmodels.views.sites_tabs import evidence_records, opposition_tab, site_event_log
 
 RECOVERY_FACTS = ("recovery_waterfall", "recovery_project", "recovery_gpu")
 
 
-def facts_line(summary: Doc, buildings: int) -> str:
+def facts_line(summary: Doc, buildings: Doc | None) -> str:
+    """'2.46 GW · $18.0B debt · 4 buildings' (spec 16: the header names the linked campus's buildings,
+    counted as the Sites and Completion lists count them: views/sites.building_count)."""
     parts = []
     if summary["gw"]["value"]:
         parts.append(summary["gw"]["value"])
     debt = summary["debtB"]["value"]
     if isinstance(debt, int | float):
         parts.append(f"${debt:,.1f}B debt")
-    if buildings:
-        parts.append(f"{buildings} buildings")
+    total = ((buildings or {}).get("value") or {}).get("total")
+    if isinstance(total, int) and total > 0:
+        parts.append(f"{total} building{'s' if total != 1 else ''}")
     return " · ".join(parts) or "n/d"
+
+
+def _story_key(title: str) -> str:
+    """One key per story: the same headline syndicated by several outlets ('… - Yahoo Finance',
+    '… - TheStreet') is one material event, not five."""
+    text = re.sub(r"\s+-\s+[^-]{2,40}$", "", title or "")
+    return re.sub(r"[^a-z0-9]+", " ", text.lower().replace("’", "'")).strip()
 
 
 def marden_price(conn: Conn, instrument_id: str) -> Doc:
@@ -101,18 +113,23 @@ def site_detail(conn: Conn, slug: str) -> Doc | None:
         return None
     instruments = site_instruments(conn, slug)
     summary = site_summary(conn, site, instruments=instruments)
-    campuses, _ = linked_campuses(conn, slug)
-    n_buildings = len(campus_buildings(conn, campuses))
+    buildings = building_count(conn, slug)
     events = site_events(conn, slug)
     material = []
+    stories: set[str] = set()
     for ev, _ in material_events(conn, slug, events):
+        key = _story_key(ev["title"])
+        if key and key in stories:
+            continue  # newest first: the latest outlet's copy of a story already stands for it
+        stories.add(key)
         item = {**event_evidence(ev), "severity": severity(ev)}
         if ev.get("rule_code"):
             item["ruleCode"] = ev["rule_code"]
         material.append(item)
     return {
         **summary,
-        "facts": facts_line(summary, n_buildings),
+        "buildings": buildings,
+        "facts": facts_line(summary, buildings),
         "trackingNames": list(site.get("tracking_names") or []),
         "tabCounts": {"evidence": len(evidence_records(conn, slug)),
                       "opposition": len(opposition_tab(conn, slug)["items"]),

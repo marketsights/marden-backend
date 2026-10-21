@@ -84,7 +84,8 @@ def _process(trigger: tr.Trigger, stats: ScanStats, cache: dict[tuple[str, str],
             row = conn.execute(
                 """INSERT INTO alert_trigger (trigger_key, kind, subject_type, subject_id, occurred_on, material,
                                               codes, dry_run)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (trigger_key) DO NOTHING RETURNING trigger_key""",
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (trigger_key) DO NOTHING RETURNING trigger_key""",
                 (trigger.key, trigger.kind, trigger.subject_type, trigger.subject_id, trigger.occurred_on,
                  trigger.material, trigger.codes, dry_run),
             ).fetchone()

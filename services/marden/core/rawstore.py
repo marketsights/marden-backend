@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import quote
 
-from marden.core.config import Settings, get_settings
+from marden.core.config import Settings, deploy_marker, get_settings
 from marden.core.jsonutil import sha256_hex
 
 _SOURCE_ID = re.compile(r"^[a-z0-9][a-z0-9_\-]*$")
@@ -146,9 +146,21 @@ _store_settings: Settings | None = None
 
 
 def get_store(settings: Settings | None = None) -> RawStore:
-    """The configured store: R2 when R2 credentials are set, else LocalStore(MARDEN_RAW_DIR)."""
+    """The configured store: R2 when R2 credentials are set, else LocalStore(MARDEN_RAW_DIR).
+
+    A deployed service (Railway) never falls back to local disk: its filesystem is replaced on every
+    deploy, so `document` rows would point at files that are gone. Without R2 it raises, and the
+    collector's run records "R2 is not configured" on its source instead of storing anything.
+    """
     global _store, _store_settings
     settings = settings or get_settings()
+    if not settings.has_r2():
+        marker = deploy_marker()
+        if marker:
+            raise RawStoreError(
+                "R2 is not configured (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY): a deployed "
+                f"service ({marker} is set) keeps no raw files on local disk"
+            )
     with _lock:
         if _store is None or _store_settings != settings:
             _store = R2Store(settings) if settings.has_r2() else LocalStore(settings.raw_dir)

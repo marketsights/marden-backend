@@ -45,8 +45,18 @@ export async function lockMembers(c: Queryable, orgId: string, userId: string): 
   return { role: target?.role ?? null, owners: res.rows.filter((r) => r.role === 'owner').length };
 }
 
+/** An org owner or admin changed the role: Marden's tables only (roles are never Clerk's). */
 export async function setMemberRole(c: Queryable, orgId: string, userId: string, role: Role): Promise<void> {
-  await c.query(`UPDATE membership SET role = $3 WHERE org_id = $1 AND user_id = $2`, [orgId, userId, role]);
+  await c.query(`UPDATE membership SET role = $3, role_source = 'changed' WHERE org_id = $1 AND user_id = $2`, [orgId, userId, role]);
+}
+
+/** The member's org role, share-locked against a concurrent role change; null when not a member. */
+export async function memberRole(c: Queryable, orgId: string, userId: string): Promise<Role | null> {
+  const res = await c.query<{ role: Role }>(
+    `SELECT role FROM membership WHERE org_id = $1 AND user_id = $2 FOR SHARE`,
+    [orgId, userId],
+  );
+  return res.rows[0]?.role ?? null;
 }
 
 export async function removeMember(c: Queryable, orgId: string, userId: string): Promise<void> {

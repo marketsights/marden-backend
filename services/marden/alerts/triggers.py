@@ -103,7 +103,9 @@ def fact_triggers(conn: Conn, start: date, today: date) -> Iterator[Trigger]:
 
 # ------------------------------------------------------------------ model outputs
 def _method(row: Row) -> str:
-    return f"{row['model']} v{row['version']}"
+    """'status' + '0.1' -> 'status v0.1'; a version already naming its model ('cushion v0.1') as is."""
+    version = str(row["version"])
+    return version if version.startswith(row["model"]) else f"{row['model']} v{version}"
 
 
 def _value(v: Any) -> Any:
@@ -221,6 +223,7 @@ def _subject_changes(conn: Conn, model: str, subject_type: str, subject_id: str,
         yield Trigger(
             key=key, kind="model", subject_type=subject_type, subject_id=subject_id, occurred_on=row["as_of"],
             findings=found, material=bool(found),
-            state=StateUpdate(model, subject_type, subject_id, row["as_of"], digest, {**after, "as_of": row["as_of"].isoformat()}),
+            state=StateUpdate(model, subject_type, subject_id, row["as_of"], digest,
+                              {**after, "as_of": row["as_of"].isoformat()}),
         )
         prev, prev_as_of, prev_hash = after, row["as_of"], digest

@@ -101,14 +101,22 @@ const toSaved = (r: SavedRow): SavedStress => ({
 
 const COLUMNS = `id::text, name, request, result, ran_at, created_at, user_id`;
 
+/** A finished stress result (not queued, not an error): what a saved scenario may store at once. */
+export function isFinishedStress(result: unknown): boolean {
+  return typeof result === 'object' && result !== null && !isPendingStress(result) && !isStressError(result);
+}
+
+/** `result`: the model's finished answer for the request when it had one at save time (else null until it runs). */
 export async function insertSaved(
   c: Queryable,
   who: { orgId: string; userId: string },
-  input: { name: string; request: StressRunRequest },
+  input: { name: string; request: StressRunRequest; result?: unknown },
 ): Promise<SavedStress> {
+  const result = isFinishedStress(input.result) ? JSON.stringify(input.result) : null;
   const res = await c.query<SavedRow>(
-    `INSERT INTO stress_saved (org_id, user_id, name, request) VALUES ($1, $2, $3, $4) RETURNING ${COLUMNS}`,
-    [who.orgId, who.userId, input.name, JSON.stringify(input.request)],
+    `INSERT INTO stress_saved (org_id, user_id, name, request, result, ran_at)
+     VALUES ($1, $2, $3, $4, $5::jsonb, CASE WHEN $5::jsonb IS NULL THEN NULL ELSE now() END) RETURNING ${COLUMNS}`,
+    [who.orgId, who.userId, input.name, JSON.stringify(input.request), result],
   );
   const row = res.rows[0];
   if (!row) throw new Error('insert returned no row');

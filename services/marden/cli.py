@@ -14,7 +14,6 @@ Groups `seed <loader>`, `collect <source>` and `model <name>` appear once someth
 from __future__ import annotations
 
 import argparse
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -111,7 +110,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    from marden.core.logs import setup_logging
+
+    setup_logging()  # MARDEN_LOG_FORMAT (text | json), MARDEN_LOG_LEVEL; secrets redacted
     from marden import commands  # noqa: F401  (built-in commands)
     from marden.plugins import load_plugins
 

@@ -62,5 +62,5 @@ def test_r2_selected_when_credentials_present():
     store = rawstore.get_store(settings)
     assert isinstance(store, rawstore.R2Store)
     assert store.endpoint_url == "https://acct123.r2.cloudflarestorage.com"
-    assert store.bucket == "marden-raw"
+    assert store.bucket == "core-raw"
     rawstore.get_store(get_settings())  # restore the process default

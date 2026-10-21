@@ -45,6 +45,10 @@ class Finding:
         return t.rule_label(self.code)
 
 
+def _method_line(model: str, method: str | None) -> str:
+    return f"Marden {model} model, {method}." if method else f"Marden {model} model."
+
+
 def _model_source(name: str, method: str | None, as_of: date, url: str) -> dict[str, Any]:
     return {"name": name, "tag": "M", "asOf": as_of.isoformat(), "methodVersion": method, "url": url}
 
@@ -75,8 +79,9 @@ def event_finding(event: dict[str, Any], name: str, ref_url: str) -> Finding | N
     lines = [f"{t.SHORT.get(primary, primary)} ({primary}): {t.rule_text(primary)}."]
     lines += [f"Why it is material: {r}" for r in reasons]
     lines.append(f"Event: {event['title']}")
-    lines.append(f"Dated {t.day(event['event_date'])}; {event.get('kind')}; {t.TAG_LABEL.get(event['tag'], event['tag'])}"
-                 f" ({event['tag']}), {event['source_name']}.")
+    tag_label = t.TAG_LABEL.get(event["tag"], event["tag"])
+    lines.append(f"Dated {t.day(event['event_date'])}; {event.get('kind')}; {tag_label} ({event['tag']}), "
+                 f"{event['source_name']}.")
     source = {"key": f"event:{event['id']}", "name": event["source_name"], "url": event.get("source_url"),
               "tag": event["tag"], "asOf": event["event_date"].isoformat(), "eventId": event["id"],
               "factId": event.get("fact_id"), "title": event["title"]}
@@ -119,7 +124,7 @@ def status_findings(name: str, slug: str, before: dict[str, Any], after: dict[st
             lines.append(f"Chain status {before.get('status')} {t.ARROW} {after.get('status')}.")
         lines.append(f"{'Why' if worse else 'Was'}: {(link if worse else prev).get('reason')}")
         lines.append(f"Rule {code}: {t.rule_text(code)}.")
-        lines.append(f"Marden status model {method or ''}".rstrip() + ".")
+        lines.append(_method_line("status", method))
         sources = [s for s in (_sourced_ref((link if worse else prev).get("fact"), f"status:{slug}:{role}"),) if s]
         sources.append(_model_source("Marden status model", method, as_of, "docs/methods/status-rules-v0.1.md"))
         out.append(Finding(
@@ -173,15 +178,20 @@ def cushion_finding(name: str, slug: str, before: dict[str, Any], after: dict[st
         moved = f" moved {t.signed(i1 - i0, 0)} months to" if i0 is not None and i1 is not None else " now"
         headline = f"{name} projected completion{moved} {t.month_label(p1)}"
     method = after.get("methodVersion")
-    lines = [f"Cushion {t.whole(c0)} {t.ARROW} {t.whole(c1)} months ({t.day(before_as_of)} {t.ARROW} {t.day(as_of)})."]
-    lines.append(f"Projected completion (P50) {t.month_label(p0)} {t.ARROW} {t.month_label(p1)}.")
+    span = f"({t.day(before_as_of)} {t.ARROW} {t.day(as_of)})"
+    lines = []
+    if c0 is not None or c1 is not None:
+        lines.append(f"Cushion {t.whole(c0)} {t.ARROW} {t.whole(c1)} months {span}.")
+    lines.append(f"Projected completion (P50) {t.month_label(p0)} {t.ARROW} {t.month_label(p1)}"
+                 + ("." if lines else f" {span}."))
     outside = after.get("outside")
-    if outside:
+    if outside and (outside.get("value") if isinstance(outside, dict) else outside) is not None:
         assumed = after.get("outside_assumed")
-        lines.append(f"Lease outside date {t.value_text(outside.get('value') if isinstance(outside, dict) else outside)}"
+        outside_value = outside.get("value") if isinstance(outside, dict) else outside
+        lines.append(f"Lease outside date {t.value_text(outside_value)}"
                      + (f" (assumed {t.day(assumed)})" if assumed else "") + ".")
     lines += [f"Why: {r}" for r in reasons]
-    lines.append(f"Marden cushion model {method or ''}".rstrip() + ".")
+    lines.append(_method_line("cushion", method))
     sources = [s for s in (_sourced_ref(outside, f"cushion:{slug}:outside"),) if s]
     sources.append(_model_source("Marden cushion model", method, as_of, "docs/methods/cushion-v0.1.md"))
     return Finding(
@@ -219,10 +229,10 @@ def price_findings(name: str, instrument_id: str, refs: dict[str, list[Any]], af
             lines.append(f"1-week change {t.signed(after['change1w'])} pts.")
         band = after.get("band")
         if isinstance(band, list) and len(band) == 2 and all(_number(b) is not None for b in band):
-            lines.append(f"Range {t.num(band[0])}–{t.num(band[1])} (80%, model v0).")
+            lines.append(f"Range {t.num(band[0])}\u2013{t.num(band[1])} (80%, model v0).")
         if after.get("tier"):
             lines.append(f"Tier: {after['tier']}.")
-        lines.append(f"Marden price model {method or ''}".rstrip() + ".")
+        lines.append(_method_line("price", method))
         out.append(Finding(
             codes=["PX"], severity="amber" if move < 0 else "green", tag="M", ref_url=f"/instruments/{instrument_id}",
             headline=f"{name} {'down' if move < 0 else 'up'} {t.num(abs(move))} pts to {t.num(price)}",
@@ -251,18 +261,19 @@ def mark_finding(name: str, instrument_id: str, before: dict[str, Any], after: d
     if len(new) == 1:
         headline = f"{name}: fund mark filed at {t.num(marks[0])} ({t.clip(new[0]['name'], 50)})"
     else:
-        headline = f"{name}: {len(new)} fund marks filed, {t.num(min(marks))}–{t.num(max(marks))}"
+        headline = f"{name}: {len(new)} fund marks filed, {t.num(min(marks))}\u2013{t.num(max(marks))}"
     lines = []
     for m in new[:MAX_LISTED]:
         gap = f", {t.signed(m['gapPts'])} pts vs Marden price" if _number(m.get("gapPts")) is not None else ""
-        lines.append(f"{m['name']}: {t.num(m['lastMark'])} ({m.get('filing') or 'filing'}, {t.day(m['filingDate'])}){gap}")
+        filing = m.get("filing") or "filing"
+        lines.append(f"{m['name']}: {t.num(m['lastMark'])} ({filing}, {t.day(m['filingDate'])}){gap}")
     if len(new) > MAX_LISTED:
-        lines.append(f"…and {len(new) - MAX_LISTED} more on the instrument page.")
+        lines.append(f"\u2026and {len(new) - MAX_LISTED} more on the instrument page.")
     if _number(after.get("marden_price")) is not None:
         lines.append(f"Marden price {t.num(after['marden_price'])}.")
     if high:
         lines.append(f"{len(high)} of these marks sit {MARKED_HIGH_PTS}+ pts above the Marden price.")
-    lines.append(f"Marden mark-gap model {after.get('methodVersion') or ''}".rstrip() + ".")
+    lines.append(_method_line("mark-gap", after.get("methodVersion")))
     sources = [{"key": f"mark:{instrument_id}:{m['name']}:{m['filingDate']}", "name": m.get("filing") or "filing",
                 "url": m.get("filingUrl"), "tag": "F", "asOf": m["filingDate"], "title": m["name"]}
                for m in new[:MAX_LISTED]]
@@ -283,7 +294,7 @@ def rating_finding(name: str, ref_url: str, fact: dict[str, Any], prior: dict[st
     lines = [f"Rating {old} ({t.day(prior['valid_from'])}, {prior['source_name']}) {t.ARROW} {new} "
              f"({t.day(fact['valid_from'])}, {fact['source_name']})."]
     if fact.get("quote"):
-        lines.append(f"Source text: “{t.clip(fact['quote'], 300)}”")
+        lines.append(f"Source text: \u201c{t.clip(fact['quote'], 300)}\u201d")
     sources = [{"key": f"fact:{row['id']}", "name": row["source_name"], "url": row.get("source_url"),
                 "tag": str(row["tag"]).strip(), "asOf": row["valid_from"].isoformat(), "factId": row["id"],
                 "value": t.value_text(row["value"])} for row in (fact, prior)]

@@ -110,11 +110,14 @@ def opposition_type(title: str) -> str:
 
 
 def opposition_items(conn: Conn, slug: str, courts: list[tuple[str, dict[str, Row]]]) -> list[Doc]:
+    """Opposition events and watched proceedings, newest first. An event's court or body is its source
+    only when the body filed it (F); a press report (R) names an outlet, not where the case sits, so
+    'where' is n/d. No event record states the case's status: n/d, never the tag restated as a word."""
     items = []
     for ev in site_events(conn, slug, kinds=["opposition"]):
         tone = {"red": "red", "amber": "amber", "green": "green"}.get(severity(ev), "grey")
         items.append({"date": ev["event_date"].isoformat(), "type": opposition_type(ev["title"]), "text": ev["title"],
-                      "where": ev["source_name"], "status": "Reported" if ev["tag"] == "R" else "Filed",
+                      "where": (ev["source_name"] or "n/d") if ev["tag"] == "F" else "n/d", "status": "n/d",
                       "statusTone": tone, "evidence": event_evidence(ev)})
     for _, facts in courts:
         name = facts.get("proceeding")
@@ -139,6 +142,8 @@ def _count_value(rows: list[Row], count: int) -> Doc:
 
 
 def next_hearing(proceedings: list[tuple[str, dict[str, Row]]]) -> Doc:
+    """The next hearing as a KPI: the date as the value (ISO day, tagged by the proceeding's
+    next_dates fact) and what is heard as its one-line note."""
     best: tuple[str, str, Row] | None = None
     for _, facts in proceedings:
         row = facts.get("next_dates")
@@ -147,13 +152,24 @@ def next_hearing(proceedings: list[tuple[str, dict[str, Row]]]) -> Doc:
             if isinstance(when, str) and when >= day().isoformat() and (best is None or when < best[0]):
                 best = (when, str(item.get("what") or ""), row)
     if best is None:
-        return nd("F")
+        return {"value": nd("F")}
     when, what, row = best
-    out = {"value": f"{when}: {what}".strip(": "), "tag": row["tag"], "asOf": row["valid_from"].isoformat(),
+    out = {"value": when, "tag": row["tag"], "asOf": row["valid_from"].isoformat(),
            "sourceName": row.get("source_name") or ""}
     if row.get("source_url"):
         out["sourceUrl"] = row["source_url"]
-    return out
+    kpi: Doc = {"value": out}
+    if note := _one_line(what):
+        kpi["note"] = note
+    return kpi
+
+
+def _one_line(text: str, limit: int = 90) -> str:
+    flat = " ".join(text.split())
+    if len(flat) <= limit:
+        return flat
+    cut = flat[:limit].rsplit(" ", 1)[0].rstrip(" ,;:([")
+    return f"{cut}…"
 
 
 def opposition_tab(conn: Conn, slug: str) -> Doc:
@@ -166,7 +182,7 @@ def opposition_tab(conn: Conn, slug: str) -> Doc:
         "openCases": {"value": _count_value(court_rows, len(open_rows)) if court_rows else nd("F"),
                       "note": "court proceedings Marden watches for this site"},
         "latestRuling": {"value": nd("F")},
-        "nextHearing": {"value": next_hearing(hearings)},
+        "nextHearing": next_hearing(hearings),
         "ifVoided": {"value": nd("M")},
         "items": opposition_items(conn, slug, courts),
     }

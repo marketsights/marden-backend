@@ -155,19 +155,6 @@ export function plansFor(permission: Permission): readonly Plan[] {
   return plans ? [...plans] : ALL;
 }
 
-/** Clerk organization role -> Marden org role (membership.role). Anything else maps to no membership. */
-export function roleFromClerk(clerkRole: string | null | undefined): Role | null {
-  switch (clerkRole) {
-    case 'org:owner': return 'owner';
-    case 'org:admin': return 'admin';
-    case 'org:member': return 'member';
-    case 'org:viewer': return 'viewer';
-    default: return null;
-  }
-}
-
-export const clerkRoleFor = (role: Role): string => `org:${role}`;
-
 /** Routes registered with Fastify that have no rule. The app refuses to start when this is non-empty. */
 export function unmappedRoutes(registered: Iterable<string>): string[] {
   return [...registered].filter((key) => !(key in ROUTE_RULES));

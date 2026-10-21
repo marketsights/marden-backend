@@ -29,22 +29,23 @@ RUN uv sync --frozen --no-dev && /app/.venv/bin/python -m compileall -q marden
 
 # ---------------------------------------------------------------- runtime
 FROM ${PYTHON_IMAGE} AS runtime
+# libexpat1: the rasterio wheel's bundled GDAL links it (the slim image does not ship it).
 # pg_dump/pg_restore for the nightly backup (marden.core.backup). The client must be at least the
 # server's major version: Neon project `core` runs Postgres 18. PGDG's signing key is checked by
 # fingerprint before apt trusts it.
 ARG PG_CLIENT_MAJOR=18
-ARG PGDG_KEY_FINGERPRINT=B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
 RUN set -eux; \
+    pgdg_fpr=B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8; \
     apt-get update; \
     apt-get install -y --no-install-recommends ca-certificates curl gnupg; \
     install -d /usr/share/postgresql-common/pgdg; \
     curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc; \
     gpg --show-keys --with-colons /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-      | grep -q "^fpr:::::::::${PGDG_KEY_FINGERPRINT}:"; \
+      | grep -q "^fpr:::::::::${pgdg_fpr}:"; \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
       > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
-    apt-get install -y --no-install-recommends "postgresql-client-${PG_CLIENT_MAJOR}"; \
+    apt-get install -y --no-install-recommends libexpat1 "postgresql-client-${PG_CLIENT_MAJOR}"; \
     apt-get purge -y --auto-remove curl gnupg; \
     rm -rf /var/lib/apt/lists/*; \
     pg_dump --version

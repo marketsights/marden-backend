@@ -224,7 +224,13 @@ def test_track_record_rules_models_and_cases(monitor):
     if backtest is None:  # the backtest has not run: no cases, never a placeholder list
         assert (doc["cases"], doc["published"], doc["total"]) == ([], 0, 0)
     else:
-        assert len(doc["cases"]) == len(backtest["output"].get("cases") or [])
+        cases = backtest["output"].get("cases") or []
+        assert [(c["name"], c["flagged"], c["moved"]) for c in doc["cases"]] == [
+            (c["name"], c.get("flagged"), c.get("moved")) for c in cases]
+        assert all(c["flagBasis"] in ("snapshot", "reconstructed", None) for c in doc["cases"])
+        method = backtest["output"].get("methodVersion")
+        assert doc["backtest"]["methodVersion"] == (method if isinstance(method, str) else backtest["version"])
+        assert doc["published"] == sum(1 for c in cases if not c.get("backtestRunning"))
 
 
 def _publish(week: str, output: dict) -> None:
@@ -236,10 +242,34 @@ def _publish(week: str, output: dict) -> None:
 
 
 def test_risk_list_carries_the_published_list(monitor):
-    published = copied_rows("SELECT DISTINCT subject_id FROM model_output WHERE model = 'risk_list'")
+    today = business_today()
+    published = copied_rows("SELECT DISTINCT subject_id FROM model_output WHERE model = 'risk_list' AND as_of <= %s",
+                            (today,))
     assert sorted(keys_of("risk_list")) == sorted(r["subject_id"] for r in published)
-    if published:
-        pytest.skip("the ranking model has published lists; the fixture would collide with them")
+    if not published:
+        pytest.skip("the ranking model has not published a list yet")
+    docs = []
+    for week in (r["subject_id"] for r in published):
+        doc, out = build("risk_list", week), output_on("risk_list", week, today)
+        assert doc["week"]["start"] == week and len(doc["rows"]) == len(out["output"]["rows"])
+        for row, raw in zip(doc["rows"], sorted(out["output"]["rows"], key=lambda r: r["rank"]), strict=True):
+            for k in ("rank", "instrumentId", "name", "size", "why", "fundMark", "price", "change1w", "odds"):
+                assert row[k] == raw[k], (week, row["rank"], k)
+            price, mark = (raw["price"] or {}).get("value"), raw["fundMark"]
+            if raw.get("gap") is not None:
+                assert row["gap"] == raw["gap"]
+            elif isinstance(price, int | float) and isinstance(mark, int | float):
+                assert row["gap"] == round(price - mark, 2)  # its own published price minus its fund mark
+            else:
+                assert row["gap"] is None
+        docs.append(("T.RiskList", doc))
+    if available():
+        assert check(docs) == ""
+
+
+def test_risk_list_from_the_fixture(monitor):
+    """The handoff fixture published as the ranking model's output (fixtures are for tests only)."""
+    copied_rows("DELETE FROM model_output WHERE model = 'risk_list' RETURNING id")
     week = FIXTURE["week"]["start"]
     later = (date.fromisoformat(week) + timedelta(days=7)).isoformat()
     _publish(week, FIXTURE)

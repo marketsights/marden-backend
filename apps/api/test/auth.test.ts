@@ -16,8 +16,7 @@ describe('auth (Clerk mode)', () => {
   const u = { owner: uid('user_owner'), admin: uid('user_admin'), member: uid('user_member'), viewer: uid('user_viewer'), other: uid('user_b'), trial: uid('user_trial'), outsider: uid('user_out') };
   const clerkCalls: string[] = [];
   const clerkAdmin: ClerkAdmin = {
-    invite: (org, email, role) => { clerkCalls.push(`invite ${org} ${email} ${role}`); return Promise.resolve({ id: 'orginv_test' }); },
-    updateRole: (org, user, role) => { clerkCalls.push(`role ${org} ${user} ${role}`); return Promise.resolve(); },
+    invite: (org, email) => { clerkCalls.push(`invite ${org} ${email}`); return Promise.resolve({ id: uid('orginv'), expiresAt: null }); },
     removeMember: (org, user) => { clerkCalls.push(`remove ${org} ${user}`); return Promise.resolve(); },
     mfaEnabled: () => Promise.resolve(true),
   };
@@ -148,7 +147,7 @@ describe('auth (Clerk mode)', () => {
     const ok = await patch(admin, u.member, 'viewer');
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toMatchObject({ userId: u.member, role: 'viewer' });
-    expect(clerkCalls).toContain(`role ${orgA} ${u.member} viewer`);
+    expect(clerkCalls).toEqual([]); // org roles are Marden's: no Clerk call
     expect((await patch(admin, u.member, 'member')).statusCode).toBe(200);
     const del = await app.inject({ method: 'DELETE', url: `/api/account/members/${u.owner}`, headers: bearer(owner) });
     expect(del.statusCode).toBe(409);
@@ -158,13 +157,15 @@ describe('auth (Clerk mode)', () => {
     expect(audit.rows[0]?.n).toBe(2);
   });
 
-  it('sends invites through Clerk and audit-logs them', async () => {
+  it('sends invites through Clerk, keeps the Marden role in org_invitation and audit-logs them', async () => {
     const res = await app.inject({
       method: 'POST', url: '/api/account/invites', headers: bearer(await token(u.admin)),
       payload: { email: 'new.analyst@example.test', role: 'member' },
     });
     expect(res.statusCode).toBe(201);
-    expect(clerkCalls).toContain(`invite ${orgA} new.analyst@example.test member`);
+    expect(clerkCalls).toContain(`invite ${orgA} new.analyst@example.test`);
+    const inv = await db.query(`SELECT id, email, role, status, invited_by FROM org_invitation WHERE org_id = $1`, [orgA]);
+    expect(inv.rows).toEqual([{ id: res.json().invitationId, email: 'new.analyst@example.test', role: 'member', status: 'pending', invited_by: u.admin }]);
     const asOwner = await app.inject({
       method: 'POST', url: '/api/account/invites', headers: bearer(await token(u.admin)), payload: { email: 'x@example.test', role: 'owner' },
     });

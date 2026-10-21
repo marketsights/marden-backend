@@ -14,12 +14,23 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_RAW_DIR = REPO_ROOT / ".raw"
-DEFAULT_R2_BUCKET_RAW = "marden-raw"
+DEFAULT_R2_BUCKET_RAW = "core-raw"
+DEFAULT_R2_BUCKET_BACKUPS = "core-backups"
 DEFAULT_SEC_USER_AGENT = "Marden research cody@marden.ai"
 
 
 class ConfigError(RuntimeError):
     """A required setting is missing or invalid."""
+
+
+# Set by Railway on every deployed service (staging and production); apps/api/src/config.ts checks the same.
+DEPLOY_MARKERS = ("RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID")
+
+
+def deploy_marker(env: dict[str, str] | None = None) -> str | None:
+    """The name of the first deploy marker set in the environment (a deployed service), else None."""
+    env = dict(os.environ) if env is None else env
+    return next((name for name in DEPLOY_MARKERS if (env.get(name) or "").strip()), None)
 
 
 _BOOLS = {"true": True, "1": True, "yes": True, "false": False, "0": False, "no": False}
@@ -44,6 +55,7 @@ class Settings:
     r2_access_key_id: str | None = field(default=None, repr=False)
     r2_secret_access_key: str | None = field(default=None, repr=False)
     r2_bucket_raw: str = DEFAULT_R2_BUCKET_RAW
+    r2_bucket_backups: str = DEFAULT_R2_BUCKET_BACKUPS
     sec_user_agent: str = DEFAULT_SEC_USER_AGENT
     anthropic_api_key: str | None = field(default=None, repr=False)
     fred_api_key: str | None = field(default=None, repr=False)
@@ -73,6 +85,7 @@ class Settings:
             r2_access_key_id=_env("R2_ACCESS_KEY_ID"),
             r2_secret_access_key=_env("R2_SECRET_ACCESS_KEY"),
             r2_bucket_raw=_env("R2_BUCKET_RAW") or DEFAULT_R2_BUCKET_RAW,
+            r2_bucket_backups=_env("R2_BUCKET_BACKUPS") or DEFAULT_R2_BUCKET_BACKUPS,
             sec_user_agent=_env("SEC_USER_AGENT") or DEFAULT_SEC_USER_AGENT,
             anthropic_api_key=_env("ANTHROPIC_API_KEY"),
             fred_api_key=_env("FRED_API_KEY"),

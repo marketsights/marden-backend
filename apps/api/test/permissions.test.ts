@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { decide, effectivePermissions, type Holder } from '../src/auth/grants.js';
 import {
-  ORG_PERMISSIONS, ORG_ROLE_PERMISSIONS, PLANS, PRODUCT_PERMISSIONS, PUBLIC_PERMISSIONS, roleFromClerk, ROLES, ROUTE_RULES,
+  ORG_PERMISSIONS, ORG_ROLE_PERMISSIONS, PLANS, PRODUCT_PERMISSIONS, PUBLIC_PERMISSIONS, ROLES, ROUTE_RULES,
   STAFF_PERMISSIONS, unmappedRoutes, type Permission,
 } from '../src/auth/permissions.js';
 import { PRODUCTS } from '../src/auth/products/index.js';
@@ -96,13 +96,9 @@ describe('roles and plans (spec 23, per product)', () => {
     return d.ok ? 'ok' : d.reason;
   };
 
-  it('maps Clerk roles and gives unknown roles no access', () => {
-    expect(roleFromClerk('org:owner')).toBe('owner');
-    expect(roleFromClerk('org:admin')).toBe('admin');
-    expect(roleFromClerk('org:member')).toBe('member');
-    expect(roleFromClerk('org:viewer')).toBe('viewer');
-    expect(roleFromClerk('org:billing')).toBeNull();
-    expect(roleFromClerk(undefined)).toBeNull();
+  it("has no Clerk role mapping: org roles are Marden's (docs/access-control.md)", async () => {
+    const mod: Record<string, unknown> = await import('../src/auth/permissions.js');
+    expect(Object.keys(mod).filter((k) => /clerk/i.test(k))).toEqual([]);
   });
 
   it('classifies every route permission as org, product, staff or public', () => {

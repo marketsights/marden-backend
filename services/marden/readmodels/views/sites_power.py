@@ -5,7 +5,8 @@ Power: power needed (site gross / IT MW), gas supply in service (the pipeline pl
 as stated), grid connection (the site's large-load request), one track per plant serving the site
 (status, planned in-service date as stated, its recorded changes), the dockets and pages the case
 research watches (cadence of the Marden collector for that kind, when one exists), and the in-service
-history from dated schedule changes and ready-for-service statements. 'Permitted on-site GW' is a
+history from dated schedule changes and ready-for-service statements, each under the power source its
+text names (gas pipeline, turbines, fuel cells, on-site generation, grid; else the site schedule). 'Permitted on-site GW' is a
 Marden count (M) left n/d until a permit-count model runs. The plant card embeds the `plant_row`
 document (On-site power view) of the site's main plant when it has been built.
 
@@ -125,6 +126,25 @@ def main_plant(plants: list[tuple[Row, dict[str, Row]]]) -> Row | None:
     return max(generating, key=size)[0]
 
 
+# The power source a schedule record is about, by the first of these words its text names (spec 04
+# Power: "Source" is the pipeline, turbines, fuel cells or grid, not the publisher, which is the
+# Record column). A record naming none of them dates the site as a whole.
+POWER_SOURCE_WORDS = (
+    ("Gas pipeline", ("pipeline", "lateral", "gas supply", "fuel supply", "right-of-way", "transwestern")),
+    ("Gas turbines", ("turbine",)),
+    ("Fuel cells", ("fuel cell", "fuel-cell", "bloom", "sofc", "solid-oxide")),
+    ("On-site generation", ("microgrid", "on-site gen", "onsite gen", "air permit")),
+    ("Grid", ("interconnection", "substation", "transmission", "large-load", "large load", "grid")),
+)
+SITE_SCHEDULE = "Site schedule"
+
+
+def power_source_of(text: str) -> str:
+    low = text.lower()
+    hits = [(low.find(w), label) for label, words in POWER_SOURCE_WORDS for w in words if w in low]
+    return min(hits)[1] if hits else SITE_SCHEDULE
+
+
 def history(conn: Conn, slug: str) -> list[Doc]:
     rows = known_fact_rows(conn, "site", slug, ["schedule_change", "rfs_statement"])
     out = []
@@ -134,7 +154,7 @@ def history(conn: Conn, slug: str) -> list[Doc]:
         change = v.get("what") or v.get("text") or text_of(v)
         if not change:
             continue
-        out.append({"recorded": when, "source": row.get("source_name") or "", "change": str(change),
+        out.append({"recorded": when, "source": power_source_of(str(change)), "change": str(change),
                     "evidence": fact_evidence(row, str(change), when)})
     out.sort(key=lambda h: h["recorded"], reverse=True)
     return out

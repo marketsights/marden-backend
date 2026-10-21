@@ -1,6 +1,7 @@
 // Per-product access (docs/access-control.md):
 //   PATCH /api/account/members/:id/products         org owners and admins set or remove a member's role on
-//                                                   one of the firm's products (seat limits hold)
+//                                                   one of the firm's products (seat limits hold); only an
+//                                                   owner changes an owner's
 //   POST  /api/admin/orgs/:orgId/products            staff give a firm a product (plan, seats, dates, status)
 //   PATCH /api/admin/orgs/:orgId/products/:productId staff change it
 // Every change writes audit_log.
@@ -11,7 +12,8 @@ import { matrixFor, type ProductRegistry } from '../auth/products/index.js';
 import type { OrgProduct, TeamMember } from '../contracts/app.js';
 import type { Db, Queryable } from '../db.js';
 import { badRequest, conflict, HttpError, notFound } from '../errors.js';
-import { isMember, team } from '../queries/account.js';
+import { checkProductRoleChange } from '../lib/member-rules.js';
+import { memberRole, team } from '../queries/account.js';
 import { audit } from '../queries/audit.js';
 import { assignProductRole, orgProduct } from '../queries/products.js';
 import { param, parseBody } from './serve.js';
@@ -64,7 +66,9 @@ export function productAccessRoutes(app: FastifyInstance, deps: ProductAccessDep
     const userId = param(req, 'id');
     const { productId, role } = parseBody(assignSchema, req.body);
     await db.withOrg(auth.orgId, async (c) => {
-      if (!(await isMember(c, auth.orgId, userId))) throw notFound('member');
+      const target = await memberRole(c, auth.orgId, userId);
+      if (!target) throw notFound('member');
+      checkProductRoleChange(auth.orgRole, target);   // only an owner changes an owner's product roles
       const res = await assignProductRole(c, { orgId: auth.orgId, userId, productId, role, grantedBy: auth.userId });
       if (!res.ok && res.reason === 'no_product') throw notFound('product');
       if (!res.ok) throw new HttpError(409, 'conflict', { reason: 'seat_limit', seats: res.seats, used: res.used });

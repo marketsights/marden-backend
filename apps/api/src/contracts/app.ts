@@ -126,6 +126,7 @@ export interface HomeResponse {
 export interface TrackRecordCase {
   name: string; instrumentId: string | null; flagged: string | null; moved: string | null;
   leadDays: number | null; backtestRunning: boolean;
+  flagBasis: 'snapshot' | 'reconstructed' | null;      // a flag from a live snapshot, or a point-in-time rerun
 }
 export interface StatusRuleRow { link: 'End user' | 'Tenant' | 'Developer' | 'Lenders'; amberCode: string; amberWhen: string; redCode: string; redWhen: string }
 export interface MaterialRule { code: string; rule: string; alert: string | null; severity: LinkStatus }
@@ -133,6 +134,7 @@ export interface ModelRow { model: string; output: string; version: string; buil
 export interface TrackRecord {
   asOf: string; published: number; total: number; cases: TrackRecordCase[];
   rules: StatusRuleRow[]; material: MaterialRule[]; statusMethod: { version: string; url: string };
+  backtest: { methodVersion: string; methodUrl: string | null; flagBasis: string | null; asOf: string } | null;
   models: ModelRow[];
 }
 

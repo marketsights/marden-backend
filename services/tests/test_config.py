@@ -16,12 +16,12 @@ def env(monkeypatch) -> Iterator[pytest.MonkeyPatch]:
 
 
 def test_defaults(env):
-    for name in ("MARDEN_RAW_DIR", "R2_BUCKET_RAW", "SEC_USER_AGENT", "ANTHROPIC_API_KEY", "FRED_API_KEY",
-                 "FINRA_CLIENT_ID", "FINRA_CLIENT_SECRET", "MARDEN_SEED_DIR"):
+    for name in ("MARDEN_RAW_DIR", "R2_BUCKET_RAW", "R2_BUCKET_BACKUPS", "SEC_USER_AGENT", "ANTHROPIC_API_KEY",
+                 "FRED_API_KEY", "FINRA_CLIENT_ID", "FINRA_CLIENT_SECRET", "MARDEN_SEED_DIR"):
         env.delenv(name, raising=False)
     s = config.reload_settings()
     assert s.raw_dir == config.REPO_ROOT / ".raw"
-    assert s.r2_bucket_raw == "marden-raw"
+    assert s.r2_bucket_raw == "core-raw" and s.r2_bucket_backups == "core-backups"
     assert s.sec_user_agent == "Marden research cody@marden.ai" and s.has_sec_user_agent()
     assert not (s.has_r2() or s.has_anthropic() or s.has_fred() or s.has_finra() or s.has_seed_dir())
 

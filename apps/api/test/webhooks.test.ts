@@ -112,22 +112,22 @@ describe('POST /api/webhooks/clerk', () => {
   it('ends out-of-order membership events in the state of the newest event', async () => {
     const t = Date.now();
     expect((await send(membership('organizationMembership.created', 'org:member', t))).statusCode).toBe(204);
-    expect(await roleOf()).toBe('member');
+    expect(await roleOf()).toBe('owner'); // the org's first member: Marden's rule, not the Clerk role
     expect((await send(membership('organizationMembership.deleted', 'org:member', t + 2000))).statusCode).toBe(204);
     expect(await roleOf()).toBeNull();
     // An older update delivered late must not bring the membership back.
     expect((await send(membership('organizationMembership.updated', 'org:admin', t + 1000))).statusCode).toBe(204);
     expect(await roleOf()).toBeNull();
     expect((await send(membership('organizationMembership.created', 'org:viewer', t + 3000))).statusCode).toBe(204);
-    expect(await roleOf()).toBe('viewer');
+    expect(await roleOf()).toBe('owner');
     expect((await db.query(`SELECT plan FROM org WHERE id = $1`, [orgId])).rows[0]?.plan).toBe('trial');
   });
 
-  it('maps an unknown Clerk role to no access', async () => {
-    expect((await send(membership('organizationMembership.updated', 'org:billing_contact', Date.now() + 4000))).statusCode).toBe(204);
-    expect(await roleOf()).toBeNull();
-    expect((await send(membership('organizationMembership.updated', 'org:viewer', Date.now() + 5000))).statusCode).toBe(204);
-    expect(await roleOf()).toBe('viewer');
+  it('ignores the Clerk role on a membership update, known or not', async () => {
+    for (const [i, role] of ['org:billing_contact', 'org:viewer', 'org:admin', 'org:member'].entries()) {
+      expect((await send(membership('organizationMembership.updated', role, Date.now() + 4000 + i * 1000))).statusCode).toBe(204);
+      expect(await roleOf()).toBe('owner');
+    }
   });
 
   it('deleting a user removes access on the next request', async () => {

@@ -91,3 +91,61 @@ def sources_command(args: argparse.Namespace) -> int:
         if row.get("last_error"):
             print(f"{sid}: last error: {row['last_error']}")
     return 0
+
+
+# ------------------------------------------------------------------ backups (marden.core.backup)
+cli.group("backup", help="Database backups to R2 (pg_dump): run, list, fetch")
+
+
+@cli.action("backup", "run", help="Back up the database to R2 now (records not_configured without R2)")
+def backup_run_command(args: argparse.Namespace) -> int:
+    from marden.core.backup import BackupError, run_backup
+
+    try:
+        result = run_backup()
+    except BackupError as exc:
+        print(f"backup failed: {exc}")
+        return 1
+    if result.status == "not_configured":
+        print(f"backup {result.run_id}: not configured: {result.detail}")
+        return 3
+    print(f"backup {result.run_id}: ok r2://{result.bucket}/{result.key} {result.bytes} bytes sha256 {result.sha256}")
+    return 0
+
+
+def _backup_list_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--limit", type=int, default=10)
+
+
+@cli.action("backup", "list", help="The latest backup runs", configure=_backup_list_args)
+def backup_list_command(args: argparse.Namespace) -> int:
+    from marden.core.backup import recent_runs
+
+    rows = recent_runs(args.limit)
+    if not rows:
+        print("no backup runs recorded")
+    for r in rows:
+        where = f"r2://{r['bucket']}/{r['object_key']} {r['bytes']} bytes" if r["object_key"] else (r["detail"] or "")
+        print(f"{r['id']}  {_fmt(r['started_at'])}  {r['status']:<14}  {where}")
+    return 0
+
+
+def _backup_fetch_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("key", help="object key (pg/<db>/YYYY/MM/<db>-<ts>.dump) or 'latest'")
+    p.add_argument("target", help="local file to write")
+
+
+@cli.action("backup", "fetch", help="Download a backup, check its sha256 and list it", configure=_backup_fetch_args)
+def backup_fetch_command(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from marden.core.backup import BackupError, fetch_backup
+
+    try:
+        info = fetch_backup(Path(args.target), key=args.key)
+    except BackupError as exc:
+        print(f"fetch failed: {exc}")
+        return 1
+    print(f"fetched r2://{info['bucket']}/{info['key']} -> {args.target}: sha256 {info['sha256']}, "
+          f"{info['entries']} archive entries (restore with pg_restore; docs/DEPLOY.md)")
+    return 0

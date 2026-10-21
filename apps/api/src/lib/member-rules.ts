@@ -1,5 +1,6 @@
-// Team rules (spec 13, 23): only owners and admins invite, remove or change roles; admins can't make
-// or remove owners; the last owner can't be removed or demoted.
+// Team rules (spec 13, 23, docs/access-control.md): only owners and admins invite, remove or change
+// roles; admins can't make owners, and can't change or remove an owner's org role or product roles
+// (owners can); the last owner can't be removed or demoted. Roles are Marden's, never Clerk's.
 import type { Role } from '../contracts/app.js';
 import { conflict, forbidden } from '../errors.js';
 
@@ -24,4 +25,10 @@ export function checkRemoval(actor: Role, target: Role, owners: number): void {
   assertManager(actor);
   if (actor !== 'owner' && target === 'owner') throw forbidden('admins_cannot_manage_owners');
   if (target === 'owner' && owners <= 1) throw conflict('last_owner');
+}
+
+/** Setting or removing a member's role on one of the firm's products; `target` is their org role. */
+export function checkProductRoleChange(actor: Role, target: Role): void {
+  assertManager(actor);
+  if (actor !== 'owner' && target === 'owner') throw forbidden('admins_cannot_manage_owners');
 }
