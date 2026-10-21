@@ -179,8 +179,7 @@ def test_api_flow_writes_complete_days_once(committed, keyed, no_zones, monkeypa
     info = first["ercot_prices"]
     assert info["requests"] == len(api.calls) == 15 + 4 + 1  # one per DAM point and RT type, AH has two pages
     assert info["days_written"] == {"dam": 3, "rt": 1} and first["facts_new"] == 3 * 4 + 4
-    assert first["latest"]["power_price:ercot:hb_north:dam"] == ["2024-11-04", float(Decimal("23.9496"))] or \
-        first["latest"]["power_price:ercot:hb_north:dam"][0] == "2024-11-04"
+    assert first["latest"]["power_price:ercot:hb_north:dam"][0] == "2024-11-04"
     rows = {(r["subject_id"], r["field"], r["valid_from"]): r for r in committed.execute(
         "SELECT * FROM fact_current WHERE subject_type = 'series'").fetchall()}
     fall = rows[("power_price:ercot:hb_north:dam", "avg", date(2024, 11, 3))]
