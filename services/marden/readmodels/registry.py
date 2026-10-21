@@ -8,7 +8,9 @@
 
 A builder returns the exact response type from handoff/api/types.ts, or None when the subject
 no longer has a document. `event(key, doc)` returns the StreamEvent to emit when the doc changes;
-dc_*/plant_* views default to the campus/plant events. Views must be in `views.VIEWS`.
+dc_*/plant_* views default to the campus/plant events, and a view may add companion events that
+carry another value the doc holds (site_detail: the site's `cushion`; instrument_detail: a
+`mark` per holder whose last mark changed since the previous snapshot). Views must be in `views.VIEWS`.
 
 Builders read facts with `marden.readmodels.known_facts` (fact_current for today's snapshot,
 fact_asof(day) when a past day is backfilled) and date every other read with `build_date()`;
@@ -21,6 +23,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from marden.core import events
 from marden.core.db import Conn
 from marden.readmodels.views import VIEWS, check_view
 
@@ -29,6 +32,8 @@ BuildOne = Callable[[Conn, str], Doc | None]
 BuildMany = Callable[[Conn], Iterable[tuple[str, Doc]]]
 KeysFn = Callable[[Conn], Iterable[str]]
 EventFn = Callable[[str, Doc], dict[str, Any] | None]
+# Companion events that compare with the previous snapshot of the same key (None: first build).
+DiffEventFn = Callable[[str, Doc | None, Doc], list[dict[str, Any]]]
 
 
 @dataclass(frozen=True)
@@ -44,9 +49,22 @@ class Builder:
             raise ValueError(f"builder {self.view!r} has no key list")
         return list(self.keys) if isinstance(self.keys, tuple) else list(self.keys(conn))
 
-    def event_for(self, key: str, doc: Doc) -> dict[str, Any] | None:
-        fn = self.event or DEFAULT_EVENTS.get(self.view)
-        return fn(key, doc) if fn else None
+    @property
+    def compares_previous(self) -> bool:
+        """Whether events_for needs the previous snapshot of the key."""
+        return self.view in DIFF_EVENTS
+
+    def events_for(self, key: str, doc: Doc, previous: Doc | None = None) -> list[dict[str, Any]]:
+        """The StreamEvents to emit when this doc changed: the view's own event, then its companions."""
+        out: list[dict[str, Any]] = []
+        for fn in (self.event or DEFAULT_EVENTS.get(self.view), COMPANION_EVENTS.get(self.view)):
+            payload = fn(key, doc) if fn else None
+            if payload is not None:
+                out.append(payload)
+        diff = DIFF_EVENTS.get(self.view)
+        if diff is not None:
+            out.extend(diff(key, previous, doc))
+        return out
 
 
 def _campus_event(key: str, doc: Doc) -> dict[str, Any]:
@@ -61,6 +79,55 @@ DEFAULT_EVENTS: dict[str, EventFn] = {
     **{view: _campus_event for view in VIEWS if view.startswith(("dc_row", "dc_detail", "dc_tab:"))},
     **{view: _plant_event for view in VIEWS if view.startswith("plant_")},
 }
+
+
+def _cushion_event(key: str, doc: Doc) -> dict[str, Any] | None:
+    """types.ts StreamEvent 'cushion' from a site page (SiteDetail.cushionMonths), so open screens
+    show the new cushion without a request. None when the site has no cushion value to send (no
+    lease date, or a model value without its method version)."""
+    cushion = doc.get("cushionMonths")
+    if not isinstance(cushion, dict):
+        return None
+    payload = {"type": "cushion", "siteSlug": key, "cushionMonths": cushion}
+    try:
+        return events.validate(payload)
+    except events.InvalidStreamEvent:
+        return None
+
+
+COMPANION_EVENTS: dict[str, EventFn] = {"site_detail": _cushion_event}
+
+
+def _holder_rows(doc: Doc | None) -> list[dict[str, Any]]:
+    holders = doc.get("holders") if isinstance(doc, dict) else None
+    rows = holders.get("rows") if isinstance(holders, dict) else None
+    return [r for r in rows or [] if isinstance(r, dict) and isinstance(r.get("name"), str)]
+
+
+def _mark_events(key: str, previous: Doc | None, doc: Doc) -> list[dict[str, Any]]:
+    """types.ts StreamEvent 'mark' for each holder whose filed last mark changed since the previous
+    snapshot (Holder.lastMark, from that holder's filing). None on a first build: no screen holds it."""
+    if previous is None:
+        return []
+    before = {r["name"]: r.get("lastMark") for r in _holder_rows(previous)}
+    out: list[dict[str, Any]] = []
+    for row in _holder_rows(doc):
+        mark = row.get("lastMark")
+        if row["name"] in before and before[row["name"]] == mark:
+            continue
+        payload = {
+            "type": "mark", "instrumentId": key, "holder": row["name"],
+            "mark": {"value": mark, "tag": "F", "asOf": row.get("filingDate"),
+                     "sourceName": row.get("filing"), "sourceUrl": row.get("filingUrl")},
+        }
+        try:
+            out.append(events.validate(payload))
+        except events.InvalidStreamEvent:
+            continue
+    return out
+
+
+DIFF_EVENTS: dict[str, DiffEventFn] = {"instrument_detail": _mark_events}
 
 _BUILDERS: dict[str, Builder] = {}
 

@@ -62,12 +62,14 @@ const READ_MODEL_ROUTES: Record<string, [string, ...Expect]> = {
   '/api/data-centers': ['/api/data-centers', 'dc_row', '*'],
   '/api/data-centers/summary': ['/api/data-centers/summary', 'dc_row', '*'],
   '/api/data-centers/:id': [`/api/data-centers/${CAMPUS}`, 'dc_detail', CAMPUS],
+  '/api/data-centers/:id/row': [`/api/data-centers/${CAMPUS}/row`, 'dc_row', CAMPUS],
   ...Object.fromEntries(['buildings', 'records', 'history', 'capacity'].map(
     (tab) => [`/api/data-centers/:id/${tab}`, [`/api/data-centers/${CAMPUS}/${tab}`, `dc_tab:${tab}`, CAMPUS]],
   )),
   '/api/power-plants': ['/api/power-plants', 'plant_row', '*'],
   '/api/power-plants/summary': ['/api/power-plants/summary', 'plant_row', '*'],
   '/api/power-plants/:id': [`/api/power-plants/${PLANT}`, 'plant_detail', PLANT],
+  '/api/power-plants/:id/row': [`/api/power-plants/${PLANT}/row`, 'plant_row', PLANT],
   '/api/power-plants/:id/debt': [`/api/power-plants/${PLANT}/debt`, 'plant_debt', PLANT],
   '/api/obligations': ['/api/obligations', 'obligations', 'all'],
   '/api/obligations/:company': [`/api/obligations/${ENTITY}`, 'obligation_company', ENTITY],
@@ -88,7 +90,7 @@ const EXPORTS: Record<string, Expect | null> = {
 
 /** GET routes that read app tables, identity tables or the stream, not a read model. */
 const APP_ROUTES = new Set([
-  '/api/home/layout', '/api/stress/saved', '/api/stress/saved/:id', '/api/watchlist', '/api/alerts',
+  '/api/home/layout', '/api/stress/saved', '/api/stress/saved/:id', '/api/watchlist', '/api/watchlist/issuers/:id', '/api/alerts',
   '/api/alert-settings', '/api/sources/health', '/api/account', '/api/search', '/api/stream', '/api/me',
   '/api/export/:table.xlsx', '/healthz',
 ]);

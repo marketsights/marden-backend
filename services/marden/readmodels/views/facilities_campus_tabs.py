@@ -31,37 +31,67 @@ from marden.readmodels.views.facilities_common import (
     fact_history,
     field_label,
     first_seen,
-    is_us,
     subject_events,
 )
 from marden.readmodels.views.sites_common import Doc, day, event_evidence, fact_evidence, latest_output
 from marden.readmodels.views.sites_links import building_doc
 from marden.readmodels.views.sites_text import text_of
 
-HISTORY_FIELDS = ("status", "facility_mw", "it_mw", "operating_mw", "operating_it_mw", "buildings_operational",
-                  "building_count", "power_source", "developer", "tenant", "online_year")
+HISTORY_FIELDS = (
+    "status",
+    "facility_mw",
+    "it_mw",
+    "operating_mw",
+    "operating_it_mw",
+    "buildings_operational",
+    "building_count",
+    "power_source",
+    "developer",
+    "tenant",
+    "online_year",
+)
 HISTORY_INITIAL = ("status", "facility_mw", "it_mw")
 # Fields whose source is not a document about the campus (methods, joins, Marden's own reads).
-NOT_DOCUMENTS = frozenset({"imagery", "change_score", "last_visible_change", "imagery_note", "copyright_notice",
-                           "site_link_evidence", "materiality_note", "large_load_request", "capacity_plan"})
+NOT_DOCUMENTS = frozenset(
+    {
+        "imagery",
+        "change_score",
+        "last_visible_change",
+        "imagery_note",
+        "copyright_notice",
+        "site_link_evidence",
+        "materiality_note",
+        "large_load_request",
+        "capacity_plan",
+    }
+)
 METHOD_SOURCES = ("hifld", "us-atlas", "marden")
 _TYPES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("Court", re.compile(r"\bcourt\b|\bappeal|\blawsuit", re.I)),
     ("Zoning", re.compile(r"zoning|rezon|planning|county|parish|city of|township|council|annex|site plan", re.I)),
     ("Permit", re.compile(r"\btceq\b|\bnmed\b|\bdeq\b|\bepa\b|air permit|\bpermit|\btdlr\b|tabs", re.I)),
-    ("Utility", re.compile(r"\bferc\b|\bpsc\b|\bpuc\b|\bmpsc\b|\bpscw\b|commission|\bercot\b|\bpjm\b|\bmiso\b|"
-                           r"\bspp\b|\bnyiso\b|utility|electric|interconnection|large.load|transmission", re.I)),
+    (
+        "Utility",
+        re.compile(
+            r"\bferc\b|\bpsc\b|\bpuc\b|\bmpsc\b|\bpscw\b|commission|\bercot\b|\bpjm\b|\bmiso\b|"
+            r"\bspp\b|\bnyiso\b|utility|electric|interconnection|large.load|transmission",
+            re.I,
+        ),
+    ),
     ("Filing", re.compile(r"\bsec\b|edgar|10-[kq]|8-k", re.I)),
 )
 CAPACITY_KEYS = frozenset({"facilityMw", "itMw", "gpus", "gpuValueB", "methods"})
 
 
 def doc_type(kind: str, *texts: str | None) -> str:
-    """DocType chip of a record: Press for news, else by agency and host words, else Filing."""
+    """DocType chip of a record: Press for news, else by the first text (agency, source, host, title,
+    in that order) whose words name a kind of body, else Filing."""
     if kind == "news":
         return "Press"
-    text = " ".join(t for t in texts if t)
-    return next((label for label, pattern in _TYPES if pattern.search(text)), "Filing")
+    for text in texts:
+        if text and (label := next((lb for lb, pattern in _TYPES if pattern.search(text)), None)):
+            return label
+    return "Filing"
 
 
 def agency_of(ev: Row) -> str:
@@ -88,8 +118,15 @@ def campus_records(conn: Conn, campus_id: str) -> list[Doc]:
         if (rec["date"], rec["sourceUrl"] or rec["text"]) in seen_events:
             continue
         seen_events.add((rec["date"], rec["sourceUrl"] or rec["text"]))
-        out.append({**rec, "type": doc_type(ev["kind"], ev.get("source_name"), ev["title"], _host(ev.get("source_url"))),
-                    "agency": agency_of(ev)})
+        out.append(
+            {
+                **rec,
+                "type": doc_type(
+                    ev["kind"], agency_of(ev), ev.get("source_name"), _host(ev.get("source_url")), ev["title"]
+                ),
+                "agency": agency_of(ev),
+            }
+        )
     rows = known_fact_rows(conn, "campus", campus_id, ["imagery", "large_load_request"])
     for row in rows["imagery"]:
         v = row["value"] if isinstance(row["value"], dict) else {}
@@ -99,8 +136,13 @@ def campus_records(conn: Conn, campus_id: str) -> list[Doc]:
     for row in rows["large_load_request"]:
         v = row["value"] if isinstance(row["value"], dict) else {}
         if row["valid_from"] <= day():
-            out.append({**fact_evidence(row, request_text(v)), "type": "Utility",
-                        "agency": str(v.get("utility") or row.get("source_name") or "n/d")})
+            out.append(
+                {
+                    **fact_evidence(row, request_text(v)),
+                    "type": "Utility",
+                    "agency": str(v.get("utility") or row.get("source_name") or "n/d"),
+                }
+            )
     seen = {r["sourceUrl"] for r in out if r["sourceUrl"]}
     out.extend(_fact_documents(conn, campus_id, seen))
     out.sort(key=lambda r: (r["date"], r["type"], r["text"]), reverse=True)
@@ -111,11 +153,20 @@ def _fact_documents(conn: Conn, campus_id: str, seen: set[str]) -> list[Doc]:
     """One record per document URL the campus's current facts were read from."""
     by_url: dict[str, list[Row]] = {}
     order = {f: i for i, f in enumerate(FIELD_LABELS)}
-    for field, row in sorted(known_facts(conn, "campus", campus_id).items(), key=lambda kv: (order.get(kv[0], 999), kv[0])):
+    for field, row in sorted(
+        known_facts(conn, "campus", campus_id).items(), key=lambda kv: (order.get(kv[0], 999), kv[0])
+    ):
         url = row.get("source_url")
         source = (row.get("source_name") or "").lower()
-        if (not url or url in seen or field in NOT_DOCUMENTS or row["tag"] == "M" or row.get("producer") == GRID_JOIN
-                or source.startswith(METHOD_SOURCES) or row["valid_from"] > day()):
+        if (
+            not url
+            or url in seen
+            or field in NOT_DOCUMENTS
+            or row["tag"] == "M"
+            or row.get("producer") == GRID_JOIN
+            or source.startswith(METHOD_SOURCES)
+            or row["valid_from"] > day()
+        ):
             continue
         by_url.setdefault(url, []).append(row)
     out = []
@@ -124,8 +175,14 @@ def _fact_documents(conn: Conn, campus_id: str, seen: set[str]) -> list[Doc]:
         parts = [f"{field_label(r['field'])}: {t}" for r in rows if (t := text_of(r["value"], 120))]
         rec = fact_evidence(lead, "; ".join(parts[:4]) or field_label(lead["field"]))
         kind = "news" if lead["tag"] == "R" else "filing"
-        out.append({**rec, "sourceUrl": url, "type": doc_type(kind, lead.get("source_name"), _host(url)),
-                    "agency": lead.get("source_name") or _host(url) or "n/d"})
+        out.append(
+            {
+                **rec,
+                "sourceUrl": url,
+                "type": doc_type(kind, lead.get("source_name"), _host(url)),
+                "agency": lead.get("source_name") or _host(url) or "n/d",
+            }
+        )
     return out
 
 
@@ -145,8 +202,15 @@ def campus_history(conn: Conn, campus_id: str) -> list[Doc]:
     row = known_facts(conn, "campus", campus_id, ["first_seen"]).get("first_seen")
     when = first_seen({"first_seen": row}, None) if row else None
     if row is not None and when and when <= day().isoformat():
-        out.append({"date": when, "field": "first_seen", "before": None, "after": "First seen",
-                    "evidence": fact_evidence(row, f"First seen in Marden's records {when}", when)})
+        out.append(
+            {
+                "date": when,
+                "field": "first_seen",
+                "before": None,
+                "after": "First seen",
+                "evidence": fact_evidence(row, f"First seen in Marden's records {when}", when),
+            }
+        )
     out.sort(key=lambda h: (h["date"], h["field"]), reverse=True)
     return out
 
@@ -164,16 +228,13 @@ def capacity_estimates(conn: Conn, campus: Row) -> list[Doc]:
     for scope, sid, name in subjects:
         output = latest_output(conn, "capacity", scope, sid)
         value = output["output"] if output else None
-        if isinstance(value, dict) and CAPACITY_KEYS <= set(value):
+        if isinstance(value, dict) and set(value) >= CAPACITY_KEYS:
             out.append({**value, "scope": scope, "id": sid, "name": name})
     return out
 
 
 def _campus(conn: Conn, campus_id: str) -> Row | None:
-    campus = campus_row(conn, campus_id)
-    if campus is None or not is_us(campus["state"], known_facts(conn, "campus", campus_id, ["country"])):
-        return None
-    return campus
+    return campus_row(conn, campus_id)
 
 
 @builder("dc_tab:buildings", keys=campus_ids)

@@ -69,6 +69,15 @@ def upsert_doc(conn: Conn, view: str, key: str, doc: Doc, *, as_of: date | None 
     return prev is None or prev["inputs_hash"] != digest
 
 
+def _previous_doc(conn: Conn, view: str, key: str, day: date) -> Doc | None:
+    """The snapshot in force on `day` before this write (today's earlier build, or an older day's)."""
+    row = conn.execute(
+        "SELECT doc FROM read_model WHERE view = %s AND key = %s AND as_of <= %s ORDER BY as_of DESC LIMIT 1",
+        (view, key, day),
+    ).fetchone()
+    return row["doc"] if row else None
+
+
 class _Cycle:
     """One rebuild pass: writes docs and emits each distinct event once."""
 
@@ -83,18 +92,19 @@ class _Cycle:
             self.stats.removed += 1
             return
         self.stats.built += 1
+        previous = _previous_doc(conn, b.view, key, self.as_of) if self.live and b.compares_previous else None
         if not upsert_doc(conn, b.view, key, doc, as_of=self.as_of):
             return
         self.stats.changed += 1
-        payload = b.event_for(key, doc) if self.live else None
-        if payload is None:
+        if not self.live:
             return
-        fingerprint = canonical_json(payload)
-        if fingerprint in self._emitted:
-            return
-        events.emit(payload, conn=conn)
-        self._emitted.add(fingerprint)
-        self.stats.events += 1
+        for payload in b.events_for(key, to_jsonable(doc), previous):
+            fingerprint = canonical_json(payload)
+            if fingerprint in self._emitted:
+                continue
+            events.emit(payload, conn=conn)
+            self._emitted.add(fingerprint)
+            self.stats.events += 1
 
     def fail(self, view: str, key: str, exc: Exception) -> None:
         log.exception("read model build failed: %s/%s", view, key)

@@ -7,7 +7,8 @@ unions and null checks exactly as the app's compiler would.
 
 `SITE_TYPES` names each view's type. `ND` widens the fields that are null while the model that fills
 them has not run (a chain status before the status model, a projection before the cushion model, the
-project file's draw-pace flag and equipment 'late' before the M v0 signals):
+project file's draw-pace flag and equipment 'late' before the M v0 signals; the embedded plant row's
+unrecorded plain fields, as facility_shapes allows them):
 types.ts gives them no null, and the rule is n/d, never a placeholder. Everything else is exact.
 Usable from tests (`check`) and from the command line on saved API responses:
 
@@ -25,6 +26,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from facility_shapes import ND_TYPES as FACILITY_ND  # the embedded plant row's n/d allowances
+
 REPO = Path(__file__).resolve().parents[3]
 CONTRACTS = REPO / "apps" / "api" / "src" / "contracts"
 TSC = REPO / "apps" / "api" / "node_modules" / ".bin" / "tsc"
@@ -40,6 +43,9 @@ type ScheduleNd = Nd<T.SiteSchedule, 'projection'>;
 type EquipmentNd = Nd<T.ProjectConstruction['equipment'][number], 'late'>;
 type ConstructionNd = Omit<Nd<T.ProjectConstruction, 'drawPaceFlag'>, 'equipment'> & { equipment: EquipmentNd[] };
 type ProjectFileNd = Omit<T.ProjectFile, 'construction'> & { construction: ConstructionNd };
+""" + FACILITY_ND + """
+type PowerTabNd = Omit<S.SitePowerTab, 'plant'> & { plant?: PlantRowDoc | null };
+type BuildingsTabNd = Omit<S.SiteBuildingsTab, 'plant'> & { plant?: PlantRowDoc };
 """
 
 # view -> (exact type, type with the model-pending n/d fields widened)
@@ -49,12 +55,12 @@ SITE_TYPES: dict[str, tuple[str, str]] = {
     "site_detail": ("T.SiteDetail", "DetailNd"),
     "site_schedule": ("T.SiteSchedule", "ScheduleNd"),
     "site_tab:evidence": ("S.SiteEvidenceTab", "S.SiteEvidenceTab"),
-    "site_tab:power": ("S.SitePowerTab", "S.SitePowerTab"),
+    "site_tab:power": ("S.SitePowerTab", "PowerTabNd"),
     "site_tab:opposition": ("S.SiteOppositionTab", "S.SiteOppositionTab"),
     "site_tab:events": ("S.SiteEventsTab", "S.SiteEventsTab"),
     "site_tab:debt": ("S.SiteDebtTab", "S.SiteDebtTab"),
     "site_tab:lease": ("S.SiteLeaseTab", "S.SiteLeaseTab"),
-    "site_tab:buildings": ("S.SiteBuildingsTab", "S.SiteBuildingsTab"),
+    "site_tab:buildings": ("S.SiteBuildingsTab", "BuildingsTabNd"),
     "project_file": ("T.ProjectFile", "ProjectFileNd"),
 }
 

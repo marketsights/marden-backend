@@ -35,11 +35,12 @@ The collectors for rates, SEC filings, EIA-860M, ERCOT large load, FERC eLibrary
 | `FRED_API_KEY` | `fred`, optional: the public `fredgraph.csv` path works without it | Not set. Optional: the API path avoids the public CSV download, nothing else changes. |
 | Legal sign-off on republishing N-PORT and BDC marks "as filed by <fund>" | `sec_nport`, `sec_bdc` display | Open (price-sources.md §6.5a). |
 | A monitored contact in `SEC_USER_AGENT` (`cody@marden.ai`) | Every SEC collector | Confirm it is monitored (price-sources.md §6.7). |
+| ERCOT MIS paths `/misapp` and `/misdownload` (robots.txt disallows both for every agent) | `ercot_gis` (GIS Report, EMIL PG7-200-ER, the only place ERCOT posts it) | Collected by the owner's decision (2026-10-21) at low volume: User-Agent "Marden research cody@marden.ai", one request per 5 s, weekly, only reports not already stored, and the run stops on any challenge, 403 or CAPTCHA. Recorded in the source's terms_note. |
 | EIA-860M archive months (robots.txt disallows `/*archive/`) | `eia_860m` backfill, which slip history needs | Only the newest month (August 2026) is loaded. A person can download earlier months and run `collect eia_860m --import-dir DIR`. |
 | FERC website policies, which sit behind a Cloudflare challenge | `ferc` terms | The policies could not be read, and the challenge was not bypassed. The public-records basis (18 CFR 388.106) is quoted instead. |
 | Microsoft Planetary Computer is a Preview service | `sentinel2` | Allowed ("not prohibited"). It may be rate-limited or withdrawn. |
 
-None of these collectors needs a credential (`FRED_API_KEY` is optional). The `ERCOT_API_*` keys are for `ercot_prices` and `ercot_gis`, not for `ercot`. None of them reads or writes FINRA TRACE, Börse Frankfurt or Yahoo data.
+None of these collectors needs a credential (`FRED_API_KEY` is optional). The `ERCOT_API_*` keys are for `ercot_prices` only; `ercot` and `ercot_gis` (MIS, no credential) need none. None of them reads or writes FINRA TRACE, Börse Frankfurt or Yahoo data.
 
 ## Known limits
 

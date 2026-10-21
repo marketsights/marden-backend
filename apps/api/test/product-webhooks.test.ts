@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify';
 import { Webhook } from 'svix';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db.js';
+import { applyClerkEvent, type ClerkEvent } from '../src/queries/clerk-sync.js';
 import { bearer, dropOrgs, makeApp, makeKeys, signToken, testDb, uid, type Keys } from './helpers.js';
 
 describe('Clerk webhooks and product roles', () => {
@@ -92,6 +93,39 @@ describe('Clerk webhooks and product roles', () => {
     expect((await joined(orgFull, users.full)).statusCode).toBe(204);
     expect(await rolesOf(orgFull, users.full)).toEqual([]);
     expect((await db.query(`SELECT 1 FROM membership WHERE org_id = $1 AND user_id = $2`, [orgFull, users.full])).rowCount).toBe(1);
+  });
+
+  it('makes only one first member when two memberships of a new org arrive at once', async () => {
+    const orgRace = uid('org_wh_race');
+    const [a, b] = [uid('user_wh_a'), uid('user_wh_b')];
+    expect((await orgCreated(orgRace)).statusCode).toBe(204);
+    await addProduct(orgRace);
+    const created = (userId: string): ClerkEvent => ({
+      type: 'organizationMembership.created', timestamp: Date.now(),
+      data: { id: uid('orgmem'), role: 'org:member', organization: { id: orgRace, name: orgRace }, public_user_data: { user_id: userId } },
+    });
+    const [ca, cb] = [await db.pool.connect(), await db.pool.connect()];
+    try {
+      await ca.query('BEGIN');
+      await cb.query('BEGIN');
+      await applyClerkEvent(ca, created(a), { id: uid('msg'), at: Date.now() }); // a joins first, not committed yet
+      const pid = (await cb.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')).rows[0]?.pid;
+      const second = applyClerkEvent(cb, created(b), { id: uid('msg'), at: Date.now() });
+      for (let i = 0; i < 100; i += 1) { // b must be waiting on a's transaction before a commits
+        const w = await db.query<{ t: string | null }>(`SELECT wait_event_type AS t FROM pg_stat_activity WHERE pid = $1`, [pid]);
+        if (w.rows[0]?.t === 'Lock') break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      await ca.query('COMMIT');
+      await second;
+      await cb.query('COMMIT');
+    } finally {
+      ca.release();
+      cb.release();
+    }
+    expect(await rolesOf(orgRace, a)).toEqual([{ product_id: 'marden', role: 'owner' }]);
+    expect(await rolesOf(orgRace, b)).toEqual([]);
+    await dropOrgs(db, [orgRace], [a, b]);
   });
 
   it("removes the member's product roles when the membership is deleted", async () => {

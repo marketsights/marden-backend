@@ -48,24 +48,44 @@ def liens(rows: list[Row]) -> list[Doc]:
     for row, v in _items(rows):
         if not (v.get("secured_party") and v.get("file_number")):
             continue
-        out.append({"securedParty": str(v["secured_party"]), "debtor": str(v.get("debtor") or ""),
-                    "state": str(v.get("state") or ""), "fileNumber": str(v["file_number"]),
-                    "filed": str(v.get("filed") or row["valid_from"].isoformat()),
-                    "collateral": str(v.get("collateral") or ""), "url": v.get("url") or row.get("source_url") or ""})
+        out.append(
+            {
+                "securedParty": str(v["secured_party"]),
+                "debtor": str(v.get("debtor") or ""),
+                "state": str(v.get("state") or ""),
+                "fileNumber": str(v["file_number"]),
+                "filed": str(v.get("filed") or row["valid_from"].isoformat()),
+                "collateral": str(v.get("collateral") or ""),
+                "url": v.get("url") or row.get("source_url") or "",
+            }
+        )
     return sorted(out, key=lambda lien: lien["filed"], reverse=True)
 
 
 def mortgages(rows: list[Row]) -> list[Doc]:
-    return [{"lender": str(v["lender"]), "amount": _money(row, v.get("amount_usd")),
-             "recorded": str(v.get("recorded") or row["valid_from"].isoformat()),
-             "url": v.get("url") or row.get("source_url") or ""}
-            for row, v in _items(rows) if v.get("lender")]
+    return [
+        {
+            "lender": str(v["lender"]),
+            "amount": _money(row, v.get("amount_usd")),
+            "recorded": str(v.get("recorded") or row["valid_from"].isoformat()),
+            "url": v.get("url") or row.get("source_url") or "",
+        }
+        for row, v in _items(rows)
+        if v.get("lender")
+    ]
 
 
 def financing(rows: list[Row]) -> list[Doc]:
-    return [{"lender": str(v["lender"]), "type": str(v.get("type") or "n/d"), "amount": _money(row, v.get("amount_usd")),
-             "evidence": fact_evidence(row, v.get("text") or v.get("quote") or row.get("quote") or None)}
-            for row, v in _items(rows) if v.get("lender")]
+    return [
+        {
+            "lender": str(v["lender"]),
+            "type": str(v.get("type") or "n/d"),
+            "amount": _money(row, v.get("amount_usd")),
+            "evidence": fact_evidence(row, v.get("text") or v.get("quote") or row.get("quote") or None),
+        }
+        for row, v in _items(rows)
+        if v.get("lender")
+    ]
 
 
 def equipment_orders(rows: list[Row]) -> list[Doc]:

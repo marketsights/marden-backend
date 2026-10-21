@@ -7,7 +7,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authOf } from '../auth/plugin.js';
-import type { ProductRegistry } from '../auth/products/index.js';
+import { matrixFor, type ProductRegistry } from '../auth/products/index.js';
 import type { OrgProduct, TeamMember } from '../contracts/app.js';
 import type { Db, Queryable } from '../db.js';
 import { badRequest, conflict, HttpError, notFound } from '../errors.js';
@@ -47,7 +47,7 @@ async function knownProduct(c: Queryable, products: ProductRegistry, productId: 
   const res = await c.query(`SELECT 1 FROM product WHERE id = $1`, [productId]);
   if ((res.rowCount ?? 0) === 0) throw notFound('product');
   // A product the code has no matrix for would grant nothing: refuse rather than sell an empty product.
-  if (!(productId in products)) throw badRequest('product_has_no_permission_matrix');
+  if (!matrixFor(products, productId)) throw badRequest('product_has_no_permission_matrix');
 }
 
 async function memberOf(db: Db, orgId: string, userId: string): Promise<TeamMember> {

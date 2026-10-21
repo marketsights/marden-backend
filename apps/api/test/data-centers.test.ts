@@ -114,6 +114,23 @@ describe('data centers and power plants', () => {
     expect(fc.features[0].properties.id).toBe('dc-b');
   });
 
+  it('serves one row by id for live updates: the same doc as the list, 404 unknown, 503 not built', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/data-centers/dc-a/row' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual((await json('/api/data-centers?state=TX&sort=name')).rows.find((r: { id: string }) => r.id === 'dc-a'));
+    expect((await app.inject({ method: 'GET', url: '/api/data-centers/no-such-campus/row' })).statusCode).toBe(404);
+    await db.query(`INSERT INTO campus (id, name) VALUES ('dc-unbuilt', 'Unbuilt campus')`);
+    try {
+      expect((await app.inject({ method: 'GET', url: '/api/data-centers/dc-unbuilt/row' })).json())
+        .toEqual({ error: 'not_ready', view: 'dc_row', key: 'dc-unbuilt' });
+    } finally {
+      await db.query(`DELETE FROM campus WHERE id = 'dc-unbuilt'`);
+    }
+    const plant = await app.inject({ method: 'GET', url: '/api/power-plants/pp-1/row' });
+    expect(plant.statusCode).toBe(200);
+    expect(plant.json()).toEqual((await json('/api/power-plants')).rows[0]);
+  });
+
   it('computes the KPI strip from the filtered rows', async () => {
     const all = await json('/api/data-centers/summary');
     expect(all).toMatchObject({ campuses: 3, buildings: 6, financed: { count: 1, debtB: 9.4 } });

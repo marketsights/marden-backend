@@ -6,14 +6,14 @@ import { authOf } from '../auth/plugin.js';
 import type { Db } from '../db.js';
 import { notFound } from '../errors.js';
 import { asOfOf, flag, num, queryOf } from '../lib/params.js';
-import { toWatchItem } from '../lib/watch-items.js';
+import { toIssuerCandidate, toWatchItem } from '../lib/watch-items.js';
 import { listAlerts, markAlertsRead } from '../queries/alerts.js';
 import { audit } from '../queries/audit.js';
-import { addWatchItem, refExists, removeWatchItem, watchRows } from '../queries/watchlist.js';
+import { addWatchItem, issuerCandidates, refExists, removeWatchItem, watchRows } from '../queries/watchlist.js';
 import { param, parseBody } from './serve.js';
 
 const itemSchema = z.strictObject({ kind: z.enum(['site', 'instrument']), refId: z.string().min(1).max(200) });
-const addSchema = z.union([itemSchema, z.strictObject({ items: z.array(itemSchema).min(1).max(50) })]);
+const addSchema = z.union([itemSchema, z.strictObject({ items: z.array(itemSchema).min(1).max(200) })]);
 const readSchema = z.strictObject({ ids: z.array(z.string().min(1).max(40)).min(1).max(500).optional() });
 
 export function watchlistRoutes(app: FastifyInstance, db: Db): void {
@@ -21,6 +21,16 @@ export function watchlistRoutes(app: FastifyInstance, db: Db): void {
     const { orgId } = authOf(req);
     const rows = await db.withOrg(orgId, (c) => watchRows(c, orgId, asOfOf(req)));
     return rows.map(toWatchItem);
+  });
+
+  // Adding an issuer adds its instruments and the sites they depend on; the user can uncheck
+  // names before POST /api/watchlist/items { items } (spec 11 Acceptance).
+  app.get('/api/watchlist/issuers/:id', async (req) => {
+    const { orgId } = authOf(req);
+    const id = param(req, 'id');
+    const found = await db.withOrg(orgId, (c) => issuerCandidates(c, orgId, id));
+    if (!found.issuer) throw notFound('issuer');
+    return { issuer: found.issuer, items: found.rows.map(toIssuerCandidate) };
   });
 
   app.post('/api/watchlist/items', async (req, reply) => {

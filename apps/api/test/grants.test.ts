@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { decide, effectivePermissions, type Holder } from '../src/auth/grants.js';
 import { ORG_ROLE_PERMISSIONS, ROUTE_RULES } from '../src/auth/permissions.js';
-import { PRODUCTS, type ProductRegistry } from '../src/auth/products/index.js';
+import { matrixFor, PRODUCTS, type ProductRegistry } from '../src/auth/products/index.js';
 import { MARDEN } from '../src/auth/products/marden.js';
 
 const REGISTRY: ProductRegistry = {
@@ -49,6 +49,16 @@ describe('effective permissions across products', () => {
     expect(effectivePermissions(unknown, REGISTRY)).toEqual([...ORG_ROLE_PERMISSIONS.member].sort());
     expect(decide(rule('GET /api/sites'), unknown, REGISTRY)).toEqual({ ok: false, reason: 'role' });
     expect(decide(rule('GET /api/sites'), holder([]), REGISTRY)).toEqual({ ok: false, reason: 'no_product' });
+  });
+
+  it('reads only the registry\'s own product ids: object built-ins are not products', () => {
+    for (const productId of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      const odd = holder([{ productId, role: 'owner', plan: 'paid' }]);
+      expect(effectivePermissions(odd, REGISTRY)).toEqual([...ORG_ROLE_PERMISSIONS.member].sort());
+      expect(decide(rule('GET /api/sites'), odd, REGISTRY)).toEqual({ ok: false, reason: 'role' });
+      expect(matrixFor(REGISTRY, productId)).toBeNull();
+    }
+    expect(matrixFor(REGISTRY, 'marden')).toBe(REGISTRY.marden);
   });
 
   it('keeps the staff superset: every product read, review, ops and product management', () => {

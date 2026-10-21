@@ -23,6 +23,10 @@ export function dataCenterRoutes(app: FastifyInstance, db: Db): void {
 
   app.get('/api/data-centers/:id', async (req) => serveDoc(db, 'dc_detail', keyed(CAMPUS, param(req, 'id')), asOfOf(req)));
 
+  // One table row (DataCenterRow): a `campus` stream event names only the id, so open tables and
+  // maps load just that row and merge it in place instead of reloading the page of 50.
+  app.get('/api/data-centers/:id/row', async (req) => serveDoc(db, DC_ROWS.view, keyed(CAMPUS, param(req, 'id')), asOfOf(req)));
+
   for (const tab of CAMPUS_TABS) {
     app.get(`/api/data-centers/:id/${tab}`, async (req) => {
       const doc = await serveDoc<unknown>(db, `dc_tab:${tab}`, keyed(CAMPUS, param(req, 'id')), asOfOf(req));
@@ -41,6 +45,9 @@ export function powerPlantRoutes(app: FastifyInstance, db: Db): void {
   });
 
   app.get('/api/power-plants/:id', async (req) => serveDoc(db, 'plant_detail', keyed(PLANT, param(req, 'id')), asOfOf(req)));
+
+  // One table row (PowerPlantRow), loaded on a `plant` stream event (see /api/data-centers/:id/row).
+  app.get('/api/power-plants/:id/row', async (req) => serveDoc(db, PLANT_ROWS.view, keyed(PLANT, param(req, 'id')), asOfOf(req)));
 
   app.get('/api/power-plants/:id/debt', async (req) => serveDoc(db, 'plant_debt', keyed(PLANT, param(req, 'id')), asOfOf(req)));
 }

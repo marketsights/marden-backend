@@ -7,7 +7,7 @@ import {
   ORG_PERMISSIONS, ORG_ROLE_PERMISSIONS, plansFor, PRODUCT_PERMISSIONS, STAFF_PERMISSIONS,
   type Permission, type RouteRule,
 } from './permissions.js';
-import type { ProductRegistry } from './products/index.js';
+import { matrixFor, type ProductRegistry } from './products/index.js';
 
 /** The member's role on one product the org holds live (status active, within dates, product active). */
 export interface ProductGrant { productId: string; role: Role; plan: Plan }
@@ -25,7 +25,7 @@ const OK: Decision = { ok: true };
 const deny = (reason: Denial): Decision => ({ ok: false, reason });
 
 function grantsWith(permission: Permission, who: Holder, products: ProductRegistry): ProductGrant[] {
-  return who.grants.filter((g) => products[g.productId]?.[g.role].some((p) => p === permission) ?? false);
+  return who.grants.filter((g) => matrixFor(products, g.productId)?.[g.role].some((p) => p === permission) ?? false);
 }
 
 /**
@@ -48,7 +48,7 @@ export function decide(rule: RouteRule, who: Holder, products: ProductRegistry):
 export function effectivePermissions(who: Holder, products: ProductRegistry): Permission[] {
   const set = new Set<Permission>(ORG_ROLE_PERMISSIONS[who.orgRole]);
   for (const g of who.grants) {
-    for (const p of products[g.productId]?.[g.role] ?? []) {
+    for (const p of matrixFor(products, g.productId)?.[g.role] ?? []) {
       if (who.staff || plansFor(p).includes(g.plan)) set.add(p);
     }
   }

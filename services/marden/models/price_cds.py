@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -46,7 +47,7 @@ def interpolate(points: Sequence[tuple[float, float]], target: float) -> tuple[f
         raise ValueError("no bond intensities to interpolate")
     if len(pts) == 1:
         return pts[0][1], "flat (one bond)"
-    for (t0, l0), (t1, l1) in zip(pts, pts[1:], strict=False):
+    for (t0, l0), (t1, l1) in itertools.pairwise(pts):
         if t0 <= target <= t1:
             w = 0.0 if t1 == t0 else (target - t0) / (t1 - t0)
             return l0 + w * (l1 - l0), "interpolated"
@@ -64,7 +65,7 @@ def _discount_handle(day: date, curve: Curve) -> ql.YieldTermStructureHandle:
     dc = ql.Actual365Fixed()
     dates, dfs = [td], [1.0]
     for t in curve.times:
-        d = td + max(int(round(float(t) * 365.25)), 1)
+        d = td + max(round(float(t) * 365.25), 1)
         if d > dates[-1]:
             dates.append(d)
             dfs.append(float(curve.df(dc.yearFraction(td, d) * 365.0 / 365.25)))

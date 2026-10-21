@@ -19,6 +19,7 @@ is false (marden.models.pit).
 
 from __future__ import annotations
 
+import itertools
 import re
 import statistics
 from collections import defaultdict
@@ -152,7 +153,7 @@ class Market:
         tenors = sorted(self.ust)
         if years <= tenors[0]:
             return self.ust[tenors[0]][0]
-        for lo, hi in zip(tenors, tenors[1:], strict=False):
+        for lo, hi in itertools.pairwise(tenors):
             if years <= hi:
                 w = (years - lo) / (hi - lo)
                 return self.ust[lo][0] * (1 - w) + self.ust[hi][0] * w
@@ -205,15 +206,17 @@ def load(conn: Conn, day: date) -> Market:
                 if (best := pit.current_of(rs)) is not None:
                     chip.rows[f] = best
         elif sid.startswith("gpu_resale:"):
-            resale[sid.removeprefix("gpu_resale:")] = sorted(fields.get("usd_per_gpu", []), key=lambda r: r["valid_from"])
+            resale[sid.removeprefix("gpu_resale:")] = sorted(fields.get("usd_per_gpu", []),
+                                                             key=lambda r: r["valid_from"])
         elif sid.startswith("gpu_residual:") and (best := pit.current_of(fields.get("residual_pct_of_new", []))):
             residual[sid.removeprefix("gpu_residual:")] = best
         elif sid.startswith("issue_comp:"):
             terms = pit.current_of(fields.get("deal_terms", []))
             spread = pit.current_of(fields.get("issue_spread_bp", []))
-            if terms and spread and isinstance(terms["value"], dict) and terms["value"].get("type") == GPU_LOAN_TYPE:
-                if (bp := num(spread["value"])) is not None:
-                    spreads.append((spread["valid_from"], bp, sid))
+            kind = terms["value"].get("type") if terms is not None and isinstance(terms["value"], dict) else None
+            gpu_loan = kind == GPU_LOAN_TYPE
+            if gpu_loan and spread is not None and (bp := num(spread["value"])) is not None:
+                spreads.append((spread["valid_from"], bp, sid))
         elif sid == "data_center_pue":
             pue = pit.current_of(fields.get("pue_range", []))
     lives: dict[str, Row] = {}

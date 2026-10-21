@@ -187,9 +187,11 @@ def run_keys(keys: list[str], trigger: str) -> dict[str, Any]:
 # ---------------------------------------------------------------- triggers and schedule
 _HOLDING_INSTRUMENTS = via(
     """SELECT DISTINCT o.instrument_id FROM holding h JOIN holding o ON o.fund_entity_id = h.fund_entity_id
-        WHERE h.id::text = %s AND o.instrument_id IS NOT NULL"""
+        WHERE h.id = %s AND o.instrument_id IS NOT NULL""",
+    int_id=True,  # holding.id as an integer: the primary key serves the lookup on every holding write
 )
-_FUND_INSTRUMENTS = via("SELECT DISTINCT instrument_id FROM holding WHERE fund_entity_id = %s AND instrument_id IS NOT NULL")
+_FUND_INSTRUMENTS = via(
+    "SELECT DISTINCT instrument_id FROM holding WHERE fund_entity_id = %s AND instrument_id IS NOT NULL")
 
 
 def _install_triggers() -> None:

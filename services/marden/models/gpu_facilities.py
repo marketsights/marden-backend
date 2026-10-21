@@ -4,7 +4,12 @@ per model), gpu_collateral, gpu_deployment and recovery.
 A facility is an instrument with a `gpu_model` or `gpu_collateral` fact. Inputs, read point in time:
 - model: `gpu_model` (a pool naming several models, 'H100/H200', is valued at its lowest-valued model);
 - units: the `gpu_collateral` record's base unit count (the archive's estimate from the financed GPU cost
-  and per-GPU prices, tag M, sourced to the credit agreement), passed through with its own tag;
+  and per-GPU prices, tag M, sourced to the credit agreement), passed through with its own tag. The
+  record sizes a facility as if fully drawn; a delayed-draw facility draws as GPUs are bought, so while
+  the filed drawn balance is below the record's balance the units financed so far are scaled by
+  drawn / record balance (then tag M, this model);
+- pools: facilities with the same collateral record (one security package, e.g. IREN's DDTL and USPP
+  notes) are one pool: claims pari passu, LTV and recovery on the pool's total balance;
 - unit age: the record's purchase month (else the model's first volume shipment);
 - balance: the filed drawn amount (`drawn_usd`, F), else the record's balance; the balance path by quarter
   is the record's amortization schedule, scaled to the balance used;
@@ -29,6 +34,7 @@ from marden.models.sourced import num
 
 FACILITY_FIELDS = ("gpu_model", "gpu_collateral", "drawn_usd", "commitment_usd", "amount_usd", "coupon_rate_pct",
                    "maturity")
+DASH = "\u2013"
 DEFAULT_WINDOW_QUARTERS = 4  # recovery range: customer walks today ... a year out
 
 
@@ -61,6 +67,18 @@ class Facility:
         units = self.record.get("units")
         return num(units.get("base")) if isinstance(units, dict) else None
 
+    @property
+    def pool_key(self) -> str:
+        loan = self.record.get("loan")
+        return loan if isinstance(loan, str) and loan else self.instrument_id
+
+    def units_financed(self, pool_balance: float | None) -> tuple[float | None, bool]:
+        """Units financed so far for the pool's drawn balance, and whether they were scaled."""
+        units, sized_on = self.units, num(self.record.get("balance_usd"))
+        if units is None or pool_balance is None or not sized_on or pool_balance >= sized_on:
+            return units, False
+        return units * pool_balance / sized_on, True
+
     def purchase(self, market: Market, model: str) -> date | None:
         month = self.record.get("purchase_month")
         bought = ship_date(month) if isinstance(month, str) else None
@@ -76,9 +94,11 @@ class Facility:
 
     def schedule(self, balance: float) -> list[tuple[str, float]]:
         """(month 'YYYY-MM', balance) from the record's amortization path, scaled to `balance`."""
-        path = [(p.get("month"), num(p.get("balance_usd"))) for p in self.record.get("ltv_by_quarter") or []
-                if isinstance(p, dict)]
-        path = [(m, b) for m, b in path if isinstance(m, str) and b is not None]
+        path: list[tuple[str, float]] = []
+        for p in self.record.get("ltv_by_quarter") or []:
+            month, owed = (p.get("month"), num(p.get("balance_usd"))) if isinstance(p, dict) else (None, None)
+            if isinstance(month, str) and owed is not None:
+                path.append((month, owed))
         if not path or not path[0][1]:
             return []
         scale = balance / path[0][1]
@@ -120,6 +140,9 @@ def _month_years(day: date, month: str) -> float:
 class Valuation:
     model: str | None
     units: float | None
+    units_scaled: bool
+    pool: list[str]
+    pool_balance: float | None
     life: float | None
     life_row: Row | None
     unit_age: float | None
@@ -134,58 +157,73 @@ class Valuation:
     missing: list[str]
 
 
-def value_facility(f: Facility, market: Market, fit: Fit | None, day: date) -> Valuation:
+def pools(facilities: list[Facility]) -> dict[str, list[Facility]]:
+    out: dict[str, list[Facility]] = {}
+    for f in facilities:
+        out.setdefault(f.pool_key, []).append(f)
+    return out
+
+
+def value_facility(f: Facility, market: Market, fit: Fit | None, day: date,
+                   pool: list[Facility] | None = None) -> Valuation:
     missing: list[str] = []
     balance, balance_row = f.balance()
+    members = pool or [f]
+    member_balances = [m.balance()[0] for m in members]
+    pool_balance = sum(b for b in member_balances if b) if all(member_balances) else None
+    units, scaled = f.units_financed(pool_balance)
     life_row = market.life_of(f.entity_ids)
     life = num(life_row["value"]) if life_row else market.median_life()
     if not f.models:
         missing.append("GPU model of the collateral")
-    if f.units is None:
+    if units is None:
         missing.append("GPU units financed")
-    if balance is None:
-        missing.append("facility balance (drawn amount)")
+    if balance is None or pool_balance is None:
+        missing.append("facility balance (drawn amount)" + ("" if balance is None else " of a pool member"))
     if fit is None:
         missing.append("GPU rental index with at least three models (decline fit)")
     if life is None:
         missing.append("useful life (depreciation policy)")
     best: tuple[float, str, float] | None = None
     if fit is not None and life is not None:
-        for model in f.models:
-            bought = f.purchase(market, model)
+        for candidate in f.models:
+            bought = f.purchase(market, candidate)
             if bought is None:
-                missing.append(f"{model} purchase or launch date")
+                missing.append(f"{candidate} purchase or launch date")
                 continue
-            v = unit_value(market, fit, model, day, life, years(bought, day))
+            v = unit_value(market, fit, candidate, day, life, years(bought, day))
             if v is None:
-                missing.append(f"{model} index price or discount rate on or before the day")
+                missing.append(f"{candidate} index price or discount rate on or before the day")
             elif best is None or v < best[0]:
-                best = (v, model, years(bought, day))
-    per_unit, model, age = (best if best else (None, f.models[0] if f.models else None, None))
-    value = per_unit * f.units * (1 - HAIRCUT) if per_unit is not None and f.units is not None else None
-    ltv = balance / value if value and balance else None
+                best = (v, candidate, years(bought, day))
+    per_unit: float | None = best[0] if best else None
+    model: str | None = best[1] if best else (f.models[0] if f.models else None)
+    age: float | None = best[2] if best else None
+    value = per_unit * units * (1 - HAIRCUT) if per_unit is not None and units is not None else None
+    ltv = pool_balance / value if value and pool_balance else None
     quarters: list[dict[str, Any]] = []
     rec: list[float] = []
-    if value and balance and model and age is not None and life is not None and fit is not None:
-        sched = f.schedule(balance) or [(day.strftime("%Y-%m"), balance)]
+    if value and pool_balance and units and model and age is not None and life is not None and fit is not None:
+        sched = f.schedule(pool_balance) or [(day.strftime("%Y-%m"), pool_balance)]
         seen: dict[str, float] = {}
         for k, (month, bal) in enumerate(sched):
             ahead = max(_month_years(day, month), 0.0)
             v = unit_value(market, fit, model, day, life, age, ahead)
-            if v is None or v <= 0 or f.units is None:
+            if v is None or v <= 0:
                 continue
-            coll = v * f.units * (1 - HAIRCUT)
+            coll = v * units * (1 - HAIRCUT)
             seen[quarter_label(month)] = round(bal / coll, 4)
             if k <= DEFAULT_WINDOW_QUARTERS:
                 rec.append(min(1.0, coll / bal))
         quarters = [{"quarter": q, "ltv": v} for q, v in seen.items()]
-    return Valuation(model, f.units, life, life_row, age, per_unit, value, balance, balance_row, ltv, quarters,
-                     min(rec) if rec else None, max(rec) if rec else None, missing)
+    return Valuation(model, units, scaled, [m.instrument_id for m in members], pool_balance, life, life_row, age,
+                     per_unit, value, balance, balance_row, ltv, quarters, min(rec) if rec else None,
+                     max(rec) if rec else None, missing)
 
 
 def range_text(low: float | None, high: float | None) -> str | None:
-    """Cents per dollar, 'low–high' (en dash) or one number when they round alike."""
+    """Cents per dollar, 'low-high' joined by an en dash, or one number when they round alike."""
     if low is None or high is None:
         return None
     lo, hi = round(min(low, high) * 100), round(max(low, high) * 100)
-    return f"{lo}" if lo == hi else f"{lo}–{hi}"
+    return f"{lo}" if lo == hi else f"{lo}{DASH}{hi}"

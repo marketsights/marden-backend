@@ -152,24 +152,74 @@ def load(conn: Conn, as_of: date, entity_id: str, ticker: str | None) -> tuple[E
     return EquitySeries(ticker, closes, dps), missing
 
 
-def loading(bond_days: list[tuple[date, float]], eq: EquitySeries, rates: dict[date, float],
+TYPICAL_MONTHLY_MOVE = 0.15  # equity-implied log-intensity move of a typical month (shrinkage scale)
+EQUITY_LOADING = 0.018  # methodology (Jupiter backtest): bond-implied intensity per unit of equity log return
+
+
+def elasticity(eq: EquitySeries, day: date, r: float) -> float | None:
+    """d ln(lambda_CG) / d ln(S) on `day` (numerical, +-1% in the share price)."""
+    if day not in eq.closes:
+        return None
+    sigma, dps = eq.vol(day), eq.d_on(day)
+    if sigma is None or dps is None:
+        return None
+    s = eq.closes[day]
+    up = creditgrades_spread(s * 1.01, dps[0], sigma, r)
+    dn = creditgrades_spread(s * 0.99, dps[0], sigma, r)
+    if not (up > 0 and dn > 0) or math.isnan(up) or math.isnan(dn):
+        return None
+    return (math.log(up) - math.log(dn)) / (math.log(1.01) - math.log(0.99))
+
+
+def prior_loading(eq: EquitySeries, day: date, lam_bond: float, r: float) -> float | None:
+    """The loading that makes CreditGrades' local response equal the methodology's 0.018 per unit of
+    equity log return at this intensity: beta = -0.018 / (lambda x elasticity), clipped to [0, 2]."""
+    eps = elasticity(eq, day, r)
+    if eps is None or eps >= 0 or lam_bond <= 0:
+        return None
+    return float(min(max(-EQUITY_LOADING / (lam_bond * eps), 0.0), 2.0))
+
+
+def moves(eq: EquitySeries, days: list[date], rates: dict[date, float]) -> dict[date, float]:
+    """Cumulative equity-implied log-intensity move per day: the sum of CreditGrades' local elasticity
+    times the day's equity log return (a debt-per-share update moves nothing by itself; the bonds and
+    the next print carry it)."""
+    out: dict[date, float] = {}
+    total, prev = 0.0, None
+    for d in days:
+        if d in eq.closes:
+            if prev is not None:
+                eps = elasticity(eq, d, rates.get(d, 0.04))
+                if eps is not None:
+                    total += eps * (math.log(eq.closes[d]) - math.log(eq.closes[prev]))
+            prev = d
+        out[d] = total
+    return out
+
+
+def loading(bond_days: list[tuple[date, float]], cum: dict[date, float], prior: float,
             shrink: float = 3.0) -> tuple[float, int]:
-    """Loading of bond-implied log-intensity changes on CreditGrades log-intensity changes, estimated
-    from month-end pairs (OLS through the origin, shrunk toward 1 by `shrink` pseudo-observations,
-    clipped to [0, 2]). Returns (beta, pairs used)."""
+    """Loading of month-end bond-implied log-intensity changes on the equity-implied moves over the same
+    months (OLS through the origin, shrunk toward `prior` by `shrink` pseudo-months of a typical move,
+    clipped to [0, 2]). Returns (beta, pairs used); with fewer than two month-ends it is the prior."""
     month_end: dict[tuple[int, int], tuple[date, float]] = {}
     for d, lam in sorted(bond_days):
         month_end[(d.year, d.month)] = (d, lam)
-    pts = []
-    for d, lam in sorted(month_end.values()):
-        cg = eq.intensity(d, rates.get(d, 0.04)) if lam > 0 else None
-        if cg is not None and cg > 0:
-            pts.append((math.log(lam), math.log(cg)))
+    days = sorted(cum)
+
+    def cum_on(d: date) -> float | None:  # a weekend month-end reads the last business day's move
+        prior_days = [x for x in days if x <= d]
+        return cum[prior_days[-1]] if prior_days else None
+
+    pts = [(math.log(lam), c) for d, lam in sorted(month_end.values()) if lam > 0 and (c := cum_on(d)) is not None]
     if len(pts) < 2:
-        return 1.0, 0
+        return prior, 0
     dy = np.diff([p[0] for p in pts])
     dx = np.diff([p[1] for p in pts])
     n = len(dx)
     sxx = float(np.sum(dx * dx))
-    beta = (float(np.sum(dx * dy)) + shrink * 1.0 * (sxx / n if n else 0.0)) / (sxx + shrink * (sxx / n)) if sxx else 1.0
+    if sxx <= 0:
+        return prior, n
+    w = shrink * TYPICAL_MONTHLY_MOVE**2  # pseudo-observations of a typical month, not of this sample's own size
+    beta = (float(np.sum(dx * dy)) + w * prior) / (sxx + w)
     return float(min(max(beta, 0.0), 2.0)), n

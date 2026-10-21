@@ -4,7 +4,8 @@ buildings, plants and units as Marden knew them on the build date.
 - Identity rows (campus, power_plant) count once they existed by the end of the build date
   (`created_at`); facts come through `known_facts` / `known_fact_rows`, events, model outputs and
   site links are dated with `build_date()` (what Marden had learned by the end of that day).
-- V1 covers US campuses only (spec 14): a campus outside the 50 states, DC and PR has no document.
+- V1 lists US campuses only (spec 14): a campus outside the 50 states, DC and PR has no `dc_row`
+  (so it is in no list, summary or export) but keeps its detail and tabs.
 - A value nobody has sourced is n/d: `nd(tag)` for a Sourced<T>, `None` for a plain field.
 - `financed` (FinancedLink) is the campus's approved site link only (spec 16: no link without an
   approved evidence record): the site's chain status from the `status` model and the debt of the
@@ -19,7 +20,7 @@ from datetime import date
 from typing import Any
 
 from marden.core.db import Conn, Row
-from marden.readmodels.context import known_fact_rows, known_facts
+from marden.readmodels.context import known_fact_rows
 from marden.readmodels.views.sites_common import (
     US_STATES,
     Doc,
@@ -45,24 +46,61 @@ GRID_JOIN = "collector:grid_join"
 PIPELINE_WORDS = ("pipeline", "lateral", "gas supply")  # as sites_power: fuel lines, not generation
 
 FIELD_LABELS = {
-    "status": "Status", "facility_mw": "Facility MW", "it_mw": "IT MW", "operating_mw": "Operating MW",
-    "operating_it_mw": "Operating IT MW", "planned_it_mw": "Planned IT MW", "delivered_mw": "MW delivered",
-    "grid_mw": "Grid MW", "buildings_operational": "Buildings operational", "building_count": "Buildings",
-    "power_source": "Power source", "developer": "Developer", "tenant": "Tenant", "owner": "Owner",
-    "online_year": "Online year", "online_year_basis": "Online year basis", "utility": "Utility",
-    "iso": "ISO/RTO", "balancing_authority": "Balancing authority", "interconnection": "Interconnection",
-    "address": "Address", "location_text": "Location", "acres": "Acres", "sqft_total": "Square feet",
-    "sqft_note": "Square feet note", "capex_usd": "Capital cost (USD)", "chips": "Chips", "users": "Users",
-    "chip_types": "Chip types", "chips_planned": "Chips planned", "h100_equivalents": "H100 equivalents",
-    "project_name": "Project", "first_seen": "First seen", "epoch_status": "Epoch status note",
-    "power_source_text": "Power (as stated)", "power_status": "Power status", "power_detail": "Power detail",
-    "onsite_generation": "On-site generation", "schedule_text": "Schedule (as stated)",
-    "original_schedule_text": "Original schedule (as stated)", "backup_generator_count": "Backup generators",
-    "substation_count": "Substations", "utility_territories": "Utility territories",
-    "capacity_market": "Capacity market", "capacity_zone": "Capacity zone", "ercot_load_zone": "ERCOT load zone",
-    "copyright_notice": "Attribution", "capacity_mw": "Capacity MW (as stated)", "expected_cod": "Expected in service",
-    "original_cod": "Originally planned in service", "operator": "Operator", "stage": "Stage",
-    "technology": "Technology", "air_permit": "Air permit", "latest_change": "Latest change",
+    "status": "Status",
+    "facility_mw": "Facility MW",
+    "it_mw": "IT MW",
+    "operating_mw": "Operating MW",
+    "operating_it_mw": "Operating IT MW",
+    "planned_it_mw": "Planned IT MW",
+    "delivered_mw": "MW delivered",
+    "grid_mw": "Grid MW",
+    "buildings_operational": "Buildings operational",
+    "building_count": "Buildings",
+    "power_source": "Power source",
+    "developer": "Developer",
+    "tenant": "Tenant",
+    "owner": "Owner",
+    "online_year": "Online year",
+    "online_year_basis": "Online year basis",
+    "utility": "Utility",
+    "iso": "ISO/RTO",
+    "balancing_authority": "Balancing authority",
+    "interconnection": "Interconnection",
+    "address": "Address",
+    "location_text": "Location",
+    "acres": "Acres",
+    "sqft_total": "Square feet",
+    "sqft_note": "Square feet note",
+    "capex_usd": "Capital cost (USD)",
+    "chips": "Chips",
+    "users": "Users",
+    "chip_types": "Chip types",
+    "chips_planned": "Chips planned",
+    "h100_equivalents": "H100 equivalents",
+    "project_name": "Project",
+    "first_seen": "First seen",
+    "epoch_status": "Epoch status note",
+    "power_source_text": "Power (as stated)",
+    "power_status": "Power status",
+    "power_detail": "Power detail",
+    "onsite_generation": "On-site generation",
+    "schedule_text": "Schedule (as stated)",
+    "original_schedule_text": "Original schedule (as stated)",
+    "backup_generator_count": "Backup generators",
+    "substation_count": "Substations",
+    "utility_territories": "Utility territories",
+    "capacity_market": "Capacity market",
+    "capacity_zone": "Capacity zone",
+    "ercot_load_zone": "ERCOT load zone",
+    "copyright_notice": "Attribution",
+    "capacity_mw": "Capacity MW (as stated)",
+    "expected_cod": "Expected in service",
+    "original_cod": "Originally planned in service",
+    "operator": "Operator",
+    "stage": "Stage",
+    "technology": "Technology",
+    "air_permit": "Air permit",
+    "latest_change": "Latest change",
 }
 
 
@@ -202,8 +240,12 @@ def financed_link(conn: Conn, campus_ids: Iterable[str]) -> Doc | None:
     best: tuple[float, Doc] | None = None
     for site in approved_sites(conn, campus_ids):
         debt = debt_value(site_instruments(conn, site["slug"]))
-        doc = {"siteSlug": site["slug"], "siteName": site["name"],
-               "chainStatus": chain_status(latest_output(conn, "status", "site", site["slug"])), "debtB": debt}
+        doc = {
+            "siteSlug": site["slug"],
+            "siteName": site["name"],
+            "chainStatus": chain_status(latest_output(conn, "status", "site", site["slug"])),
+            "debtB": debt,
+        }
         size = debt["value"] if isinstance(debt["value"], int | float) else -1.0
         if best is None or size > best[0]:
             best = (size, doc)
@@ -224,8 +266,9 @@ def _shown(value: Any) -> str | None:
     return text_of(value, 160)
 
 
-def fact_history(conn: Conn, subject_type: str, subject_id: str, fields: Sequence[str],
-                 initial: Sequence[str] = ()) -> list[Doc]:
+def fact_history(
+    conn: Conn, subject_type: str, subject_id: str, fields: Sequence[str], initial: Sequence[str] = ()
+) -> list[Doc]:
     """DcHistoryEvent per change of each field (before -> after), oldest value first per field;
     the first known value is an event too for the `initial` fields. Newest first."""
     out: list[Doc] = []
@@ -233,14 +276,23 @@ def fact_history(conn: Conn, subject_type: str, subject_id: str, fields: Sequenc
     for field in fields:
         prev: str | None = None
         seen = False
-        for row in sorted((r for r in rows[field] if r["valid_from"] <= day()), key=lambda r: (r["valid_from"], r["id"])):
+        for row in sorted(
+            (r for r in rows[field] if r["valid_from"] <= day()), key=lambda r: (r["valid_from"], r["id"])
+        ):
             after = _shown(row["value"])
             if after is None or (seen and after == prev):
                 continue
             if seen or field in initial:
                 text = f"{field_label(field)}: {prev} -> {after}" if seen else f"{field_label(field)}: {after}"
-                out.append({"date": row["valid_from"].isoformat(), "field": field, "before": prev if seen else None,
-                            "after": after, "evidence": fact_evidence(row, text)})
+                out.append(
+                    {
+                        "date": row["valid_from"].isoformat(),
+                        "field": field,
+                        "before": prev if seen else None,
+                        "after": after,
+                        "evidence": fact_evidence(row, text),
+                    }
+                )
             prev, seen = after, True
     out.sort(key=lambda h: (h["date"], h["field"]), reverse=True)
     return out
@@ -248,8 +300,16 @@ def fact_history(conn: Conn, subject_type: str, subject_id: str, fields: Sequenc
 
 def event_history(events: Sequence[Row]) -> list[Doc]:
     """Records as history entries (permits filed, decided, dockets ...): field 'record'."""
-    return [{"date": e["event_date"].isoformat(), "field": "record", "before": None, "after": e["title"],
-             "evidence": event_evidence(e)} for e in events]
+    return [
+        {
+            "date": e["event_date"].isoformat(),
+            "field": "record",
+            "before": None,
+            "after": e["title"],
+            "evidence": event_evidence(e),
+        }
+        for e in events
+    ]
 
 
 def last_change(history: Sequence[Doc], events: Sequence[Row], facts: dict[str, Row]) -> Doc | None:

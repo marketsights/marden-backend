@@ -31,8 +31,11 @@ from __future__ import annotations
 
 import io
 import re
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, datetime
+from html.parser import HTMLParser
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import openpyxl
 
@@ -188,8 +191,81 @@ _MONTHS = ("january", "february", "march", "april", "may", "june", "july", "augu
 
 
 def report_month(friendly_name: str) -> date | None:
-    """'GIS_Report_September2026' -> 2026-09-01 (the month the report covers)."""
-    m = re.search(r"GIS_Report_([A-Za-z]+)_?(\d{4})", friendly_name)
-    if not m or m[1].lower() not in _MONTHS:
-        return None
-    return date(int(m[2]), _MONTHS.index(m[1].lower()) + 1, 1)
+    """'GIS_Report_September2026' -> 2026-09-01 (the month the report covers); ERCOT also writes
+    'GIS_Report_Jun2026' and 'GIS_Report_May_2020'."""
+    m = re.search(r"GIS_Report_([A-Za-z]+)_?(\d{4})", friendly_name, re.I)
+    word = m[1].lower() if m else ""
+    month = next((i for i, name in enumerate(_MONTHS, 1) if len(word) >= 3 and name.startswith(word)), None)
+    return date(int(m[2]), month, 1) if m and month else None
+
+
+# ---------------------------------------------------------------- MIS listing
+_POSTING = re.compile(r"^RPT\.(\d+)\.\d+\.(\d{8})\.(\d{6})\d*\.(.+)$")
+
+
+@dataclass(frozen=True)
+class Posting:
+    """One file on the MIS listing."""
+
+    doc_id: str  # doclookupId
+    file: str  # 'GIS_Report_September2026.xlsx'
+    posted_at: datetime  # ERCOT's posting time, from the listed title (local time, naive)
+    report_type: str  # '15933'
+
+    @property
+    def name(self) -> str:
+        return self.file.rsplit(".", 1)[0]
+
+    @property
+    def posted(self) -> date:
+        return self.posted_at.date()
+
+    @property
+    def month(self) -> date | None:
+        return report_month(self.file)
+
+    @property
+    def is_gis(self) -> bool:
+        return self.file.lower().startswith("gis_report") and self.file.lower().endswith(".xlsx")
+
+
+class _Rows(HTMLParser):
+    """Table rows as (texts, hrefs); a nested table's rows are their own rows."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.stack: list[tuple[list[str], list[str]]] = []
+        self.rows: list[tuple[list[str], list[str]]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "tr":
+            self.stack.append(([], []))
+        elif tag == "a" and self.stack:
+            self.stack[-1][1].extend(v for k, v in attrs if k == "href" and v)
+
+    def handle_data(self, data: str) -> None:
+        if self.stack and data.strip():
+            self.stack[-1][0].append(data.strip())
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "tr" and self.stack:
+            self.rows.append(self.stack.pop())
+
+
+def mis_listing(html: bytes) -> list[Posting]:
+    """Every posting on a MIS GetReports.do page, as listed (newest first)."""
+    parser = _Rows()
+    parser.feed(html.decode("utf-8", errors="replace"))
+    out = []
+    for texts, hrefs in parser.rows:
+        title = next((m for t in texts if (m := _POSTING.match(t))), None)
+        doc_id = next((q["doclookupId"][0] for h in hrefs if "doclookupId" in (q := parse_qs(urlsplit(h).query))),
+                      None)
+        if title is None or doc_id is None or not doc_id.isdigit():
+            continue
+        try:
+            posted_at = datetime.strptime(title[2] + title[3], "%Y%m%d%H%M%S")
+        except ValueError:
+            raise ParseError(f"MIS posting {title[0]!r} has no valid posting time") from None
+        out.append(Posting(doc_id, title[4], posted_at, str(int(title[1]))))
+    return out

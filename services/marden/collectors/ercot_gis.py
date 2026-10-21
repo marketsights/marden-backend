@@ -1,175 +1,211 @@
-"""ERCOT generation interconnection status (GIS Report, EMIL PG7-200-ER) -> queue_project facts (tag F,
-source ERCOT). See iso_queue for the model and ercot_gis_parse for the workbook. Large-load requests are a
-separate ERCOT report and a separate collector; this one reads generation requests only (INR numbers).
+"""ERCOT generation interconnection status (GIS Report, EMIL PG7-200-ER, MIS report type 15933) -> queue_project
+facts (tag F, source ERCOT). See iso_queue for the model and ercot_gis_parse for the workbook and the listing.
+Large-load requests are not in this report: ERCOT publishes them only as aggregate status decks on ordinary
+www.ercot.com pages (Nodal Protocols 3.2.7, NPRR1267: "to the ERCOT website"), read by the `ercot` collector.
 
-Access. ERCOT posts the GIS Report monthly on its MIS (report type 15933), but www.ercot.com/robots.txt
-disallows /misapp and /misdownload for every user agent, and the product page
-(https://www.ercot.com/mp/data-products/data-product-details?id=PG7-200-ER) lists and downloads documents
-only through those paths. The automated route ERCOT offers is the Public API (api.ercot.com), which needs a
-free account registered by a person on https://apiexplorer.ercot.com (bot-registered accounts are not
-permitted), its subscription key, and a one-hour ID token from the account's sign-in. So:
+Where it is. ERCOT posts the GIS Report monthly only on its MIS: the list at
+https://www.ercot.com/misapp/GetReports.do?reportTypeId=15933 (GIS_Report_<Month><Year>.xlsx, each with a
+doclookupId) and the file at https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=<id>. It is not
+among the 120 products of the ERCOT Public API catalog, nor on data.ercot.com. www.ercot.com/robots.txt
+disallows /misapp and /misdownload for every user agent; Marden's business owner decided to collect these two
+paths anyway at low volume, under the rules below (both recorded in TERMS_NOTE).
 
-- without ERCOT_API_KEY, ERCOT_API_USERNAME and ERCOT_API_PASSWORD the run records "needs key" on the
-  source and makes no request (nothing is written);
-- with them: sign in (ID token), list the PG7-200-ER archive (stored raw), pick the GIS_Report_* documents
-  (not the Co-located Battery Identification reports filed under the same EMIL id), download each document
-  once (ERCOT's API terms allow the same report at most three times in 12 months; a stored copy is reused),
-  store it raw and load it. The first run loads only the newest report; later runs load the reports posted
-  after the newest one loaded, oldest first. valid_from is the posting date.
+Rules. User-Agent "Marden research cody@marden.ai"; one request per 5 s to www.ercot.com (the host-wide limit the
+`ercot` collector also uses: ERCOT's Imperva answered 403 to bursts near 1 a second) and no retries; per run one
+listing request plus one download per report not yet in the document table (a stored report is never fetched
+again); a 401/403/429 answer or a challenge/CAPTCHA page stops the run, is recorded on the source and is never
+worked around.
 
-Cadence: ERCOT posts the report in the first days of each month; checked weekly (Tuesday) so a new month
-is picked up within a week. `python -m marden collect ercot_gis`.
+Each run reads the listing (stored raw when its postings changed: the page embeds a session id), takes the
+newest BACKFILL (12) GIS reports by report month and loads, oldest first, those posted after the newest report
+already loaded: the first run backfills twelve months, later runs load each new month once. A report older than
+the newest one loaded is not loaded out of order (queue history only moves forward). valid_from is the posting
+date. The Co-located Battery Identification reports on the same listing are not read.
+
+Cadence: ERCOT posts in the first days of each month; checked weekly (Tuesday 13:17 UTC).
+`python -m marden collect ercot_gis`.
 """
 
 from __future__ import annotations
 
 import argparse
-import io
-import json
-import zipfile
-from datetime import date, datetime, timedelta
+import re
+from datetime import datetime
 from typing import Any
-from urllib.parse import urlencode, urlparse
+
+import httpx
 
 from marden import cli
-from marden.collectors import ercot_api
-from marden.collectors.ercot_api import API_HOST, TOKEN_HOST, NeedsKey, id_token  # noqa: F401  (shared auth)
-from marden.collectors.ercot_gis_parse import parse_workbook, report_month
+from marden.collectors import ercot_gis_parse as parse
+from marden.collectors.ercot_gis_parse import Posting, parse_workbook
+from marden.collectors.ercot_parse import is_challenge
 from marden.collectors.iso_queue import QueueStore
-from marden.collectors.rates_common import ParseError, RunStats, collect, print_stats, today_et
-from marden.core import db, documents, sources
+from marden.collectors.rates_common import ParseError, RunStats, collect, print_stats
+from marden.core import db, documents, http, sources
 from marden.core.documents import DocumentRow
-from marden.core.http import Fetcher, default_fetcher
+from marden.core.http import Fetcher, FetchError, FetchResponse
 from marden.core.queue import app
 from marden.core.sources import declare_source
 
 SOURCE_ID = "ercot_gis"
 SOURCE_NAME = "ERCOT"
 PRODUCER = "collector:ercot_gis"
-EMIL_ID = "pg7-200-er"
-ARCHIVE_URL = f"https://{API_HOST}/api/public-reports/archive/{EMIL_ID}"
+HOST = "www.ercot.com"
+REPORT_TYPE_ID = 15933
+LIST_URL = f"https://{HOST}/misapp/GetReports.do?reportTypeId={REPORT_TYPE_ID}"
+DOWNLOAD_URL = f"https://{HOST}/misdownload/servlets/mirDownload?doclookupId={{}}"
 PRODUCT_URL = "https://www.ercot.com/mp/data-products/data-product-details?id=PG7-200-ER"
+USER_AGENT = "Marden research cody@marden.ai"
+PER_SECOND = 0.2  # one request per 5 s (the owner's ceiling is 1 a second)
+STOP_STATUSES = frozenset({401, 403, 429})
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 CRON_UTC = "17 13 * * 2"  # Tuesdays 13:17 UTC
-LIST_DAYS = 120  # archive window listed each run (about four monthly reports)
-MAX_NEW = 3  # reports loaded in one run (catch-up after missed months)
+BACKFILL = 12  # monthly reports kept loaded: the newest twelve
 MIN_ENTRIES = 500  # the GIS report lists well over a thousand requests; fewer means a truncated file
+ROBOTS_LINES = "User-agent: * ... Disallow: /misapp ... Disallow: /misdownload"
 TERMS_NOTE = (
-    "Checked 2026-10-21. www.ercot.com/robots.txt: \"User-agent: * ... Disallow: /misapp ... Disallow: "
-    "/misdownload\", the only paths that list and download the GIS Report on www.ercot.com, so it is not "
-    "collected there. ERCOT Terms of Use (https://www.ercot.com/help/terms, 07/20/2023) allow reuse: \"raw data "
-    "provided in public portions of this website may be used, reproduced, and redistributed in compilations, "
-    "charts, and analyses without maintaining such notices.\" Terms of Use for the ERCOT API "
-    "(https://www.ercot.com/help/terms/data-portal): \"Users must create an account to access the ERCOT API "
-    "... Accounts registered by \"bots\" or other automated methods are not permitted\" and \"You may not "
-    "download the same report from the Data Access Portal more than three times within a 12-month period\"; "
-    "the API allows 30 requests a minute (developer.ercot.com, Known Limitations). Needs key: a person "
-    "registers on apiexplorer.ercot.com and sets ERCOT_API_KEY, ERCOT_API_USERNAME and ERCOT_API_PASSWORD; "
-    "until then each run records 'needs key' and makes no request. Each report is downloaded once."
+    f"Checked 2026-10-21. www.ercot.com/robots.txt: \"{ROBOTS_LINES}\". The GIS Report (EMIL PG7-200-ER, MIS "
+    "report type 15933) is listed only at /misapp/GetReports.do?reportTypeId=15933 and downloaded only from "
+    "/misdownload/servlets/mirDownload; it is not among the 120 products of the ERCOT Public API catalog nor on "
+    "data.ercot.com. Owner's decision (Marden's business owner, 2026-10-21): Marden collects these two paths "
+    "anyway, at low volume, despite robots.txt, with an honest User-Agent \"Marden research cody@marden.ai\", at "
+    "most 1 request a second (one per 5 s here), a weekly check, downloading only reports not already in the "
+    "document table, and stopping on any challenge, 403 or CAPTCHA, which is never evaded. ERCOT Terms of Use "
+    "(https://www.ercot.com/help/terms, 07/20/2023): \"raw data provided in public portions of this website may "
+    "be used, reproduced, and redistributed in compilations, charts, and analyses without maintaining such "
+    "notices.\" and \"Use of this website in a manner that negatively affects the performance of this website or "
+    "other ERCOT systems is prohibited.\" No credential is needed."
 )
-SOURCE = declare_source(SOURCE_ID, "ERCOT", "api", f"https://{API_HOST}", 7 * 24 * 60, TERMS_NOTE)
+SOURCE = declare_source(SOURCE_ID, "ERCOT GIS Report (MIS)", "portal", LIST_URL, 7 * 24 * 60, TERMS_NOTE)
+http.set_rate_limit(HOST, PER_SECOND)
+_CAPTCHA = re.compile(rb"captcha|Request unsuccessful\. Incapsula", re.I)
 
 
-def _credentials() -> tuple[str, str, str]:
-    return ercot_api.credentials(ARCHIVE_URL)
+class Stopped(FetchError):
+    """ERCOT refused or challenged a request: the run stops and nothing is retried around it."""
 
 
-def _api_document(url: str, headers: dict[str, str], fetcher: Fetcher, *, meta: dict[str, Any] | None = None,
-                  **doc: Any) -> DocumentRow:
-    """GET an API URL with the credential headers and store the bytes (the headers are never stored)."""
+def challenged(body: bytes) -> bool:
+    """An Imperva challenge or a CAPTCHA page instead of the content asked for."""
+    return is_challenge(body) or _CAPTCHA.search(body[:65536]) is not None
+
+
+def _get(url: str, fetcher: Fetcher, info: dict[str, Any]) -> FetchResponse:
     sources.require_collectable(SOURCE_ID)
-    resp = fetcher.get(url, headers=headers, use_cache=False)
-    return documents.record_document(SOURCE_ID, url, resp.content, content_type=resp.content_type,
-                                     meta={**(meta or {}), "http": {"status": resp.status}}, **doc)
-
-
-def gis_reports(listing: bytes) -> list[dict[str, Any]]:
-    """GIS_Report_* documents in an archive listing, oldest first: {doc_id, name, posted, url}."""
+    info["requests"] += 1
     try:
-        body = json.loads(listing)
-        archives = body["archives"]
-    except (ValueError, KeyError, TypeError):
-        raise ParseError("ERCOT archive listing has no 'archives' list") from None
-    out = []
-    for a in archives if isinstance(archives, list) else []:
-        name = str(a.get("friendlyName") or "")
-        if not name.lower().startswith("gis_report") or a.get("docId") is None:
-            continue
-        try:
-            posted = datetime.fromisoformat(str(a["postDatetime"])).date()
-        except (KeyError, ValueError):
-            raise ParseError(f"ERCOT archive entry {a.get('docId')} has no postDatetime") from None
-        href = ((a.get("_links") or {}).get("endpoint") or {}).get("href")
-        if not href or urlparse(href).hostname != API_HOST:
-            href = f"{ARCHIVE_URL}?{urlencode({'download': a['docId']})}"
-        out.append({"doc_id": str(a["docId"]), "name": name, "posted": posted, "url": href})
-    return sorted(out, key=lambda r: (r["posted"], r["doc_id"]))
+        resp = fetcher.get(url, headers={"User-Agent": USER_AGENT}, use_cache=False)
+    except FetchError as exc:
+        if exc.status in STOP_STATUSES:
+            raise Stopped(url, exc.status, f"ERCOT answered HTTP {exc.status}; run stopped, not retried") from None
+        raise
+    return resp
 
 
-def _workbook_bytes(data: bytes) -> bytes:
-    """The xlsx itself, also when the API wraps it in a zip with one .xlsx member."""
-    try:
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
-            names = z.namelist()
-            if "[Content_Types].xml" not in names:
-                inner = [n for n in names if n.lower().endswith(".xlsx")]
-                if len(inner) == 1:
-                    return z.read(inner[0])
-    except zipfile.BadZipFile:
-        pass
-    return data
+def read_listing(fetcher: Fetcher, stats: RunStats, info: dict[str, Any]) -> list[Posting]:
+    """The MIS listing's postings; the page is stored raw unless its postings are unchanged since the last copy."""
+    resp = _get(LIST_URL, fetcher, info)
+    if challenged(resp.content):
+        raise Stopped(LIST_URL, resp.status, "ERCOT answered the MIS listing with a challenge page; run stopped")
+    postings = parse.mis_listing(resp.content)
+    if not any(p.is_gis for p in postings):
+        raise ParseError(f"no GIS_Report posting on the MIS listing ({len(postings)} postings)")
+    prior = documents.latest_document(SOURCE_ID, LIST_URL)
+    if prior is not None and parse.mis_listing(prior.read()) == postings:
+        stats.document(prior)
+        return postings
+    doc = documents.record_document(SOURCE_ID, LIST_URL, resp.content, content_type=resp.content_type,
+                                    doc_type="mis_listing_html", title="ERCOT MIS GIS Report listing (15933)",
+                                    meta={"http": {"status": resp.status}, "postings": len(postings)})
+    stats.document(doc)
+    return postings
 
 
-def _loaded_through() -> date | None:
-    """The posting date of the newest GIS report already loaded (facts written from it)."""
+def download(p: Posting, fetcher: Fetcher, info: dict[str, Any]) -> DocumentRow:
+    """The stored copy of a report, else the report downloaded once and stored raw (only a real xlsx is kept)."""
+    url = DOWNLOAD_URL.format(p.doc_id)
+    doc = documents.latest_document(SOURCE_ID, url)
+    if doc is not None:
+        return doc
+    resp = _get(url, fetcher, info)
+    if not resp.content.startswith(b"PK\x03\x04"):
+        if challenged(resp.content):
+            raise Stopped(url, resp.status, "ERCOT answered a report download with a challenge page; run stopped")
+        raise ParseError(f"ERCOT MIS answered {url} with {resp.content_type or 'untyped'} content, not an xlsx")
+    info["downloaded"].append(p.name)
+    month = p.month
+    return documents.record_document(
+        SOURCE_ID, url, resp.content, content_type=resp.content_type or XLSX, doc_type="gis_xlsx", title=p.file,
+        doc_date=p.posted, external_id=p.doc_id,
+        meta={"report_month": month.isoformat() if month else None, "posted_at": p.posted_at.isoformat(),
+              "report_type_id": p.report_type, "http": {"status": resp.status}},
+    )
+
+
+def loaded_reports() -> dict[str, datetime]:
+    """doclookupId -> posting time of every GIS report facts were written from."""
     with db.transaction() as conn:
-        row = conn.execute(
-            """SELECT max(d.doc_date) AS d FROM document d
-                WHERE d.source_id = %s AND d.doc_type = 'gis_xlsx'
-                  AND EXISTS (SELECT 1 FROM fact f WHERE f.document_id = d.id)""", (SOURCE_ID,)).fetchone()
-    return row["d"] if row else None
+        rows = conn.execute(
+            """SELECT d.external_id, d.meta->>'posted_at' AS posted_at, d.doc_date FROM document d
+                WHERE d.source_id = %s AND d.doc_type = 'gis_xlsx' AND d.external_id IS NOT NULL
+                  AND EXISTS (SELECT 1 FROM fact f WHERE f.document_id = d.id)""", (SOURCE_ID,)).fetchall()
+    return {r["external_id"]: (datetime.fromisoformat(r["posted_at"]) if r["posted_at"]
+                               else datetime.combine(r["doc_date"], datetime.min.time())) for r in rows}
 
 
-def load(doc: DocumentRow, report_day: date, stats: RunStats, *, min_entries: int | None = None) -> None:
-    entries = parse_workbook(_workbook_bytes(doc.read()))
+def plan(postings: list[Posting], loaded: dict[str, datetime]) -> tuple[list[Posting], list[Posting]]:
+    """(reports to load, oldest first; window reports skipped because a newer one is already loaded)."""
+    gis = sorted((p for p in postings if p.is_gis), key=lambda p: (p.month or p.posted, p.posted_at, p.doc_id))
+    window = [p for p in gis[-BACKFILL:] if p.doc_id not in loaded]
+    through = max(loaded.values(), default=None)
+    todo = [p for p in window if through is None or p.posted_at > through]
+    return todo, [p for p in window if p not in todo]
+
+
+def load(doc: DocumentRow, posting: Posting, stats: RunStats, *, min_entries: int | None = None) -> dict[str, Any]:
+    entries = parse_workbook(doc.read())
     if len(entries) < (MIN_ENTRIES if min_entries is None else min_entries):
         raise ParseError(f"ERCOT GIS report looks truncated: {len(entries)} entries")
+    facts_before = stats.facts_new
     with db.transaction() as conn:
-        store = QueueStore(conn, "ercot", SOURCE_NAME, PRODUCER, report_day, stats)
+        store = QueueStore(conn, "ercot", SOURCE_NAME, PRODUCER, posting.posted, stats)
         for e in entries:
             store.write(e, source_url=doc.url, document_id=doc.id)
         store.finish(source_url=doc.url, document_id=doc.id)
+    counts = stats.extra.get("iso", {}).get("ercot", {})
+    return {"doc_id": posting.doc_id, "name": posting.name, "posted": posting.posted.isoformat(),
+            "entries": len(entries), "entries_new": counts.get("entries_new", 0),
+            "facts_new": stats.facts_new - facts_before, "events_new": counts.get("events_new", 0),
+            "linked": counts.get("linked", {})}
 
 
 def collect_reports(stats: RunStats, fetcher: Fetcher) -> None:
-    key, username, password = _credentials()
-    headers = {"Ocp-Apim-Subscription-Key": key, "Authorization": f"Bearer {id_token(fetcher, username, password)}"}
-    since = today_et() - timedelta(days=LIST_DAYS)
-    listing_url = f"{ARCHIVE_URL}?{urlencode({'postDatetimeFrom': f'{since.isoformat()}T00:00:00', 'size': 100})}"
-    listing = _api_document(listing_url, headers, fetcher, doc_type="archive_json",
-                            title="ERCOT PG7-200-ER archive listing")
-    stats.document(listing)
-    reports = gis_reports(listing.read())
-    if not reports:
-        raise ParseError(f"no GIS_Report document in the PG7-200-ER archive since {since}")
-    through = _loaded_through()
-    todo = [r for r in reports if through is None or r["posted"] > through]
-    todo = todo[-1:] if through is None else todo[:MAX_NEW]
-    loaded = []
-    for r in todo:
-        doc = documents.latest_document(SOURCE_ID, r["url"])  # downloaded before: never fetched again
-        if doc is None:
-            doc = _api_document(r["url"], headers, fetcher, doc_type="gis_xlsx", title=r["name"],
-                                doc_date=r["posted"], external_id=r["doc_id"],
-                                meta={"report_month": (m.isoformat() if (m := report_month(r["name"])) else None)})
+    info: dict[str, Any] = {"requests": 0, "downloaded": [], "loaded": [], "skipped_older": []}
+    stats.extra["ercot_gis"] = info  # kept on the run even when it stops part way
+    postings = read_listing(fetcher, stats, info)
+    loaded = loaded_reports()
+    todo, skipped = plan(postings, loaded)
+    info.update(listed=len(postings), gis_listed=sum(p.is_gis for p in postings), already_loaded=len(loaded),
+                skipped_older=[p.name for p in skipped])
+    for p in todo:
+        doc = download(p, fetcher, info)
         stats.document(doc)
-        load(doc, r["posted"], stats)
-        loaded.append({"doc_id": r["doc_id"], "name": r["name"], "posted": r["posted"].isoformat()})
-    stats.extra["ercot_gis"] = {"listed": len(reports), "loaded": loaded, "loaded_through_before": (
-        through.isoformat() if through else None)}
+        info["loaded"].append(load(doc, p, stats))
+
+
+def make_fetcher(client: httpx.Client | None = None) -> Fetcher:
+    """The fetcher a run uses: no retries, so a 429 or a server error ends the run like a refusal."""
+    return Fetcher(client=client, max_retries=0)
 
 
 def run(*, fetcher: Fetcher | None = None) -> dict[str, Any]:
-    return collect(SOURCE, lambda stats: collect_reports(stats, fetcher or default_fetcher()))
+    own = fetcher is None
+    fetcher = fetcher or make_fetcher()
+    try:
+        return collect(SOURCE, lambda stats: collect_reports(stats, fetcher))
+    finally:
+        if own:
+            fetcher.close()
 
 
 @app.periodic(cron=CRON_UTC, periodic_id="weekly_tue")
@@ -178,6 +214,6 @@ def collect_task(timestamp: int | None = None) -> dict[str, Any]:
     return run()
 
 
-@cli.action("collect", "ercot_gis", help="ERCOT GIS Report: generation interconnection status (needs ERCOT API key)")
+@cli.action("collect", "ercot_gis", help="ERCOT GIS Report (MIS): generation interconnection status, monthly")
 def collect_cli(args: argparse.Namespace) -> int:
     return print_stats(run())

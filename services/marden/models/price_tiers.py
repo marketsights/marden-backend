@@ -30,7 +30,7 @@ import numpy as np
 from marden.core.db import Conn
 from marden.models import pit
 from marden.models.price_curve import CurveBook
-from marden.models.status_text import BBB_MINUS, parse_rating
+from marden.models.status_text import BBB_MINUS, NOTCH, NOTCH_MOODYS
 
 TIERS = ("IG project bond", "Backstopped senior", "Contract-backed loan", "Construction loan", "Junior chip paper",
          "Neocloud bond")
@@ -50,6 +50,14 @@ def ns(t: float) -> float:
     return (1.0 - math.exp(-x)) / x
 
 
+def rating_notch(rating: str | None) -> int | None:
+    """Notch of a comp's stored rating ('A (S&P)', 'Ba2 (Moody's)'): its leading grade."""
+    if not rating:
+        return None
+    grade = rating.split("(")[0].strip().split(" ")[0]
+    return NOTCH.get(grade) or NOTCH_MOODYS.get(grade)
+
+
 def tier_of(type_code: str | None, tenant_tier: str | None, rating: str | None, text: str = "") -> str | None:
     """The methodology tier of a deal, by fixed rules (None = not one of the six tiers)."""
     if type_code == "dc_abs":
@@ -63,10 +71,11 @@ def tier_of(type_code: str | None, tenant_tier: str | None, rating: str | None, 
     if type_code in ("gpu_loan", "gpu_abs"):
         return "Junior chip paper" if tenant_tier in (None, "nd") else "Contract-backed loan"
     if type_code == "dc_project_bond":
-        grade = parse_rating(rating)
-        investment_grade = grade is not None and grade.notch is not None and grade.notch <= BBB_MINUS
-        if investment_grade and tenant_tier in ("aa", "ig", "orcl", "div"):
+        notch = rating_notch(rating)
+        if notch is not None and notch <= BBB_MINUS and tenant_tier in ("aa", "ig", "orcl", "div"):
             return "IG project bond"
+        if tenant_tier in ("aa", "ig", "orcl"):  # sub-IG notes on a strong lessee's lease
+            return "Backstopped senior"
         return "Neocloud bond"
     return None
 

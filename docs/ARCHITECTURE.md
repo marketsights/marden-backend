@@ -88,23 +88,23 @@ Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `
 | `curve` | `all` | GET /api/curve | instrument, rate series observations, the curve model's output for `all` |
 | `instrument_detail` | `instrument.id` | GET /api/instruments/:id, …/price-history?range=, …/holders (cut from the same doc); export `holders`; watchlist items | instrument (with its prices, events and model outputs), linked holding, holder funds' net assets, model outputs on its site |
 | `gpu_collateral` | `instrument.id` | GET /api/instruments/:id/collateral (GPU-backed facilities only: 404 once the instrument's `instrument_detail` is built without a collateral doc) | instrument, the GPU deployment model's output for `all` |
-| `payers` | `all` | GET /api/payers; export `payers` | site, instrument, entity, obligation, contract |
-| `payer` | `entity.id` | GET /api/payers/:slug | entity; sites and instruments it is a chain party of; obligations it owes |
-| `payer_capacity` | `entity.id` | GET /api/payers/:slug/capacity | as `payer` |
+| `payers` | `all` | GET /api/payers; export `payers` | site, instrument, entity, obligation, contract; holdings of debt on an edge |
+| `payer` | `entity.id` | GET /api/payers/:slug | entity; sites and instruments it is a chain party of; obligations it owes or is owed, the sites they link and the debt behind them (with holdings); its own notes and their holdings; its co-parties' and counterparties' facts and status outputs (paid by) |
+| `payer_capacity` | `entity.id` | GET /api/payers/:slug/capacity | as `payer`; its `payer_capacity` model output |
 | `risk_list` | `week` | GET /api/risk-list?week= (default: the highest key); export `risk-list` | the risk-ranking task (Sunday night) |
 | `track_record` | `all` | GET /api/track-record | the backtest task |
-| `dc_row` | `campus.id` | GET /api/data-centers (filters and sort in SQL, 50 a page, `?format=geojson`), GET /api/data-centers/summary (computed from the filtered rows); export `data-centers` | campus, its buildings, plants serving it, its approved site and that site's instruments |
+| `dc_row` | `campus.id` | GET /api/data-centers (filters and sort in SQL, 50 a page, `?format=geojson`), GET /api/data-centers/summary (computed from the filtered rows), GET /api/data-centers/:id/row (one row, for live updates); export `data-centers` | campus, its buildings, plants serving it, its approved site and that site's instruments |
 | `dc_detail` | `campus.id` | GET /api/data-centers/:id | as `dc_row` |
 | `dc_tab:<tab>` for `buildings`, `records`, `history`, `capacity` | `campus.id` | GET /api/data-centers/:id/&lt;tab&gt; | campus; `buildings` and `capacity` also its buildings |
-| `plant_row` | `power_plant.id` | GET /api/power-plants (as data centers), GET /api/power-plants/summary; export `power-plants` | plant, its units, the campuses it serves |
+| `plant_row` | `power_plant.id` | GET /api/power-plants (as data centers), GET /api/power-plants/summary, GET /api/power-plants/:id/row (one row, for live updates); export `power-plants` | plant, its units, the campuses it serves (their buildings, their other plants such as the fuel line, their approved site's status and instruments), its air-permit docket entity |
 | `plant_detail` | `power_plant.id` | GET /api/power-plants/:id; GET /api/power-plants/summary (MW by OEM, permit dates) | as `plant_row` |
-| `plant_debt` | `power_plant.id` | GET /api/power-plants/:id/debt | plant, its units |
-| `obligations` | `all` | GET /api/obligations (type, status, minB, company, format graph or table); export `obligations` | obligation, contract, entity, instrument |
-| `obligation_company` | `entity.id` | GET /api/obligations/:company | entity; obligations at either end and their instruments |
+| `plant_debt` | `power_plant.id` | GET /api/power-plants/:id/debt | plant, its units, Power purchase obligations of the sites and campuses it serves |
+| `obligations` | `all` | GET /api/obligations (type, status, minB, company, format graph or table); export `obligations` | obligation, contract, entity, instrument; status outputs on sites (node status) |
+| `obligation_company` | `entity.id` | GET /api/obligations/:company | entity; obligations at either end and their instruments; its counterparties; status outputs on its sites |
 | `gpus` | `all` | GET /api/gpus | the GPU-index task |
 | `gpu_deployment` | `all` | GET /api/gpus/deployment | campus; company `construction_in_progress` / `ppe_*` facts (entity) |
 | `gpu_model` | `gpu_model` | GET /api/gpus/:model | the GPU-index task |
-| `leases` | `all` | GET /api/leases, GET /api/leases/:id (404 when the id is not in the doc); export `leases` | obligation, contract, site, campus |
+| `leases` | `all` | GET /api/leases, GET /api/leases/:id (404 when the id is not in the doc); export `leases` | obligation, contract, site, campus; the debt behind each lease (instrument, holding); lessees' `payer_capacity` output; the `leases` model output |
 
 Read without a read model:
 
@@ -118,11 +118,26 @@ Read without a read model:
 
 Procrastinate on the same Postgres. Collectors, extraction, models and read-model rebuilds are tasks; periodic tasks implement the cadences in spec 22 ("What runs when"). Each source run is wrapped in `marden.core.heartbeat.run(source_id)` which writes `source_run` and updates `source.last_ok_at`, so `/api/sources/health` and the stale-data footer work.
 
-Model triggers (`marden.models.triggers`): each model declares its inputs with `model_depends(model, subject_type, field_prefix, keys)`; when a writer publishes a matching value, `mark_dirty_for` also upserts `model_dirty(model, key)` in the same transaction, and `models.run_dirty` (queue `models`, every minute) runs the model on those keys. A model run writes `model_run` + `model_output` (`marden.models.runs`, one output per subject and as-of day), reads inputs point in time (`marden.models.pit`) and marks its subjects' read models dirty with the pseudo-field `@model:<name>`. Methods: `docs/methods/` (e.g. `cushion-v0.1.md`, `status-rules-v0.1.md`: chain status per site and the materiality test the alert engine uses, `marden.models.materiality.is_material`).
+Model triggers (`marden.models.triggers`): each model declares its inputs with `model_depends(model, subject_type, field_prefix, keys)`; when a writer publishes a matching value, `mark_dirty_for` also upserts `model_dirty(model, key)` in the same transaction, and `models.run_dirty` (queue `models`, every minute) runs the model on those keys. A model run writes `model_run` + `model_output` (`marden.models.runs`, one output per subject and as-of day), reads inputs point in time (`marden.models.pit`) and marks its subjects' read models dirty with the pseudo-field `@model:<name>`. Methods: `docs/methods/` (e.g. `cushion-v0.1.md`, `status-rules-v0.1.md`: chain status per site and the materiality test the alert engine uses, `marden.models.materiality.is_material`; `price-engine-v0.1.md`: bond-implied CDS, tier curves and facility prices, models `price`, `cds`, `curve`, `curve_fit`).
+
+Collateral and holder models. Each output is shaped as the types.ts piece its builder reads. `marden.models.sourced` holds the shared run/output helper: on a run for today it marks `@model:<name>` plus the views named below.
+
+| Model | Subject | Output | Runs (UTC) | Method page |
+| --- | --- | --- | --- | --- |
+| `mark_gap` | `instrument` | `{holders: Holder[], count, parMm, fundMarks, nextMarksPublic, markGap}` | daily 09:48 | `mark-gap-v0.1.md` |
+| `gpu_index` | `series` / `all` | `{index: GpuPricePoint[], providers: GpuProviderPrice[], models, decline}`; marks `gpus` | daily 09:23 | `gpu-collateral-v0.1.md` |
+| `gpu_model` | `gpu_model` / `<model>` | `GpuModelDetail`; marks `gpu_model` | daily 09:23 | `gpu-collateral-v0.1.md` |
+| `gpu_collateral` | `instrument` | `GpuCollateral` | daily 09:27 | `gpu-collateral-v0.1.md` |
+| `gpu_deployment` | `series` / `all` | `GpuDeploymentPage`; marks `gpu_deployment` | daily 09:31 | `gpu-collateral-v0.1.md` |
+| `recovery` | `instrument` | `{recovery: Sourced<string>, valueB, method}` | Mondays 09:41 | `recovery-v0.1.md` |
+
+All six also run on their input facts through `models.run_dirty`, and every output carries `missing` and `basis`.
 
 ## Live updates
 
 Write a `stream_event` row (payload = a `StreamEvent` from types.ts, optional `org_id`); its trigger sends `NOTIFY marden_stream, '<id>'`. The API keeps one LISTEN connection, loads the row and pushes it to connected clients (scoped to their org), with `id:` set to the row id for `Last-Event-ID` replay. Heartbeat comment every 25 s.
+
+Who emits what (read-model builders emit only when a doc changed, `marden.readmodels.registry`): `site_detail` sends `status` (siteSlug, chain) and, when the site has a cushion value, `cushion` (siteSlug, cushionMonths); `instrument_detail` sends `price` (instrumentId, price, change1w) once the price model has priced it; `dc_*` views send `campus`, `plant_*` views send `plant`; source heartbeats send `pipeline`. The web app applies value-carrying events (price, mark, status, cushion, alert, pipeline) to the data on screen without a request, and for `campus` / `plant` loads only that row (`/api/data-centers/:id/row`, `/api/power-plants/:id/row`) and merges it in place.
 
 ## Auth (spec 23)
 

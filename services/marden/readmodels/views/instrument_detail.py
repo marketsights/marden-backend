@@ -212,6 +212,8 @@ def market_check(price_out: Row | None, observed: list[Row], marks: list[Row]) -
         if isinstance(band, dict) and num(band.get("low")) is not None and num(band.get("high")) is not None:
             out["Price band"] = model_sourced(price_out, f"{float(band['low']):.2f}{DASH}{float(band['high']):.2f}")  # type: ignore[assignment]
         inputs = output_field(price_out, "inputs")
+        if isinstance(inputs, list):  # the price model's inputs list: [{key, label, value, unit, ...}]
+            inputs = {i["key"]: i.get("value") for i in inputs if isinstance(i, dict) and isinstance(i.get("key"), str)}
         if isinstance(inputs, dict):
             for label, keys, fmt in (
                 ("Issuer CDS (bond-implied)", ("issuerCdsBp", "cdsBp", "bondImpliedCdsBp"), "{:.0f}bp"),

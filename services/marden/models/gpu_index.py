@@ -32,8 +32,7 @@ from marden.models import triggers
 from marden.models.gpu_facilities import load as load_facilities
 from marden.models.gpu_inputs import ENTITY_FIELDS, SERIES_FIELDS, SERIES_PREFIXES, Market
 from marden.models.gpu_inputs import load as load_market
-from marden.models.gpu_value import HAIRCUT, REGION, TERM, UTILIZATION, Fit, fit_decline, index_points, resale_check
-from marden.models.gpu_value import value_by_age
+from marden.models.gpu_value import HAIRCUT, REGION, TERM, Fit, fit_decline, index_points, resale_check, value_by_age
 from marden.models.sourced import Batch, fact_value, m_value, method_version, num, run_outputs
 
 INDEX, MODEL = "gpu_index", "gpu_model"
@@ -55,7 +54,10 @@ def decline_doc(fit: Fit | None) -> dict[str, Any] | None:
         return None
     return {"annualDecline": round(fit.annual_decline, 4), "slopePerYear": round(fit.slope, 5), "r2": round(fit.r2, 3),
             "models": fit.models, "captured": fit.captured.isoformat(),
-            "basis": "ln(median on-demand price) vs years since first volume shipment, across models"}
+            "basis": "ln(median on-demand price) vs years since first volume shipment, across models",
+            "realizedShareOfListRent": None if fit.realization is None else round(fit.realization, 4),
+            "impliedByModel": {m: round(u, 4) for m, u in sorted(fit.implied.items())},
+            "impliedWithLifeYears": fit.life}
 
 
 def index_output(market: Market, fit: Fit | None) -> dict[str, Any]:
@@ -92,6 +94,8 @@ def model_output(market: Market, fit: Fit | None, model: str, facilities: list[A
         missing.append("first volume shipment (launch)")
     if fit is None:
         missing.append("GPU rental index with at least three models (decline fit)")
+    elif fit.realization is None:
+        missing.append("a published new-unit price for a model with an index price (implied utilization)")
     if life is None:
         missing.append("useful life (filed depreciation policies)")
     curve = value_by_age(market, fit, model, day, life) if fit and life else []
@@ -112,7 +116,7 @@ def model_output(market: Market, fit: Fit | None, model: str, facilities: list[A
         "valueByAgeYears": [{"age": age, "usd": m_value(round(v), day, MODEL_METHOD, source_name=SOURCE,
                                                         uncalibrated=True)} for age, v in curve],
         "assumptions": {
-            "utilization": UTILIZATION,
+            "utilization": round(fit.realization, 4) if fit and fit.realization is not None else None,
             "annualDecline": round(fit.annual_decline, 4) if fit else None,
             "haircut": HAIRCUT,
             "usefulLifeYears": m_value(life, day, MODEL_METHOD, source_name=f"median of {len(market.lives)} companies' "
@@ -143,7 +147,7 @@ def run_index(as_of: date | None = None, *, trigger: str = "manual", mark: bool 
     def compute(conn: Conn, day: date) -> Batch:
         market = load_market(conn, day)
         batch = Batch()
-        batch.add("series", "all", index_output(market, fit_decline(market)))
+        batch.add("series", "all", index_output(market, fit_decline(market, market.median_life())))
         batch.views.add(("gpus", "all"))
         batch.inputs = market.origins
         return batch
@@ -155,10 +159,10 @@ def run_models(as_of: date | None = None, models: list[str] | None = None, *, tr
                mark: bool = True) -> dict[str, Any]:
     def compute(conn: Conn, day: date) -> Batch:
         market = load_market(conn, day)
-        fit = fit_decline(market)
+        fit = fit_decline(market, market.median_life())
         facilities = load_facilities(conn, day)
         batch = Batch()
-        for model in _models(market):
+        for model in sorted(set(_models(market)) | set(models or [])):  # a model asked for gets a page (n/d)
             if models is None or model in models:
                 batch.add(MODEL, model, model_output(market, fit, model, facilities))
                 batch.views.add(("gpu_model", model))

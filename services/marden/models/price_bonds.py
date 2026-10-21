@@ -15,10 +15,12 @@ Principal is bullet: amortization is not modelled in v0.1.
 
 from __future__ import annotations
 
+import bisect
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
+from functools import lru_cache
 
 import numpy as np
 from dateutil.relativedelta import relativedelta
@@ -45,26 +47,22 @@ class Terms:
         return self.coupon_type == "floating"
 
 
+@lru_cache(maxsize=4096)
+def _coupon_dates(maturity: date, months: int) -> tuple[date, ...]:
+    """Every coupon date of a schedule counted back from maturity, 60 years deep, oldest first."""
+    return tuple(sorted(maturity - relativedelta(months=months * k) for k in range(60 * 12 // months + 1)))
+
+
 def schedule(terms: Terms, settle: date) -> list[date]:
     """Coupon dates after `settle`, counted back from maturity."""
-    months = 12 // terms.frequency
-    out = []
-    d, k = terms.maturity, 0
-    while d > settle:
-        out.append(d)
-        k += 1
-        d = terms.maturity - relativedelta(months=months * k)
-    return sorted(out)
+    dates = _coupon_dates(terms.maturity, 12 // terms.frequency)
+    return list(dates[bisect.bisect_right(dates, settle):])
 
 
 def previous_coupon(terms: Terms, settle: date) -> date:
-    months = 12 // terms.frequency
-    k = 0
-    d = terms.maturity
-    while d > settle:
-        k += 1
-        d = terms.maturity - relativedelta(months=months * k)
-    return d
+    """The last coupon date on or before `settle`."""
+    dates = _coupon_dates(terms.maturity, 12 // terms.frequency)
+    return dates[max(bisect.bisect_right(dates, settle) - 1, 0)]
 
 
 def days_30_360(a: date, b: date) -> int:
@@ -80,6 +78,9 @@ class Flows:
     amounts: np.ndarray  # per 100 par (last includes principal)
     accrued: float
     maturity_years: float
+    curve_day: date | None = None  # the curve the grid's Treasury discount factors were taken from
+    grid: np.ndarray | None = field(default=None, repr=False)
+    tsy_df: np.ndarray | None = field(default=None, repr=False)
 
 
 def flows(terms: Terms, curve: Curve, settle: date, sofr_pct: float | None) -> Flows:
@@ -108,7 +109,9 @@ def flows(terms: Terms, curve: Curve, settle: date, sofr_pct: float | None) -> F
         period = days_30_360(prev, dates[0]) or 1
         accrued = terms.coupon_pct / terms.frequency * days_30_360(prev, settle) / period
     amounts[-1] += 100.0
-    return Flows(times, amounts, accrued, float(times[-1]))
+    base = Flows(times, amounts, accrued, float(times[-1]))
+    grid = _grid(base)
+    return Flows(times, amounts, accrued, float(times[-1]), curve.day, grid, np.asarray(curve.df(grid)))
 
 
 HazardFn = Callable[[np.ndarray], np.ndarray]  # interval midpoints (years) -> intensity per year
@@ -116,20 +119,23 @@ RecoveryFn = Callable[[np.ndarray], np.ndarray]  # grid times (years) -> recover
 
 
 def _grid(f: Flows) -> np.ndarray:
-    monthly = np.arange(1, int(math.ceil(f.maturity_years * 12)) + 1) / 12.0
+    monthly = np.arange(1, math.ceil(f.maturity_years * 12) + 1) / 12.0
     return np.unique(np.concatenate([[0.0], monthly[monthly < f.maturity_years], f.times]))
 
 
 def dirty_price(f: Flows, curve: Curve, hazard: float | HazardFn, recovery: float | RecoveryFn = RECOVERY,
                 lp: float = 0.0) -> float:
     """Reduced-form dirty price per 100 par."""
-    grid = _grid(f)
+    cached = f.grid is not None and f.tsy_df is not None and f.curve_day == curve.day
+    grid = f.grid if cached else _grid(f)
+    assert grid is not None
     dt = np.diff(grid)
     mids = grid[:-1] + dt / 2.0
     lam = np.full_like(mids, float(hazard)) if not callable(hazard) else np.asarray(hazard(mids), dtype=float)
     cum = np.concatenate([[0.0], np.cumsum(lam * dt)])
     surv = np.exp(-cum)
-    disc = np.asarray(curve.df(grid)) * np.exp(-lp * grid)
+    tsy = f.tsy_df if cached else np.asarray(curve.df(grid))
+    disc = tsy * np.exp(-lp * grid)
     idx = np.searchsorted(grid, f.times)
     coupon_leg = float(np.sum(f.amounts * surv[idx] * disc[idx]))
     rec = np.full(len(grid), float(recovery)) if not callable(recovery) else np.asarray(recovery(grid), dtype=float)
@@ -159,7 +165,7 @@ def solve_flat_hazard(f: Flows, curve: Curve, clean: float, recovery: float = RE
         return Solved(0.0, "floor")
     if gap(MAX_LAMBDA) >= 0.0:
         return Solved(MAX_LAMBDA, "cap")
-    return Solved(float(brentq(gap, 0.0, MAX_LAMBDA, xtol=1e-9)), None)
+    return Solved(float(brentq(gap, 0.0, MAX_LAMBDA, xtol=1e-8)), None)
 
 
 def solve_spread(f: Flows, curve: Curve, clean: float, hazard: float | HazardFn,
@@ -175,7 +181,7 @@ def solve_spread(f: Flows, curve: Curve, clean: float, hazard: float | HazardFn,
         return Solved(lo, "floor")
     if gap(hi) >= 0.0:
         return Solved(hi, "cap")
-    return Solved(float(brentq(gap, lo, hi, xtol=1e-10)), None)
+    return Solved(float(brentq(gap, lo, hi, xtol=1e-9)), None)
 
 
 def yield_to_maturity(f: Flows, clean: float) -> float | None:

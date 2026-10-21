@@ -28,9 +28,10 @@ from marden.readmodels.context import business_today
 TERM_FIELDS = ("coupon", "coupon_type", "coupon_rate_pct", "coupon_spread_bp", "coupon_benchmark", "maturity",
                "amount_usd", "tenants", "seniority", "gpu_model", "gpu_collateral", "backstop", "identifiers")
 _PCT = re.compile(r"^\s*~?(\d+(?:\.\d+)?)\s*%")
-_FLOAT = re.compile(r"\b(?:Term\s+|Daily compounded\s+|1M\s+|3M\s+|Monthly\s+)?(?:SOFR|S)\s*\+\s*(\d+(?:\.\d+)?)\s*(%|bp)?",
-                    re.I)
+_FLOAT = re.compile(r"\b(?:Term\s+|Daily compounded\s+|1M\s+|3M\s+|Monthly\s+)?(?:SOFR|S)\s*\+\s*(\d+(?:\.\d+)?)"
+                    r"\s*(%|bp)?", re.I)
 _ISSUED_AT = re.compile(r"issued at (\d{2,3}(?:\.\d+)?)", re.I)
+LINK_MIN = 7
 _NON_USD = re.compile(r"\b(EUR|GBP|CHF|JPY|AUD|CAD)\b")
 KIND_TYPES = {
     "bond": {"dc_project_bond", "gpu_abs", "gpu_loan"},
@@ -207,11 +208,14 @@ def _digits(text: str) -> str:
 
 
 def link_comp(inst: Instrument, comps: Sequence[dict[str, Any]]) -> tuple[dict[str, Any] | None, int]:
-    """The issue comp that is this instrument (best score >= 5 and unique)."""
+    """The issue comp that is this instrument (best score >= LINK_MIN and unique): site +3, deal type +2,
+    coupon or margin +3, maturity year +2, DDTL number +4, phase number +3."""
     rate = _num(inst.value("coupon_rate_pct"))
     margin = _num(inst.value("coupon_spread_bp"))
     mat, _ = parse_maturity(inst.value("maturity"))
     name_digits = _digits(inst.name.split("(")[0]) if "DDTL" in inst.name.upper() else ""
+    m_phase = re.search(r"\bphase\s*(\d)", inst.name, re.I)
+    phase = m_phase.group(1) if m_phase else None
     scored = []
     for c in comps:
         s = 0
@@ -219,9 +223,8 @@ def link_comp(inst: Instrument, comps: Sequence[dict[str, Any]]) -> tuple[dict[s
             s += 3
         if c["type_code"] in KIND_TYPES.get(inst.kind, set()):
             s += 2
-        if rate is not None and c["coupon_pct"] is not None and abs(rate - c["coupon_pct"]) < 0.01:
-            s += 3
-        elif rate is not None and f"{rate:g}%" in c["rate"]:
+        if rate is not None and ((c["coupon_pct"] is not None and abs(rate - c["coupon_pct"]) < 0.01)
+                                 or f"{rate:g}%" in c["rate"]):
             s += 3
         if margin is not None and c["issue_spread_bp"] is not None and c["benchmark"] == "SOFR" \
                 and abs(margin - c["issue_spread_bp"]) < 6:
@@ -231,12 +234,14 @@ def link_comp(inst: Instrument, comps: Sequence[dict[str, Any]]) -> tuple[dict[s
             s += 2
         if name_digits and c["id"].upper().endswith(f"DDTL{name_digits}"):
             s += 4
+        if phase and re.search(rf"_P{phase}(?:_|$)", c["id"].upper()):
+            s += 3
         scored.append((s, c))
     if not scored:
         return None, 0
     scored.sort(key=lambda sc: -sc[0])
     best = scored[0][0]
-    if best < 5 or (len(scored) > 1 and scored[1][0] == best):
+    if best < LINK_MIN or (len(scored) > 1 and scored[1][0] == best):
         return None, best
     return scored[0][1], best
 

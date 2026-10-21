@@ -148,8 +148,9 @@ def fit_decline(market: Market, life: float | None = None) -> Fit | None:
 
 
 def rent_on(market: Market, fit: Fit, model: str, day: date) -> tuple[float, str] | None:
-    """The model's rent on `day`: its index price rolled from the capture day at the decline, else the
-    fitted line at its age. Returns (USD per GPU-hour, basis)."""
+    """The model's rent on `day`: its index price rolled from the capture day at the decline; for a model
+    with no captured price, the launch rent its new-unit price implies (N = u x 8760 x rent x A(L)) rolled
+    to its age; else the fitted line at its age. Returns (USD per GPU-hour, basis)."""
     got = latest_medians(market).get(model)
     if got is not None:
         price, captured = got
@@ -157,6 +158,10 @@ def rent_on(market: Market, fit: Fit, model: str, day: date) -> tuple[float, str
     chip = market.chips.get(model)
     if chip is None or chip.launch is None or chip.launch > day:
         return None
+    a_life = _annuity_at(market, fit.slope, fit.life) if fit.life else None
+    if chip.new_price and fit.realization and a_life:
+        launch_rent = chip.new_price / (fit.realization * HOURS_PER_YEAR * a_life)
+        return launch_rent * math.exp(fit.slope * years(chip.launch, day)), "new price"
     return math.exp(fit.intercept + fit.slope * years(chip.launch, fit.captured)) * math.exp(
         fit.slope * years(fit.captured, day)), "fitted line"
 

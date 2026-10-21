@@ -9,8 +9,9 @@ notes are left out because an option or an FX leg would distort the intensity):
 2. a day's intensities are interpolated to the standard CDS maturity (price_cds.interpolate): the raw
    bond-implied level of that day;
 3. the raw levels are fused by the Kalman filter (price_kalman) in log intensity; between bond prints
-   the state moves with the CreditGrades equity-implied intensity times its loading (price_equity), so
-   equity only updates between prints and never sets the level (locked rule);
+   the state moves with the equity-implied move (CreditGrades elasticity x the day's equity log return)
+   times its loading (price_equity), so equity only updates between prints and never sets the level
+   (locked rule);
 4. the filtered intensity is converted with QuantLib's ISDA engine (price_cds.isda).
 
 Every number keeps its inputs: the bonds of the latest cross-section, the equity loading and what is
@@ -28,7 +29,7 @@ import numpy as np
 
 from marden.core.db import Conn
 from marden.models import price_equity
-from marden.models.price_bonds import Flows, Terms, flows, solve_flat_hazard
+from marden.models.price_bonds import Flows, Terms, dirty_price, flows, solve_flat_hazard
 from marden.models.price_cds import CdsQuote, cds_maturity, interpolate, isda
 from marden.models.price_curve import CurveBook, year_frac
 from marden.models.price_kalman import Reading
@@ -66,6 +67,7 @@ class IssuerCurve:
     mean: np.ndarray | None = None
     var: np.ndarray | None = None
     loading: float = 0.0
+    loading_prior: float | None = None
     loading_pairs: int = 0
     ticker: str | None = None
     missing: list[str] = field(default_factory=list)
@@ -100,22 +102,24 @@ def _point(inst: Instrument, o: Obs, book: CurveBook) -> BondPoint | None:
         return None
     f: Flows = flows(inst.terms, curve, o.day, None)
     s = solve_flat_hazard(f, curve, o.price)
-    lo = solve_flat_hazard(f, curve, o.price + o.noise).value
-    hi = solve_flat_hazard(f, curve, o.price - o.noise).value
     base = max(s.value, FLOOR)
-    noise = max(abs(math.log(max(hi, FLOOR)) - math.log(max(lo, FLOOR))) / 2.0, 0.02)
+    h = max(base * 0.01, 1e-5)  # price noise -> log-intensity noise through dP/dlambda at the solution
+    slope = abs(dirty_price(f, curve, base + h) - dirty_price(f, curve, max(base - h, 0.0))) / (2 * h)
+    noise = max(o.noise / max(slope, 1e-6) / base, 0.02)
     return BondPoint(inst.id, year_frac(o.day, inst.terms.maturity), base, o.price, o.source, o.holders, o.day,
                      s.bound, noise)
 
 
 def sections(bonds: list[Instrument], obs: dict[str, list[Obs]], book: CurveBook, min_holders: int,
-             exclude: str | None = None) -> dict[date, list[BondPoint]]:
-    """Per day, the bond intensities usable that day (one observation per bond and day)."""
+             exclude: str | None = None, sources: tuple[str, ...] = ("trace", "exchange", "nport"),
+             ) -> dict[date, list[BondPoint]]:
+    """Per day, the bond intensities usable that day (one observation per bond and day, the best of
+    `sources`)."""
     out: dict[date, list[BondPoint]] = defaultdict(list)
     for inst in bonds:
         if inst.id == exclude:
             continue
-        for day, o in daily(obs.get(inst.id, [])).items():
+        for day, o in daily(obs.get(inst.id, []), sources).items():
             if o.source == "nport" and o.holders < min_holders:
                 continue
             p = _point(inst, o, book)
@@ -155,15 +159,18 @@ def build(conn: Conn, as_of: date, entity_id: str, bonds: list[Instrument], obs:
     drift = np.zeros(len(cur.days))
     if eq is not None:
         rates = {d: (c.par_yield(5.0) / 100.0) for d in cur.days if (c := book.curve(d)) is not None}
-        cur.loading, cur.loading_pairs = price_equity.loading([(d, v[0]) for d, v in sorted(cur.raw.items())],
-                                                              eq, rates)
-        prev = None
-        for k, d in enumerate(cur.days):
-            lam = eq.intensity(d, rates.get(d, 0.04))
-            if lam is not None and lam > 0:
-                if prev is not None:
-                    drift[k] = cur.loading * (math.log(lam) - math.log(prev))
-                prev = lam
+        cum = price_equity.moves(eq, cur.days, rates)
+        first_day, (first_lam, _) = min(cur.raw.items())
+        anchor = next((d for d in cur.days if d >= first_day and d in eq.closes), None)
+        prior = price_equity.prior_loading(eq, anchor, first_lam, rates.get(anchor, 0.04)) if anchor else None
+        if prior is None:
+            cur.missing.append(f"entity {entity_id}: CreditGrades elasticity (equity moves not used)")
+            prior = 0.0
+        cur.loading_prior = prior
+        cur.loading, cur.loading_pairs = price_equity.loading([(d, v[0]) for d, v in sorted(cur.raw.items())], cum,
+                                                              prior)
+        values = [cum[d] for d in cur.days]
+        drift[1:] = cur.loading * np.diff(values)
     index = {d: i for i, d in enumerate(cur.days)}
     readings = [Reading(index[d], math.log(v[0]), noise[d] ** 2, False, d.isoformat())
                 for d, v in sorted(cur.raw.items()) if d in index]

@@ -2396,6 +2396,13 @@ CREATE INDEX fact_status_learned ON public.fact USING btree (status, learned_at)
 
 
 --
+-- Name: fact_subject_known; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX fact_subject_known ON public.fact USING btree (subject_type, subject_id, field) WHERE (status = ANY (ARRAY['published'::text, 'superseded'::text]));
+
+
+--
 -- Name: fact_subject_pub; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3092,4 +3099,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261021150000'),
     ('20261021170000'),
     ('20261021180000'),
-    ('20261021190000');
+    ('20261021190000'),
+    ('20261021200000');

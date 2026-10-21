@@ -67,8 +67,12 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     return { view: 'obligations', asOf: d.asOf, rows: asRows(d.edges) };
   },
   watchlist: async (ctx) => {
+    // ?kind=site|instrument: the Watchlist tab on screen (All / Sites / Instruments).
+    const kind = first(ctx.q, 'kind');
+    if (kind !== undefined && kind !== 'site' && kind !== 'instrument') throw badRequest('kind must be site or instrument');
     const rows = await ctx.db.withOrg(ctx.orgId, (c) => watchRows(c, ctx.orgId, ctx.asOf));
-    return { view: 'watchlist', asOf: ctx.asOf, rows: asRows(rows.map(toWatchItem)) };
+    const items = rows.map(toWatchItem).filter((item) => kind === undefined || item.kind === kind);
+    return { view: 'watchlist', asOf: ctx.asOf, rows: asRows(items) };
   },
 };
 

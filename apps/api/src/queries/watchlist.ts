@@ -9,6 +9,7 @@ export interface WatchJoinRow {
   ref_id: string;
   identity_name: string | null;
   instrument_kind: string | null;
+  inst_site_slug: string | null;                  // the site a watched instrument depends on
   site_doc: Record<string, unknown> | null;     // SiteDetail of a watched site
   inst_doc: Record<string, unknown> | null;     // InstrumentDetail of a watched instrument
   inst_site_doc: Record<string, unknown> | null; // SiteDetail of the site an instrument depends on
@@ -29,6 +30,7 @@ export async function watchRows(db: Queryable, orgId: string, asOf: string | nul
      site_docs AS (${latestDocs('site_detail', 'SELECT key FROM site_keys')}),
      inst_docs AS (${latestDocs('instrument_detail', `SELECT ref_id FROM items WHERE kind = 'instrument'`)})
      SELECT w.id::text, w.kind, w.ref_id, coalesce(s.name, i.name) AS identity_name, i.kind AS instrument_kind,
+            i.site_slug AS inst_site_slug,
             sd.doc AS site_doc, idoc.doc AS inst_doc, isd.doc AS inst_site_doc
      FROM items w
      LEFT JOIN site s ON w.kind = 'site' AND s.slug = w.ref_id
@@ -84,4 +86,38 @@ export async function removeWatchItem(c: Queryable, orgId: string, id: string): 
   );
   const row = res.rows[0];
   return row ? { kind: row.kind, refId: row.ref_id } : null;
+}
+
+export interface IssuerCandidateRow {
+  kind: WatchKind;
+  ref_id: string;
+  name: string;
+  instrument_kind: string | null;
+  cusip: string | null;
+  watch_id: string | null;
+}
+
+/**
+ * What adding an issuer adds (spec 11 Acceptance): its instruments and the sites they depend on,
+ * each with the org's watch id when already watched. Sites first, then instruments by name.
+ */
+export async function issuerCandidates(
+  c: Queryable,
+  orgId: string,
+  entityId: string,
+): Promise<{ issuer: { id: string; name: string } | null; rows: IssuerCandidateRow[] }> {
+  const issuer = await c.query<{ id: string; name: string }>(`SELECT id, name FROM entity WHERE id = $1`, [entityId]);
+  if (!issuer.rows[0]) return { issuer: null, rows: [] };
+  const res = await c.query<IssuerCandidateRow>(
+    `WITH inst AS (SELECT id, name, kind, cusip, site_slug FROM instrument WHERE issuer_entity_id = $2)
+     SELECT 'site' AS kind, s.slug AS ref_id, s.name, NULL AS instrument_kind, NULL AS cusip, w.id::text AS watch_id, 0 AS ord
+     FROM site s LEFT JOIN watchlist_item w ON w.org_id = $1 AND w.kind = 'site' AND w.ref_id = s.slug
+     WHERE s.slug IN (SELECT site_slug FROM inst WHERE site_slug IS NOT NULL)
+     UNION ALL
+     SELECT 'instrument', i.id, i.name, i.kind, i.cusip, w.id::text, 1
+     FROM inst i LEFT JOIN watchlist_item w ON w.org_id = $1 AND w.kind = 'instrument' AND w.ref_id = i.id
+     ORDER BY ord, name, ref_id`,
+    [orgId, entityId],
+  );
+  return { issuer: issuer.rows[0], rows: res.rows };
 }

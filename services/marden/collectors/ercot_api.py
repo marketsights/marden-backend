@@ -1,4 +1,4 @@
-"""ERCOT Public API (api.ercot.com) access shared by the ERCOT collectors (`ercot_gis`, `ercot_prices`).
+"""ERCOT Public API (api.ercot.com) access for the ERCOT API collectors (`ercot_prices`; `ercot_gis` reads the MIS).
 
 The API needs a free account registered by a person on apiexplorer.ercot.com (bots may not register), its
 subscription key, and a one-hour ID token from the account's sign-in (ERCOT's Azure B2C ROPC flow). Without

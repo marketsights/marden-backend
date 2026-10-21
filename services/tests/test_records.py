@@ -106,7 +106,9 @@ def test_holding_unique_per_fund_accession_line(conn, instrument):
     assert _dirty(conn) == set()  # not linked to an instrument yet: no screen shows it
     assert w.link_instrument(a.id, instrument)
     assert not w.link_instrument(a.id, instrument)
-    assert _dirty(conn) == {("instrument_detail", instrument), ("instruments", "all")}
+    # the instrument's screens, and its site's pieces that list filed holders (debt tab, detail, project file)
+    assert _dirty(conn) == {("instrument_detail", instrument), ("instruments", "all"), ("site_detail", "abilene"),
+                            ("site_tab:debt", "abilene"), ("project_file", "abilene")}
 
 
 def test_holding_validators(conn, instrument):

@@ -49,8 +49,14 @@ describe('user data', () => {
 
     const items = (await call('GET', '/api/watchlist')).json();
     expect(items).toEqual([
-      { id: add.json().items[0].id, kind: 'site', refId: SITE, name: 'Frontier', typeLabel: 'Site', sub: 'OpenAI → Oracle', status: 'Strained', cushionMonths: 2, price: null, change1w: null, markGap: null, nextCatalyst: null },
-      { id: add.json().items[1].id, kind: 'instrument', refId: LOAN, name: 'Frontier loan', typeLabel: 'Loan', sub: '$23B', status: 'Strained', cushionMonths: 2, price: sourced(94.2, 'M'), change1w: sourced(-0.4, 'M'), markGap: 'no fund', nextCatalyst: null },
+      {
+        id: add.json().items[0].id, kind: 'site', refId: SITE, name: 'Frontier', typeLabel: 'Site', sub: 'OpenAI → Oracle', status: 'Strained', cushionMonths: 2, price: null, change1w: null, markGap: null, nextCatalyst: null,
+        siteSlug: SITE, cushion: sourced(2, 'M'), debtB: null, nextCatalystAt: null,
+      },
+      {
+        id: add.json().items[1].id, kind: 'instrument', refId: LOAN, name: 'Frontier loan', typeLabel: 'Loan', sub: '$23B', status: 'Strained', cushionMonths: 2, price: sourced(94.2, 'M'), change1w: sourced(-0.4, 'M'), markGap: 'no fund', nextCatalyst: null,
+        siteSlug: SITE, cushion: sourced(2, 'M'), debtB: sourced(23, 'R'), nextCatalystAt: null,
+      },
     ]);
     const id = add.json().items[0].id as string;
     expect((await call('DELETE', `/api/watchlist/items/${id}`)).statusCode).toBe(204);

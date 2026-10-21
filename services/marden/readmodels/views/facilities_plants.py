@@ -46,13 +46,31 @@ from marden.readmodels.views.facilities_common import (
 from marden.readmodels.views.sites_common import Doc, day, fact_evidence, nd, weakest_tag, with_value
 from marden.readmodels.views.sites_text import text_of
 
-PLANT_FIELDS = ("operator", "technology", "technology_type", "status", "stage", "capacity_mw", "air_permit",
-                "expected_cod", "original_cod", "dockets", "latest_change")
+PLANT_FIELDS = (
+    "operator",
+    "technology",
+    "technology_type",
+    "status",
+    "stage",
+    "capacity_mw",
+    "air_permit",
+    "expected_cod",
+    "original_cod",
+    "dockets",
+    "latest_change",
+)
 UNIT_FIELDS = ("oem", "model", "count", "rating_mw_each", "fuel", "count_is_maximum", "online_year")
 HISTORY_FIELDS = ("status", "capacity_mw", "expected_cod", "air_permit", "technology", "operator")
-PERMIT_STATUS = {"pending": "Permit pending", "under review": "Permit pending", "received": "Permit pending",
-                 "issued": "Permitted", "approved": "Permitted", "final": "Permitted", "withdrawn": "Withdrawn",
-                 "denied": "Denied"}
+PERMIT_STATUS = {
+    "pending": "Permit pending",
+    "under review": "Permit pending",
+    "received": "Permit pending",
+    "issued": "Permitted",
+    "approved": "Permitted",
+    "final": "Permitted",
+    "withdrawn": "Withdrawn",
+    "denied": "Denied",
+}
 PERMIT_TYPES = {"PSD": "Major"}
 GRID_MODES = {"On-site gas": "Islanded", "Grid": "Grid-tied", "Hybrid": "Grid-tied"}
 
@@ -70,18 +88,20 @@ def plant_units(conn: Conn, plant_id: str, plant_status: Any) -> list[Doc]:
         count = count if isinstance(count, int) and not isinstance(count, bool) else None
         rated = isinstance(rating, int | float) and not isinstance(rating, bool)
         year = (f.get("online_year") or {}).get("value")
-        out.append({
-            "oem": (f.get("oem") or {}).get("value") or u.get("oem") or None,
-            "model": (f.get("model") or {}).get("value") or u.get("model") or None,
-            "count": count or 0,
-            "ratingMwEach": number_value(f.get("rating_mw_each"), "F"),
-            "totalMw": round(count * rating, 3) if count is not None and rated else None,
-            "fuel": (f.get("fuel") or {}).get("value"),
-            "status": plant_status if plant_status in PLANT_STATUSES else None,
-            "onlineYear": year if isinstance(year, int) else None,
-            "permitRef": u.get("permit_ref") or None,
-            "_rows": [r for r in (f.get("count"), f.get("rating_mw_each")) if r is not None],
-        })
+        out.append(
+            {
+                "oem": (f.get("oem") or {}).get("value") or u.get("oem") or None,
+                "model": (f.get("model") or {}).get("value") or u.get("model") or None,
+                "count": count or 0,
+                "ratingMwEach": number_value(f.get("rating_mw_each"), "F"),
+                "totalMw": round(count * rating, 3) if count is not None and rated else None,
+                "fuel": (f.get("fuel") or {}).get("value"),
+                "status": plant_status if plant_status in PLANT_STATUSES else None,
+                "onlineYear": year if isinstance(year, int) else None,
+                "permitRef": u.get("permit_ref") or None,
+                "_rows": [r for r in (f.get("count"), f.get("rating_mw_each")) if r is not None],
+            }
+        )
     return out
 
 
@@ -93,8 +113,10 @@ def units_summary(units: list[Doc]) -> Doc:
     by: dict[tuple[Any, Any], int] = {}
     for u in units:
         by[(u["oem"], u["model"])] = by.get((u["oem"], u["model"]), 0) + u["count"]
-    by_model = [{"oem": oem, "model": model, "count": n}
-                for (oem, model), n in sorted(by.items(), key=lambda kv: (-kv[1], str(kv[0])))]
+    by_model = [
+        {"oem": oem, "model": model, "count": n}
+        for (oem, model), n in sorted(by.items(), key=lambda kv: (-kv[1], str(kv[0])))
+    ]
     return {"count": sum(u["count"] for u in units), "byModel": by_model}
 
 
@@ -103,8 +125,12 @@ def permitted_mw(units: list[Doc], facts: dict[str, Row]) -> Doc:
         rows = [r for u in units for r in u["_rows"]]
         names = sorted({r["source_name"] for r in rows if r.get("source_name")})
         urls = {r["source_url"] for r in rows if r.get("source_url")}
-        out: Doc = {"value": round(sum(u["totalMw"] for u in units), 3), "tag": weakest_tag(r["tag"] for r in rows),
-                    "asOf": max(r["valid_from"] for r in rows).isoformat(), "sourceName": " + ".join(names)}
+        out: Doc = {
+            "value": round(sum(u["totalMw"] for u in units), 3),
+            "tag": weakest_tag(r["tag"] for r in rows),
+            "asOf": max(r["valid_from"] for r in rows).isoformat(),
+            "sourceName": " + ".join(names),
+        }
         if len(urls) == 1:
             out["sourceUrl"] = urls.pop()
         return out
@@ -115,7 +141,9 @@ def permitted_mw(units: list[Doc], facts: dict[str, Row]) -> Doc:
 def _permit_entity(conn: Conn, key: Any) -> dict[str, Row]:
     if not isinstance(key, str):
         return {}
-    row = conn.execute("SELECT id FROM entity WHERE meta ->> 'proceeding_key' = %s ORDER BY id LIMIT 1", (key,)).fetchone()
+    row = conn.execute(
+        "SELECT id FROM entity WHERE meta ->> 'proceeding_key' = %s ORDER BY id LIMIT 1", (key,)
+    ).fetchone()
     return known_facts(conn, "entity", row["id"], ["status", "proceeding"]) if row else {}
 
 
@@ -128,10 +156,16 @@ def air_permit(conn: Conn, facts: dict[str, Row]) -> Doc | None:
     docket = _permit_entity(conn, v.get("proceeding_key")).get("status")
     stated = docket["value"] if docket and (docket["valid_from"] >= row["valid_from"]) else v.get("status")
     kind = v.get("type")
-    return {"agency": str(v.get("agency") or ""), "number": str(v["number"]),
-            "type": PERMIT_TYPES.get(kind, kind) if isinstance(kind, str) else None,
-            "status": PERMIT_STATUS.get(str(stated).strip().lower()) if stated else None,
-            "filed": None, "decided": None, "url": v.get("url") or row.get("source_url") or "", "amendments": []}
+    return {
+        "agency": str(v.get("agency") or ""),
+        "number": str(v["number"]),
+        "type": PERMIT_TYPES.get(kind, kind) if isinstance(kind, str) else None,
+        "status": PERMIT_STATUS.get(str(stated).strip().lower()) if stated else None,
+        "filed": None,
+        "decided": None,
+        "url": v.get("url") or row.get("source_url") or "",
+        "amendments": [],
+    }
 
 
 def row_permit(permit: Doc | None) -> Doc | None:
@@ -172,13 +206,22 @@ def fuel_detail(lines: list[tuple[Row, dict[str, Row]]]) -> Doc | None:
     for field in ("original_cod", "expected_cod"):
         if row := lf.get(field):
             label = "Originally planned in service" if field == "original_cod" else "Planned in service"
-            in_service.append({"date": str(row["value"]), "evidence": fact_evidence(row, f"{label} {text_of(row['value'])}")})
-    return {"pipeline": pipeline, "regulator": first.get("agency"), "docket": first.get("number"), "inService": in_service}
+            in_service.append(
+                {"date": str(row["value"]), "evidence": fact_evidence(row, f"{label} {text_of(row['value'])}")}
+            )
+    return {
+        "pipeline": pipeline,
+        "regulator": first.get("agency"),
+        "docket": first.get("number"),
+        "inService": in_service,
+    }
 
 
 def grid_mode(conn: Conn, campuses: list[Row]) -> str:
-    modes = {GRID_MODES.get((known_facts(conn, "campus", c["id"], ["power_source"]).get("power_source") or {}).get("value"))
-             for c in campuses}
+    modes = {
+        GRID_MODES.get((known_facts(conn, "campus", c["id"], ["power_source"]).get("power_source") or {}).get("value"))
+        for c in campuses
+    }
     modes.discard(None)
     return modes.pop() if len(modes) == 1 else "Unknown"
 
@@ -190,7 +233,9 @@ def _plant(conn: Conn, plant_id: str) -> tuple[Row, dict[str, Row]] | None:
 
 
 def plant_history(conn: Conn, plant_id: str, events: list[Row]) -> list[Doc]:
-    out = fact_history(conn, "plant", plant_id, HISTORY_FIELDS, initial=("status", "air_permit")) + event_history(events)
+    out = fact_history(conn, "plant", plant_id, HISTORY_FIELDS, initial=("status", "air_permit")) + event_history(
+        events
+    )
     out.sort(key=lambda h: (h["date"], h["field"]), reverse=True)
     return out
 
@@ -206,8 +251,12 @@ def row_parts(conn: Conn, plant: Row, facts: dict[str, Row]) -> tuple[Doc, dict[
     lines = fuel_lines(conn, plant, facts, campuses)
     tech = (facts.get("technology") or {}).get("value")
     doc = {
-        "id": pid, "name": plant["name"], "county": plant.get("county"), "state": plant["state"],
-        "lat": plant["lat"], "lon": plant["lon"],
+        "id": pid,
+        "name": plant["name"],
+        "county": plant.get("county"),
+        "state": plant["state"],
+        "lat": plant["lat"],
+        "lon": plant["lon"],
         "serves": {"id": campuses[0]["id"], "name": campuses[0]["name"]} if campuses else None,
         "operator": text_value(facts.get("operator"), "F"),
         "technology": tech if tech in PLANT_TECHS else None,
@@ -237,13 +286,23 @@ def served_campus(conn: Conn, campuses: list[Row], permitted: Doc) -> Doc | None
     mw = number_value(cf.get("facility_mw"), "F")
     cover = nd("M")
     if isinstance(permitted["value"], int | float) and isinstance(mw["value"], int | float) and mw["value"] > 0:
-        cover = {"value": round(100.0 * permitted["value"] / mw["value"], 1), "tag": "M", "asOf": day().isoformat(),
-                 "methodVersion": "plant-load-cover@0.1",
-                 "sourceName": f"Marden: permitted MW ({permitted.get('sourceName') or 'n/d'}) / facility MW "
-                               f"({mw.get('sourceName') or 'n/d'})"}
+        cover = {
+            "value": round(100.0 * permitted["value"] / mw["value"], 1),
+            "tag": "M",
+            "asOf": day().isoformat(),
+            "methodVersion": "plant-load-cover@0.1",
+            "sourceName": f"Marden: permitted MW ({permitted.get('sourceName') or 'n/d'}) / facility MW "
+            f"({mw.get('sourceName') or 'n/d'})",
+        }
     status = (cf.get("status") or {}).get("value")
-    return {"id": campus["id"], "name": campus["name"], "status": status if status in DC_STATUSES else None,
-            "facilityMw": mw, "buildings": building_counts(conn, campus["id"], cf)["total"], "loadCoverPct": cover}
+    return {
+        "id": campus["id"],
+        "name": campus["name"],
+        "status": status if status in DC_STATUSES else None,
+        "facilityMw": mw,
+        "buildings": building_counts(conn, campus["id"], cf)["total"],
+        "loadCoverPct": cover,
+    }
 
 
 @builder("plant_detail", keys=plant_ids)
@@ -252,11 +311,13 @@ def build_plant_detail(conn: Conn, plant_id: str) -> Doc | None:
     if not found:
         return None
     doc, parts = row_parts(conn, *found)
-    doc.update({
-        "unitRows": public_units(parts["units"]),
-        "permit": parts["permit"],
-        "fuel": fuel_detail(parts["lines"]),
-        "servedCampus": served_campus(conn, parts["campuses"], doc["permittedMw"]),
-        "history": parts["history"],
-    })
+    doc.update(
+        {
+            "unitRows": public_units(parts["units"]),
+            "permit": parts["permit"],
+            "fuel": fuel_detail(parts["lines"]),
+            "servedCampus": served_campus(conn, parts["campuses"], doc["permittedMw"]),
+            "history": parts["history"],
+        }
+    )
     return doc

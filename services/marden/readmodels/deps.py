@@ -30,13 +30,17 @@ def singleton(conn: Conn, subject_id: str) -> list[str]:
     return ["all"]
 
 
-def via(sql: str) -> KeyFn:
+def via(sql: str, *, int_id: bool = False) -> KeyFn:
     """Keys from a query taking the subject id as its only parameter, `%s` or (to use it more than
-    once) `%(id)s`. First column, nulls dropped."""
+    once) `%(id)s`. First column, nulls dropped. `int_id`: the id is an integer key (holding.id), passed
+    as an integer so its index serves the lookup (`id::text = %s` scans the table on every write)."""
     named = "%(id)s" in sql
 
     def keys(conn: Conn, subject_id: str) -> list[str]:
-        rows = conn.execute(sql, {"id": subject_id} if named else (subject_id,)).fetchall()
+        if int_id and not subject_id.isdigit():
+            return []
+        param = int(subject_id) if int_id else subject_id
+        rows = conn.execute(sql, {"id": param} if named else (param,)).fetchall()
         return [str(v) for r in rows if (v := next(iter(r.values()))) is not None]
 
     keys.__name__ = f"via({sql!r})"
@@ -147,8 +151,8 @@ _PLANT_SITES = via(
 )
 _UNIT_PLANT = via("SELECT plant_id FROM power_unit WHERE id = %s")
 _ENTITY_SITES = via("SELECT site_slug FROM chain_party WHERE entity_id = %s")
-_HOLDING_INSTRUMENT = via("SELECT instrument_id FROM holding WHERE id::text = %s")
-_HOLDING_LINKED = via("SELECT 'all' FROM holding WHERE id::text = %s AND instrument_id IS NOT NULL")
+_HOLDING_INSTRUMENT = via("SELECT instrument_id FROM holding WHERE id = %s", int_id=True)
+_HOLDING_LINKED = via("SELECT 'all' FROM holding WHERE id = %s AND instrument_id IS NOT NULL", int_id=True)
 _FUND_INSTRUMENTS = via("SELECT DISTINCT instrument_id FROM holding WHERE fund_entity_id = %s")
 _OBLIGATION_PAYER = via("SELECT from_entity_id FROM obligation WHERE id = %s")
 _OBLIGATION_COMPANIES = via(
@@ -261,7 +265,8 @@ _SITE_INSTRUMENTS = via("SELECT id FROM instrument WHERE site_slug = %s")
 # par and marks on instrument_detail), so a fund's new holding line refreshes every instrument it holds.
 _FUND_HOLDING_INSTRUMENTS = via(
     """SELECT DISTINCT o.instrument_id FROM holding h JOIN holding o ON o.fund_entity_id = h.fund_entity_id
-        WHERE h.id::text = %s AND o.instrument_id IS NOT NULL"""
+        WHERE h.id = %s AND o.instrument_id IS NOT NULL""",
+    int_id=True,
 )
 _GPU_INSTRUMENTS_FOR_ALL = via(
     """SELECT DISTINCT subject_id FROM fact_current
@@ -314,7 +319,7 @@ _INSTRUMENT_EXPOSED_SITES = via(
           AND f.status IN ('published', 'superseded') AND e->>'role' = 'Tenant'"""
 )
 _HOLDING_SITE = via(
-    "SELECT i.site_slug FROM holding h JOIN instrument i ON i.id = h.instrument_id WHERE h.id::text = %s"
+    "SELECT i.site_slug FROM holding h JOIN instrument i ON i.id = h.instrument_id WHERE h.id = %s", int_id=True
 )
 _ENTITY_LINKED_SITES = via(
     """SELECT DISTINCT jsonb_array_elements_text(value) FROM fact
@@ -376,7 +381,7 @@ _OBLIGATION_PLANTS = via(
 def _install_facility_deps() -> None:
     _many("site", ("plant_row", "plant_detail"), _SITE_PLANTS)
     _many("instrument", ("plant_row", "plant_detail"), _INSTRUMENT_PLANTS)
-    _many("building", ("plant_detail",), _BUILDING_PLANTS)
+    _many("building", ("plant_row", "plant_detail"), _BUILDING_PLANTS)
     _many("plant", ("plant_row", "plant_detail"), _SIBLING_PLANTS)
     _many("entity", ("plant_row", "plant_detail"), _PERMIT_DOCKET_PLANTS)
     for subject_type in ("obligation", "contract"):
@@ -384,3 +389,8 @@ def _install_facility_deps() -> None:
 
 
 _install_facility_deps()
+
+
+# Payers and obligations area: its rules live in deps_payers.py (kept under the 400-line limit); imported
+# here so every writer that marks dirty sees them.
+from marden.readmodels import deps_payers as _deps_payers  # noqa: E402,F401
