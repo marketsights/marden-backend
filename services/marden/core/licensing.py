@@ -29,6 +29,15 @@ BOERSE_FRANKFURT = "Börse Frankfurt"
 YAHOO_FINANCE = "Yahoo Finance"
 
 SOURCE_LICENCE: dict[str, dict[str, str]] = {
+    "ICE Data Indices, LLC via FRED": {
+        "status": "unlicensed-commercial",
+        "note": (
+            "ICE BofA OAS indexes (BAMLH0A0HYM2 and peers) via FRED, labelled 'Copyrighted: Pre-Approval Required'. "
+            "ICE's notice: reproduction prohibited without prior written permission; values for internal use only. "
+            "Collected by the business owner's decision (2026-10-21) as model inputs only, never displayed "
+            "(display_allowed = false). Licensed route: ICE Data Indices permission or a direct licence."
+        ),
+    },
     FINRA_TRACE: {
         "status": "unlicensed-commercial",
         "note": (

@@ -14,9 +14,10 @@ TERMS (checked 2026-10-21): every one of these series is labelled "Copyrighted: 
 Required" on FRED, and FRED's legal page says such series "may only be used for non-commercial
 educational or personal use. For any other use, you must obtain permission from the copyright
 holder"; FRED allows internal commercial use only for Public Domain and Citation Required series.
-Marden is a commercial product, so the source is declared blocked until ICE Data Indices grants
-written permission (or Marden licenses the indices from ICE). While blocked, a run makes no
-request, writes nothing and records the block on the source. Cadence: daily 18:00 ET.
+Marden is a commercial product; per the business owner's decision (2026-10-21) the series are collected
+anyway as model inputs, never displayed (display_allowed = false), and flagged unlicensed-commercial in
+marden.core.licensing until ICE Data Indices grants written permission or Marden licenses the indices.
+Cadence: daily 18:00 ET.
 `python -m marden collect fred`.
 """
 
@@ -83,16 +84,10 @@ TERMS_NOTE = (
     "contact the data owner to obtain permission.\" If permitted: model input only, never displayed or "
     "furnished to users (fact display_allowed = false); 1 request/second."
 )
-BLOCKED_REASON = (
-    "ICE BofA OAS series are 'Copyrighted: Pre-Approval Required' on FRED: commercial use, including internal "
-    "model inputs for Marden's priced output, needs ICE Data Indices' prior written permission (FRED allows "
-    "internal commercial use only for Public Domain and Citation Required series). Unblock once ICE grants "
-    "permission or the indices are licensed from ICE."
-)
-
 SOURCE = declare_source(
-    SOURCE_ID, "ICE BofA indices via FRED", "api", "https://fred.stlouisfed.org", 24 * 60, TERMS_NOTE,
-    blocked=True, blocked_reason=BLOCKED_REASON,
+    SOURCE_ID, "ICE BofA indices via FRED", "api", "https://fred.stlouisfed.org", 24 * 60,
+    TERMS_NOTE + " Decision 2026-10-21: the business owner chose to collect these as model inputs (not displayed), "
+    "licence-flagged unlicensed-commercial in marden.core.licensing.",
 )
 http.set_rate_limit(CSV_HOST, 1.0)
 http.set_rate_limit(API_HOST, 1.0)
@@ -251,6 +246,6 @@ def collect_task(timestamp: int | None = None) -> dict[str, Any]:
     return run()
 
 
-@cli.action("collect", "fred", help="ICE BofA OAS indexes via FRED (blocked pending ICE permission)")
+@cli.action("collect", "fred", help="ICE BofA OAS indexes via FRED (model input only; unlicensed-commercial)")
 def collect_cli(args: argparse.Namespace) -> int:
     return print_stats(run())

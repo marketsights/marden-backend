@@ -14,7 +14,6 @@ from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-import httpx
 import pytest
 
 from marden import cli
@@ -73,23 +72,15 @@ def test_ice_terms_are_quoted_from_the_series_page_and_fred_legal():
     assert SECRET not in PUBLIC.api_url and PUBLIC.api_url.endswith("&observation_start=2026-08-01")
 
 
-def test_blocked_source_makes_no_request_and_writes_nothing(committed):
-    calls: list[httpx.Request] = []
+def test_ice_source_is_collected_and_licence_flagged():
+    from marden.core.licensing import SOURCE_LICENCE, is_unlicensed
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request)
-        return httpx.Response(500)
-
-    out = fred.run(fetcher=Fetcher(client=httpx.Client(transport=httpx.MockTransport(handler))))
-    assert out["ok"] is False and out["error"].startswith("SourceBlocked")
-    assert calls == []
-    src = committed.execute(
-        "SELECT blocked, blocked_reason, last_error FROM source WHERE id = 'fred_ice_bofa'").fetchone()
-    assert src["blocked"] is True and "Pre-Approval Required" in src["blocked_reason"]
-    assert "SourceBlocked" in src["last_error"]
-    assert committed.execute("SELECT ok FROM source_run WHERE source_id = 'fred_ice_bofa'").fetchone()["ok"] is False
-    assert committed.execute("SELECT count(*) AS n FROM document").fetchone()["n"] == 0
-    assert committed.execute("SELECT count(*) AS n FROM fact").fetchone()["n"] == 0
+    assert not fred.SOURCE.blocked  # the business owner's decision (2026-10-21), recorded in the terms note
+    assert "business owner" in fred.SOURCE.terms_note and "Pre-Approval Required" in fred.SOURCE.terms_note
+    names = {s.source_name for s in fred.ICE_SERIES}
+    assert names == {"ICE Data Indices, LLC via FRED"}
+    assert all(is_unlicensed(n) for n in names)
+    assert SOURCE_LICENCE["ICE Data Indices, LLC via FRED"]["status"] == "unlicensed-commercial"
 
 
 def test_load_writes_values_and_licence_facts_once(committed):
