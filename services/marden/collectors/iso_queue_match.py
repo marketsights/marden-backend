@@ -41,22 +41,24 @@ STATE_NAMES = {
 }
 STATE_CODES = frozenset(STATE_NAMES.values())
 
+# Legal-form words, dropped everywhere.
+LEGAL = frozenset(re.findall(r"\S+", "llc l c inc corp corporation co company lp llp ltd limited plc the of and a an"))
 # Words that say nothing about which project it is.
-STOP = frozenset("""
-llc l l c inc corp corporation co company lp llp ltd limited plc holdings holding holdco the of and a an
-project projects campus campuses data center centers centre dc compute computing digital energy energies
-power generation generating station facility facilities phase i ii iii iv v vi spv jv joint venture issuer
-co-issuer managing construction entity entities site sites investor investors operating operations
-development developers developer infrastructure partners group solutions technologies technology services
-load interconnection request new expansion mw kv substation borrower facility presumed reported likely
-""".split())
-# A single remaining word must be at least this long and not a common place or resource word.
+STOP = LEGAL | frozenset(re.findall(r"\S+", """
+holdings holding holdco project projects campus campuses data center centers centre dc compute computing
+digital energy energies power generation generating station facility facilities phase i ii iii iv v vi spv
+jv joint venture issuer managing construction entity entities site sites investor investors operating
+operations development developers developer infrastructure partners group solutions technologies technology
+services load interconnection request new expansion mw kv substation borrower presumed reported likely
+"""))
+# A single remaining word must be at least this long and not a common place, resource or English word.
 MIN_SINGLE = 4
-COMMON_SINGLE = frozenset("""
+COMMON_SINGLE = frozenset(re.findall(r"\S+", """
 lake river creek north south east west central county city town valley ridge hill hills park point
 solar wind storage battery gas hydro nuclear coal green blue red white black gold silver star sun
-united american national first texas ohio virginia york state states road highway
-""".split())
+united american national first texas ohio virginia york state states road highway primary related
+applied stack flash core cloud capital edge global prime summit pioneer frontier liberty eagle
+"""))
 
 
 def tokens(text: Any) -> list[str]:
@@ -66,21 +68,27 @@ def tokens(text: Any) -> list[str]:
     return re.findall(r"[a-z0-9]+", s)
 
 
+def _distinctive(word: str) -> bool:
+    return len(word) >= MIN_SINGLE and word not in COMMON_SINGLE and not word.isdigit()
+
+
 def phrase(text: str) -> tuple[str, ...] | None:
-    """The distinctive words of a name, or None when nothing distinctive is left."""
-    words = tuple(t for t in tokens(text) if t not in STOP)
-    if not words:
-        return None
-    if len(words) == 1 and (len(words[0]) < MIN_SINGLE or words[0] in COMMON_SINGLE or words[0].isdigit()):
-        return None
-    return words
+    """The distinctive words of a name ('Lake Mariner Data LLC' -> lake mariner), or None. A name that
+    is one common word plus generic words keeps the generic words ('Applied Digital' -> applied digital)."""
+    raw = tuple(t for t in tokens(text) if t not in LEGAL)
+    words = tuple(t for t in raw if t not in STOP)
+    if len(words) >= 2 or (len(words) == 1 and _distinctive(words[0])):
+        return words
+    if len(words) == 1 and len(raw) >= 2 and len(words[0]) >= 3 and not words[0].isdigit():
+        return raw
+    return None
 
 
 def split_names(text: str | None) -> list[str]:
     """'Crusoe / Blue Owl' -> ['Crusoe', 'Blue Owl']; 'Project Jupiter (Stargate New Mexico)' -> both."""
     if not text:
         return []
-    parts = re.split(r"[()/;,]|\band\b|\s[-–—]\s|'", text)
+    parts = re.split(r"[()/;,]|\band\b|\s[-\u2013\u2014]\s|'", text)
     return [p.strip() for p in parts if p and p.strip()]
 
 
@@ -117,18 +125,21 @@ class Target:
 
 def make_target(
     subject_type: str, id: str, name: str, state: str | None, county: str | None,
-    names: Iterable[tuple[str | None, str]], place: str | None = None,
+    names: Iterable[tuple[str | None, str]], place: str | None = None, location: str | None = None,
 ) -> Target | None:
     """A matchable subject, or None without a US state, a county and a distinctive name. A phrase made
-    only of place words (the county, or the town in `place`, e.g. 'Childress') is not distinctive."""
+    only of place words (the county or the town in `place`, e.g. 'Childress') is not distinctive, nor
+    is a one-word phrase that appears in the subject's address text `location` (e.g. 'Dalton')."""
     places = tuple(tokens(county))
     plain = set(places) | set(tokens(place)) | set(tokens(state))
+    address = set(tokens(location))
     seen: dict[tuple[str, ...], str] = {}
     for text, origin in names:
         for part in split_names(text):
             words = phrase(part)
-            if words and words not in seen and not set(words) <= plain:
-                seen[words] = origin
+            if not words or words in seen or set(words) <= plain or (len(words) == 1 and words[0] in address):
+                continue
+            seen[words] = origin
     states = states_of(state)
     if not (states and places and seen):
         return None
@@ -142,11 +153,10 @@ def load_targets(conn: Conn) -> list[Target]:
         """SELECT s.slug, s.name, s.state, s.county, s.tracking_names,
                   coalesce(array_agg(cp.role || '|' || cp.label) FILTER (WHERE cp.label IS NOT NULL), '{}') AS parties,
                   coalesce(array_agg(e.name) FILTER (WHERE e.name IS NOT NULL), '{}') AS entity_names,
-                  coalesce((SELECT array_agg(DISTINCT a) FROM chain_party c2 JOIN entity e2 ON e2.id = c2.entity_id,
-                                   unnest(e2.aliases) a
-                            WHERE c2.site_slug = s.slug AND c2.role IN ('developer', 'tenant', 'end_user')), '{}') AS aliases,
                   (SELECT value #>> '{}' FROM fact_current f WHERE f.subject_type = 'site' AND f.subject_id = s.slug
-                     AND f.field = 'place' AND jsonb_typeof(f.value) = 'string') AS place
+                     AND f.field = 'place' AND jsonb_typeof(f.value) = 'string') AS place,
+                  (SELECT value #>> '{}' FROM fact_current f WHERE f.subject_type = 'site' AND f.subject_id = s.slug
+                     AND f.field = 'location' AND jsonb_typeof(f.value) = 'string') AS location
              FROM site s
              LEFT JOIN chain_party cp ON cp.site_slug = s.slug AND cp.role IN ('developer', 'tenant', 'end_user')
              LEFT JOIN entity e ON e.id = cp.entity_id
@@ -156,9 +166,8 @@ def load_targets(conn: Conn) -> list[Target]:
         names: list[tuple[str | None, str]] = [(r["name"], "site name")]
         names += [(t, "site tracking name") for t in r["tracking_names"]]
         names += [(p.split("|", 1)[1], f"site {p.split('|', 1)[0]}") for p in r["parties"]]
-        names += [(n, "chain party entity") for n in r["entity_names"]]
-        names += [(a, "chain party alias") for a in r["aliases"]]
-        if t := make_target("site", r["slug"], r["name"], r["state"], r["county"], names, r["place"]):
+        names += [(n, "chain party entity") for n in r["entity_names"]]  # entity aliases hold notes: not used
+        if t := make_target("site", r["slug"], r["name"], r["state"], r["county"], names, r["place"], r["location"]):
             out.append(t)
     campuses = conn.execute(
         """SELECT c.id, c.name, c.aliases, c.county, c.state,
