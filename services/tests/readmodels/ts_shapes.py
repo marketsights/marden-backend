@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from sourcing import assert_sourced
 
 REPO = Path(__file__).resolve().parents[3]
 TYPES = REPO / "handoff" / "api" / "types.ts"
@@ -25,6 +26,7 @@ GEOJSON = REPO / "apps" / "api" / "node_modules" / "@types" / "geojson" / "index
 
 def assert_matches_types(type_name: str, docs: list[Any], *, nd: tuple[str, ...] = (), element: bool = False) -> None:
     """Every doc in `docs` is a `type_name` (or, with element=True, an array of them)."""
+    assert_sourced(docs)  # hard rule 4: every value names its source
     if not (TSC.exists() and GEOJSON.exists() and TYPES.exists()):
         pytest.skip("TypeScript toolchain (apps/api/node_modules) not installed")
     with tempfile.TemporaryDirectory(prefix="marden-shape-") as tmp:

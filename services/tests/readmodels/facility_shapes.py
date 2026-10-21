@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from sourcing import assert_sourced
 from ts_shapes import GEOJSON, TSC, TYPES
 
 ND_TYPES = """
@@ -61,6 +62,7 @@ VIEW_TYPES = {
 
 def assert_shapes(checks: list[tuple[str, list[Any]]]) -> None:
     """Every doc of each (TS type expression, docs) pair has that type; one tsc run for all."""
+    assert_sourced([doc for _, docs in checks for doc in docs])  # hard rule 4: every value names its source
     if not (TSC.exists() and GEOJSON.exists() and TYPES.exists()):
         pytest.skip("TypeScript toolchain (apps/api/node_modules) not installed")
     lines = [f"import type * as T from {json.dumps(str(TYPES.with_suffix('')))};", ND_TYPES]

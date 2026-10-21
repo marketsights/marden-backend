@@ -24,7 +24,7 @@ Re-run with Workflow({scriptPath, resumeFromRunId}) so finished agents replay fr
 | marden-product-access-and-ercot | wf_5a24c3b6-9b2 | ercot:prices, ercot:gis, review |
 | marden-collectors-a | wf_c66027de-835 | collectors review |
 | marden-market-price-pulls | wf_af9f5953-8a8 | review; then run legacy_trace/legacy_frankfurt/legacy_yahoo on the main DB |
-Known open items from the reports: FRED ICE BofA series blocked pending ICE permission (Treasury + SOFR loaded);
+Known open items from the reports: FRED ICE BofA series collected by owner decision but FRED was in maintenance on 2026-10-21 (retry scheduled); Treasury + SOFR loaded;
 tests/test_worker.py needs updating for the new models.* and collect.* tasks; Yahoo robots.txt disallows all (owner decision covers it);
 API should return 404 (not 503) for collateral on non-GPU instruments.
 
@@ -37,6 +37,7 @@ API should return 404 (not 503) for collateral on non-GPU instruments.
 | marden-readiness-a | wf_2ca3d0cf-311 | org roles Marden-owned (no Clerk roles; admins can't change owners); resolve the 7 grid-region review items |
 | marden-data-gaps | wf_5fca7cc9-15c | power-plant locations/county/EIA match (all 74 had none), plant air permits from state records, dc lastChange ordering bug, favicon |
 Shared local dev servers: API :4000 (dev auth), web :3000. FRED was in maintenance at 18:14 UTC; retry scheduled 20:16 UTC (ICE BofA OAS needed by the tier curves).
+Done: structured collectors reviewed (wf_c66027de-835): all 11 idempotent on a second live run; N-PORT 22,720 holdings; new index 20261021200000_fact_subject_known (lookups 157 ms -> 0.26 ms); FERC retries Cloudflare 52x; N-PORT fx_convention now tag M.
 Done: live updates (patchOn/mergeOn, structural sharing; e2e/live-updates.mjs; 23/23 screens load real data or an honest not-built state).
 Done: per-product access + ERCOT prices/load zones + ERCOT GIS from MIS (wf_5a24c3b6-9b2, reviewed). Decided: trial orgs get no product until staff grant it; one shared permission list is fine until a second product ships.
 Done since the table below: price pulls reviewed and fixed (commit 454271d); FRED ICE series unblocked (7ef0e37). Open: clean Yahoo duplicates and the 107 intraday TRACE rows in the main DB after the price model run; rotate the Neon app_rw password (it was printed into a local agent log).

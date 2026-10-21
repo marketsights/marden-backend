@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from facility_shapes import ND_TYPES as FACILITY_ND  # the embedded plant row's n/d allowances
+from sourcing import sourcing_problems
 
 REPO = Path(__file__).resolve().parents[3]
 CONTRACTS = REPO / "apps" / "api" / "src" / "contracts"
@@ -70,7 +71,11 @@ def available() -> bool:
 
 
 def check(docs: list[tuple[str, Any]], *, exact: bool = False) -> str:
-    """tsc's errors for (view, doc) pairs ('' when every doc matches its view's type)."""
+    """tsc's errors for (view, doc) pairs ('' when every doc matches its view's type), after any Sourced
+    value without its source (hard rule 4)."""
+    unsourced = [p for view, doc in docs for p in sourcing_problems(doc, view)]
+    if unsourced:
+        return "Sourced values without their source:\n" + "\n".join(unsourced[:40])
     with tempfile.TemporaryDirectory(prefix="marden-site-shape-") as tmp:
         base = Path(tmp)
         lines = [

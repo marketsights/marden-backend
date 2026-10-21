@@ -18,6 +18,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from sourcing import sourcing_problems
+
 REPO = Path(__file__).resolve().parents[3]
 CONTRACTS = REPO / "apps" / "api" / "src" / "contracts"
 TSC = REPO / "apps" / "api" / "node_modules" / ".bin" / "tsc"
@@ -38,7 +40,11 @@ def available() -> bool:
 
 
 def check(docs: list[tuple[str, Any]]) -> str:
-    """'' when every (type expression, document) pair type-checks, else the compiler's messages."""
+    """'' when every (type expression, document) pair type-checks, else the compiler's messages (or the
+    Sourced values without their source, hard rule 4)."""
+    unsourced = [p for typ, doc in docs for p in sourcing_problems(doc, typ)]
+    if unsourced:
+        return "Sourced values without their source:\n" + "\n".join(unsourced[:40])
     with tempfile.TemporaryDirectory(prefix="marden-monitor-shape-") as tmp:
         base = Path(tmp)
         lines = [f"import type * as T from {json.dumps(str(CONTRACTS / 'types'))};",

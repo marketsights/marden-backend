@@ -187,9 +187,8 @@ def unit_statements(text: str, *, limit: int = 12) -> list[dict[str, Any]]:
             "rating_mw_each": float(mw.group(1)) if mw and each else None,
             "rating_mw": float(mw.group(1)) if mw and not each else None,
         })
-    kept = _fold(out)
-    kept.sort(key=lambda u: (u["model"] is None, u["count"] is None, kept.index(u)))  # stated model and count first
-    return kept[:limit]
+    ranked = sorted(enumerate(_fold(out)), key=lambda iu: (iu[1]["model"] is None, iu[1]["count"] is None, iu[0]))
+    return [u for _, u in ranked][:limit]  # statements naming the model and the count first
 
 
 def _fold(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
