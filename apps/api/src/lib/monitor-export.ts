@@ -58,7 +58,7 @@ export function modelExportRow(m: ModelRow): Row {
     version: m.version,
     builtFrom: m.builtFrom,
     cadence: m.cadence,
-    lastRun: m.lastRun ?? 'not run yet',
+    lastRun: m.lastRun || 'not run yet',
     model: m.model,
     method: m.methodUrl ?? ND,
   };

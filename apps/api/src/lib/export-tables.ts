@@ -17,6 +17,7 @@ import { gpuDeploymentRows, gpuModelPartRows, gpuModelRows, gpuProviderRows } fr
 import { loadGpuModel } from './gpu-model-doc.js';
 import { filterLeases, leaseExportRow } from './lease-filters.js';
 import { completionExportRow, sitesExportRow } from './list-export.js';
+import { modelExportRow, riskListExportRow, trackCaseExportRow } from './monitor-export.js';
 import { first, isoDate, type Query } from './params.js';
 import { filterPayers, payerIndexRow, payerSiteRows } from './payer-filters.js';
 import type { RowViewDef } from './row-query.js';
@@ -69,7 +70,7 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     const asked = isoDate(ctx.q, 'week');
     const week = asked ? mondayOf(asked) : await ctx.db.latestKey('risk_list', ctx.asOf);
     if (!week) throw notReady('risk_list', 'latest');
-    return { view: 'risk_list', asOf: week, rows: asRows((await doc<RiskList>(ctx, 'risk_list', week)).rows) };
+    return { view: 'risk_list', asOf: week, rows: (await doc<RiskList>(ctx, 'risk_list', week)).rows.map(riskListExportRow) };
   },
   // The index's columns for the filtered rows (?kind=&risk=), as on screen (spec 24).
   payers: async (ctx) => {
@@ -133,14 +134,15 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     if (table === null) throw notReady('model:stress', request.scenario);
     return { view: 'model:stress', asOf: table.asOf, rows: table.rows };
   },
-  // Track record (spec 12): the backtest's cases, the models table and the collector heartbeats, as on screen.
+  // Track record (spec 12): the backtest's cases, the models table and the collector heartbeats, in the
+  // screen's columns and order (lib/monitor-export.ts).
   'track-record': async (ctx) => {
     const d = await doc<TrackRecord>(ctx, 'track_record', 'all');
-    return { view: 'track_record', asOf: d.asOf, rows: asRows(d.cases) };
+    return { view: 'track_record', asOf: d.asOf, rows: d.cases.map(trackCaseExportRow) };
   },
   models: async (ctx) => {
     const d = await doc<TrackRecord>(ctx, 'track_record', 'all');
-    return { view: 'track_record', asOf: d.asOf, rows: asRows(d.models) };
+    return { view: 'track_record', asOf: d.asOf, rows: d.models.map(modelExportRow) };
   },
   sources: async (ctx) => {
     const health = await sourcesHealth(ctx.db, ctx.asOf);
