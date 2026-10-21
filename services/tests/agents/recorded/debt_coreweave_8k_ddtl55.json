@@ -24,22 +24,6 @@
     "subject_kind": "instrument",
     "subject_name": "DDTL 5.5 Facility",
     "subject_identifier": null,
-    "field": "closing_date",
-    "value_number": null,
-    "value_text": null,
-    "value_date": "2026-08-07",
-    "value_bool": null,
-    "value_json": null,
-    "as_of": null,
-    "quote": "On August 7, 2026, CoreWeave Financing DDTL V-V, LLC (the “Borrower”)",
-    "page": 1,
-    "confidence": 0.9,
-    "note": null
-   },
-   {
-    "subject_kind": "instrument",
-    "subject_name": "DDTL 5.5 Facility",
-    "subject_identifier": null,
     "field": "borrower",
     "value_number": null,
     "value_text": "CoreWeave Financing DDTL V-V, LLC",
@@ -50,6 +34,22 @@
     "quote": "CoreWeave Financing DDTL V-V, LLC (the “Borrower”)",
     "page": 1,
     "confidence": 0.95,
+    "note": null
+   },
+   {
+    "subject_kind": "instrument",
+    "subject_name": "DDTL 5.5 Facility",
+    "subject_identifier": null,
+    "field": "closing_date",
+    "value_number": null,
+    "value_text": null,
+    "value_date": "2026-08-07",
+    "value_bool": null,
+    "value_json": null,
+    "as_of": null,
+    "quote": "On August 7, 2026, CoreWeave Financing DDTL V-V, LLC (the “Borrower”)",
+    "page": 1,
+    "confidence": 0.9,
     "note": null
    },
    {
@@ -104,22 +104,6 @@
     "subject_kind": "instrument",
     "subject_name": "DDTL 5.5 Facility",
     "subject_identifier": null,
-    "field": "use_of_proceeds",
-    "value_number": null,
-    "value_text": "primarily to finance capital expenditures required to perform certain customer contracts, including the acquisition of GPU servers and related infrastructure",
-    "value_date": null,
-    "value_bool": null,
-    "value_json": null,
-    "as_of": null,
-    "quote": "was entered into primarily to finance capital expenditures required to perform certain customer contracts, including the acquisition of GPU servers and related infrastructure.",
-    "page": 1,
-    "confidence": 0.9,
-    "note": null
-   },
-   {
-    "subject_kind": "instrument",
-    "subject_name": "DDTL 5.5 Facility",
-    "subject_identifier": null,
     "field": "commitment_termination_date",
     "value_number": null,
     "value_text": null,
@@ -127,7 +111,7 @@
     "value_bool": null,
     "value_json": null,
     "as_of": null,
-    "quote": "available in one or more draws until the commitment termination date in December 2026",
+    "quote": "delayed draw term loans available in one or more draws until the commitment termination date in December 2026",
     "page": 1,
     "confidence": 0.95,
     "note": null
@@ -152,9 +136,25 @@
     "subject_kind": "instrument",
     "subject_name": "DDTL 5.5 Facility",
     "subject_identifier": null,
-    "field": "coupon_type",
-    "value_number": null,
-    "value_text": "floating",
+    "field": "coupon_spread_bp",
+    "value_number": 550,
+    "value_text": null,
+    "value_date": null,
+    "value_bool": null,
+    "value_json": null,
+    "as_of": null,
+    "quote": "for SOFR loans, Term SOFR (subject to a 0.00% floor) plus an applicable margin of 5.50% per annum",
+    "page": 1,
+    "confidence": 0.95,
+    "note": null
+   },
+   {
+    "subject_kind": "instrument",
+    "subject_name": "DDTL 5.5 Facility",
+    "subject_identifier": null,
+    "field": "sofr_floor_pct",
+    "value_number": 0,
+    "value_text": null,
     "value_date": null,
     "value_bool": null,
     "value_json": null,
@@ -184,25 +184,9 @@
     "subject_kind": "instrument",
     "subject_name": "DDTL 5.5 Facility",
     "subject_identifier": null,
-    "field": "coupon_spread_bp",
-    "value_number": 550,
-    "value_text": null,
-    "value_date": null,
-    "value_bool": null,
-    "value_json": null,
-    "as_of": null,
-    "quote": "for SOFR loans, Term SOFR (subject to a 0.00% floor) plus an applicable margin of 5.50% per annum",
-    "page": 1,
-    "confidence": 0.95,
-    "note": null
-   },
-   {
-    "subject_kind": "instrument",
-    "subject_name": "DDTL 5.5 Facility",
-    "subject_identifier": null,
-    "field": "sofr_floor_pct",
-    "value_number": 0,
-    "value_text": null,
+    "field": "coupon_type",
+    "value_number": null,
+    "value_text": "floating",
     "value_date": null,
     "value_bool": null,
     "value_json": null,
@@ -258,7 +242,7 @@
     "quote": "All obligations under the DDTL 5.5 Facility are unconditionally guaranteed by the Parent",
     "page": 1,
     "confidence": 0.85,
-    "note": "Parent is CoreWeave, Inc.; subsidiaries of Borrower also guarantee per collateral agreement"
+    "note": null
    },
    {
     "subject_kind": "instrument",
@@ -280,16 +264,16 @@
     "subject_kind": "instrument",
     "subject_name": "DDTL 5.5 Facility",
     "subject_identifier": null,
-    "field": "change_of_control",
+    "field": "use_of_proceeds",
     "value_number": null,
-    "value_text": "a change of control is an event of default",
+    "value_text": "primarily to finance capital expenditures required to perform certain customer contracts, including the acquisition of GPU servers and related infrastructure",
     "value_date": null,
     "value_bool": null,
     "value_json": null,
     "as_of": null,
-    "quote": "cross-defaults with certain other indebtedness, a change of control, and certain bankruptcy events",
+    "quote": "entered into primarily to finance capital expenditures required to perform certain customer contracts, including the acquisition of GPU servers and related infrastructure",
     "page": 1,
-    "confidence": 0.8,
+    "confidence": 0.9,
     "note": null
    }
   ],
@@ -313,12 +297,6 @@
     "role": "guarantor"
    },
    {
-    "name": "CW Financing DDTL V-V Holdco, LLC",
-    "kind": "entity",
-    "identifiers": [],
-    "role": "pledgor"
-   },
-   {
     "name": "JPMorgan Chase Bank, N.A.",
     "kind": "entity",
     "identifiers": [],
@@ -329,14 +307,8 @@
     "kind": "entity",
     "identifiers": [],
     "role": "agent"
-   },
-   {
-    "name": "MUFG Bank, Ltd.",
-    "kind": "entity",
-    "identifiers": [],
-    "role": "lender"
    }
   ],
-  "summary": "CoreWeave 8-K: $2.6B DDTL 5.5 Facility (Term SOFR+5.50%, 0% floor, matures 2031-09-01, DSCR 1.35x, parent guaranteed, secured by substantially all assets)."
+  "summary": "CoreWeave DDTL 5.5 Facility $2.6bn credit agreement terms from 8-K."
  }
 }

@@ -191,3 +191,10 @@ def stream_alert(alert_id: int, at: datetime, finding: Finding) -> dict[str, Any
     """The Alert (handoff/api/types.ts) a new alert row is served as."""
     return {"id": str(alert_id), "at": at.isoformat(), "headline": finding.headline, "tag": finding.tag,
             "ruleLabel": finding.rule_label, "refUrl": finding.ref_url, "read": False, "emailed": False}
+
+
+def row_alert(row: dict[str, Any]) -> dict[str, Any]:
+    """An alert row as the Alert the API serves (apps/api/src/queries/alerts.ts toAlert)."""
+    return {"id": str(row["id"]), "at": row["at"].isoformat(), "headline": row["headline"],
+            "tag": str(row["tag"]).strip(), "ruleLabel": row["rule_label"], "refUrl": row["ref_url"],
+            "read": row["read_at"] is not None, "emailed": row["emailed_at"] is not None}

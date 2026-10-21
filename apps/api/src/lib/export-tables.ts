@@ -1,10 +1,10 @@
 // Tables that GET /api/export/:table.xlsx can export: the same read model and filters as the
 // screen's own endpoint, without paging.
 import type {
-  CompletionResponse, InstrumentDetail, InstrumentRow, LeaseMapPage, ObligationGraph, Payer, PayerCapacity, PayersPage, RiskList,
+  CompletionResponse, GpuDeploymentPage, GpuModelDetail, InstrumentDetail, InstrumentRow, LeaseMapPage, ObligationGraph, Payer, PayerCapacity, PayersPage, RiskList,
   SiteSummary,
 } from '../contracts/types.js';
-import type { TrackRecord } from '../contracts/app.js';
+import type { GpuIndexPage, TrackRecord } from '../contracts/app.js';
 import type { Db } from '../db.js';
 import { badRequest, notFound, notReady } from '../errors.js';
 import { mondayOf } from '../queries/risk-list.js';
@@ -13,6 +13,8 @@ import { queryRows } from '../queries/rows.js';
 import { runStress, stressModelAvailable, stressRequestFromQuery, stressResultRows } from '../queries/stress.js';
 import { watchedSiteSlugs, watchRows } from '../queries/watchlist.js';
 import { filterCompletion, filterInstruments, filterObligations, filterSites, wantsWatchlist } from './doc-filters.js';
+import { gpuDeploymentRows, gpuModelPartRows, gpuModelRows, gpuProviderRows } from './gpu-export.js';
+import { filterLeases, leaseExportRow } from './lease-filters.js';
 import { completionExportRow, sitesExportRow } from './list-export.js';
 import { first, isoDate, type Query } from './params.js';
 import { filterPayers, payerIndexRow, payerSiteRows } from './payer-filters.js';
@@ -87,9 +89,29 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     const cap = await doc<PayerCapacity>(ctx, 'payer_capacity', slug);
     return { view: 'payer_capacity', asOf: ctx.asOf, rows: asRows(cap.exposed) };
   },
+  // The ranked lease table (spec 25) with the page's URL filters (?lessee=&kind=&status=&attribution=&band=&trigger=&q=).
   leases: async (ctx) => {
     const d = await doc<LeaseMapPage>(ctx, 'leases', 'all');
-    return { view: 'leases', asOf: d.asOf, rows: asRows(d.leases) };
+    return { view: 'leases', asOf: d.asOf, rows: filterLeases(d.leases, ctx.q).map(leaseExportRow) };
+  },
+  // GPU index (spec 19): today's provider prices (?model=&term=), the models table (?term=), delivered vs energized.
+  gpus: async (ctx) => {
+    const d = await doc<GpuIndexPage>(ctx, 'gpus', 'all');
+    return { view: 'gpus', asOf: d.asOf, rows: gpuProviderRows(d, ctx.q) };
+  },
+  'gpu-models': async (ctx) => {
+    const d = await doc<GpuIndexPage>(ctx, 'gpus', 'all');
+    return { view: 'gpus', asOf: d.asOf, rows: gpuModelRows(d, ctx.q) };
+  },
+  'gpu-deployment': async (ctx) => {
+    const d = await doc<GpuDeploymentPage>(ctx, 'gpu_deployment', 'all');
+    return { view: 'gpu_deployment', asOf: d.asOf, rows: gpuDeploymentRows(d) };
+  },
+  // One table of a GPU model page (?model=&part=providers|resale|facilities).
+  'gpu-model': async (ctx) => {
+    const model = first(ctx.q, 'model');
+    if (!model) throw badRequest('model is required for the gpu-model export');
+    return { view: 'gpu_model', asOf: ctx.asOf, rows: gpuModelPartRows(await doc<GpuModelDetail>(ctx, 'gpu_model', model), ctx.q) };
   },
   obligations: async (ctx) => {
     const d = filterObligations(await doc<ObligationGraph>(ctx, 'obligations', 'all'), ctx.q);

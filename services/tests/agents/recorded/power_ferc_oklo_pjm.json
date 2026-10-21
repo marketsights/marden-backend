@@ -17,8 +17,8 @@
     "as_of": "2026-09-24",
     "quote": "In this order, we deny the complaint and dismiss as moot the waiver request, as discussed below.",
     "page": 1,
-    "confidence": 0.96,
-    "note": "750 MW project is mixed technology generation, not data-center load."
+    "confidence": 0.95,
+    "note": null
    }
   ],
   "subjects": [
@@ -33,12 +33,10 @@
    {
     "name": "PJM Interconnection, L.L.C.",
     "kind": "entity",
-    "identifiers": [
-     "EL26-101-000"
-    ],
+    "identifiers": [],
     "role": "respondent"
    }
   ],
-  "summary": "FERC order issued 2026-09-24 in Docket EL26-101-000 denying Oklo Inc.'s complaint against PJM and dismissing the waiver request as moot."
+  "summary": "FERC order issued 2026-09-24 denying Oklo's complaint against PJM (EL26-101-000) and dismissing the waiver request as moot. The 750 MW project is generation, not load, so it is not recorded."
  }
 }

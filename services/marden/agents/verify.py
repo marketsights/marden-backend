@@ -63,14 +63,17 @@ def describe(i: int, c: Candidate, doc: DocText) -> str:
     unit = f" ({spec.unit})" if spec.unit and spec.unit != "date" else ""
     value = json.dumps(c.value, ensure_ascii=False) if not isinstance(c.value, str) else c.value
     passage = context(doc, c.hit) if c.hit is not None else c.quote
+    note = f"\nextractor's note: {c.note}" if c.note else ""
     return (f"<fact id=\"{i}\">\nfield: {c.field}{unit} - {spec.desc}\nsubject: {c.subject_kind} "
             f"\"{c.subject_name}\"{f' ({c.subject_identifier})' if c.subject_identifier else ''}\n"
-            f"value: {value}\nas_of: {c.as_of.isoformat() if c.as_of else 'n/a'}\n"
+            f"value: {value}\nas_of: {c.as_of.isoformat() if c.as_of else 'n/a'}{note}\n"
             f"quoted: \"{c.quote}\"\n<passage>\n{passage}\n</passage>\n</fact>")
 
 
-def request(group: list[Candidate], doc: DocText, job_id: int | None, sha: str | None, n: int) -> LlmRequest:
-    body = "\n\n".join(describe(i, c, doc) for i, c in enumerate(group))
+def request(group: list[Candidate], doc: DocText, job_id: int | None, sha: str | None, n: int,
+            header: str = "") -> LlmRequest:
+    body = "\n\n".join([header, *(describe(i, c, doc) for i, c in enumerate(group))] if header else
+                       [describe(i, c, doc) for i, c in enumerate(group)])
     return LlmRequest(agent="verifier", role="verifier", system=SYSTEM, tool=tool(), content=[body],
                       max_tokens=8000, job_id=job_id, document_sha256=sha, section=f"verify:{n}")
 
@@ -87,13 +90,17 @@ def apply(group: list[Candidate], out: dict[str, Any] | None) -> None:
         c.corrected_value = (str(v["corrected_value"])[:500] if v.get("corrected_value") else None)
 
 
-def verify(llm: Llm, cands: list[Candidate], doc: DocText, job_id: int | None, sha: str | None) -> bool:
-    """Set verdicts on candidates that passed the hard code checks. False while results are pending."""
+def verify(llm: Llm, cands: list[Candidate], doc: DocText, job_id: int | None, sha: str | None,
+           header: str = "") -> bool:
+    """Set verdicts on candidates that passed the hard code checks. False while results are pending.
+
+    `header` says what the document is (type, title, its own date), so a date that is the document's own
+    date (a press release's dateline) can be judged."""
     todo = [c for c in cands if not c.hard_fail]
     complete = True
     for n, start in enumerate(range(0, len(todo), GROUP)):
         group = todo[start:start + GROUP]
-        res = llm.call(request(group, doc, job_id, sha, n))
+        res = llm.call(request(group, doc, job_id, sha, n, header))
         if res is None:
             complete = False
             continue

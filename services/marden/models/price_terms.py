@@ -99,20 +99,33 @@ class Instrument:
 def build_terms(inst: Instrument) -> tuple[Terms | None, list[str]]:
     missing: list[str] = []
     notes: list[str] = []
-    maturity, note = parse_maturity(inst.value("maturity"))
+    # A term the instrument has only as a model value (tag M: the legacy research archive's record, no
+    # source document) gives way to the issue comp's sourced terms; when it is still used, the basis says so.
+    legacy = {f for f in ("maturity", "coupon", "coupon_type", "coupon_rate_pct", "coupon_spread_bp")
+              if (r := inst.facts.get(f)) is not None and str(r["tag"]).strip() == "M"}
+    used_legacy: set[str] = set()
+    maturity, note = (None, None) if "maturity" in legacy and inst.comp else parse_maturity(inst.value("maturity"))
     if maturity is None and inst.comp is not None:
         maturity, note = parse_maturity(inst.comp.get("maturity"))
         if maturity is not None:
             notes.append("maturity from the issue comp")
+    if maturity is None and "maturity" in legacy:
+        maturity, note = parse_maturity(inst.value("maturity"))
+    if maturity is not None and "maturity" in legacy and "maturity from the issue comp" not in notes:
+        used_legacy.add("maturity")
     if note:
         notes.append(note)
     if maturity is None:
         missing.append(f"instrument {inst.id}: maturity")
-    text = inst.value("coupon")
+    coupon_fields = {"coupon", "coupon_type", "coupon_rate_pct", "coupon_spread_bp"} & set(inst.facts)
+    comp_coupon = inst.comp is not None and (inst.comp.get("coupon_pct") is not None
+                                             or _FLOAT.search(str(inst.comp.get("rate") or "")) is not None)
+    use_own = not (coupon_fields and coupon_fields <= legacy and comp_coupon)
+    text = inst.value("coupon") if use_own else None
     text = text if isinstance(text, str) else ""
-    ctype = inst.value("coupon_type")
-    rate = _num(inst.value("coupon_rate_pct"))
-    margin = _num(inst.value("coupon_spread_bp"))
+    ctype = inst.value("coupon_type") if use_own else None
+    rate = _num(inst.value("coupon_rate_pct")) if use_own else None
+    margin = _num(inst.value("coupon_spread_bp")) if use_own else None
     fm = _FLOAT.search(text)
     if margin is None and fm:
         margin = float(fm.group(1)) * (1.0 if (fm.group(2) or "%").lower() == "bp" else 100.0)
@@ -142,6 +155,11 @@ def build_terms(inst: Instrument) -> tuple[Terms | None, list[str]]:
     if missing:
         return None, missing
     assert maturity is not None and ctype is not None
+    if use_own:
+        used_legacy |= legacy & coupon_fields
+    if used_legacy:
+        notes.append(f"{', '.join(sorted(used_legacy))} from the legacy research archive only (tag M, no source "
+                     "document)")
     freq = 2 if ctype == "fixed" else 4
     return Terms(inst.id, maturity, ctype, rate if ctype == "fixed" else None,
                  margin if ctype == "floating" else None, freq, tuple(notes)), []
@@ -169,8 +187,13 @@ def load_instruments(conn: Conn, ids: Sequence[str] | None = None, *, issuers: S
     # was compiled, 2026-10-20) and count as public from the instrument's issue date: `note_terms`.
     with pit.unaudited():
         rows = pit.fact_rows(conn, business_today(), "instrument", list(out), TERM_FIELDS)
+    grouped: dict[tuple[str, str], list[Row]] = {}
     for r in rows:
-        out[r["subject_id"]].facts.setdefault(r["field"], r)
+        grouped.setdefault((r["subject_id"], r["field"]), []).append(r)
+    for (iid, fld), rs in grouped.items():  # fact_asof precedence: a filed or reported value over a model one
+        best = pit.current_of(rs)
+        if best is not None:
+            out[iid].facts[fld] = best
     return out
 
 
@@ -203,6 +226,7 @@ def load_comps(conn: Conn, as_of: date) -> list[dict[str, Any]]:
         c = comps.setdefault(r["subject_id"], {"id": r["subject_id"], "source_name": r["source_name"],
                                                 "source_url": r["source_url"]})
         c.setdefault(r["field"], r["value"])
+        c.setdefault(f"{r['field']}:tag", r["tag"].strip())
     out = []
     for c in comps.values():
         terms = c.get("deal_terms") if isinstance(c.get("deal_terms"), dict) else {}
@@ -214,6 +238,7 @@ def load_comps(conn: Conn, as_of: date) -> list[dict[str, Any]]:
         m = _ISSUED_AT.search(rate_text)
         out.append({
             "id": c["id"], "issue_date": issue, "issue_spread_bp": _num(c.get("issue_spread_bp")),
+            "issue_spread_tag": c.get("issue_spread_bp:tag"),
             "tier": (c.get("tier") or {}).get("code") if isinstance(c.get("tier"), dict) else c.get("tier"),
             "type_code": terms.get("type_code"), "site_slug": terms.get("site_slug"), "rate": rate_text,
             "coupon_pct": _num(terms.get("coupon_pct")), "maturity": terms.get("maturity"),

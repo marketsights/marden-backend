@@ -78,9 +78,10 @@ class Scenario:
     basis: dict[str, Any] = field(default_factory=dict)
 
 
-def _r5(book: Book) -> float:
+def _r5(book: Book) -> float | None:
+    """The 5-year Treasury par yield on the run day (None without a curve: never an assumed rate)."""
     curve = book.ctx.book.curve(book.day)
-    return curve.par_yield(5.0) / 100.0 if curve else 0.04
+    return curve.par_yield(5.0) / 100.0 if curve else None
 
 
 def equity_multiplier(conn: Conn, book: Book, entity_id: str, loss_usd: float) -> tuple[float | None, dict, list]:
@@ -98,6 +99,8 @@ def equity_multiplier(conn: Conn, book: Book, entity_id: str, loss_usd: float) -
     s = eq.closes[d]
     s_after = max(s - loss_usd / float(shares["value"]), 0.01 * s)
     r = _r5(book)
+    if r is None:
+        return None, {}, [*missing, f"series ust_par_5y: no Treasury curve public on {book.day}"]
     before, after = (price_equity.creditgrades_spread(x, dps[0], sigma, r) for x in (s, s_after))
     if not (before > 0 and after > 0) or math.isnan(before) or math.isnan(after):
         return None, {}, [*missing, f"entity {entity_id}: CreditGrades spread undefined"]

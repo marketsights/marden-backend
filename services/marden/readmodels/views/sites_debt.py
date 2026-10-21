@@ -121,9 +121,29 @@ def lenders(conn: Conn, slug: str) -> list[Doc]:
             name = bdc.get("name") if isinstance(bdc, dict) else bdc
             if name:
                 out.append({"name": str(name), "role": with_value(row, "BDC holder"), "share": nd("F")})
+    if not out:
+        out = tranche_holders(conn, slug)
     if not out and (row := facts.get("lenders")) and isinstance(row["value"], str):
         out.append({"name": row["value"], "role": with_value(row, "Lenders"), "share": nd("F")})
     return out
+
+
+def tranche_holders(conn: Conn, slug: str) -> list[Doc]:
+    """Who holds each debt tranche as the case research's tranche summary words it ('JPMorgan, MUFG,
+    PGIM +5 lenders'), one row per holder text with the tranches it holds; equity and tranches with
+    no holder yet ('None; not yet raised') are left out."""
+    row = known_facts(conn, "site", slug, ["tranche_summary"]).get("tranche_summary")
+    if row is None or not isinstance(row["value"], list):
+        return []
+    rows: dict[str, list[str]] = {}
+    for item in row["value"]:
+        if not isinstance(item, dict) or "equity" in str(item.get("seniority") or item.get("tranche") or "").lower():
+            continue
+        holder = str(item.get("holders") or "").strip()
+        if holder and not holder.lower().startswith(("none", "n/d")):
+            rows.setdefault(holder, []).append(str(item.get("tranche") or "debt"))
+    return [{"name": holder, "role": with_value(row, f"Holds the {', '.join(tranches)}"), "share": nd("F")}
+            for holder, tranches in rows.items()]
 
 
 def _money_b(value: Any) -> str | None:

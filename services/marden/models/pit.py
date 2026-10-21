@@ -93,6 +93,13 @@ def note(kind: str, subject: str, field: str, record_date: date | datetime, publ
     used.append(Input(kind, subject, field, rd, pub, source or "", basis))
 
 
+def note_outputs(model: str, subject_type: str, rows: Sequence[Row]) -> None:
+    """Record stored model outputs read directly (rows with subject_id, as_of, version)."""
+    for r in rows:
+        note("model_output", f"{subject_type}:{r['subject_id']}", model, r["as_of"], r["as_of"],
+             f"model {model} {r.get('version') or ''}".strip())
+
+
 def late_inputs(used: Sequence[Input], as_of: date | str) -> list[Input]:
     """The inputs that were not yet public on `as_of` (a backtest must have none)."""
     day = date.fromisoformat(as_of) if isinstance(as_of, str) else as_of

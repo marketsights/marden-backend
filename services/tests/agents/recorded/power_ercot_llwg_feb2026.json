@@ -18,7 +18,7 @@
     "quote": "Of the 8876 MW that have received Approval to Energize, ERCOT has observed a non-simultaneous monthly peak consumption of",
     "page": 1,
     "confidence": 0.85,
-    "note": "MW approved to energize. Observation month printed as February 2025 in a report dated 2026-03; possible typo, quoted as written."
+    "note": "MW approved to energize; report is the February 2026 TAC report but observation month is printed as February 2025 (as written)."
    }
   ],
   "subjects": [
@@ -26,9 +26,9 @@
     "name": "ERCOT",
     "kind": "entity",
     "identifiers": [],
-    "role": "ISO"
+    "role": "utility"
    }
   ],
-  "summary": "ERCOT February TAC large-load report: 8876 MW have received Approval to Energize. Observed non-simultaneous peak was 3998 MW and simultaneous peak was 3846 MW, both printed as February 2025, which may be a typo. Only the 8876 MW figure is recorded as a fact."
+  "summary": "ERCOT TAC report: 8876 MW approved to energize; observed peaks are printed as February 2025."
  }
 }

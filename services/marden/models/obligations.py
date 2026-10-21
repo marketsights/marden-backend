@@ -110,18 +110,26 @@ def _funding_gap(owes: list[graph.Edge], fin: Financials, day: date) -> tuple[li
     missing = []
     if ocf is None:
         missing.append(f"entity {fin.entity_id}: operating cash flow (SEC XBRL; private companies file none)")
+    if cash is None:
+        missing.append(f"entity {fin.entity_id}: cash on hand (SEC XBRL): {day.year} funding and gap n/d")
+    unsized = [e.id for e in owes if e.pays and not e.schedule()]
+    if unsized:  # their payments are unknown, so every year's committed total is incomplete: gap n/d
+        missing.append(f"entity {fin.entity_id}: {len(unsized)} owed contracts with no payment schedule "
+                       f"({', '.join(unsized[:4])}): committed totals are the scheduled part only, gap n/d")
     rows = []
     for year in range(day.year, day.year + GAP_YEARS):
         committed = sum(u for e in owes if (u := e.annual_usd(year)) is not None)
         if not committed or ocf is None:
             continue
-        funded = ocf.usd + (cash.usd if cash is not None and year == day.year else 0.0)
+        first = year == day.year
+        funded = ocf.usd + (cash.usd if cash is not None and first else 0.0)
+        known = not unsized and (cash is not None or not first)
         rows.append(
             {
                 "year": year,
                 "committedB": round(committed / 1e9, 3),
                 "fundedB": round(funded / 1e9, 3),
-                "gapB": _m(round((committed - funded) / 1e9, 3), day),
+                "gapB": _m(round((committed - funded) / 1e9, 3) if known else None, day),
             }
         )
     basis = {

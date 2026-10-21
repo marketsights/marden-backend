@@ -38,7 +38,8 @@ from marden.core.queue import app
 from marden.core.sources import SourceSpec, upsert_spec
 
 CRON_UTC = "29 12 * * 3"  # Wednesdays 12:29 UTC
-Runner = Callable[[list[PlantProfile], Fetcher, RunStats, dict[str, Any], Callable[[list[Any]], list[Match]]], list[Match]]
+Matcher = Callable[[list[Any]], list[Match]]
+Runner = Callable[[list[PlantProfile], Fetcher, RunStats, dict[str, Any], Matcher], list[Match]]
 ADAPTERS: dict[str, tuple[SourceSpec, Runner]] = {
     "TX": (air_permits_tx.SOURCE_CR, air_permits_tx.run_tx),
     "NM": (air_permits_nm.SOURCE, air_permits_nm.run_nm),

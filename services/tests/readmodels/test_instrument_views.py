@@ -9,6 +9,7 @@ models run, the tests check that the documents show n/d (null), never a placehol
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 from typing import Any
 
@@ -17,7 +18,7 @@ from real_rows import FUND_FILINGS, copied_rows, copy_instruments
 from ts_shapes import assert_matches_types
 
 from marden.readmodels import business_today, mark_dirty_for, rebuild_all
-from marden.readmodels.views import curve, gpu_collateral, instrument_detail, instruments  # noqa: F401 (builders)
+from marden.readmodels.views import curve, gpu_collateral, instrument_detail, instrument_text, instruments  # noqa: F401 (builders)
 from marden.readmodels.views.instrument_text import DASH
 
 JUPITER, BARN, FRONTIER, ABILENE = "EX-JUPITER-190", "EX-SALINE-308", "EX-VANTAGE_ORCL-366", "EX-ABILENE-000"
@@ -204,6 +205,70 @@ def test_detail_holders_and_fund_marks_from_filings(seeded, instrument_id):
         latest = [m for m in medians if m["obs_date"] == medians[0]["obs_date"]]
         assert doc["marketCheck"]["Fund marks (median)"]["value"] in {f"{float(m['price']):.2f}" for m in latest}
         assert doc["marketCheck"]["Fund marks (median)"]["tag"] == "F"
+
+
+def test_fund_marks_span_every_holders_last_mark(seeded):
+    """Funds' last marks = the range of the marks the mark gap averages (spec 07 Rules), not only the
+    newest filing date's: the KPI strip, the chart and the holders table read the same funds."""
+    _need(seeded, CRWV31)
+    out = _output("mark_gap", CRWV31)
+    rows = [r for r in (instrument_detail._holder(h) for h in instruments.gap_rows(out))] if out else []
+    rows = [r for r in rows if r is not None]
+    if not rows:
+        pytest.skip("no mark_gap holder rows for CoreWeave 9% 2031 in the source database")
+    rebuild_all("instrument_detail")
+    doc = _doc("instrument_detail", CRWV31)
+    marks = [r["lastMark"] for r in rows]
+    assert (doc["fundMarks"]["low"], doc["fundMarks"]["high"]) == (round(min(marks), 4), round(max(marks), 4))
+    assert doc["fundMarks"]["date"] == max(r["filingDate"] for r in rows)
+    assert doc["fundMarks"]["filing"] == " and ".join(sorted({r["filing"] for r in rows}))
+    # The par-weighted average mark behind the gap lies inside the range shown.
+    gap, price = doc["markGap"], doc["mardenPrice"]["value"]
+    if isinstance(gap, dict) and gap["value"] is not None and price is not None:
+        assert doc["fundMarks"]["low"] - 1e-6 <= price - gap["value"] <= doc["fundMarks"]["high"] + 1e-6
+
+
+def test_facts_line_and_coupon_carry_the_filed_format(seeded):
+    _need(seeded, CRWV31)
+    rebuild_all("instrument_detail")
+    doc = _doc("instrument_detail", CRWV31)
+    is_144a, coupon, kind = _fact(CRWV31, "is_144a"), _fact(CRWV31, "coupon"), _fact(CRWV31, "coupon_type")
+    assert ("144A" in doc["facts"].split(" · ")) == bool(is_144a and is_144a["value"] is True)
+    if coupon and kind and kind["value"] == "fixed" and "fixed" not in coupon["value"]:
+        assert doc["terms"]["Coupon"]["value"] == f"{coupon['value']} fixed"
+        assert f"{coupon['value']} fixed" in doc["facts"]
+    maturity = _fact(CRWV31, "maturity")
+    if maturity and re.fullmatch(r"\d{4}-\d{2}", maturity["value"]):
+        words = instrument_text.date_words(maturity["value"])
+        assert words != maturity["value"] and f"matures {words}" in doc["facts"]
+        assert doc["terms"]["Maturity"]["value"] == words
+
+
+def test_market_check_carries_the_traded_yield_three_months_back(seeded):
+    """KPI strip: "Yield + level at a prior date" (spec 07) from the instrument's own TRACE history."""
+    _need(seeded, CRWV31)
+    rebuild_all("instrument_detail")
+    doc = _doc("instrument_detail", CRWV31)
+    rows = copied_rows(
+        """SELECT * FROM price_obs WHERE instrument_id = %s AND kind = ANY(%s) AND yield_pct IS NOT NULL
+            AND obs_date <= %s ORDER BY obs_date, obs_at NULLS FIRST, id""",
+        (CRWV31, list(instruments.OBSERVED_KINDS), business_today()),
+    )
+    prior = [r for r in rows if rows and r["obs_date"] <= rows[-1]["obs_date"] - timedelta(days=91)]
+    if not prior:
+        assert instrument_detail.YIELD_BEFORE not in doc["marketCheck"]
+        return
+    got = doc["marketCheck"][instrument_detail.YIELD_BEFORE]
+    assert got["value"] == f"{float(prior[-1]['yield_pct']):.2f}%"
+    assert (got["asOf"], got["tag"]) == (prior[-1]["obs_date"].isoformat(), prior[-1]["tag"].strip())
+    assert got["asOf"] < doc["yieldPct"]["asOf"]
+
+
+def test_date_words():
+    assert instrument_text.date_words("2031-02") == "Feb 2031"
+    assert instrument_text.date_words("2030-04-15") == "Apr 15, 2030"
+    assert instrument_text.date_words("2030") == "2030"
+    assert instrument_text.date_words("various") == "various"
 
 
 def test_gpu_collateral_from_the_collateral_record(seeded):

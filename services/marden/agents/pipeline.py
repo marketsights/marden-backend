@@ -122,7 +122,7 @@ def run_job(job_id: int, llm: Llm) -> JobOutcome:
             return JobOutcome(job_id, "waiting", "extract")
         set_job(job_id, stage="extracted")
         validate(cands, text)
-        if not verify.verify(llm, cands, text, job_id, doc.sha256):
+        if not verify.verify(llm, cands, text, job_id, doc.sha256, extract.doc_metadata(doc, text)):
             return JobOutcome(job_id, "waiting", "verify")
         set_job(job_id, stage="verified")
         if not link(llm, job, doc, text, cands, subjects, summary):
@@ -138,7 +138,12 @@ def run_job(job_id: int, llm: Llm) -> JobOutcome:
         return finish(job, "failed", f"{type(exc).__name__}: {exc}")
     stats["areas"] = list(route.areas)
     stats["doc_kind"] = route.doc_kind
-    stats["tokens"] = llm.budget.used
+    with db.transaction() as conn:
+        used = conn.execute(
+            """SELECT coalesce(sum(input_tokens + output_tokens + cache_read_tokens + cache_write_tokens), 0) AS n,
+                      coalesce(sum(cost_usd), 0)::float AS cost FROM agent_call WHERE job_id = %s""",
+            (job_id,)).fetchone()
+    stats["tokens"], stats["cost_usd"] = int(used["n"]), round(float(used["cost"]), 4)
     stats["summary"] = f"{stats['published']} published, {stats['review']} to review, {stats['rejected']} rejected"
     set_job(job_id, stage="published")
     state = "needs_review" if stats["review"] else "published"

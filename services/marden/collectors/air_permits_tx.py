@@ -58,6 +58,9 @@ CR_LIMIT = 5000
 CR_PAGES = 4
 PROJECTS_PER_FAMILY = 4
 NOT_PUBLIC = "tceq_not_public_html"
+GENERATION_SENTENCE = re.compile(
+    r"[^.]*\b(power plant|electric generating units?|combustion turbines?|turbines?|"
+    r"reciprocating (internal combustion )?engines?|generate (electricity|power))\b[^.]*\.", re.I)
 MAX_DOWNLOADS = 60  # per run; the rest wait for the next weekly run (stored documents are never refetched)
 TERMS_CR = (
     "Checked 2026-10-21. TCEQ Central Registry data as published by TCEQ on the Texas Open Data Portal "
@@ -360,8 +363,7 @@ def generation_from_records(f: Facility, ro: RecordsOnline) -> str | None:
     for row in sorted(rows, key=lambda r: (r.begin or date.min, r.content_id), reverse=True)[:2]:
         doc = ro.file(row, queue=False)
         body = text.squash(text.pdf_text(doc.read())) if doc else ""
-        if m := re.search(r"[^.]*\b(power plant|electric generating units?|combustion turbines?|turbines?|"
-                          r"reciprocating (internal combustion )?engines?|generate (electricity|power))\b[^.]*\.", body, re.I):
+        if m := GENERATION_SENTENCE.search(body):
             return f"TCEQ {row.title} ({row.primary}, project {row.secondary}, {row.begin}): {m.group(0).strip()}"
     return None
 

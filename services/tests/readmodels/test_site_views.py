@@ -183,10 +183,11 @@ def test_debt_tab_lists_site_debt_and_tenant_notes(sites):
         """SELECT i.id FROM instrument i JOIN fact_current f ON f.subject_type = 'instrument' AND f.subject_id = i.id
             WHERE f.field = 'exposure_links' AND i.in_v1 AND i.site_slug IS DISTINCT FROM 'jupiter'
               AND f.value @> '[{"case": "JUPITER", "role": "Tenant"}]'""")}
-    ids = [i["instrumentId"] for i in debt["instruments"]]
+    # Instruments, then the stack's equity (first loss, no instrument), then the tenant's notes.
+    ids = [i["instrumentId"] for i in debt["instruments"] if i["instrumentId"]]
     assert ids[0] == "EX-JUPITER-190" and set(ids[1:]) == tenant_notes
     tenant = copied_rows("SELECT entity_id FROM chain_party WHERE site_slug = 'jupiter' AND role = 'tenant'")[0]
-    assert {i["payerSlug"] for i in debt["instruments"][1:]} <= {tenant["entity_id"]}
+    assert {i["payerSlug"] for i in debt["instruments"][1:] if i["instrumentId"]} <= {tenant["entity_id"]}
     names = copied_rows("SELECT tracking_names FROM site WHERE slug = 'jupiter'")[0]["tracking_names"]
     assert debt["spvName"] == names[0]
     assert [c["kind"] for c in debt["capitalStack"]] == ["loan", "equity"]

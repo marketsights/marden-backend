@@ -25,7 +25,8 @@ services/             Python 3.12+ package `marden` (uv): collectors, extraction
   marden/core/        config, db, rawstore, http, facts, events, heartbeats, queue, licensing
   marden/seed/        loaders for marden_data_2026-10-20.zip (MARDEN_SEED_DIR)
   marden/collectors/  one module per source: <source>.py (fetch, store raw, parse, write)
-  marden/extraction/  document schemas, extractor + verifier (Claude API), quote checks, review routing
+  marden/agents/      document agents (Claude API): intake, router, specialist extractors with domain briefs,
+                      code validators, verifier, linker, publishing and the review queue (docs/agents.md)
   marden/models/      status rules, cushion, price, mark gap, recovery, stress, risk rank, GPU, capacity, ...
   marden/readmodels/  one builder per screen document -> read_model rows + stream events
   marden/worker.py    Procrastinate worker: task registry and periodic schedules
@@ -40,7 +41,8 @@ docs/                 this file, DATA_SOURCES.md (one-pager for fund vendor revi
 collector ──raw bytes──> rawstore + document
     │ structured sources (N-PORT XML, XBRL, EIA, ERCOT, FRED, STAC): parse in code -> facts (published) / price_obs / holding / event
     └ documents needing reading (8-K, EX-10, permits, agendas, dockets): document.extract_state='queued'
-extraction worker ──Claude API──> candidate facts with quotes -> verifier -> publish | review_item
+agents (sweep + work) ──Claude API──> router -> specialists -> code checks -> verifier -> linker -> publish | review_item
+    (uploads: POST /api/documents -> agent_upload -> raw store; staff decisions: agent_decision -> worker)
 published fact ──> read_model_dirty(view,key) + model triggers
 model worker ──> model_output (+ M facts / marden price_obs) ──> read_model_dirty
 read model builder (every 30 s for dirty keys; nightly for all) ──> read_model row ──> stream_event (NOTIFY marden_stream)

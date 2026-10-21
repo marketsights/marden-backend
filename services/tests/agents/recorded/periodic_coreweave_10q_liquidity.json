@@ -17,8 +17,8 @@
     "as_of": "2026-06-30",
     "quote": "Cash and cash equivalents $ 5,524 $ 3,127",
     "page": 1,
-    "confidence": 0.93,
-    "note": "Table in millions; registrant name not stated in excerpt."
+    "confidence": 0.9,
+    "note": "Table in millions; registrant name not printed in excerpt."
    }
   ],
   "subjects": [
@@ -29,6 +29,6 @@
     "role": "borrower"
    }
   ],
-  "summary": "Liquidity table from a 10-Q (filed 2026-08-12) shows cash and cash equivalents of $5,524 million at June 30, 2026. Total liquidity includes undrawn availability, so I did not record it as cash."
+  "summary": "Liquidity table gives cash and cash equivalents of $5,524 million at June 30, 2026. The excerpt doesn't name the registrant."
  }
 }

@@ -197,13 +197,15 @@ def prices(conn: Conn, day: date, ids: Sequence[str] | None) -> dict[str, Price]
     """The Marden price per instrument on or before `day`."""
     params = {"model": PRICE_MODEL, "day": day, "ids": None if ids is None else list(ids)}
     out: dict[str, Price] = {}
-    for r in conn.execute(
+    stored = conn.execute(
         """SELECT DISTINCT ON (subject_id) subject_id, as_of, version, output FROM model_output
             WHERE model = %(model)s AND subject_type = 'instrument' AND as_of <= %(day)s
               AND (%(ids)s::text[] IS NULL OR subject_id = ANY(%(ids)s))
             ORDER BY subject_id, as_of DESC, created_at DESC, id DESC""",
         params,
-    ).fetchall():
+    ).fetchall()
+    pit.note_outputs(PRICE_MODEL, "instrument", stored)
+    for r in stored:
         value, method, url = price_value(r["output"])
         if value is not None:
             out[r["subject_id"]] = Price(value, r["as_of"], method or f"{PRICE_MODEL} {r['version']}", url,

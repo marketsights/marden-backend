@@ -4,6 +4,7 @@ import type { LeaseMapPage, ObligationGraph } from '../contracts/types.js';
 import type { Db } from '../db.js';
 import { badRequest, notFound } from '../errors.js';
 import { filterObligations } from '../lib/doc-filters.js';
+import { leaseLocations } from '../lib/lease-locations.js';
 import { asOfOf, first, queryOf } from '../lib/params.js';
 import { ENTITY, keyed, param, serveDoc } from './serve.js';
 
@@ -25,7 +26,13 @@ export function marketRoutes(app: FastifyInstance, db: Db): void {
 
   app.get('/api/gpus/:model', async (req) => serveDoc(db, 'gpu_model', param(req, 'model'), asOfOf(req)));
 
-  app.get('/api/leases', async (req) => serveDoc(db, 'leases', 'all', asOfOf(req)));
+  // ?format=geojson: the campuses the leases sit on, for the lease map (lib/lease-locations.ts).
+  app.get('/api/leases', async (req) => {
+    const format = first(queryOf(req), 'format') ?? 'json';
+    if (format !== 'json' && format !== 'geojson') throw badRequest('format must be json or geojson');
+    const page = await serveDoc<LeaseMapPage>(db, 'leases', 'all', asOfOf(req));
+    return format === 'geojson' ? leaseLocations(db, page, asOfOf(req)) : page;
+  });
 
   // One lease from the same lease-map document, so the side panel matches the map.
   app.get('/api/leases/:id', async (req) => {

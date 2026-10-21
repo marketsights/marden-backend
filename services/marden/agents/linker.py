@@ -51,6 +51,10 @@ class Record:
 
 _index: dict[str, list[Record]] | None = None
 _index_at = 0.0
+_index_key: tuple[int, ...] | None = None
+FINGERPRINT_SQL = """SELECT (SELECT count(*) FROM entity) AS e, (SELECT count(*) FROM instrument) AS i,
+                            (SELECT count(*) FROM site) AS s, (SELECT count(*) FROM campus) AS c,
+                            (SELECT count(*) FROM power_plant) AS p"""
 
 INDEX_SQL = {
     "entity": "SELECT id, name, array_to_string(aliases, ' | ') AS extra FROM entity",
@@ -63,13 +67,15 @@ INDEX_SQL = {
 
 
 def index(refresh: bool = False) -> dict[str, list[Record]]:
-    global _index, _index_at
-    if _index is None or refresh or time.time() - _index_at > CACHE_SECONDS:
-        out: dict[str, list[Record]] = {}
-        with db.transaction() as conn:
+    """Names of every linkable record; reloaded when a table's row count changes, else every CACHE_SECONDS."""
+    global _index, _index_at, _index_key
+    with db.transaction() as conn:
+        key = tuple(conn.execute(FINGERPRINT_SQL).fetchone().values())
+        if _index is None or refresh or key != _index_key or time.time() - _index_at > CACHE_SECONDS:
+            out: dict[str, list[Record]] = {}
             for kind, sql in INDEX_SQL.items():
                 out[kind] = [Record(kind, r["id"], r["name"], r["extra"] or "") for r in conn.execute(sql).fetchall()]
-        _index, _index_at = out, time.time()
+            _index, _index_at, _index_key = out, time.time(), key
     return _index
 
 

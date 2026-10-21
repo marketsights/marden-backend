@@ -2,7 +2,8 @@
 
     alerts.scan     every minute: evaluate new triggers -> alerts + stream events, queue instant red emails,
                     send what is due (so an approved event or a model run reaches a watcher within ~1 minute)
-    alerts.digests  every 15 minutes: build the daily (07:00 ET) and weekly (Monday) digests once each, send
+    alerts.digests  every 15 minutes (07:03, 07:18, ... ET): build the daily (07:00 ET) and weekly (Monday)
+                    digests once each, send
 
     python -m marden alerts scan [--since-days 30] [--dry-run]   # backfill: alerts only, never emailed
     python -m marden alerts send | digest | status
@@ -23,7 +24,7 @@ from marden.core.queue import app
 from marden.readmodels.context import business_today
 
 SCAN_CRON = "* * * * *"
-DIGEST_CRON = "*/15 * * * *"
+DIGEST_CRON = "3,18,33,48 * * * *"  # just past each 07:00 ET cut + outbox.DIGEST_GRACE
 
 cli.group("alerts", help="Alert engine and email delivery")
 

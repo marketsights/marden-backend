@@ -6,8 +6,10 @@ issue, moving with the HY market.
 
 fit by ridge regression on the issue comps public on the run's as-of day, issued from SAMPLE_START on
 (the methodology's sample starts May 2025). Floating deals convert to a Treasury-equivalent spread with
-SOFR minus the Treasury par yield at the deal's tenor on the issue date; fixed deals carry the comp's
-yield-over-Treasury spread. The ridge shrinks each tier level toward the pooled mean (RIDGE_LEVEL deal
+SOFR minus the Treasury par yield at the deal's tenor on the issue date; fixed deals carry the yield-over-
+Treasury spread at issue, as stated (F/R) or else computed in code from the coupon, issue price and tenor
+(marden.models.issue_spreads; the legacy archive's own computed spreads, tag M, are never used).
+The ridge shrinks each tier level toward the pooled mean (RIDGE_LEVEL deal
 equivalents) and b toward the methodology's 33bp per point (RIDGE_HY). Without the HY series (FRED
 ICE BofA, unlicensed-commercial, model input only) the market term is dropped and the curve says so.
 
@@ -29,6 +31,7 @@ import numpy as np
 
 from marden.core.db import Conn
 from marden.models import pit
+from marden.models.issue_spreads import issue_spread
 from marden.models.price_curve import CurveBook
 from marden.models.status_text import BBB_MINUS, NOTCH, NOTCH_MOODYS
 
@@ -140,14 +143,17 @@ def deals(comps: Sequence[dict[str, Any]], book: CurveBook, hy: dict[date, float
         if tier is None:
             excluded.append({"id": c["id"], "why": f"type {c['type_code']} is not one of the six tiers"})
             continue
-        if c["issue_spread_bp"] is None:
-            excluded.append({"id": c["id"], "why": "no spread at issue"})
-            continue
         years = c["tenor_years"]
         if years is None or years <= 0:
             excluded.append({"id": c["id"], "why": "no tenor"})
             continue
-        spread, basis = float(c["issue_spread_bp"]), "yield over Treasuries at issue"
+        got, basis = issue_spread(c["issue_spread_bp"], c.get("issue_spread_tag"), rate_text=c["rate"],
+                                  coupon_pct=c["coupon_pct"], issue_price=c["issue_price"], tenor_years=years,
+                                  curve=None if c["benchmark"] == "SOFR" else book.curve(c["issue_date"]))
+        if got is None:
+            excluded.append({"id": c["id"], "why": f"no spread at issue: {basis}"})
+            continue
+        spread = got
         if c["benchmark"] == "SOFR":
             curve, sofr = book.curve(c["issue_date"]), book.sofr_on(c["issue_date"])
             if curve is None or sofr is None:

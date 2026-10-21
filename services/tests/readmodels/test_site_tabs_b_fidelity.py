@@ -3,7 +3,7 @@ screens show them (spec 04 / 16; screens 04e-04h), on real seeded rows copied fr
 database (site_rows).
 
 - Material events: every change of a link's status between two `status` runs is a row (link, rule
-  codes, 'Green → amber'), every material cushion move is a row (M1 / M2, 'Cushion +4 → −1 months'),
+  codes, 'Green → amber'), every material cushion move is a row (M1 / M2, 'Cushion +4 → -1 months', true minus),
   and records are one row per story, later press coverage of the same rule counted on the first report.
 - Debt: the recovery card shows the recovery model's waterfall inputs; the stack's equity is a row of
   the instruments table (first loss).
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, timedelta
+from itertools import pairwise
 from typing import Any
 
 import pytest
@@ -58,7 +59,7 @@ def test_rule_words_and_signed_months():
     assert rule_words("sev 3: Force majeure") == "Force majeure"
     assert rule_words("order denying") == "Order denying"
     assert rule_words(None) is None
-    assert signed(4) == "+4" and signed(-1) == "−1" and signed(0) == "0"
+    assert signed(4) == "+4" and signed(-1) == "\u22121" and signed(0) == "0"
 
 
 def test_every_status_change_is_a_row_with_its_rule_and_change(sites):
@@ -66,7 +67,7 @@ def test_every_status_change_is_a_row_with_its_rule_and_change(sites):
     for slug in sites:
         log = build("site_tab:events", slug)["events"]
         history = outputs("status", "site", slug)
-        for prev, cur in zip(history, history[1:], strict=False):
+        for prev, cur in pairwise(history):
             before = {link["role"]: link for link in prev["output"].get("chain") or []}
             for link in cur["output"].get("chain") or []:
                 was, now = (before.get(link["role"]) or {}).get("status"), link.get("status")
@@ -74,7 +75,8 @@ def test_every_status_change_is_a_row_with_its_rule_and_change(sites):
                     continue
                 seen += 1
                 prefix = f"{WORD[was].capitalize()} → {WORD[now]}"
-                rows = [e for e in log if e["link"] == LINK_LABEL[link["role"]] and (e["changed"] or "").startswith(prefix)
+                rows = [e for e in log if e["link"] == LINK_LABEL[link["role"]]
+                        and (e["changed"] or "").startswith(prefix)
                         and prev["as_of"].isoformat() < e["date"] <= cur["as_of"].isoformat()]
                 assert rows, (slug, link["role"], prefix, cur["as_of"])
                 codes = re.findall(r"(?:^|[.;]\s+)([EDTLM][12])\b", link.get("reason") or "")
@@ -123,7 +125,7 @@ def test_records_are_one_row_per_story_with_later_coverage_counted(sites):
         assert len(keys) == len(set(keys)), slug
         news = sorted((e for e in records if e["link"] != "Permits and power" and e["ruleHit"]
                        and "Google News" in e["sourceName"]), key=lambda e: e["date"])
-        for a, b in zip(news, news[1:], strict=False):
+        for a, b in pairwise(news):
             if a["ruleHit"] == b["ruleHit"]:
                 assert date.fromisoformat(a["date"]) + timedelta(days=30) < date.fromisoformat(b["date"]), (slug, a, b)
         for e in log:
@@ -206,3 +208,23 @@ def test_buildings_totals_are_the_header_count(sites):
         if fact:
             assert planned["value"]["value"] == fact[0]["value"]
             assert planned["value"]["tag"] == "R"
+
+
+def test_lenders_fall_back_to_the_tranche_holders_as_worded(sites):
+    for slug in sites:
+        tab = build("site_tab:debt", slug)
+        if tab is None:
+            continue
+        named = copied_rows("SELECT 1 FROM fact_current WHERE subject_type = 'site' AND subject_id = %s "
+                            "AND field = 'holders_text'", (slug,))
+        summary = copied_rows("SELECT value FROM fact_current WHERE subject_type = 'site' AND subject_id = %s "
+                              "AND field = 'tranche_summary'", (slug,))
+        if named or not summary or not isinstance(summary[0]["value"], list):
+            continue
+        expected = {str(t["holders"]).strip() for t in summary[0]["value"]
+                    if isinstance(t, dict) and t.get("holders")
+                    and "equity" not in str(t.get("seniority") or t.get("tranche") or "").lower()
+                    and not str(t["holders"]).strip().lower().startswith(("none", "n/d"))}
+        assert {lender["name"] for lender in tab["lenders"]} == expected or not expected, slug
+        for lender in tab["lenders"]:
+            assert lender["role"]["value"].startswith("Holds the ") and lender["share"]["value"] is None

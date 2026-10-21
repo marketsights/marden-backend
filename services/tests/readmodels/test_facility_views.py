@@ -220,11 +220,12 @@ def test_air_permit_fuel_supply_and_served_campus(campuses):
         """SELECT f.value FROM entity e JOIN fact_current f ON f.subject_type = 'entity'
                               AND f.subject_id = e.id AND f.field = 'status'
                              WHERE e.meta ->> 'proceeding_key' = %s""",
-        (permit["proceeding_key"],),
-    )
-    if docket and docket[0]["value"] == "PENDING":
+        (permit.get("proceeding_key"),),
+    ) if permit.get("proceeding_key") else []
+    if (docket and docket[0]["value"] == "PENDING") or permit.get("status") == "pending":
         assert frontier["airPermit"]["status"] == "Permit pending" == frontier["permit"]["status"]
-    assert frontier["permit"]["filed"] is None and frontier["permit"]["decided"] is None  # not recorded yet
+    # filed / decided as the permit record states them (the air_permits collector); n/d when it does not
+    assert frontier["permit"]["filed"] == permit.get("filed") and frontier["permit"]["decided"] == permit.get("issued")
     served = frontier["servedCampus"]
     mw = fact("campus", FRONTIER, "facility_mw")["value"]
     assert served["id"] == FRONTIER and served["facilityMw"]["value"] == mw

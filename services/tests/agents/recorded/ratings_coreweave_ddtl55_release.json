@@ -45,7 +45,7 @@
     "value_text": null,
     "value_date": null,
     "value_bool": null,
-    "value_json": "{\"agency\":\"Moody's\",\"rating\":\"Ba2\",\"outlook\":null,\"watch\":null,\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
+    "value_json": "{\"agency\":\"Moody's\",\"rating\":\"Ba2\",\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
     "as_of": "2026-08-10",
     "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
     "page": 1,
@@ -61,7 +61,7 @@
     "value_text": null,
     "value_date": null,
     "value_bool": null,
-    "value_json": "{\"agency\":\"Fitch\",\"rating\":\"BB+\",\"outlook\":null,\"watch\":null,\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
+    "value_json": "{\"agency\":\"Fitch\",\"rating\":\"BB+\",\"action\":\"assigned\",\"date\":\"2026-08-10\"}",
     "as_of": "2026-08-10",
     "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch",
     "page": 1,
@@ -74,12 +74,6 @@
     "name": "DDTL 5.5 Facility",
     "kind": "instrument",
     "identifiers": [],
-    "role": "facility"
-   },
-   {
-    "name": "CoreWeave Financing DDTL V-V, LLC",
-    "kind": "entity",
-    "identifiers": [],
     "role": "issuer"
    },
    {
@@ -87,8 +81,14 @@
     "kind": "entity",
     "identifiers": [],
     "role": "borrower"
+   },
+   {
+    "name": "CoreWeave Financing DDTL V-V, LLC",
+    "kind": "entity",
+    "identifiers": [],
+    "role": "issuer"
    }
   ],
-  "summary": "CoreWeave's $2.6B DDTL 5.5 Facility closed Aug 10, 2026 with ratings of Ba2 (Moody's) and BB+ (Fitch); no outlooks stated."
+  "summary": "CoreWeave closed $2.6B DDTL 5.5 Facility, rated Ba2 by Moody's and BB+ by Fitch."
  }
 }

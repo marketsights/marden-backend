@@ -125,6 +125,11 @@ def test_resend_sends_html_text_links_and_one_click_unsubscribe(live_alerts):
     assert row["html"] == body["html"] and row["text_body"] == body["text"] and row["attempts"] == 1
     emailed = rows("SELECT id FROM alert WHERE emailed_at IS NOT NULL")
     assert {r["id"] for r in emailed} == set(row["alert_ids"])
+    # the open screens learn the alerts were emailed: one 'alert' event each, for that user, emailed: true
+    patched = rows("""SELECT user_id, payload FROM stream_event WHERE payload->>'type' = 'alert'
+                      AND (payload->'alert'->>'emailed')::boolean ORDER BY id""")
+    assert sorted(int(p["payload"]["alert"]["id"]) for p in patched) == sorted(row["alert_ids"])
+    assert {p["user_id"] for p in patched} == {"a1"}
     assert rows("SELECT configured, provider FROM email_provider_state")[0] == {"configured": True,
                                                                                 "provider": "resend"}
 

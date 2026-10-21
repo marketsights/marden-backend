@@ -173,8 +173,11 @@ def shell_recovery(site: SiteFacts | None, comp: Comps, claims: list[Claim], ins
     if own is None or own.rank is None:
         missing.append("the instrument's rank in the site's debt (seniority)")
     claims_known = [c for c in claims if c.rank is not None]
+    unranked = sorted(c.instrument_id for c in claims if c.rank is None and c is not own)
+    if unranked:  # a claim of unknown seniority may rank ahead: the waterfall is n/d, not 'nothing ahead'
+        missing.append("seniority of other claims on the site: " + ", ".join(unranked))
     ahead = pari = None
-    if own is not None and own.rank is not None:
+    if own is not None and own.rank is not None and not unranked:
         senior = [c for c in claims_known if (c.rank or 0) < own.rank]
         same = [c for c in claims_known if c.rank == own.rank]
         if any(c.amount is None for c in senior + same):

@@ -191,12 +191,12 @@ def compute(conn: Conn, day: date) -> Batch:
             "all",
             {
                 "asOf": day.isoformat(),
-                "totals": {
-                    "disclosedB": 0.0,
+                "totals": {  # n/d (null) until the 10-K lease notes and agency triggers are collected, never 0
+                    "disclosedB": None,
                     "attributedB": round(sum(r["totalB"]["value"] or 0 for r in outstanding), 3),
-                    "unattributedB": 0.0,
-                    "attributedShare": 0.0,
-                    "triggerLeases": 0,
+                    "unattributedB": None,
+                    "attributedShare": None,
+                    "triggerLeases": None,
                     "debtExposedB": round(sum(debt.values()), 3),
                 },
                 "reconciliation": [],
@@ -209,6 +209,16 @@ def compute(conn: Conn, day: date) -> Batch:
                             for x in lessees
                         ),
                         "agency-stated downgrade triggers: headroom n/d, no trigger leases flagged",
+                        *(
+                            [f"{n} outstanding leases with total n/d: left out of attributedB"]
+                            if (n := sum(1 for r in outstanding if r["totalB"]["value"] is None)) else []
+                        ),
+                        *(
+                            [f"{n} dependent instruments with size n/d: left out of debtExposedB and priority scores"]
+                            if (n := sum(1 for r in leases for d in r["dependentDebt"]
+                                         if d["amountB"]["value"] is None))
+                            else []
+                        ),
                         "inferred leases (researcher trail): none built in v0",
                     }
                 ),

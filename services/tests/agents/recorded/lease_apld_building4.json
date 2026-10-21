@@ -31,7 +31,7 @@
     "value_bool": null,
     "value_json": null,
     "as_of": "2025-08-28",
-    "quote": "APLD ELN-02 C LLC, a Delaware limited liability",
+    "quote": "APLD ELN-02 C LLC, a Delaware limited liability\ncompany (“Landlord”)",
     "page": 1,
     "confidence": 0.95,
     "note": null
@@ -47,14 +47,14 @@
     "value_bool": null,
     "value_json": null,
     "as_of": null,
-    "quote": "Three (3) Extension Options, each to extend the Term of all the Data Halls for an Extension Term of sixty (60) months",
+    "quote": "Three (3) Extension Options, each to extend the\nTerm of all the Data Halls for an Extension Term of sixty (60) months",
     "page": 1,
     "confidence": 0.93,
     "note": null
    },
    {
     "subject_kind": "site",
-    "subject_name": "Building ELN04 Phase 1",
+    "subject_name": "Building ELN04",
     "subject_identifier": null,
     "field": "lease_mw",
     "value_number": 25,
@@ -66,7 +66,7 @@
     "quote": "Phase 1: 25,000 kW",
     "page": 1,
     "confidence": 0.9,
-    "note": "Per phase Electricity Demand Threshold; phases 2-6 also 25,000 kW each"
+    "note": "Phase 1; each of Phases 1-6 is 25,000 kW"
    },
    {
     "subject_kind": "site",
@@ -79,10 +79,10 @@
     "value_bool": null,
     "value_json": null,
     "as_of": null,
-    "quote": "a guaranty by Applied Digital Corporation, a Nevada corporation (“Landlord Guarantor”)",
+    "quote": "a guaranty by Applied Digital Corporation, a Nevada corporation (“Landlord\nGuarantor”)",
     "page": 1,
-    "confidence": 0.9,
-    "note": "Landlord guaranty, not a tenant guarantee"
+    "confidence": 0.93,
+    "note": "Landlord guaranty, not tenant guarantee"
    }
   ],
   "subjects": [
@@ -111,6 +111,6 @@
     "role": "guarantor"
    }
   ],
-  "summary": "Basic Lease Information for Building ELN04: CoreWeave tenant, APLD ELN-02 C LLC landlord, six phases of 25,000 kW each, three 60-month extension options, and a landlord guaranty from Applied Digital. Target commencement, outside completion date, term and rent are redacted, so no facts were recorded for them."
+  "summary": "Basic lease info for CoreWeave lease of Building ELN04; term, dates, rent redacted. Six phases of 25,000 kW each."
  }
 }

@@ -60,6 +60,9 @@ http.set_rate_limit(HOST, 0.5)
 http.set_rate_limit("programs.iowadnr.gov", 0.5)
 ROW = re.compile(r'<a class="btn btn-secondary" href="(/ConPermitSearch/DownloadFile\?[^"]+)">Download</a>', re.I)
 SELECT = re.compile(r'data-selectclick="(\d+)"')
+# 'EP-1 EU-1 Combustion Turbine Unit 1 2,315 MMBtu/hr, natural gas': the capacity line and its fuel line below
+UNIT_ROW = re.compile(r"(EP-\d+)\s+(EU-\d+)\s+(.+?)\s+([\d,.]+\s*(?:MMBtu/hr|MW|kW|hp|bhp)[^\n]*(?:\n\s*[a-z][^\n]*)?)",
+                      re.S)
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+)\.(?:com|org|net|coop|gov|us)\b", re.I)
 
 
@@ -75,7 +78,8 @@ class PermitRow:
 
 def plant_page(page: bytes) -> tuple[dict[str, str], list[PermitRow]]:
     body = page.decode("utf-8", errors="replace")
-    flat = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"<script.*?</script>", "", body, flags=re.S))).split())
+    visible = re.sub(r"<[^>]+>", " ", re.sub(r"<script.*?</script>", "", body, flags=re.S))
+    flat = " ".join(html.unescape(visible).split())
     head = {}
     for label in ("County Name", "City Name", "Plant Name", "Plant Number"):
         if m := re.search(rf"{label}:\s*(.+?)\s+(?:County Name|City Name|Plant Name|Plant Number|Note):", flat):
@@ -102,10 +106,10 @@ def collection(body: str) -> dict[str, Any]:
     table = re.search(r"Table 1 - List of Emission Units.*?Testing\s+(.+?)(?:PERMIT CONDITIONS|Table 2)", body, re.S)
     units = []
     if table:
-        for m in re.finditer(r"(EP-\d+)\s+(EU-\d+)\s+(.+?)\s+([\d,.]+\s*(?:MMBtu/hr|MW|kW|hp|bhp)[^\n]*)", table.group(1), re.S):
+        for m in UNIT_ROW.finditer(table.group(1)):
             desc = " ".join(m.group(3).split())
-            units.append({"quote": " ".join(m.group(0).split()), "emission_point": m.group(1), "emission_unit": m.group(2),
-                          "description": desc, "capacity": " ".join(m.group(4).split()),
+            units.append({"quote": " ".join(m.group(0).split()), "emission_point": m.group(1),
+                          "emission_unit": m.group(2), "description": desc, "capacity": " ".join(m.group(4).split()),
                           "oem": text.oem_of(desc), "count": 1 if GENERATION.search(desc) else None})
     limits = []
     t2 = re.search(r"Table 2 - Combined Emission Limits(.+?)(?:\n\s*B\.|Table 3)", body, re.S)
@@ -186,7 +190,7 @@ def plant_permit(head: dict[str, str], projects: list[tuple[str, list[PermitRow]
                                   f"issued ({c['project_description'] or 'project ' + project})", prow[0].url, project,
                                   quote=f"Project Number: {project} Project Description: {c['project_description']} "
                                         f"Date: {when}", document_id=pdf.id))
-    first_project, first_rows, _, first_c = projects[0]
+    _, first_rows, _, first_c = projects[0]
     ids = [r.permit for _, prow, _, _ in projects for r in prow]
     return Permit(
         AGENCY, ", ".join(r.permit for r in first_rows), ids, type="Construction permit", status="issued",
@@ -222,7 +226,8 @@ def candidates(fetcher: Fetcher, plants: list[PlantProfile], stats: RunStats, in
     return found
 
 
-def run_ia(plants: list[PlantProfile], fetcher: Fetcher, stats: RunStats, info: dict[str, Any], match: Any) -> list[Match]:
+def run_ia(plants: list[PlantProfile], fetcher: Fetcher, stats: RunStats, info: dict[str, Any],
+           match: Any) -> list[Match]:
     ids = candidates(fetcher, plants, stats, info)
     info["aqrr_plants"] = ids
     facilities = [f for pid in sorted(ids) if (f := facility(fetcher, pid, stats, info))]

@@ -32,7 +32,8 @@ CR_STATUS = {"ACTIVE": "issued", "PENDING": "pending", "CANCELLED": "cancelled",
              "VOID": "cancelled", "VOIDED": "cancelled", "EXPIRED": "inactive", "DENIED": "denied"}
 NAICS_POWER = re.compile(r"^2211\d*\b|^221\b")
 TR_LABELS = ["Company", "Registration Number", "Registration No.", "Permit Numbers", "Permit Number", "Permit No.",
-             "Project Number", "Project No.", "County", "Project Type", "Regulated Entity Number", "Regulated Entity No.",
+             "Project Number", "Project No.", "County", "Project Type", "Regulated Entity Number",
+             "Regulated Entity No.",
              "Project Received Date", "Received Date", "Site Name", "Unit Name", "City", "Nearest City", "PBR No(s).",
              "Customer Reference Number", "Customer Reference No."]
 ACTION_KINDS = {  # Records Online title -> action kind; other titles (modeling, RBLC, MAERT drafts) are not actions
@@ -66,7 +67,7 @@ def cr_permit_ids(rows: list[dict[str, Any]]) -> dict[str, tuple[str, list[str]]
         pid = f"O{raw}" if r.get("program_code") == "AIROP" and raw.isdigit() else raw
         if r.get("program_code") == "AIRNSR" and not PERMIT_ID.match(raw):
             continue  # 4844100274: an air account number, not a permit
-        status, customers = out.setdefault(pid, ((r.get("additional_id_status") or "").strip().upper(), []))
+        _, customers = out.setdefault(pid, ((r.get("additional_id_status") or "").strip().upper(), []))
         name = (r.get("princ_legal_name") or r.get("princ_name") or "").strip()
         if name and (r.get("affil_end_dt") or "3000").startswith("3000") and name not in customers:
             customers.append(name)
@@ -74,6 +75,17 @@ def cr_permit_ids(rows: list[dict[str, Any]]) -> dict[str, tuple[str, list[str]]
 
 
 RECORD_URL = "https://data.texas.gov/resource/{}.json?ref_num_txt={}"
+
+
+def cr_permit(rn: str, pid: str, st: str, customers: list[str], dataset: str, document_id: int | None) -> Permit:
+    """A permit as the Central Registry lists it: number, status, current customers, kind from the number."""
+    kind = "Title V" if pid[:1] == "O" else "PSD" if pid.startswith(("PSDTX", "GHGPSDTX")) else None
+    number = pid[1:] if pid[:1] == "O" else pid
+    return Permit(AGENCY, pid, [pid], type=kind, status=CR_STATUS.get(st, st.lower() or None), agency_status=st or None,
+                  applicant=", ".join(sorted(customers)) or None, document_id=document_id,
+                  url=RECORD_URL.format(dataset, rn) + f"&additional_id_text={number}",
+                  quote=f"{rn} {pid} {st}" + (f" ({'; '.join(sorted(customers))})" if customers else ""),
+                  quote_loc="TCEQ Central Registry Files row (data.texas.gov)")
 
 
 def facilities(rows: list[dict[str, Any]], *, url: str, document_id: int | None, system: str,
@@ -90,13 +102,9 @@ def facilities(rows: list[dict[str, Any]], *, url: str, document_id: int | None,
         ids = cr_permit_ids(rs)
         if not ids:
             continue
-        names = sorted({n.strip() for r in rs for n in (r.get("princ_name"), r.get("princ_legal_name")) if n and n.strip()})
-        permits = [Permit(AGENCY, pid, [pid], status=CR_STATUS.get(st, st.lower() or None), agency_status=st or None,
-                          applicant=", ".join(sorted(customers)) or None, document_id=document_id,
-                          url=RECORD_URL.format(dataset, rn) + f"&additional_id_text={pid[1:] if pid[:1] == 'O' else pid}",
-                          type="Title V" if pid[:1] == "O" else "PSD" if pid.startswith(("PSDTX", "GHGPSDTX")) else None,
-                          quote=f"{rn} {pid} {st}" + (f" ({'; '.join(sorted(customers))})" if customers else ""),
-                          quote_loc="TCEQ Central Registry Files row (data.texas.gov)")
+        names = sorted({n.strip() for r in rs for n in (r.get("princ_name"), r.get("princ_legal_name"))
+                        if n and n.strip()})
+        permits = [cr_permit(rn, pid, st, customers, dataset, document_id)
                    for pid, (st, customers) in sorted(ids.items())]
         county = (first.get("re_phys_loc_addr_county") or "").strip().title() or None
         out.append(Facility(system, AGENCY, "TX", rn, (first.get("reg_ent_name") or rn).strip(), county, names,
@@ -290,12 +298,12 @@ def technical_review(body: str) -> dict[str, Any]:
             "Title V" if re.search(r"Operating Permit|Title V", first, re.I) else
             "NSR" if re.search(r"Construction Permit", first, re.I) else None)
     received = head.get("Project Received Date") or head.get("Received Date")
+    received_label = "Project Received Date" if "Project Received Date" in head else "Received Date"
     emissions = (text.emission_totals(body, "Proposed Allowable Emission Rates (tpy)")
                  or text.emission_totals(body, "TOTAL EMISSIONS (TPY):"))
     return {
         "title": first, "type": kind, "header": head, "received": text.to_date(received),
-        "received_quote": f"{'Project Received Date' if 'Project Received Date' in head else 'Received Date'} {received}"
-        if received else None,
+        "received_quote": f"{received_label} {received}" if received else None,
         "project_type": head.get("Project Type"), "county": head.get("County"),
         "units": text.unit_statements(body), "emissions": emissions,
     }
@@ -303,8 +311,8 @@ def technical_review(body: str) -> dict[str, Any]:
 
 def final_action(body: str) -> dict[str, Any]:
     flat = text.squash(body)
-    expires = re.search(r"Expiration Date:\s*((?:%s)\s+\d{1,2},\s*\d{4})" % text.MONTHS, flat)
-    applied = re.search(r"submitted an application on ((?:%s)\s+\d{1,2},\s*\d{4})" % text.MONTHS, flat)
+    expires = re.search(rf"Expiration Date:\s*((?:{text.MONTHS})\s+\d{{1,2}},\s*\d{{4}})", flat)
+    applied = re.search(rf"submitted an application on ((?:{text.MONTHS})\s+\d{{1,2}},\s*\d{{4}})", flat)
     understand = re.search(r"(We understand that this registration is for [^.]+\.)", flat)
     decided = re.search(r"(has made a decision to (?:grant|deny)[^.]*\.)", flat)
     letter = text.to_date(flat[:600])

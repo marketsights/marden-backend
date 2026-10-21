@@ -180,6 +180,21 @@ def _ust(conn: Conn, day: date) -> dict[float, tuple[float, date]]:
     return out
 
 
+def _spread(conn: Conn, day: date, row: Row, terms: Row | None) -> float | None:
+    """The comp's spread at issue: as stated (F/R), else computed in code from its terms (issue_spreads)."""
+    from marden.models.issue_spreads import issue_spread
+    from marden.models.price_curve import load_curves
+
+    t = terms["value"] if terms is not None and isinstance(terms["value"], dict) else {}
+    curve = None
+    if row["tag"].strip() == "M" and t.get("benchmark") != "SOFR":
+        curve = load_curves(conn, day, since=row["valid_from"]).curve(row["valid_from"])
+    bp, _ = issue_spread(num(row["value"]), row["tag"], rate_text=str(t.get("rate") or ""),
+                         coupon_pct=num(t.get("coupon_pct")), issue_price=num(t.get("issue_price")),
+                         tenor_years=num(t.get("tenor_years")), curve=curve)
+    return bp
+
+
 def load(conn: Conn, day: date) -> Market:
     rows = _series(conn, day)
     by_subject: dict[str, dict[str, list[Row]]] = defaultdict(lambda: defaultdict(list))
@@ -215,7 +230,7 @@ def load(conn: Conn, day: date) -> Market:
             spread = pit.current_of(fields.get("issue_spread_bp", []))
             kind = terms["value"].get("type") if terms is not None and isinstance(terms["value"], dict) else None
             gpu_loan = kind == GPU_LOAN_TYPE
-            if gpu_loan and spread is not None and (bp := num(spread["value"])) is not None:
+            if gpu_loan and spread is not None and (bp := _spread(conn, day, spread, terms)) is not None:
                 spreads.append((spread["valid_from"], bp, sid))
         elif sid == "data_center_pue":
             pue = pit.current_of(fields.get("pue_range", []))

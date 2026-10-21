@@ -100,6 +100,7 @@ def downgrade_band(
     ocf_b: float | None,
     has_financials: bool,
     day: date,
+    gap_floor: float | None = None,
 ) -> tuple[str, list[str]]:
     reasons = []
     neg = [a for a, r in rs.items() if r.outlook == "Negative"]
@@ -121,6 +122,10 @@ def downgrade_band(
         reasons.append(f"lease-adjusted leverage rises {lev_peak - lev_today:.1f}x along the path")
     if gap_3y is not None and ocf_b is not None and gap_3y > GAP_SHARE * 3 * max(ocf_b, 0.0):
         reasons.append(f"3-year funding gap ${gap_3y:.1f}B, over a quarter of 3 years' operating cash flow")
+    elif gap_3y is None and gap_floor is not None and ocf_b is not None and gap_floor > GAP_SHARE * 3 * max(ocf_b, 0.0):
+        # unsized edges leave the gap n/d, but its known part already clears the bar (they can only add)
+        reasons.append(f"3-year funding gap at least ${gap_floor:.1f}B (unsized contracts excluded), over a "
+                       "quarter of 3 years' operating cash flow")
     if not rs and not has_financials:
         return "n/d", reasons
     return ("High" if len(reasons) >= 3 else "Watch" if reasons else "Low"), reasons
@@ -154,7 +159,11 @@ def ai_coverage(conn: Conn, eid: str, kind: str, day: date, edges: list[graph.Ed
             revenue = usd
             break
     year = day.year + 1
-    pay = sum(e.annual_usd(year) or 0.0 for e in edges if e.payer == eid and e.type in COMPUTE_TYPES)
+    contracts = [e for e in edges if e.payer == eid and e.type in COMPUTE_TYPES and e.pays]
+    unscheduled = [e.id for e in contracts if not e.schedule()]
+    if unscheduled:  # an unknown payment makes the denominator incomplete: coverage n/d, not overstated
+        return None, [f"entity {eid}: compute payments in {year} ({len(unscheduled)} contracts with no schedule)"]
+    pay = sum(e.annual_usd(year) or 0.0 for e in contracts)
     if revenue is None or not pay:
         return None, [f"entity {eid}: {'reported revenue' if revenue is None else f'compute payments in {year}'}"]
     return round(revenue / pay, 3), []
@@ -224,7 +233,8 @@ def payer_doc(
     has_fin = fin.debt() is not None or fin.ttm("operating_cash_flow") is not None
     ocf = fin.ttm("operating_cash_flow")
     band, reasons = downgrade_band(
-        rs, p.leverage_today, p.leverage_peak, p.gap_3y, ocf.usd / 1e9 if ocf else None, has_fin, day
+        rs, p.leverage_today, p.leverage_peak, p.gap_3y, ocf.usd / 1e9 if ocf else None, has_fin, day,
+        p.gap_3y_floor,
     )
     missing.append("agency-stated downgrade triggers (agency releases not collected): headroom and breach year n/d")
     if not rs:

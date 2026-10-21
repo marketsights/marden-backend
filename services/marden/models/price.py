@@ -9,7 +9,8 @@ was public that day, marden.models.pit / price_marks) writes, under model_run 'p
   (price_issuer): {label, spreadBp, upfrontPct (500bp coupon), hazard, maturity, years, band, raw (the
   latest bond cross-section, unfiltered), equity {ticker, loading, pairs}, missing, methodVersion};
 - model 'price', subject instrument (every V1 instrument and every bond of the V1 chains' issuers):
-  {price, spreadBp, yieldPct, recovery, change1w, inputs: [...], band: {low, high}, missing: [...],
+  {price, mardenPrice (InstrumentRow.mardenPrice: Sourced<number>), spreadBp, yieldPct, recovery, change1w,
+  inputs: [...], band: {low, high}, missing: [...],
   basis} (price_facility); plus price_obs kind 'marden', tag M, method_version 'price v0.1';
 - model 'curve', subject series 'all': CurveTier[] (types.ts) from the tier fit (price_tiers) with the
   priced instruments as points.
@@ -235,6 +236,9 @@ def run_day(conn: Conn, day: date, ids: Sequence[str] | None = None, *,
         out["inputs"] = _inputs(inst, out, ch, curves, cds, book, day)
         out.update({"label": PRICE_LABEL, "methodVersion": VERSION, "sourceUrl": METHOD_URL,
                     "tier": None if issuer_bond else instrument_tier(inst, ch)})
+        # InstrumentRow.mardenPrice (types.ts), ready for the builders to drop in (null = n/d)
+        out["mardenPrice"] = {"value": out["price"], "tag": "M", "asOf": day.isoformat(), "sourceName": PRICE_LABEL,
+                              "sourceUrl": METHOD_URL, "methodVersion": VERSION}
         prices[iid] = out
         if out["price"] is not None and out["tier"] and out["yieldPct"] is not None and inst.terms:
             points.setdefault(out["tier"], []).append({"years": round(year_frac(day, inst.terms.maturity), 2),

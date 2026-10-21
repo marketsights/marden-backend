@@ -226,6 +226,7 @@ def _prices(conn: Conn, as_of: date, instrument_ids: list[str]) -> dict[str, Pri
             ORDER BY subject_id, as_of DESC, created_at DESC, id DESC""",
         (PRICE_MODEL, instrument_ids, as_of),
     ).fetchall()
+    pit.note_outputs(PRICE_MODEL, "instrument", rows)
     out = {}
     for r in rows:
         value, method, url = price_value(r["output"])

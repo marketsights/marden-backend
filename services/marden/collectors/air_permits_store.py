@@ -116,7 +116,7 @@ def write_plant(conn: Conn, plant_id: str, matches: list[Match], stats: RunStats
     stats.facts_new += new
     events = EventWriter(conn)
     ev_new = 0
-    for m, p in pairs:
+    for _, p in pairs:
         for a in p.actions:
             res = events.add(
                 "plant", plant_id, a.day, "permit", f"{p.agency} air permit {p.number}: "

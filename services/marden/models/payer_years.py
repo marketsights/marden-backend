@@ -11,6 +11,8 @@ and an edge's calendar-year schedule lands in the fiscal year ending that year):
 - fundingGapB = capex + compute payments + lease payments in force that year - operating cash flow;
 - leaseAdjLeverage = (debt + lease liabilities today + leases commenced by then) / EBITDA (trailing,
   held flat).
+A sum with an unsized or undated edge in it is n/d (null with a `missing` entry), never a partial sum read
+as complete; the funding gap's known part is kept as `basis.fundingGap3yFloorB` (unknown payments only add).
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ class Path:
     leverage_today: float | None = None
     leverage_peak: float | None = None
     gap_3y: float | None = None
+    gap_3y_floor: float | None = None  # known components only, when unsized edges leave the gap n/d
     missing: list[str] = field(default_factory=list)
     basis: dict[str, Any] = field(default_factory=dict)
 
@@ -66,8 +69,9 @@ def path(fin: Financials, edges: list[graph.Edge], day: date, method: str) -> Pa
     ):
         if fig is None:
             p.missing.append(f"entity {fin.entity_id}: {name} (SEC XBRL)")
-    base_liab = (debt.usd if debt else 0.0) + (leases.usd if leases else 0.0)
-    if debt is not None and ebitda is not None and ebitda.usd > 0:
+    # Lease-adjusted leverage needs both debt and lease liabilities: a missing one is n/d, never 0.
+    base_liab = debt.usd + leases.usd if debt is not None and leases is not None else None
+    if base_liab is not None and ebitda is not None and ebitda.usd > 0:
         p.leverage_today = round(base_liab / ebitda.usd, 2)
     elif ebitda is not None and ebitda.usd <= 0:
         p.missing.append(f"entity {fin.entity_id}: EBITDA is not positive (leverage not meaningful)")
@@ -90,17 +94,37 @@ def path(fin: Financials, edges: list[graph.Edge], day: date, method: str) -> Pa
         p.missing.append(
             f"entity {fin.entity_id}: {len(unsized)} lease / compute edges not sized ({', '.join(unsized[:4])})"
         )
-    added, gaps, levs = 0.0, [], []
+    # An edge whose amount, start or term is unknown leaves that year's sum unknown (n/d, never 0): the
+    # known part is kept in the basis as a floor (the unknown payments can only add to it).
+    undated_leases = [e.id for e in own if e.type in LEASE_TYPES and (e.total is None or e.start is None)]
+    unscheduled = {t: [e.id for e in own if e.type in types and not e.schedule()]
+                   for t, types in (("lease", LEASE_TYPES), ("compute", COMPUTE_TYPES))}
+    for what, ids in (("leases with no total or start (commencing n/d)", undated_leases),
+                      ("leases with no payment schedule (rent n/d)", unscheduled["lease"]),
+                      ("compute / chip contracts with no payment schedule (payments n/d)", unscheduled["compute"])):
+        if ids:
+            p.missing.append(f"entity {fin.entity_id}: {len(ids)} {what}: {', '.join(ids[:4])}")
+    added: float | None = 0.0
+    gaps: list[float | None] = []
+    floors: list[float] = []
+    levs = []
     for year in range(fy.year + 1, fy.year + 1 + YEARS_AHEAD):
-        commencing = sum(e.total.usd for e in own if e.type in LEASE_TYPES and e.start == year and e.total)
-        compute = sum(e.annual_usd(year) or 0.0 for e in own if e.type in COMPUTE_TYPES)
-        rent = sum(e.annual_usd(year) or 0.0 for e in own if e.type in LEASE_TYPES)
-        added += commencing
+        known_commencing = sum(e.total.usd for e in own if e.type in LEASE_TYPES and e.start == year and e.total)
+        known_compute = sum(e.annual_usd(year) or 0.0 for e in own if e.type in COMPUTE_TYPES)
+        known_rent = sum(e.annual_usd(year) or 0.0 for e in own if e.type in LEASE_TYPES)
+        commencing = None if undated_leases else known_commencing
+        compute = None if unscheduled["compute"] else known_compute
+        rent = None if unscheduled["lease"] else known_rent
+        added = None if added is None or commencing is None else added + commencing
         gap = None
         if ocf is not None and capex is not None:
-            gap = capex.usd + compute + rent - ocf.usd
-            gaps.append(gap)
-        lev = round((base_liab + added) / ebitda.usd, 2) if (debt and ebitda and ebitda.usd > 0) else None
+            floor = capex.usd + known_compute + known_rent - ocf.usd
+            floors.append(floor)
+            gap = floor if compute is not None and rent is not None else None
+        gaps.append(gap)
+        lev = None
+        if base_liab is not None and added is not None and ebitda is not None and ebitda.usd > 0:
+            lev = round((base_liab + added) / ebitda.usd, 2)
         if lev is not None:
             levs.append(lev)
         p.years.append(
@@ -114,10 +138,13 @@ def path(fin: Financials, edges: list[graph.Edge], day: date, method: str) -> Pa
                 "leaseAdjLeverage": m(lev),
             }
         )
-    if p.leverage_today is not None:
+    if p.leverage_today is not None and len(levs) == YEARS_AHEAD:
         p.leverage_peak = max([p.leverage_today, *levs])
-    if len(gaps) == YEARS_AHEAD:
-        p.gap_3y = round(sum(gaps) / 1e9, 3)
+    if len(gaps) == YEARS_AHEAD and all(g is not None for g in gaps):
+        p.gap_3y = round(sum(g for g in gaps if g is not None) / 1e9, 3)
+    elif len(floors) == YEARS_AHEAD:
+        p.gap_3y_floor = round(sum(floors) / 1e9, 3)
+        p.basis["fundingGap3yFloorB"] = p.gap_3y_floor
     return p
 
 

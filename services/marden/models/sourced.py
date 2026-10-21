@@ -21,7 +21,7 @@ from typing import Any
 from marden.core import db
 from marden.core.db import Conn, Row
 from marden.core.jsonutil import canonical_json, hash_parts, to_jsonable
-from marden.models import runs
+from marden.models import pit, runs
 from marden.readmodels.context import business_today
 from marden.readmodels.deps import mark_dirty, mark_dirty_for
 
@@ -140,4 +140,5 @@ def stored_outputs(conn: Conn, model: str, subject_type: str, ids: Iterable[str]
             ORDER BY subject_id, as_of DESC, created_at DESC, id DESC""",
         (model, subject_type, None if ids is None else list(ids), None if ids is None else list(ids), day),
     ).fetchall()
+    pit.note_outputs(model, subject_type, rows)
     return {r["subject_id"]: r for r in rows}

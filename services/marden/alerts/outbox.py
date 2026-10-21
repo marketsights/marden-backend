@@ -3,7 +3,8 @@
     sweep_instant()     red alerts of the last day not yet in an instant email -> one row per user
     build_digests(now)  daily digest (07:00 ET, the alerts not already emailed) and weekly summary (Mondays
                         07:00 ET, the week's alerts) -> one row per user and period
-    send_due()          due 'queued' rows -> provider; sent | failed | not_configured | cancelled
+    send_due()          due 'queued' rows -> provider; sent | failed | not_configured | cancelled; a sent
+                        email marks its alerts emailed and re-sends them on the stream (Alert.emailed)
 
 Rows are idempotent by `idempotency_key` (`instant:<org>:<user>:<first alert id>`,
 `daily:<org>:<user>:<YYYY-MM-DD>`, `weekly:<org>:<user>:<Monday>`), so rebuilding them changes nothing.
@@ -24,10 +25,11 @@ from typing import Any
 import httpx
 
 from marden.alerts.email_templates import render, subject_for
+from marden.alerts.engine import row_alert
 from marden.alerts.fanout import live_member, live_members
 from marden.alerts.providers import Message, Provider, make_provider
 from marden.alerts.settings import EmailConfig, email_config
-from marden.core import db
+from marden.core import db, events
 from marden.core.db import Conn
 from marden.core.jsonutil import jsonb
 from marden.readmodels.context import BUSINESS_TZ
@@ -37,6 +39,9 @@ log = logging.getLogger(__name__)
 MAX_ATTEMPTS = 6
 INSTANT_WINDOW = timedelta(hours=24)
 DIGEST_HOUR = 7  # 00-global: daily digest 7:00 ET; the weekly summary goes out Mondays at the same hour
+# A period's digest is built only this long after its cut, so an alert whose transaction began before the
+# cut and committed just after it is not missed (the digest row exists once; it is never rebuilt).
+DIGEST_GRACE = timedelta(minutes=2)
 KIND_SETTING = {"instant": "instantRed", "daily_digest": "dailyDigest", "weekly_digest": "weeklyNote"}
 
 
@@ -104,7 +109,7 @@ def digest_cut(now: datetime, *, weekly: bool) -> datetime:
 
 
 def build_digests(now: datetime | None = None) -> dict[str, int]:
-    moment = _now(now)
+    moment = _now(now) - DIGEST_GRACE
     daily_cut, weekly_cut = digest_cut(moment, weekly=False), digest_cut(moment, weekly=True)
     out = {"daily_digest": 0, "weekly_digest": 0}
     with db.transaction() as conn:
@@ -198,8 +203,13 @@ def _send_one(conn: Conn, row: dict[str, Any], cfg: EmailConfig, provider: Provi
     if result.ok:
         _finish(conn, row["id"], "sent", provider_message_id=result.message_id, sent_at=moment, last_error=None,
                 **common)
-        conn.execute("UPDATE alert SET emailed_at = %s WHERE id = ANY(%s) AND emailed_at IS NULL",
-                     (moment, list(row["alert_ids"])))
+        marked = conn.execute(
+            "UPDATE alert SET emailed_at = %s WHERE id = ANY(%s) AND emailed_at IS NULL RETURNING *",
+            (moment, list(row["alert_ids"])),
+        ).fetchall()
+        for alert in marked:  # the open screens show the alert as emailed (stream-patches alertsPatch)
+            events.emit({"type": "alert", "alert": row_alert(alert)}, alert["org_id"], user_id=alert["user_id"],
+                        conn=conn)
         return "sent"
     if result.retryable and attempts < MAX_ATTEMPTS:
         _finish(conn, row["id"], "queued", next_attempt_at=moment + backoff(attempts), last_error=result.error,

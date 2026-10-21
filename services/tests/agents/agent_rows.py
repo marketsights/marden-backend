@@ -16,7 +16,6 @@ from marden.agents.config import AgentSettings
 from marden.agents.evals import load_cases
 from marden.agents.llm import Llm, LlmRequest, LlmResult, RunBudget
 from marden.core import db, documents
-from marden.core.sources import ensure_source
 
 RECORDED = Path(__file__).resolve().parent / "recorded"
 COREWEAVE_CIK = "1769628"
@@ -84,7 +83,10 @@ def store_case_document(case_id: str, *, source_id: str = "sec_index", meta: dic
                         doc_type: str | None = None) -> documents.DocumentRow:
     """The case's real excerpt stored as a document (text), queued for reading."""
     c = case(case_id)
-    ensure_source(source_id, "SEC EDGAR" if source_id == "sec_index" else source_id, "api", None, None, "test")
+    with db.transaction() as conn:  # a plain row: the collectors' own declarations stay the registered ones
+        conn.execute("""INSERT INTO source (id, name, kind, terms_note) VALUES (%s, %s, 'api', 'test')
+                        ON CONFLICT (id) DO NOTHING""",
+                     (source_id, "SEC EDGAR" if source_id == "sec_index" else source_id))
     return documents.record_document(source_id, c.document["url"], c.excerpt.encode("utf-8"), content_type="text/plain",
                                      doc_type=doc_type or c.document.get("doc_type"), title=c.document.get("title"),
                                      doc_date=c.document.get("date"), meta=meta or {}, extract_state="queued")

@@ -41,20 +41,27 @@ MODEL = re.compile(  # specific models first; the OEM-only fallback is GENERIC_M
     r"Aero\s?DT\d+|NovaLT\s?\d+|Bloom Energy Server\w*|Energy Server System)\b",
     re.I,
 )
-GENERIC_MODEL = re.compile(r"\b(Siemens Energy|Mitsubishi Power|Bloom Energy|Solar Turbines|Caterpillar|Jenbacher)\b", re.I)
+GENERIC_MODEL = re.compile(r"\b(Siemens Energy|Mitsubishi Power|Bloom Energy|Solar Turbines|Caterpillar|Jenbacher)\b",
+                           re.I)
 NOISE = re.compile(r"[§*$]|\bTAC\b")
-OEMS = (("Solar", r"\b(Titan|Taurus|Mars|Centaur|Solar Turbines)\b"), ("GE Vernova", r"\b(GE|LM\s?\d{4}|LMS|TM\s?2500|[67][HF]A?\.)"),
+OEMS = (("Solar", r"\b(Titan|Taurus|Mars|Centaur|Solar Turbines)\b"),
+        ("GE Vernova", r"\b(GE|LM\s?\d{4}|LMS|TM\s?2500|[67][HF]A?\.)"),
         ("Siemens Energy", r"\b(Siemens|SGT)"), ("INNIO Jenbacher", r"\b(Jenbacher|J\s?6\d\d)"),
         ("Caterpillar", r"\b(Caterpillar|Cat\s|C\s?175|C\s?32|3516|3520)"), ("Bloom Energy", r"\bBloom\b"),
         ("Wärtsilä", r"W(?:aertsila|ärtsilä)"), ("Mitsubishi", r"\b(Mitsubishi|M501)"), ("Baker Hughes", r"\bNovaLT"))
-MW = re.compile(r"(\d{1,4}(?:\.\d+)?)\s*(?:MW|megawatts?)\b(\s*(?:per|each|/)\s*(?:turbine|engine|unit|generator))?", re.I)
+MW = re.compile(r"(\d{1,4}(?:\.\d+)?)\s*(?:MW|megawatts?)\b(\s*(?:per|each|/)\s*(?:turbine|engine|unit|generator))?",
+                re.I)
 FROM_TO = re.compile(rf"\bfrom\s+{COUNT}\s+to\s+{COUNT}\b", re.I)
 LEAD_EQUIPMENT = re.compile(  # the counted thing is equipment: '90 turbines', 'six emergency generator engines'
     r"(?!hours|MW|tons|percent|days)(\S+\s+){0,7}?(combustion\s+)?(turbines?|engines?|generators?|gensets?|fuel cells?|"
     r"boilers?|energy servers?)\b(?!\s+configurations?)", re.I,
 )
+PER_UNIT_AFTER = re.compile(r"\s*(\(MW\)\s*)?(\S+\s+){0,2}?(turbines?|engines?|generators?|gensets?|fuel cells?)\b",
+                            re.I)
+LEAD_WORDS = re.compile(r"^(?:Sources include|consisting of|including|and|add)\s+", re.I)
 LEADING_COUNT = re.compile(rf"^\s*(?:\(?{COUNT}\)?\s*(?:\({COUNT}\))?)\s+(?P<rest>.+)$", re.I)
-POLLUTANTS = ("PM2.5", "PM10", "PM", "VOC", "NOx", "NOX", "CO2e", "CO", "SO2", "H2SO4", "H2S", "NH3", "HAPs", "HAP", "Pb")
+POLLUTANTS = ("PM2.5", "PM10", "PM", "VOC", "NOx", "NOX", "CO2e", "CO", "SO2", "H2SO4", "H2S", "NH3", "HAPs", "HAP",
+              "Pb")
 
 
 def pdf_text(data: bytes) -> str:
@@ -66,8 +73,8 @@ def pdf_text(data: bytes) -> str:
         return ""
 
 
-DASHES = str.maketrans({"‐": "-", "‑": "-", "‒": "-", "–": "-", "—": "-", " ": " ",
-                        "•": " ", "●": " ", "": " "})
+DASHES = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-", "\u2014": "-", "\u00a0": " ",
+                        "\u2022": " ", "\u25cf": " ", "\uf0b7": " "})
 # TCEQ technical reviews list changes as bullets whose glyph lands mid-line in the text layer, so a list item
 # starts at its verb instead.
 ITEM_START = re.compile(r"\s(?=(?:Reduce|Increase|Add|Remove|Replace|Install|Construct|Modify|Authorize|Decrease)\s)")
@@ -154,10 +161,10 @@ def _per_unit(clause: str, mw: re.Match[str]) -> bool:
     if mw.group(2) or re.search(r"\b(each|per (turbine|engine|unit|generator))\b", clause, re.I):
         return True
     after = clause[mw.end():mw.end() + 60]
-    return bool(re.match(r"\s*(\(MW\)\s*)?(\S+\s+){0,2}?(turbines?|engines?|generators?|gensets?|fuel cells?)\b", after, re.I))
+    return bool(PER_UNIT_AFTER.match(after))
 
 
-def unit_statements(text: str, *, limit: int = 12) -> list[dict[str, Any]]:
+def unit_statements(text: str, *, limit: int = 20) -> list[dict[str, Any]]:
     """Statements that name generating equipment, each with count / model / MW only where stated."""
     out: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -169,9 +176,8 @@ def unit_statements(text: str, *, limit: int = 12) -> list[dict[str, Any]]:
         count = None
         if (m := FROM_TO.search(clause)) and EQUIPMENT.search(clause[:m.start()]):
             count = count_value(m.group(2))
-        elif m := LEADING_COUNT.match(re.sub(r"^(?:Sources include|consisting of|including|and|add)\s+", "", clause, flags=re.I)):
-            if LEAD_EQUIPMENT.match(m.group("rest")):
-                count = count_value(m.group(2) or m.group(1))
+        elif (m := LEADING_COUNT.match(LEAD_WORDS.sub("", clause))) and LEAD_EQUIPMENT.match(m.group("rest")):
+            count = count_value(m.group(2) or m.group(1))
         if count is None and model and (m := re.search(rf"(?:^|(?<=\s)){COUNT}\s+(?:\(\d+\)\s+)?(?:\S+\s+){{0,3}}$",
                                                        clause[:model.start()], re.I)):
             count = count_value(m.group(1))  # '90 Siemens Energy SGT-800 combustion turbines'

@@ -198,7 +198,8 @@ def profile(row: dict[str, Any], county_list: list[tuple[str, ...]], entity_name
         agency = d.get("agency") if isinstance(d, dict) else None
         for c in counties_in(agency, county_list):
             counties.setdefault(c, "plant docket agency")
-    names: list[tuple[str | None, str]] = [(facts.get("operator"), "plant operator"), (facts.get("owner"), "plant owner")]
+    names: list[tuple[str | None, str]] = [(facts.get("operator"), "plant operator"),
+                                           (facts.get("owner"), "plant owner")]
     for p in facts.get("parties") or []:
         # Builders and power suppliers only: a tenant or the grid utility is not who holds the plant's permit.
         # 'name' can be a ticker (FRMI); the note's first part is then the company name.
@@ -337,7 +338,8 @@ def candidate(m: Match) -> bool:
     """A record worth listing in the run report: tied, or bearing the plant's name with power generation, or a
     permit number / project name of the plant."""
     ev = m.evidence
-    return m.plant is not None or ("name" in ev and "generation" in ev) or bool({"permit_numbers", "project_name"} & set(ev))
+    strong = bool({"permit_numbers", "project_name"} & set(ev))
+    return m.plant is not None or ("name" in ev and "generation" in ev) or strong
 
 
 def _match_each(facilities: Iterable[Facility], plants: list[PlantProfile]) -> list[Match]:
@@ -354,7 +356,8 @@ def _match_each(facilities: Iterable[Facility], plants: list[PlantProfile]) -> l
                 out.append(Match(f, best[0][0], dict(best[0][1], **({"also_passed": others} if others else {})), []))
                 continue
             ev = dict(best[0][1], tied=[p.id for p, _ in best])
-            out.append(Match(f, None, ev, [f"equal evidence for {len(best)} plants: {', '.join(p.id for p, _ in best)}"]))
+            tied = ", ".join(p.id for p, _ in best)
+            out.append(Match(f, None, ev, [f"equal evidence for {len(best)} plants: {tied}"]))
             continue
         relevant = [(p, ev, reasons) for p, ev, reasons in results if score(ev) > 0]
         if relevant:

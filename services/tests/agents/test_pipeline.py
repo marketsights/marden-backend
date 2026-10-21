@@ -52,11 +52,13 @@ def test_debt_8k_end_to_end_with_review_and_link_release():
     out = run_job(job, llm)
     assert out.state == "needs_review"
     assert backend.calls == ["router", "extractor:debt", "verifier", "linker"]
+    n = len(recorded(DEBT)["facts"])  # every recorded fact passes the code checks
+    assert n >= 17
     cands = rows("SELECT * FROM agent_candidate WHERE job_id = %s ORDER BY id", (job,))
-    assert len(cands) == 18 and {c["subject_id"] for c in cands} == {"EX-CRWV-097"}
+    assert len(cands) == n and {c["subject_id"] for c in cands} == {"EX-CRWV-097"}
     assert all(c["outcome"] == "review" and "link proposed" in c["outcome_reason"] for c in cands)
     facts = rows("SELECT * FROM fact WHERE document_id = %s", (doc.id,))
-    assert len(facts) == 18 and {f["status"] for f in facts} == {"candidate"}
+    assert len(facts) == n and {f["status"] for f in facts} == {"candidate"}
     amount = next(f for f in facts if f["field"] == "amount_usd")
     assert amount["value"] == 2600000000 and amount["tag"] == "F" and amount["producer"] == "agent:debt"
     assert amount["method_version"] == "agents v0.1 debt" and amount["verifier"] == "agree"
@@ -65,10 +67,10 @@ def test_debt_8k_end_to_end_with_review_and_link_release():
     assert len(link) == 1 and link[0]["status"] == "proposed" and link[0]["method"] == "agent"
     item = rows("SELECT id FROM review_item WHERE kind = 'link' AND ref_type = 'agent_link' AND ref_id = %s",
                 (str(link[0]["id"]),))[0]
-    assert rows("SELECT count(*) AS n FROM review_item WHERE kind = 'fact' AND status = 'open'")[0]["n"] == 18
+    assert rows("SELECT count(*) AS n FROM review_item WHERE kind = 'fact' AND status = 'open'")[0]["n"] == n
 
     result = decide(item["id"], "approve", "staff_user")
-    assert result["ok"] and len(result["released_facts"]) == 18
+    assert result["ok"] and len(result["released_facts"]) == n
     assert {f["status"] for f in rows("SELECT status FROM fact WHERE document_id = %s", (doc.id,))} == {"published"}
     dirty = rows("SELECT view FROM read_model_dirty WHERE key = 'EX-CRWV-097'")
     assert "instrument_detail" in {d["view"] for d in dirty}
@@ -79,8 +81,8 @@ def test_debt_8k_end_to_end_with_review_and_link_release():
     llm2, backend2 = make_llm(answers)
     again = run_job(job, llm2)
     assert backend2.calls == [] and llm2.cache_hits == 3 and again.state == "published"
-    assert len(rows("SELECT id FROM fact WHERE document_id = %s", (doc.id,))) == 18
-    assert len(rows("SELECT id FROM agent_candidate WHERE job_id = %s", (job,))) == 18
+    assert len(rows("SELECT id FROM fact WHERE document_id = %s", (doc.id,))) == n
+    assert len(rows("SELECT id FROM agent_candidate WHERE job_id = %s", (job,))) == n
 
 
 def test_filer_identifier_publishes_routine_facts_and_holds_material_or_conflicting_ones():

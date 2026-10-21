@@ -68,9 +68,21 @@ def _num(x: Any) -> float | None:
     return None if x is None or (isinstance(x, float) and math.isnan(x)) else float(x)
 
 
-def _weighted(rows: list[tuple[float, float]]) -> float:
+def _weighted(rows: list[tuple[float, float]]) -> float | None:
+    """Size-weighted mean; equal weights when no size is known; None (n/d) for no rows, never 0."""
+    if not rows:
+        return None
     total = sum(w for w, _ in rows)
-    return round(sum(w * c for w, c in rows) / total, 3) if total else 0.0
+    if not total:
+        return round(sum(c for _, c in rows) / len(rows), 3)
+    return round(sum(w * c for w, c in rows) / total, 3)
+
+
+def _notes_loss(conn: Conn, party: str, out: dict[str, Any]) -> float | None:
+    """The payer's own notes loss: the scenario's figure; 0 only when it has no notes at all; else n/d."""
+    if out["kpis"].get("tenantNotesLossB") is not None:
+        return out["kpis"]["tenantNotesLossB"]
+    return 0.0 if not stress_inputs.issued_by(conn, [party]).get(party) else None
 
 
 def stress_result(conn: Conn, book: Book, sc: Scenario) -> dict[str, Any]:
@@ -122,7 +134,10 @@ def stress_result(conn: Conn, book: Book, sc: Scenario) -> dict[str, Any]:
                 "holders": inst.holders_text(),
             }
         )
-        size = inst.size_usd or 0.0
+        size = inst.size_usd
+        if size is None:  # n/d size: counted in the rows, left out of the dollar totals, and listed
+            missing.append(f"instrument {iid}: size n/d (left out of exposed, value lost and flow debt)")
+            size = 0.0
         exposed += size
         flow_debt[inst.site] += size
         if p["after"] is not None:
@@ -138,6 +153,9 @@ def stress_result(conn: Conn, book: Book, sc: Scenario) -> dict[str, Any]:
         ids = [i for i, t in notes.items() if t == tenant and i in priced and priced[i]["after"] is not None]
         if not ids:
             continue
+        unsized_notes = [i for i in ids if info[i].size_usd is None]
+        if unsized_notes:
+            missing.append(f"{tenant} notes: {len(unsized_notes)} with size n/d (left out of the notes loss)")
         sized = [(info[i].size_usd or 0.0, priced[i]) for i in ids]
         face = sum(s for s, _ in sized)
         loss = sum(s * (p["now"] - p["after"]) / 100.0 for s, p in sized)
@@ -284,7 +302,7 @@ def compute(conn: Conn, day: date) -> Batch:
                     "stressSummary": {
                         "scenario": label,
                         "siteDebtLossB": out["kpis"]["valueLostB"],
-                        "notesLossB": out["kpis"].get("tenantNotesLossB") or 0.0,
+                        "notesLossB": _notes_loss(conn, party, out),
                     },
                     "basis": {"methodVersion": METHOD, "request": out["request"]},
                 },

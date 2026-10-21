@@ -53,6 +53,8 @@ Helpers in `marden.core.licensing`:
 
 **Wiring status (2026-10-21):** the flag and the switch exist, and every row from these sources carries the exact name. The API, read-model builders and models do not yet read the switch, so today it changes nothing they serve.
 
+**Models (updated 2026-10-21, model review):** the models do read the switch. Every model input goes through `marden.models.pit` (facts and events), `marden.models.price_marks` (price observations) or `marden.models.track_record_cases.market_series`, and each drops the unlicensed `source_name`s when the switch is false. `tests/models/test_model_pit.py` runs the price engine with the switch off and checks, through the input audit (`pit.audit()`), that no input it read came from an unlicensed source. Model outputs already stored were computed with the switch as it was then: after flipping it, re-run the models (`python -m marden model price`, then the models that read its output) before rebuilding the read models.
+
 To make `false` take effect:
 - Filter `price_obs` and `fact` reads in `marden.readmodels.known_facts`, the price-history and curve builders, and the pricing model with `unlicensed_source_names()`.
 - Rebuild read models after flipping it: `python -m marden rebuild all`. Read models are precomputed, so a flip shows only after a rebuild.

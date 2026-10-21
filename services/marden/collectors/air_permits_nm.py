@@ -2,7 +2,7 @@
 
 Where the records are (checked 2026-10-21): NMED publishes every Air Quality Bureau permitting action as a post on
 its public-notices site (https://www.env.nm.gov/public-notices/, WordPress): the post title names the applicant
-and facility ('Yucca Growth Infrastructure, LLC – YGI Microgrid — (Project Jupiter)', '(Application Withdrawn
+and facility ('Yucca Growth Infrastructure, LLC - YGI Microgrid - (Project Jupiter)', '(Application Withdrawn
 4/27/2026)') and links the application, completeness letter, the legal notice, drafts and hearing notices. The
 legal notice ('Public Notice for Air Quality Construction Permit Application <no>') states the permit number,
 the county, the equipment and the emission estimates. Contested applications also have an Office of Public
@@ -53,7 +53,8 @@ http.set_rate_limit(HOST, 0.5)
 http.set_rate_limit("service.web.env.nm.gov", 0.5)
 http.set_rate_limit("cloud.env.nm.gov", 0.5)
 NUMBER = re.compile(r"assigned Permit No\.?\s*(\d{3,6})")
-TITLE_APPLICANT = re.compile(r"Air Quality Permit for\s+(.+?(?:LLC|L\.L\.C\.|Inc\.?|Company|Corporation|L\.?P\.?))\s", re.S)
+TITLE_APPLICANT = re.compile(r"Air Quality Permit for\s+(.+?(?:LLC|L\.L\.C\.|Inc\.?|Company|Corporation|L\.?P\.?))\s",
+                             re.S)
 APPLICANT = re.compile(r"^\s*([A-Z][^\n]{2,80}?)\s+at\s+[^\n]*?has submitted", re.M)
 FACILITY = re.compile(r"permit to construct the [\"“]([^\"”]+?)\.?[\"”]")
 COUNTY = re.compile(r"\bin\s+([A-Z][a-zñ]+(?:\s[A-Z][a-zñ]+)?)\s+County\b")
@@ -77,11 +78,13 @@ def search(fetcher: Fetcher, base: str, term: str, stats: RunStats, info: dict[s
     return [h for h in hits if isinstance(h, dict) and h.get("id")]
 
 
-def post(fetcher: Fetcher, base: str, post_id: int, stats: RunStats, info: dict[str, Any]) -> tuple[dict[str, Any], int]:
+def post(fetcher: Fetcher, base: str, post_id: int, stats: RunStats,
+         info: dict[str, Any]) -> tuple[dict[str, Any], int]:
     url = f"{base}/posts/{post_id}"
     resp = get(fetcher, SOURCE.id, url, info)
     data = json.loads(resp.content)
-    doc = documents.record_document(SOURCE.id, url, resp.content, content_type="application/json", doc_type="wp_post_json",
+    doc = documents.record_document(SOURCE.id, url, resp.content, content_type="application/json",
+                                    doc_type="wp_post_json",
                                     title=html.unescape(data.get("title", {}).get("rendered", "")),
                                     doc_date=(data.get("modified") or "")[:10] or None, external_id=str(post_id))
     stats.document(doc)
@@ -150,7 +153,8 @@ def legal_notice(body: str) -> dict[str, Any]:
     }
 
 
-def application(data: dict[str, Any], doc_id: int, fetcher: Fetcher, stats: RunStats, info: dict[str, Any]) -> Facility | None:
+def application(data: dict[str, Any], doc_id: int, fetcher: Fetcher, stats: RunStats,
+                info: dict[str, Any]) -> Facility | None:
     title = " ".join(html.unescape(data.get("title", {}).get("rendered", "")).split())
     items = links(data)
     pn = next(((u, t) for u, t in items if re.match(r"Public Notice\b.*Application\s*\d*", t, re.I)
@@ -211,9 +215,11 @@ def docket_actions(fetcher: Fetcher, f: Facility, stats: RunStats, info: dict[st
         f.permits[0].actions.sort(key=lambda a: a.day)
 
 
-def run_nm(plants: list[PlantProfile], fetcher: Fetcher, stats: RunStats, info: dict[str, Any], match: Any) -> list[Match]:
+def run_nm(plants: list[PlantProfile], fetcher: Fetcher, stats: RunStats, info: dict[str, Any],
+           match: Any) -> list[Match]:
     terms = sorted({" ".join(w) for p in plants for w, _ in p.phrases if len(" ".join(w)) >= 4}
-                   | {f"project {t}" for p in plants for t in re.findall(r"project ([a-z]{4,})", " ".join(p.name_tokens))})
+                   | {f"project {t}" for p in plants
+                      for t in re.findall(r"project ([a-z]{4,})", " ".join(p.name_tokens))})
     info["terms"] = terms
     seen: dict[int, dict[str, Any]] = {}
     for term in terms:

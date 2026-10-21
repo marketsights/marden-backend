@@ -16,6 +16,7 @@ The row part is `instruments.instrument_row`, so the page agrees with the list. 
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 from typing import Any
 
 from marden.core.db import Conn, Row
@@ -209,6 +210,25 @@ def _median(marks: list[Row]) -> Row | None:
     return max((r for r in medians if r["obs_date"] == last), key=funds)
 
 
+YIELD_BEFORE = "Yield 3 months ago"
+YIELD_LOOKBACK = timedelta(days=91)
+
+
+def yield_before(observed: list[Row]) -> dict[str, Any] | None:
+    """The traded yield about three months before the latest one (spec 07 KPI strip: "Yield + level
+    at a prior date"): the last observation carrying a yield on or before the latest yield's date
+    less 91 days, dated by its own observation. None when the history is shorter."""
+    with_yield = [r for r in observed if num(r["yield_pct"]) is not None]
+    if not with_yield:
+        return None
+    cutoff = with_yield[-1]["obs_date"] - YIELD_LOOKBACK
+    before = [r for r in with_yield if r["obs_date"] <= cutoff]
+    if not before:
+        return None
+    row = before[-1]
+    return price_sourced(row, f"{float(row['yield_pct']):.2f}%")
+
+
 def market_check(price_out: Row | None, observed: list[Row], marks: list[Row]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for label, kind in (
@@ -223,6 +243,9 @@ def market_check(price_out: Row | None, observed: list[Row], marks: list[Row]) -
             if num(row["yield_pct"]) is not None:
                 text = f"{text} (yield {float(row['yield_pct']):.2f}%)"
             out[label] = price_sourced(row, text)
+    prior = yield_before(observed)
+    if prior is not None:
+        out[YIELD_BEFORE] = prior
     median = _median(marks)
     if median is not None:
         out["Fund marks (median)"] = price_sourced(median, price_text(median["price"]))

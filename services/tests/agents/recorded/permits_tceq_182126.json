@@ -13,12 +13,12 @@
     "value_text": null,
     "value_date": null,
     "value_bool": null,
-    "value_json": "{\"number\":\"182126 / GHGPSDTX263 / PSDTX1688\",\"agency\":\"TCEQ\",\"type\":\"NSR initial (PSD, GHG PSD)\",\"status\":\"initial application submitted\",\"date\":null}",
+    "value_json": "{\"number\":\"182126 / GHGPSDTX263 / PSDTX1688\",\"agency\":\"TCEQ\",\"type\":\"NSR initial (PSD, GHG PSD)\",\"status\":\"initial application submitted; pending\",\"date\":null}",
     "as_of": null,
     "quote": "Crusoe Energy Systems LLC (CN606257079) has submitted an\napplication for an initial permit 182126, GHGPSDTX263, and PSDTX1688.",
     "page": 1,
-    "confidence": 0.9,
-    "note": "Pending application, not an issued permit."
+    "confidence": 0.93,
+    "note": "Pending application, not issued; summary says information may change during technical review."
    },
    {
     "subject_kind": "plant",
@@ -33,8 +33,8 @@
     "as_of": null,
     "quote": "Below is the\ntotal amount for each pollutant that is proposed to be emitted each year for all the\nfacilities.",
     "page": 1,
-    "confidence": 0.8,
-    "note": "Applicant-proposed totals, not permit limits; may change during technical review."
+    "confidence": 0.85,
+    "note": "Proposed totals requested by applicant, not permit limits; may change during technical review."
    }
   ],
   "subjects": [
@@ -55,21 +55,9 @@
     "identifiers": [
      "CN606257079"
     ],
-    "role": "borrower"
-   },
-   {
-    "name": "Texas Commission on Environmental Quality",
-    "kind": "entity",
-    "identifiers": [],
-    "role": "agency"
-   },
-   {
-    "name": "Taylor County",
-    "kind": "entity",
-    "identifiers": [],
-    "role": "county"
+    "role": "applicant"
    }
   ],
-  "summary": "TCEQ plain language summary of a pending initial NSR application (182126, GHGPSDTX263, PSDTX1688) by Crusoe Energy Systems LLC for the Longhorn Data Center in Abilene, Taylor County, with proposed annual emissions. No units, MW or dates are stated."
+  "summary": "TCEQ plain language summary of pending initial air permit application for Crusoe's Longhorn Data Center, with proposed annual emissions."
  }
 }

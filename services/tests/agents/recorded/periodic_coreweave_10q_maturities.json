@@ -18,7 +18,7 @@
     "quote": "Remaining portion of 2026 $ 4,413\n\n2027 6,184\n\n2028 4,416\n\n2029 2,421\n\n2030 3,221\n\nThereafter 14,896",
     "page": 1,
     "confidence": 0.9,
-    "note": "Future principal payments of total debt, table in millions; registrant name not stated in excerpt."
+    "note": "Registrant name not stated in the excerpt; table in millions."
    }
   ],
   "subjects": [
@@ -29,6 +29,6 @@
     "role": "borrower"
    }
   ],
-  "summary": "10-Q excerpt giving the future principal payments on total debt as of June 30, 2026, by year. I recorded it as debt_maturities."
+  "summary": "Future principal payments table for total debt as of June 30, 2026."
  }
 }

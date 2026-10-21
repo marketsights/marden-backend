@@ -24,6 +24,8 @@ function arrayCell(v: unknown[]): string | null {
   if (v.every((x) => isObj(x) && typeof x.party === 'string')) {
     return clip(v.map((x) => `${text((x as Json).party)} (${text((x as Json).status)})`).join(' → '));
   }
+  // Evidence lists (lease map, deployment): "date · text" per record; the sources sheet keeps each link.
+  if (v.length > 0 && v.every(isEvidence)) return clip(v.map((x) => `${text(x.date)} · ${text(x.text)}`).join('; '));
   return null;
 }
 

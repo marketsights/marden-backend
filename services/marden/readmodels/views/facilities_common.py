@@ -10,10 +10,10 @@ buildings, plants and units as Marden knew them on the build date.
 - `financed` (FinancedLink) is the campus's approved site link only (spec 16: no link without an
   approved evidence record): the site's chain status from the `status` model and the debt of the
   instruments that need the site finished. Proposed links never show.
-- `lastChange` (campus and plant rows) is the newest material dated change (`Change`): value changes
-  of the History tab's fields, records (events) and large-load queue listings on one scale, by date
-  (valid_from / event date), then learned_at, then kind, field order and row id. First values and
-  the first-seen date are not changes; they show only while the subject has none.
+- `lastChange` (campus and plant rows) is the newest material dated change (`Change`): the History
+  tab's entries (value changes, first values, first seen), records (events) and large-load queue
+  listings on one scale, by date (valid_from / event date), then learned_at, then kind, field order
+  and row id. None is a fallback, so a newly arrived older record never moves it back.
 """
 
 from __future__ import annotations
@@ -285,7 +285,6 @@ class Change(NamedTuple):
 
 
 FIRST_SEEN, FIRST_VALUE, VALUE_CHANGE, QUEUE, RECORD = range(5)
-CHANGE_KINDS = (VALUE_CHANGE, QUEUE, RECORD)  # first values and first seen are not changes
 
 
 def history_entries(changes: Iterable[Change]) -> list[Doc]:
@@ -370,15 +369,12 @@ def change_rank(c: Change) -> tuple[str, datetime, int, int, int]:
 
 
 def last_change(changes: Iterable[Change], facts: dict[str, Row]) -> Doc | None:
-    """`lastChange`: the newest material dated change, by `change_rank`: a value change (before ->
-    after) of a tracked field, a record (event) or an operator queue listing, all on one scale, so a
-    record never hides a newer value change or the reverse. A first value (n/d -> value: the History
-    tab's first status / MW, dated by the snapshot that first held it) and the first-seen date are
-    not changes: the newest of them shows only while the subject has no change, then the newest
-    fact; None (n/d) when it holds none."""
-    changes = list(changes)
-    best = max((c for c in changes if c.kind in CHANGE_KINDS), key=change_rank, default=None)
-    best = best or max(changes, key=change_rank, default=None)
+    """`lastChange` (spec 14/15 "Latest fact"): the newest material dated change, by `change_rank`,
+    over every kind on one scale: the History tab's entries (value changes, the first value of a
+    tracked field: n/d -> value, the first-seen date), records (events) and operator queue listings.
+    No kind is a fallback that a later arrival switches off, so new information never moves
+    lastChange to an older date. With no change at all, the newest fact; None (n/d) without facts."""
+    best = max(changes, key=change_rank, default=None)
     if best is not None:
         return best.entry["evidence"]
     dated = [r for r in facts.values() if r["valid_from"] <= day()]

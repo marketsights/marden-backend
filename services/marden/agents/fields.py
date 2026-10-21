@@ -125,7 +125,9 @@ PERIODIC = [
 LEASE = [
     F("lease_tenant", "site campus", "text", "Tenant / customer (lessee or offtaker) as written."),
     F("lease_landlord", "site campus", "text", "Landlord / lessor / developer counterparty as written.", new=True),
-    F("lease_mw", "site campus obligation", "mw", "Critical IT MW leased or contracted.", new=True),
+    F("lease_mw", "site campus obligation", "mw", "Critical IT MW leased or contracted, as the document states it: "
+      "the total, or one phase's MW when the document states MW per phase (the note says which phase).",
+      new=True),
     F("lease_term_years", "site campus", "years", "Initial term in years."),
     F("term_years", "obligation", "years", "Initial term in years."),
     F("rent_start", "site campus", "month", "Rent commencement (date or month).", material=True),
@@ -141,7 +143,8 @@ LEASE = [
       material=True),
     F("force_majeure", "site campus obligation", "text", "Force majeure clause or a force majeure notice as written.",
       new=True, material=True, event="notice"),
-    F("lease_guarantee", "site campus", "text", "Guarantee of the tenant's obligations (parent, letter of credit)."),
+    F("lease_guarantee", "site campus", "text", "A guarantee or credit support in the lease, saying whose "
+      "obligations it covers (tenant parent guarantee, landlord guaranty, letter of credit)."),
     F("take_or_pay", "site campus obligation", "text", "Take-or-pay / minimum payment terms as written.", new=True),
 ]
 
@@ -174,7 +177,9 @@ PERMITS = [
     F("permitted_units", "plant site", "object", "Permitted generating units: {\"units\": [{\"oem\", \"model\", "
       "\"count\", \"rating_mw_each\", \"fuel\"}]}.", new=True),
     F("capacity_mw", "plant", "mw", "Total permitted generating capacity, MW."),
-    F("emission_limits", "plant", "object", "Emission limits: {\"pollutant\": \"limit as written\"}.", new=True),
+    F("emission_limits", "plant", "object", "Emission limits, or proposed annual emissions, as the document "
+      "states them: {\"basis\": \"limit\" or \"proposed emissions, tons per year\", \"pollutant\": \"amount as "
+      "written\"}.", new=True),
     F("hearing_date", "plant site campus", "date", "Public hearing or comment deadline date.", new=True,
       event="permit"),
     F("contractors", "site campus", "list", "General contractor / EPC / builders named."),
@@ -188,8 +193,10 @@ PERMITS = [
 ]
 
 LOCAL = [
-    F("opposition_event", "site campus plant", "object", "A local opposition or approval step: {\"kind\" (vote, "
-      "moratorium, lawsuit, hearing, petition, appeal), \"body\", \"date\", \"outcome\", \"case_number\"}.",
+    F("opposition_event", "site campus plant", "object", "A step before a local body or court about the project, "
+      "whether opposition or approval: {\"kind\" (vote, moratorium, lawsuit, hearing, petition, appeal, "
+      "presentation, appointment), \"body\", \"date\", \"outcome\" (\"on the agenda\" for an agenda), "
+      "\"case_number\"}.",
       new=True, material=True, event="opposition"),
     F("tax_abatement", "site campus", "object", "Tax abatement / IRB / PILOT: {\"body\", \"amount_usd\", \"term\", "
       "\"date\", \"status\"}.", new=True, event="opposition"),

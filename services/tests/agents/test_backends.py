@@ -167,7 +167,8 @@ def test_batch_backfill_fills_the_cache_stage_by_stage_then_publishes():
             batch.apply_results(out["batch_id"], api, settings)
         if out["finished"]:
             break
-    assert stages == [["route_document"], ["record_facts"], ["record_verdicts"]]
+    # One batch per stage: route, extract, verify, then link (no identity matches this document exactly).
+    assert stages == [["route_document"], ["record_facts"], ["record_verdicts"], ["record_links"]]
     assert out["finished"] == [{"job_id": job, "state": "needs_review"}]
     with db.transaction() as conn:
         calls = conn.execute("SELECT backend, cost_usd, batch_id FROM agent_call ORDER BY id").fetchall()
