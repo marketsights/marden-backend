@@ -20,8 +20,33 @@ dependencies = [
     "scipy==1.18.1",
 ]
 
+[project.scripts]
+marden = "marden.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest==9.1.1",
     "ruff==0.17.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "marden"
+module-root = ""
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "network: test makes real HTTP requests to public sites (deselect with -m 'not network')",
 ]

@@ -1,0 +1,14 @@
+# Raw store (local stand-in for R2), virtualenvs and build output
+.raw/
+.venv/
+__pycache__/
+node_modules/
+dist/
+coverage/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets: only the template is committed
+.env
+.env.*
+!.env.example
