@@ -26,8 +26,11 @@ def area(test_database):
 
 
 def _fact(subject_type: str, sid: str, field: str):
-    got = rows("""SELECT value, tag FROM fact WHERE subject_type = %s AND subject_id = %s AND field = %s
-                    AND status = 'published' ORDER BY valid_from DESC, id DESC LIMIT 1""", (subject_type, sid, field))
+    got = rows(
+        """SELECT value, tag FROM fact WHERE subject_type = %s AND subject_id = %s AND field = %s
+                    AND status = 'published' ORDER BY valid_from DESC, id DESC LIMIT 1""",
+        (subject_type, sid, field),
+    )
     return got[0] if got else None
 
 
@@ -36,31 +39,44 @@ def test_graph_edges_schedules_and_company_pages(area):
     doc = out["all"]
     assert_matches_types("ObligationGraph", [shape(doc)])
     edges = {e["id"]: e for e in doc["edges"]}
-    with_evidence = {r["subject_id"] for r in rows(
-        "SELECT DISTINCT subject_id FROM fact WHERE subject_type = 'obligation' AND field = 'evidence' "
-        "AND status = 'published'")}
-    typed = {r["subject_id"] for r in rows(
-        "SELECT DISTINCT subject_id FROM fact WHERE subject_type = 'obligation' AND field = 'edge_type' "
-        "AND status = 'published'")}
+    with_evidence = {
+        r["subject_id"]
+        for r in rows(
+            "SELECT DISTINCT subject_id FROM fact WHERE subject_type = 'obligation' AND field = 'evidence' "
+            "AND status = 'published'"
+        )
+    }
+    typed = {
+        r["subject_id"]
+        for r in rows(
+            "SELECT DISTINCT subject_id FROM fact WHERE subject_type = 'obligation' AND field = 'edge_type' "
+            "AND status = 'published'"
+        )
+    }
     assert set(edges) == with_evidence & typed  # no edge without a document
     for eid, e in edges.items():
         total = _fact("obligation", eid, "total_usd")
         if total is not None:  # the edge's own total wins over any funding fact
             assert e["totalB"]["value"] == round(total["value"] / 1e9, 3) and e["totalB"]["tag"] == total["tag"]
         term, start = _fact("obligation", eid, "term_years"), _fact("obligation", eid, "start")
-        if total is not None and term is not None and start is not None and _fact("obligation", eid, "annual_usd") is None:
-            if e["type"] in graph.PAYMENT_TYPES:  # straight line: the schedule adds back to the total
-                assert sum(a["amountB"]["value"] for a in e["annual"]) == pytest.approx(total["value"] / 1e9, abs=0.01)
-                assert all(a["amountB"]["tag"] == "M" for a in e["annual"])
+        sized = None not in (total, term, start) and _fact("obligation", eid, "annual_usd") is None
+        if sized and e["type"] in graph.PAYMENT_TYPES:  # straight line: the schedule adds back to the total
+            assert sum(a["amountB"]["value"] for a in e["annual"]) == pytest.approx(total["value"] / 1e9, abs=0.01)
+            assert all(a["amountB"]["tag"] == "M" for a in e["annual"])
         if e["type"] not in graph.PAYMENT_TYPES:
             assert e["annual"] == []  # guarantees, warrants and stakes carry no schedule
         assert out[eid]["annual"] == e["annual"]  # the per-edge output the read model shows
     # OpenAI -> Oracle has no total_usd: OpenAI's funding fact names it ("Oracle contract", "~$300bn",
     # "~5 years; payments reported to start 2027, ~$60bn a year"), tag R as reported.
     oo = edges["openai--oracle--compute-purchase"]
-    funding = [r for r in rows("SELECT value, tag FROM fact WHERE subject_type = 'entity' AND subject_id = 'openai' "
-                               "AND field = 'funding_fact' AND status = 'published'")
-               if r["value"].get("label") == "Oracle contract"]
+    funding = [
+        r
+        for r in rows(
+            "SELECT value, tag FROM fact WHERE subject_type = 'entity' AND subject_id = 'openai' "
+            "AND field = 'funding_fact' AND status = 'published'"
+        )
+        if r["value"].get("label") == "Oracle contract"
+    ]
     assert funding and oo["totalB"]["value"] == round(graph.usd_of_text(funding[0]["value"]["value"]) / 1e9, 3)
     assert [a["year"] for a in oo["annual"]] == [2027, 2028, 2029, 2030, 2031]
     assert {a["amountB"]["value"] for a in oo["annual"]} == {60.0} and oo["annual"][0]["amountB"]["tag"] == "R"
@@ -108,8 +124,11 @@ def test_walk_passes_on_only_what_a_payee_cannot_cover():
             return Fig(self.ocf) if self.ocf is not None else None
 
     def edge(eid: str, payer: str, payee: str, usd: float) -> graph.Edge:
-        e = graph.Edge({"id": eid, "from_entity_id": payer, "to_entity_id": payee, "type": "Lease",
-                        "instrument_ids": []}, {}, {"evidence": [], "conditions": []})
+        e = graph.Edge(
+            {"id": eid, "from_entity_id": payer, "to_entity_id": payee, "type": "Lease", "instrument_ids": []},
+            {},
+            {"evidence": [], "conditions": []},
+        )
         e.total, e.term, e.start = graph.Amount(usd, {}, "F"), 1.0, 2030  # type: ignore[arg-type]
         return e
 
@@ -122,10 +141,16 @@ def test_walk_passes_on_only_what_a_payee_cannot_cover():
 
 def test_ratings_text_parses_only_named_agencies():
     row = {"valid_from": date(2026, 10, 20)}
-    got = {r.agency: (r.rating, r.outlook) for r in parse_ratings("Moody's Baa2 (neg) / S&P BBB- / Fitch BBB (Oracle)", row)}
+    got = {
+        r.agency: (r.rating, r.outlook)
+        for r in parse_ratings("Moody's Baa2 (neg) / S&P BBB- / Fitch BBB (Oracle)", row)
+    }
     assert got == {"S&P": ("BBB-", None), "Moody's": ("Baa2", "Negative"), "Fitch": ("BBB", None)}
     site = parse_ratings("Baa2 (neg) / BBB- (S&P, cut 2026-07-09) / BBB", row)
-    assert {r.agency: (r.rating, r.action) for r in site} == {"S&P": ("BBB-", "cut 2026-07-09"), "Moody's": ("Baa2", None)}
+    assert {r.agency: (r.rating, r.action) for r in site} == {
+        "S&P": ("BBB-", "cut 2026-07-09"),
+        "Moody's": ("Baa2", None),
+    }
     issuer = parse_ratings("S&P B / Fitch BB- (sr unsecured); Issuer: Moody's Ba3 CFR / S&P B+ (positive)", row)
     assert {r.agency: r.rating for r in issuer} == {"S&P": "B+", "Moody's": "Ba3"}
     assert parse_ratings("KBRA AAA (sf)", row) == []
@@ -139,9 +164,11 @@ def test_payer_capacity_leverage_band_and_backtest(area):
     b = o["basis"]
     expected = (b["debt"]["b"] + b["leaseLiabilities"]["b"]) / b["ebitda"]["b"]  # (debt + leases) / EBITDA
     assert o["leaseAdjLeverageToday"]["value"] == pytest.approx(expected, abs=0.01)
-    xbrl = rows("""SELECT field, value FROM fact WHERE subject_type = 'entity' AND subject_id = 'oracle'
+    xbrl = rows(
+        """SELECT field, value FROM fact WHERE subject_type = 'entity' AND subject_id = 'oracle'
                      AND field = 'operating_lease_liability_usd' AND valid_from = %s AND status = 'published'""",
-                (b["leaseLiabilities"]["asOf"],))
+        (b["leaseLiabilities"]["asOf"],),
+    )
     assert xbrl and b["leaseLiabilities"]["b"] >= round(float(xbrl[0]["value"]) / 1e9, 3)  # + finance leases
     assert {r["agency"]: r["rating"]["value"] for r in o["ratings"]}["S&P"] == "BBB-"
     assert o["downgradeRisk"]["value"] == "High" and o["downgradeRisk"]["tag"] == "M"

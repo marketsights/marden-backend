@@ -87,6 +87,7 @@ const EXPORTS: Record<string, Expect | null> = {
   'risk-list': ['risk_list', 'latest'], payers: ['payers', 'all'], payer: ['payer', ENTITY], 'payer-exposed': ['payer_capacity', ENTITY],
   leases: ['leases', 'all'],
   obligations: ['obligations', 'all'], watchlist: null,
+  stress: ['model:stress', 'power_delay'], // a run of the stress model (stress_run), not a read model
 };
 
 /** GET routes that read app tables, identity tables or the stream, not a read model. */
@@ -143,7 +144,8 @@ describe('view/key contract', () => {
       served.add(view);
     }
     for (const [table, expected] of Object.entries(EXPORTS)) {
-      const qs = table === 'holders' ? `?instrument=${INST}` : table === 'payer' || table === 'payer-exposed' ? `?slug=${ENTITY}` : '';
+      const qs = table === 'holders' ? `?instrument=${INST}` : table === 'payer' || table === 'payer-exposed' ? `?slug=${ENTITY}`
+        : table === 'stress' ? '?scenario=power_delay&months=6' : '';
       const res = await app.inject({ method: 'GET', url: `/api/export/${table}.xlsx${qs}` });
       if (expected === null) {
         expect(res.statusCode).toBe(200);

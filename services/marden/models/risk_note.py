@@ -32,47 +32,89 @@ def status_reason(link: dict[str, Any], site: str, out_day: date) -> dict[str, A
     code = link.get("ruleCode") or ""
     head = f"{link.get('party') or link.get('role')} ({link.get('role')}, {code})"
     if fact and fact.get("value"):
-        return evidence(str(fact.get("asOf") or out_day.isoformat()), f"{head}: {fact['value']}", fact.get("tag") or "R",
-                        fact.get("sourceName") or "", fact.get("sourceUrl") or "",
-                        fact.get("sourceUrl") or f"model:status@site:{site}")
+        return evidence(
+            str(fact.get("asOf") or out_day.isoformat()),
+            f"{head}: {fact['value']}",
+            fact.get("tag") or "R",
+            fact.get("sourceName") or "",
+            fact.get("sourceUrl") or "",
+            fact.get("sourceUrl") or f"model:status@site:{site}",
+        )
     reason = str(link.get("reason") or "").split(". ")[0]
     if not reason:
         return None
-    return evidence(out_day.isoformat(), f"{head}: {reason}", "M", "Marden status rules", "docs/methods/status-rules-v0.1.md",
-                    f"model:status@site:{site}")
+    return evidence(
+        out_day.isoformat(),
+        f"{head}: {reason}",
+        "M",
+        "Marden status rules",
+        "docs/methods/status-rules-v0.1.md",
+        f"model:status@site:{site}",
+    )
 
 
-def cushion_reason(months: int, p50: str | None, outside: str | None, delta: int | None, site: str,
-                   out_day: date) -> dict[str, Any]:
+def cushion_reason(
+    months: int, p50: str | None, outside: str | None, delta: int | None, site: str, out_day: date
+) -> dict[str, Any]:
     moved = f"; {delta:+d} months on the week" if delta else ""
-    return evidence(out_day.isoformat(), f"Cushion {months:+d} months: rent start P50 {p50 or 'n/d'} against outside date "
-                    f"{outside or 'n/d'}{moved}", "M", "Marden cushion model", METHOD_URLS["cushion"],
-                    f"model:cushion@site:{site}:{out_day.isoformat()}")
+    return evidence(
+        out_day.isoformat(),
+        f"Cushion {months:+d} months: rent start P50 {p50 or 'n/d'} against outside date {outside or 'n/d'}{moved}",
+        "M",
+        "Marden cushion model",
+        METHOD_URLS["cushion"],
+        f"model:cushion@site:{site}:{out_day.isoformat()}",
+    )
 
 
 def slip_reason(row: dict[str, Any]) -> dict[str, Any]:
     v = row["value"] if isinstance(row["value"], dict) else {"what": str(row["value"])}
-    return evidence(str(v.get("date") or row["valid_from"].isoformat()), str(v.get("what") or v.get("text") or "")[:240],
-                    row["tag"].strip(), row.get("source_name") or "", row.get("source_url") or "", f"fact:{row['id']}")
+    return evidence(
+        str(v.get("date") or row["valid_from"].isoformat()),
+        str(v.get("what") or v.get("text") or "")[:240],
+        row["tag"].strip(),
+        row.get("source_name") or "",
+        row.get("source_url") or "",
+        f"fact:{row['id']}",
+    )
 
 
-def gap_reason(gap: float, count: int, filing: str | None, filed: str | None, iid: str, out_day: date) -> dict[str, Any]:
+def gap_reason(
+    gap: float, count: int, filing: str | None, filed: str | None, iid: str, out_day: date
+) -> dict[str, Any]:
     side = "above" if gap < 0 else "below"
-    return evidence(out_day.isoformat(), f"Fund marks {abs(gap):.1f} pts {side} the Marden price ({count} holder lines, "
-                    f"{filing or 'filings'} {filed or ''})".rstrip(), "M", "Marden mark gap", METHOD_URLS["mark_gap"],
-                    f"model:mark_gap@instrument:{iid}:{out_day.isoformat()}")
+    return evidence(
+        out_day.isoformat(),
+        f"Fund marks {abs(gap):.1f} pts {side} the Marden price ({count} holder lines, "
+        f"{filing or 'filings'} {filed or ''})".rstrip(),
+        "M",
+        "Marden mark gap",
+        METHOD_URLS["mark_gap"],
+        f"model:mark_gap@instrument:{iid}:{out_day.isoformat()}",
+    )
 
 
 def band_reason(tenant: str, band: str, reasons: list[str], out_day: date) -> dict[str, Any]:
     why = f": {reasons[0]}" if reasons else ""
-    return evidence(out_day.isoformat(), f"Tenant {tenant} downgrade risk {band} (Marden view, not a rating){why}", "M",
-                    "Marden payer capacity", METHOD_URLS["payer_capacity"],
-                    f"model:payer_capacity@entity:{tenant}:{out_day.isoformat()}")
+    return evidence(
+        out_day.isoformat(),
+        f"Tenant {tenant} downgrade risk {band} (Marden view, not a rating){why}",
+        "M",
+        "Marden payer capacity",
+        METHOD_URLS["payer_capacity"],
+        f"model:payer_capacity@entity:{tenant}:{out_day.isoformat()}",
+    )
 
 
 def price_reason(change: float, price: float, iid: str, out_day: date) -> dict[str, Any]:
-    return evidence(out_day.isoformat(), f"Marden price {price:.1f}, {change:+.1f} on the week", "M", "Marden model price",
-                    METHOD_URLS["price"], f"model:price@instrument:{iid}:{out_day.isoformat()}")
+    return evidence(
+        out_day.isoformat(),
+        f"Marden price {price:.1f}, {change:+.1f} on the week",
+        "M",
+        "Marden model price",
+        METHOD_URLS["price"],
+        f"model:price@instrument:{iid}:{out_day.isoformat()}",
+    )
 
 
 def public(ev: dict[str, Any]) -> dict[str, Any]:
@@ -84,8 +126,10 @@ def note(week: date, rows: list[dict[str, Any]], reasons: dict[str, list[dict[st
     paragraphs = []
     for r in rows[:NOTE_PARAGRAPHS]:
         evs = reasons.get(r["instrumentId"], [])
-        sentences = [f"Ranked {r['rank']} of {len(rows)}, with {round(r['odds']['value'] * 100)}% odds of a 3-point move "
-                     f"in 90 days (odds v0, uncalibrated)."]
+        sentences = [
+            f"Ranked {r['rank']} of {len(rows)}, with {round(r['odds']['value'] * 100)}% odds of a 3-point move "
+            f"in 90 days (odds v0, uncalibrated)."
+        ]
         sentences += [f"{e['text']} ({e['date']})." for e in evs[:3]]
         paragraphs.append({"lead": r["name"], "text": " ".join(sentences), "refs": [e["_ref"] for e in evs[:3]]})
     return {"title": f"Risk list, week of {week.strftime('%b')} {week.day}, {week.year}", "paragraphs": paragraphs}

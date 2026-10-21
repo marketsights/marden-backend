@@ -143,7 +143,9 @@ def exposed(conn: Conn, entity_id: str, out: Row | None) -> list[Doc]:
     info = instrument_info(conn, list(links))
     modeled = output_field(out, "exposed")
     if isinstance(modeled, list):  # the model writes ExposedInstrument[] (types.ts); index it by instrument
-        modeled = {r["instrumentId"]: r for r in modeled if isinstance(r, dict) and isinstance(r.get("instrumentId"), str)}
+        modeled = {
+            r["instrumentId"]: r for r in modeled if isinstance(r, dict) and isinstance(r.get("instrumentId"), str)
+        }
     modeled = modeled if isinstance(modeled, dict) else {}
     rows = []
     for iid, link in links.items():

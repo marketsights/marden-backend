@@ -75,9 +75,15 @@ def rating_states(rs: dict[str, AgencyRating], day: date) -> list[dict[str, Any]
         ar = rs.get(agency)
         if ar is None:
             continue
-        out.append({"agency": agency, "rating": fact_value(ar.row, ar.rating),
-                    "outlook": fact_value(ar.row, ar.outlook) if ar.outlook else _nd(day),
-                    "lastAction": fact_value(ar.row, ar.action) if ar.action else _nd(day), "triggers": []})
+        out.append(
+            {
+                "agency": agency,
+                "rating": fact_value(ar.row, ar.rating),
+                "outlook": fact_value(ar.row, ar.outlook) if ar.outlook else _nd(day),
+                "lastAction": fact_value(ar.row, ar.action) if ar.action else _nd(day),
+                "triggers": [],
+            }
+        )
     return out
 
 
@@ -86,13 +92,26 @@ def _action_date(text: str | None) -> date | None:
     return date.fromisoformat(m.group(1)) if m else None
 
 
-def downgrade_band(rs: dict[str, AgencyRating], lev_today: float | None, lev_peak: float | None,
-                   gap_3y: float | None, ocf_b: float | None, has_financials: bool, day: date) -> tuple[str, list[str]]:
+def downgrade_band(
+    rs: dict[str, AgencyRating],
+    lev_today: float | None,
+    lev_peak: float | None,
+    gap_3y: float | None,
+    ocf_b: float | None,
+    has_financials: bool,
+    day: date,
+) -> tuple[str, list[str]]:
     reasons = []
     neg = [a for a, r in rs.items() if r.outlook == "Negative"]
     reasons += [f"{a} outlook negative" for a in neg[:2]]
-    cuts = [a for a, r in rs.items() if r.action and DOWNGRADE.search(r.action)
-            and (d := _action_date(r.action)) is not None and day - timedelta(days=365) <= d <= day]
+    cuts = [
+        a
+        for a, r in rs.items()
+        if r.action
+        and DOWNGRADE.search(r.action)
+        and (d := _action_date(r.action)) is not None
+        and day - timedelta(days=365) <= d <= day
+    ]
     if cuts:
         reasons.append(f"downgraded in the last 12 months ({', '.join(cuts)})")
     low = lowest_notch(rs)
@@ -107,8 +126,9 @@ def downgrade_band(rs: dict[str, AgencyRating], lev_today: float | None, lev_pea
     return ("High" if len(reasons) >= 3 else "Watch" if reasons else "Low"), reasons
 
 
-def top_counterparty(conn: Conn, eid: str, day: date, edges: list[graph.Edge], backlog: Any,
-                     names: dict[str, str]) -> dict[str, Any] | None:
+def top_counterparty(
+    conn: Conn, eid: str, day: date, edges: list[graph.Edge], backlog: Any, names: dict[str, str]
+) -> dict[str, Any] | None:
     row = pit.current_of(pit.fact_rows(conn, day, "entity", [eid], ["top_customers"]))
     if row is not None and isinstance(row["value"], str):
         m = _SHARE.search(row["value"])
@@ -118,8 +138,10 @@ def top_counterparty(conn: Conn, eid: str, day: date, edges: list[graph.Edge], b
     if not owed or backlog is None:
         return None
     best = max(owed, key=lambda e: e.total.usd)  # type: ignore[union-attr]
-    return {"name": names.get(best.payer, best.payer), "share": _m(round(min(best.total.usd / backlog.usd, 1.0), 4),
-                                                                   day)}  # type: ignore[union-attr]
+    return {
+        "name": names.get(best.payer, best.payer),
+        "share": _m(round(min(best.total.usd / backlog.usd, 1.0), 4), day),
+    }  # type: ignore[union-attr]
 
 
 def ai_coverage(conn: Conn, eid: str, kind: str, day: date, edges: list[graph.Edge]) -> tuple[Any, list[str]]:
@@ -140,8 +162,9 @@ def ai_coverage(conn: Conn, eid: str, kind: str, day: date, edges: list[graph.Ed
 
 def exposed(conn: Conn, eid: str, edges: list[graph.Edge], day: date) -> list[dict[str, Any]]:
     links: dict[str, str] = {}
-    for e in sorted((e for e in edges if e.payer == eid and e.type in OWED_TYPES),
-                    key=lambda e: (OWED_TYPES.index(e.type), e.id)):
+    for e in sorted(
+        (e for e in edges if e.payer == eid and e.type in OWED_TYPES), key=lambda e: (OWED_TYPES.index(e.type), e.id)
+    ):
         for iid in e.instruments():
             links.setdefault(iid, LINK_LABELS[e.type])
     info = stress_inputs.load(conn, day, list(links))
@@ -152,41 +175,63 @@ def exposed(conn: Conn, eid: str, edges: list[graph.Edge], day: date) -> list[di
     for iid, link in links.items():
         if iid not in info:
             continue
-        term = next((r for r in terms.get(iid, []) if isinstance(r["value"], dict) and _RATING_TERM.search(
-            f"{r['value'].get('type') or ''} {r['value'].get('threshold') or r['value'].get('metric') or ''}")), None)
+        term = next(
+            (
+                r
+                for r in terms.get(iid, [])
+                if isinstance(r["value"], dict)
+                and _RATING_TERM.search(
+                    f"{r['value'].get('type') or ''} {r['value'].get('threshold') or r['value'].get('metric') or ''}"
+                )
+            ),
+            None,
+        )
         v = term["value"] if term else {}
-        rows.append({"instrumentId": iid, "name": info[iid].name, "link": link, "amountB": info[iid].size_b(day),
-                     "ratingTrigger": fact_value(term, str(v.get("threshold") or v.get("metric"))) if term
-                     else _nd(day, "F"),
-                     "onTrip": fact_value(term, str(v["consequence"])) if term and v.get("consequence")
-                     else _nd(day, "F"),
-                     "holdersCount": info[iid].holder_count})
+        rows.append(
+            {
+                "instrumentId": iid,
+                "name": info[iid].name,
+                "link": link,
+                "amountB": info[iid].size_b(day),
+                "ratingTrigger": fact_value(term, str(v.get("threshold") or v.get("metric")))
+                if term
+                else _nd(day, "F"),
+                "onTrip": fact_value(term, str(v["consequence"])) if term and v.get("consequence") else _nd(day, "F"),
+                "holdersCount": info[iid].holder_count,
+            }
+        )
     rows.sort(key=lambda r: (-(r["amountB"]["value"] or 0), r["name"]))
     return rows
 
 
-def payer_doc(conn: Conn, eid: str, day: date, edges: list[graph.Edge], fin: Any, ent: dict[str, Any],
-              names: dict[str, str]) -> dict[str, Any]:
+def payer_doc(
+    conn: Conn, eid: str, day: date, edges: list[graph.Edge], fin: Any, ent: dict[str, Any], names: dict[str, str]
+) -> dict[str, Any]:
     rs = ratings(conn, day, eid)
     p = path(fin, edges, day, METHOD)
     missing = list(p.missing)
     cds = latest_output(conn, "cds", "entity", eid, day)
     spread = num(cds["output"].get("spreadBp")) if cds is not None and isinstance(cds["output"], dict) else None
-    spread_doc = m_value(round(spread, 1), cds["as_of"], "price v0.1", source_name="Marden bond-implied CDS") \
-        if spread is not None else _nd(day, "M")
+    spread_doc = (
+        m_value(round(spread, 1), cds["as_of"], "price v0.1", source_name="Marden bond-implied CDS")
+        if spread is not None
+        else _nd(day, "M")
+    )
     if spread is None:
         missing.append(f"entity {eid}: bond-implied CDS (price engine 'cds' output)")
     cover, cmiss = ai_coverage(conn, eid, ent["kind"], day, edges)
     missing += cmiss
     has_fin = fin.debt() is not None or fin.ttm("operating_cash_flow") is not None
     ocf = fin.ttm("operating_cash_flow")
-    band, reasons = downgrade_band(rs, p.leverage_today, p.leverage_peak, p.gap_3y,
-                                   ocf.usd / 1e9 if ocf else None, has_fin, day)
+    band, reasons = downgrade_band(
+        rs, p.leverage_today, p.leverage_peak, p.gap_3y, ocf.usd / 1e9 if ocf else None, has_fin, day
+    )
     missing.append("agency-stated downgrade triggers (agency releases not collected): headroom and breach year n/d")
     if not rs:
         missing.append(f"entity {eid}: agency ratings (no rating fact public on {day})")
     return {
-        "slug": eid, "name": ent["name"],
+        "slug": eid,
+        "name": ent["name"],
         "kind": KIND_LABELS.get(ent["kind"], ent["kind"].replace("_", " ").capitalize()),
         "ratings": rating_states(rs, day),
         "spreadBp": spread_doc,
@@ -201,8 +246,12 @@ def payer_doc(conn: Conn, eid: str, day: date, edges: list[graph.Edge], fin: Any
         "years": p.years,
         "exposed": exposed(conn, eid, edges, day),
         "missing": sorted(set(missing)),
-        "basis": {"methodVersion": f"{METHOD} (model v0)", "bandReasons": reasons, **p.basis,
-                  "ratingsFrom": sorted({f"{r.row['subject_type']}:{r.row['subject_id']}" for r in rs.values()})},
+        "basis": {
+            "methodVersion": f"{METHOD} (model v0)",
+            "bandReasons": reasons,
+            **p.basis,
+            "ratingsFrom": sorted({f"{r.row['subject_type']}:{r.row['subject_id']}" for r in rs.values()}),
+        },
     }
 
 
@@ -211,8 +260,10 @@ def compute(conn: Conn, day: date, ids: list[str] | None = None) -> Batch:
         targets = [i for i in payer_ids(conn) if not ids or i in ids]
         edges = graph.load_edges(conn, day)
         fins = load_financials(conn, day, targets)
-        ents = {r["id"]: r for r in conn.execute("SELECT id, name, kind FROM entity WHERE id = ANY(%s)",
-                                                 (targets,)).fetchall()}
+        ents = {
+            r["id"]: r
+            for r in conn.execute("SELECT id, name, kind FROM entity WHERE id = ANY(%s)", (targets,)).fetchall()
+        }
         names = graph.entity_names(conn)
         batch = Batch()
         for eid in targets:
@@ -224,8 +275,9 @@ def compute(conn: Conn, day: date, ids: list[str] | None = None) -> Batch:
         return batch
 
 
-def run(as_of: date | None = None, ids: list[str] | None = None, *, trigger: str = "manual",
-        mark: bool = True) -> dict[str, Any]:
+def run(
+    as_of: date | None = None, ids: list[str] | None = None, *, trigger: str = "manual", mark: bool = True
+) -> dict[str, Any]:
     return run_outputs(MODEL, VERSION, as_of, lambda c, d: compute(c, d, ids), trigger=trigger, mark=mark)
 
 
@@ -250,8 +302,9 @@ _install_triggers()
 
 
 @app.periodic(cron=CRON_UTC, periodic_id="payer_capacity_daily")
-@app.task(name="models.payer_capacity", queue="models", queueing_lock="models.payer_capacity",
-          lock="models.payer_capacity")
+@app.task(
+    name="models.payer_capacity", queue="models", queueing_lock="models.payer_capacity", lock="models.payer_capacity"
+)
 def payer_capacity_task(timestamp: int | None = None) -> dict[str, Any]:
     return _run_keys(["*"], "schedule")
 
@@ -272,7 +325,9 @@ def payer_capacity_cli(args: argparse.Namespace) -> int:
     print(f"payer_capacity {VERSION} as of {r['as_of']} (run {r['run_id']}): {len(r['outputs'])} payers")
     for eid, o in r["outputs"].items():
         rs = "/".join(f"{x['agency']} {x['rating']['value']}" for x in o["ratings"]) or "n/d"
-        print(f"  {eid:28} {o['downgradeRisk']['value']:5} lev {o['leaseAdjLeverageToday']['value']} -> "
-              f"{o['leaseAdjLeveragePeak']['value']} gap3y {o['fundingGap3yB']['value']} spread "
-              f"{o['spreadBp']['value']} {rs}; {'; '.join(o['basis']['bandReasons'])}")
+        print(
+            f"  {eid:28} {o['downgradeRisk']['value']:5} lev {o['leaseAdjLeverageToday']['value']} -> "
+            f"{o['leaseAdjLeveragePeak']['value']} gap3y {o['fundingGap3yB']['value']} spread "
+            f"{o['spreadBp']['value']} {rs}; {'; '.join(o['basis']['bandReasons'])}"
+        )
     return 0

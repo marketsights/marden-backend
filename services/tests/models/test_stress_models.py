@@ -16,7 +16,7 @@ from ts_shapes_models import assert_matches_types
 
 from marden.core import db
 from marden.core.jsonutil import jsonb
-from marden.models import capacity, payer_capacity, risk_list, stress
+from marden.models import capacity, payer_capacity, risk_list, stress, stress_run
 from marden.models import capacity_methods as cm
 from marden.models.stress_price import Book, Shock
 from marden.readmodels.context import business_today
@@ -30,8 +30,11 @@ def area(test_database):
 
 
 def _stored_price(iid: str, day: date) -> float | None:
-    got = rows("""SELECT output->>'price' AS p FROM model_output WHERE model = 'price' AND subject_type = 'instrument'
-                    AND subject_id = %s AND as_of = %s ORDER BY created_at DESC LIMIT 1""", (iid, day))
+    got = rows(
+        """SELECT output->>'price' AS p FROM model_output WHERE model = 'price' AND subject_type = 'instrument'
+                    AND subject_id = %s AND as_of = %s ORDER BY created_at DESC LIMIT 1""",
+        (iid, day),
+    )
     return float(got[0]["p"]) if got and got[0]["p"] is not None else None
 
 
@@ -58,7 +61,7 @@ def test_saved_scenarios_and_their_outputs(area):
     if not rows("SELECT 1 FROM model_output WHERE model = 'price' AND as_of = %s LIMIT 1", (day,)):
         pytest.skip("the price model has not run today in the source database")
     payer_capacity.run(trigger="test")
-    result = stress.run(trigger="test")
+    result = stress_run.run(trigger="test")
     out = result["outputs"]
     base = [out[f"{s}:base"] for s in ("end_user_funding_miss", "tenant_downgrade", "power_delay")]
     assert_matches_types("StressResult", [shape(o) for o in base])
@@ -81,8 +84,11 @@ def test_saved_scenarios_and_their_outputs(area):
         assert severe["kpis"]["valueLostB"] is None and any("2022 peak" in m for m in severe["missing"])
     pd = out["power_delay:base"]
     for slug, site in pd["basis"]["sites"].items():  # the base cushion is the stored cushion run's
-        stored = rows("""SELECT output->'projection'->'cushionMonths'->>'value' AS c FROM model_output
-                          WHERE model = 'cushion' AND subject_id = %s AND as_of = %s""", (slug, day))
+        stored = rows(
+            """SELECT output->'projection'->'cushionMonths'->>'value' AS c FROM model_output
+                          WHERE model = 'cushion' AND subject_id = %s AND as_of = %s""",
+            (slug, day),
+        )
         if stored and site["cushion"] is not None and stored[0]["c"] is not None:
             assert site["cushion"][0] == float(stored[0]["c"])
             assert site["cushion"][1] <= site["cushion"][0]  # a later power date never adds cushion
@@ -94,11 +100,21 @@ def test_saved_scenarios_and_their_outputs(area):
 def test_stress_run_function_contract(area):
     """stress_run(jsonb): a saved scenario at once, a custom one queued once and served once stored."""
     with psycopg.connect(TEST_URL, autocommit=True) as conn:
-        conn.execute("""INSERT INTO model_output (model, version, subject_type, subject_id, as_of, output)
+        conn.execute(
+            """INSERT INTO model_output (model, version, subject_type, subject_id, as_of, output)
                         VALUES ('stress', '0.1', 'scenario', 'power_delay:base', %s, %s)""",
-                     (business_today(), jsonb({"kpis": {}, "flow": [], "rows": [],
-                                               "request": {"scenario": "power_delay", "params": {"months": 6},
-                                                           "severity": "base"}})))
+            (
+                business_today(),
+                jsonb(
+                    {
+                        "kpis": {},
+                        "flow": [],
+                        "rows": [],
+                        "request": {"scenario": "power_delay", "params": {"months": 6}, "severity": "base"},
+                    }
+                ),
+            ),
+        )
 
         def call(req: dict) -> dict:
             return conn.execute("SELECT stress_run(%s) AS r", (jsonb(req),)).fetchone()[0]
@@ -109,12 +125,15 @@ def test_stress_run_function_contract(area):
         custom = {"scenario": "power_delay", "params": {"months": 9}, "severity": "base"}
         first, again = call(custom), call(custom)
         assert first["status"] == "queued" and again["jobId"] == first["jobId"]  # one job for both callers
-        job = conn.execute("SELECT task_name, queue_name, args FROM procrastinate_jobs WHERE id = %s",
-                           (first["jobId"],)).fetchone()
+        job = conn.execute(
+            "SELECT task_name, queue_name, args FROM procrastinate_jobs WHERE id = %s", (first["jobId"],)
+        ).fetchone()
         assert job[0] == "models.stress_custom" and job[1] == "models" and job[2]["key"] == first["subject"]
-        conn.execute("""INSERT INTO model_output (model, version, subject_type, subject_id, as_of, output)
+        conn.execute(
+            """INSERT INTO model_output (model, version, subject_type, subject_id, as_of, output)
                         VALUES ('stress', '0.1', 'scenario', %s, %s, '{"rows": []}')""",
-                     (first["subject"], business_today()))
+            (first["subject"], business_today()),
+        )
         assert call(custom)["status"] == "done"
         assert call({"scenario": "meteor", "params": {}, "severity": "base"})["status"] == "error"
 
@@ -133,9 +152,12 @@ def test_risk_list_ranks_by_odds_and_freezes(area):
     for r in doc["rows"]:
         pts = doc["basis"]["points"][r["instrumentId"]]
         assert r["odds"]["value"] == round(pts / (pts + risk_list.ODDS_K), 3)
-        assert r["price"]["value"] == pytest.approx(float(rows(
-            """SELECT output->>'price' AS p FROM model_output WHERE model = 'price' AND subject_id = %s AND as_of <= %s
-               ORDER BY as_of DESC, created_at DESC LIMIT 1""", (r["instrumentId"], day))[0]["p"]), abs=0.001)
+        stored = rows(
+            """SELECT output->>'price' AS p FROM model_output WHERE model = 'price' AND subject_id = %s
+                  AND as_of <= %s ORDER BY as_of DESC, created_at DESC LIMIT 1""",
+            (r["instrumentId"], day),
+        )
+        assert r["price"]["value"] == pytest.approx(float(stored[0]["p"]), abs=0.001)
     for para, row in zip(doc["note"]["paragraphs"], doc["rows"], strict=False):  # code templates, own numbers
         assert para["lead"] == row["name"] and f"{round(row['odds']['value'] * 100)}%" in para["text"]
         assert all(e["text"] in para["text"] for e in row["why"][:3])
@@ -148,8 +170,10 @@ def test_capacity_estimates(area):
     out = capacity.run(trigger="test")["outputs"]
     campuses = [o for o in out.values() if o["scope"] == "campus"]
     assert_matches_types("CapacityEstimate", [shape(o) for o in campuses[:40]])
-    v1 = {r["campus_id"] for r in rows("SELECT sl.campus_id FROM site_link sl JOIN site s ON s.slug = sl.site_slug "
-                                       "WHERE s.in_v1")}
+    v1 = {
+        r["campus_id"]
+        for r in rows("SELECT sl.campus_id FROM site_link sl JOIN site s ON s.slug = sl.site_slug WHERE s.in_v1")
+    }
     for cid in v1:
         o = out[cid]
         f, it = o["facilityMw"], o["itMw"]
@@ -159,8 +183,10 @@ def test_capacity_estimates(area):
         known = [m for m in o["methods"] if m["facilityMw"]["base"] is not None]
         assert len(known) >= 2 or o["missing"]  # spec 27: two methods, or says what is missing
     abilene = out["stargate-abilene"]
-    chips = rows("SELECT value FROM fact WHERE subject_type = 'campus' AND subject_id = 'stargate-abilene' "
-                 "AND field = 'chips' AND status = 'published' ORDER BY valid_from DESC, id DESC LIMIT 1")
+    chips = rows(
+        "SELECT value FROM fact WHERE subject_type = 'campus' AND subject_id = 'stargate-abilene' "
+        "AND field = 'chips' AND status = 'published' ORDER BY valid_from DESC, id DESC LIMIT 1"
+    )
     if chips:  # the disclosed chips decide the generation (B200 is the larger count)
         top = max(chips[0]["value"], key=lambda k: chips[0]["value"][k])
         assert abilene["gpuGeneration"]["value"] == top and abilene["gpuGeneration"]["tag"] == "R"

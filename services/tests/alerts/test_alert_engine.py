@@ -23,18 +23,18 @@ EMAIL_VARS = ("RESEND_API_KEY", "POSTMARK_TOKEN", "ALERT_EMAIL_PROVIDER", "ALERT
               "MARDEN_APP_URL")
 
 
-def _status_change(site: str):
-    """The first pair of consecutive status outputs of the site where a chain link's status changed."""
+def _status_change(site: str, *, to: str | None = None):
+    """The first pair of consecutive status outputs of the site where a chain link's status changed (to `to`)."""
     outs = rows("""SELECT DISTINCT ON (as_of) * FROM model_output WHERE model = 'status' AND subject_id = %s
                    ORDER BY as_of, created_at DESC, id DESC""", (site,))
     for before, after in itertools.pairwise(outs):
         old = {link["role"]: link["status"] for link in extract(before)["chain"]}
         changed = [link["role"] for link in extract(after)["chain"]
                    if link["role"] in old and old[link["role"]] != link["status"]
-                   and {old[link["role"]], link["status"]} - {"none", "green"}]
+                   and {old[link["role"]], link["status"]} - {"none", "green"} and to in (None, link["status"])]
         if changed:
             return before["as_of"], after["as_of"], changed
-    pytest.skip(f"no chain status change in the copied status outputs of {site}")
+    pytest.skip(f"no chain status change{f' to {to}' if to else ''} in the copied status outputs of {site}")
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def test_status_change_reaches_each_watcher_once(firms, monkeypatch):
     assert not rows("SELECT 1 FROM alert WHERE user_id = 'c1' AND subject_id = ANY(%s)", (jupiter_subjects,))
     a = next(x for x in alerts if x["user_id"] == "b1")
     assert a["org_id"] == "org_b" and a["ref_url"] == f"/sites/{SITE}" and a["tag"] == "M" and not a["backfill"]
-    assert "→" in a["headline"] and a["body"] and a["sources"] and a["occurred_on"] == after
+    assert "\u2192" in a["headline"] and a["body"] and a["sources"] and a["occurred_on"] == after
     assert "On your watchlist:" in a["body"]
 
     # one live 'alert' event per new alert, scoped to its org and user, carrying the Alert

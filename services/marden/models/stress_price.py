@@ -102,12 +102,21 @@ class Book:
         corp = cds_issuers(conn, by_issuer, curves)
         tiers = price_tiers.fit(conn, day, load_comps(conn, day), book)
         slugs = sorted({i.site_slug for i in insts.values() if i.site_slug})
-        ctx = Ctx(conn, day, book, {e: c for e, c in curves.items() if e in corp}, tiers,
-                  {s: price_signals.from_records(conn, day, s) for s in slugs}, False)
+        ctx = Ctx(
+            conn,
+            day,
+            book,
+            {e: c for e, c in curves.items() if e in corp},
+            tiers,
+            {s: price_signals.from_records(conn, day, s) for s in slugs},
+            False,
+        )
         halves = gpu_half_lives(conn, day)
         issuer_bonds = {b.id for e in corp for b in by_issuer.get(e, [])}
-        chains = {iid: None if iid in issuer_bonds else resolve(conn, inst, day, lambda e: e in corp, halves)
-                  for iid, inst in insts.items()}
+        chains = {
+            iid: None if iid in issuer_bonds else resolve(conn, inst, day, lambda e: e in corp, halves)
+            for iid, inst in insts.items()
+        }
         return cls(day, ctx, insts, obs, ctx.curves, chains, issuer_bonds)
 
     def hazard(self, entity_id: str) -> float | None:
@@ -116,8 +125,10 @@ class Book:
         return got[0] if got else None
 
     def _shocked(self, inst: Instrument, ch: Chain | None, shock: Shock) -> tuple[Ctx, Chain | None, list[str]]:
-        curves = {e: ShockedCurve(c, shock.hazard_mult.get(e, 1.0), self.day) if e in shock.hazard_mult else c
-                  for e, c in self.curves.items()}
+        curves = {
+            e: ShockedCurve(c, shock.hazard_mult.get(e, 1.0), self.day) if e in shock.hazard_mult else c
+            for e, c in self.curves.items()
+        }
         missing: list[str] = []
         ch_s = ch
         months = shock.completion_months.get(inst.site_slug or "", 0.0)

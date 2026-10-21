@@ -69,15 +69,24 @@ def test_digests_batch_each_users_alerts_once(live_alerts):
     assert weekly["weekly_digest"] == 1 and set(rows_w[0]["alert_ids"]) == {a["id"] for a in live_alerts}
 
 
-def test_red_alerts_in_an_instant_email_are_left_out_of_the_digest(live_alerts):
-    with psycopg.connect(TEST_URL, autocommit=True) as c:  # mark one real alert red (as a T2 or M4 alert is)
-        c.execute("UPDATE alert SET severity = 'red' WHERE id = %s", (live_alerts[0]["id"],))
-    assert outbox.sweep_instant() == 1
-    instant = rows("SELECT * FROM email_outbox WHERE kind = 'instant'")[0]
-    assert instant["alert_ids"] == [live_alerts[0]["id"]] and instant["user_id"] == "a1"
-    outbox.build_digests(_next_cut(max(a["at"] for a in live_alerts)))
-    daily = rows("SELECT * FROM email_outbox WHERE kind = 'daily_digest'")[0]
-    assert live_alerts[0]["id"] not in daily["alert_ids"]
+def test_red_alerts_in_an_instant_email_are_left_out_of_the_digest():
+    if SITE not in copy_sites([SITE])["sites"]:
+        pytest.skip("jupiter is not in the source database")
+    make_firm("org_a", [("a1", None, True), ("a2", {"instantRed": False}, True)], [("site", SITE)])
+    before, after, _ = _status_change(SITE, to="red")  # Oracle's tenant link turning red (T2)
+    engine.scan(since=before + timedelta(days=1), today=after)
+    reds = rows("SELECT * FROM alert WHERE severity = 'red' AND user_id = 'a1' ORDER BY id")
+    assert reds, "the red link change made no red alert"
+    assert outbox.sweep_instant() == 1  # a2 takes no instant email
+    instant = rows("SELECT * FROM email_outbox WHERE kind = 'instant'")
+    assert len(instant) == 1 and instant[0]["user_id"] == "a1" and instant[0]["alert_ids"] == [r["id"] for r in reds]
+    assert instant[0]["subject"].startswith("[Marden] ")
+    latest = max(a["at"] for a in rows("SELECT at FROM alert"))
+    outbox.build_digests(_next_cut(latest))
+    daily = {d["user_id"]: d for d in rows("SELECT * FROM email_outbox WHERE kind = 'daily_digest'")}
+    assert not {r["id"] for r in reds} & set(daily["a1"]["alert_ids"] if "a1" in daily else [])
+    a2_reds = {r["id"] for r in rows("SELECT id FROM alert WHERE severity = 'red' AND user_id = 'a2'")}
+    assert a2_reds <= set(daily["a2"]["alert_ids"])  # no instant email: the reds go in the digest
 
 
 def _due(now: datetime) -> dict:
@@ -168,7 +177,8 @@ def test_switched_off_before_sending_is_cancelled(live_alerts):
     now = _next_cut(max(a["at"] for a in live_alerts))
     outbox.build_digests(now)
     with psycopg.connect(TEST_URL, autocommit=True) as c:
-        c.execute("""INSERT INTO alert_settings (org_id, user_id, settings) VALUES ('org_a', 'a1', '{"dailyDigest": false}')""")
+        c.execute("""INSERT INTO alert_settings (org_id, user_id, settings)
+                     VALUES ('org_a', 'a1', '{"dailyDigest": false}')""")
     with httpx.Client(transport=httpx.MockTransport(lambda r: pytest.fail("nothing may be sent"))) as c:
         assert outbox.send_due(cfg=_cfg(), client=c, now=now) == {"cancelled": 1}
     assert rows("SELECT last_error FROM email_outbox")[0]["last_error"] == "dailyDigest is switched off"

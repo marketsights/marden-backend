@@ -48,8 +48,14 @@ from marden.readmodels.views.sites_common import with_value
 GRAPH_METHOD = "obligations v0.1"
 # Edges that are payment streams (revenue or rent to the payee). Guarantees, warrants and equity stakes are
 # contingent or ownership claims: they are on the map but carry no schedule into concentration or contagion.
-PAYMENT_TYPES = ("Lease", "Compute purchase", "Chip purchase", "Power purchase", "Loan or credit facility",
-                 "Revenue share")
+PAYMENT_TYPES = (
+    "Lease",
+    "Compute purchase",
+    "Chip purchase",
+    "Power purchase",
+    "Loan or credit facility",
+    "Revenue share",
+)
 _YEAR = re.compile(r"\b(20\d\d)\b")
 _BN = re.compile(r"\$\s*~?\s*(\d+(?:\.\d+)?)\s*(bn|billion|b|tn|trillion)\b", re.I)
 _TERM = re.compile(r"~?\s*(\d+(?:\.\d+)?)[- ]?(?:years?|yrs?)\b", re.I)
@@ -170,14 +176,17 @@ class Edge:
             "totalB": total,
             "annual": self.annual_docs(day),
             "start": text_of(self.facts.get("start")),
-            "termYears": number_of(self.facts.get("term_years")) if self.facts.get("term_years") else (
-                m_value(self.term, day, GRAPH_METHOD, source_name="Marden obligation map") if self.term
-                else number_of(None)),
+            "termYears": number_of(self.facts.get("term_years"))
+            if self.facts.get("term_years")
+            else (
+                m_value(self.term, day, GRAPH_METHOD, source_name="Marden obligation map")
+                if self.term
+                else number_of(None)
+            ),
             "conditions": edge_conditions(self.facts, self.rows),
             "linkedSites": edge_sites(self.ob, self.facts, known_sites),
             "linkedInstruments": self.instruments(),
-            "evidence": sorted((evidence_of(r) for r in self.rows["evidence"]), key=lambda e: e["date"],
-                               reverse=True),
+            "evidence": sorted((evidence_of(r) for r in self.rows["evidence"]), key=lambda e: e["date"], reverse=True),
         }
 
     def instruments(self) -> list[str]:
@@ -282,9 +291,11 @@ def party_status(conn: Conn, entity_id: str, day: date) -> str | None:
     return best[1] if best else None
 
 
-def node_doc(conn: Conn, entity_id: str, edges: list[Edge], day: date, names: dict[str, str],
-             kinds: dict[str, str]) -> dict[str, Any]:
+def node_doc(
+    conn: Conn, entity_id: str, edges: list[Edge], day: date, names: dict[str, str], kinds: dict[str, str]
+) -> dict[str, Any]:
     """ObligationNode: owedB = disclosed totals of edges into it, owesB = out of it ($B)."""
+
     def total(e: Edge) -> float:
         return e.total.usd / 1e9 if e.total else 0.0
 

@@ -25,7 +25,7 @@ from marden.models.sourced import fact_value, num
 from marden.readmodels.views.instrument_inputs import instrument_identity
 from marden.readmodels.views.instrument_text import display_name
 
-_RANGE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(?:[–-]\s*(\d+(?:\.\d+)?))?\s*$")
+_RANGE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(?:[\u2013-]\s*(\d+(?:\.\d+)?))?\s*$")  # '62\u201374' or '100'
 HOLDER_NAMES = 2
 
 
@@ -55,8 +55,11 @@ class Inst:
     def holders_text(self) -> str:
         if not self.holder_count:
             return "no fund holds it"
-        names = [h["name"].title() for h in sorted(self.holders, key=lambda h: -(num(h.get("parMm")) or 0))
-                 if isinstance(h.get("name"), str)][:HOLDER_NAMES]
+        names = [
+            h["name"].title()
+            for h in sorted(self.holders, key=lambda h: -(num(h.get("parMm")) or 0))
+            if isinstance(h.get("name"), str)
+        ][:HOLDER_NAMES]
         more = self.holder_count - len(names)
         return ", ".join(names) + (f" +{more} more" if more > 0 else "")
 
@@ -77,16 +80,23 @@ def recovery_low(out: Row | None) -> float | None:
 
 
 def load(conn: Conn, day: date, ids: list[str]) -> dict[str, Inst]:
-    rows = conn.execute("SELECT id, kind, issuer_entity_id, site_slug FROM instrument WHERE id = ANY(%s)",
-                        (sorted(set(ids)),)).fetchall()
+    rows = conn.execute(
+        "SELECT id, kind, issuer_entity_id, site_slug FROM instrument WHERE id = ANY(%s)", (sorted(set(ids)),)
+    ).fetchall()
     names = {i["id"]: display_name(i) for i in instrument_identity(conn, sorted(set(ids)))}
     sizes: dict[str, list[Row]] = {}
     for r in pit.fact_rows(conn, day, "instrument", [r["id"] for r in rows], ["amount_usd"]):
         sizes.setdefault(r["subject_id"], []).append(r)
     out: dict[str, Inst] = {}
     for r in rows:
-        inst = Inst(r["id"], names.get(r["id"], r["id"]), r["kind"], r["issuer_entity_id"], r["site_slug"],
-                    pit.current_of(sizes.get(r["id"], [])))
+        inst = Inst(
+            r["id"],
+            names.get(r["id"], r["id"]),
+            r["kind"],
+            r["issuer_entity_id"],
+            r["site_slug"],
+            pit.current_of(sizes.get(r["id"], [])),
+        )
         px = latest_output(conn, "price", "instrument", r["id"], day)
         if px is not None and isinstance(px["output"], dict) and num(px["output"].get("price")) is not None:
             inst.price, inst.price_as_of = float(num(px["output"]["price"])), px["as_of"]
@@ -104,7 +114,9 @@ def issued_by(conn: Conn, entity_ids: list[str]) -> dict[str, list[str]]:
     rows = conn.execute(
         """SELECT i.id, coalesce(e.parent_id, e.id) AS top, e.id AS own FROM instrument i
              JOIN entity e ON e.id = i.issuer_entity_id
-            WHERE e.id = ANY(%(ids)s) OR e.parent_id = ANY(%(ids)s) ORDER BY i.id""", {"ids": entity_ids}).fetchall()
+            WHERE e.id = ANY(%(ids)s) OR e.parent_id = ANY(%(ids)s) ORDER BY i.id""",
+        {"ids": entity_ids},
+    ).fetchall()
     out: dict[str, list[str]] = {}
     for r in rows:
         key = r["own"] if r["own"] in entity_ids else r["top"]

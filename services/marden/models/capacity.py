@@ -35,16 +35,26 @@ from typing import Any
 from marden import cli
 from marden.core.db import Conn, Row
 from marden.core.queue import app
-from marden.models import pit, triggers
 from marden.models import capacity_methods as cm
+from marden.models import pit, triggers
 from marden.models.gpu_inputs import chip_key
 from marden.models.sourced import Batch, fact_value, m_value, method_version, num, run_outputs
 
 MODEL, VERSION = "capacity", "0.1"
 METHOD = method_version(MODEL, VERSION)
 CRON_UTC = "45 9 * * 1"
-CAMPUS_FIELDS = ("facility_mw", "it_mw", "large_load_request", "grid_mw", "backup_generator_count", "sqft_total",
-                 "developer", "chips", "chip_types", "online_year")
+CAMPUS_FIELDS = (
+    "facility_mw",
+    "it_mw",
+    "large_load_request",
+    "grid_mw",
+    "backup_generator_count",
+    "sqft_total",
+    "developer",
+    "chips",
+    "chip_types",
+    "online_year",
+)
 PLANT_FIELDS = ("capacity_mw", "status")
 UNIT_FIELDS = ("count", "rating_mw_each", "fuel")
 GEN_BY_YEAR = ((2026, "GB300"), (2025, "GB200"), (0, "H100"))
@@ -53,15 +63,23 @@ GEN_BY_YEAR = ((2026, "GB300"), (2025, "GB200"), (0, "H100"))
 def _r3(low: float | None, base: float | None, high: float | None, digits: int = 0) -> dict[str, float | None]:
     def r(x: float | None) -> float | None:
         return None if x is None else round(x, digits) if digits else float(round(x))
+
     return {"low": r(low), "base": r(base), "high": r(high)}
 
 
 def _evidence(rows: list[Row]) -> list[dict[str, Any]]:
     out = []
     for r in rows[:6]:
-        out.append({"date": r["valid_from"].isoformat(), "text": f"{r['subject_type']} {r['subject_id']}: {r['field']} = "
-                    f"{json.dumps(r['value'], ensure_ascii=False)[:160]}", "tag": r["tag"].strip(),
-                    "sourceName": r.get("source_name") or "", "sourceUrl": r.get("source_url") or ""})
+        out.append(
+            {
+                "date": r["valid_from"].isoformat(),
+                "text": f"{r['subject_type']} {r['subject_id']}: {r['field']} = "
+                f"{json.dumps(r['value'], ensure_ascii=False)[:160]}",
+                "tag": r["tag"].strip(),
+                "sourceName": r.get("source_name") or "",
+                "sourceUrl": r.get("source_url") or "",
+            }
+        )
     return out
 
 
@@ -81,17 +99,26 @@ def load_plants(conn: Conn, day: date) -> dict[str, list[dict[str, Any]]]:
     by_plant: dict[str, list[dict[str, Any]]] = {}
     for u in units:
         f = uf.get(u["id"], {})
-        by_plant.setdefault(u["plant_id"], []).append({
-            "count": num(f["count"]["value"]) if "count" in f else (u["count"] if f else None),
-            "rating": num(f["rating_mw_each"]["value"]) if "rating_mw_each" in f else None,
-            "fuel": str((f.get("fuel") or {}).get("value") or "").lower(), "rows": list(f.values())})
+        by_plant.setdefault(u["plant_id"], []).append(
+            {
+                "count": num(f["count"]["value"]) if "count" in f else (u["count"] if f else None),
+                "rating": num(f["rating_mw_each"]["value"]) if "rating_mw_each" in f else None,
+                "fuel": str((f.get("fuel") or {}).get("value") or "").lower(),
+                "rows": list(f.values()),
+            }
+        )
     out: dict[str, list[dict[str, Any]]] = {}
     for s in serves:
         f = pf.get(s["plant_id"], {})
-        out.setdefault(s["campus_id"], []).append({
-            "id": s["plant_id"], "status": (f.get("status") or {}).get("value"),
-            "capacity_mw": cm.mw_of(f["capacity_mw"]["value"]) if "capacity_mw" in f else None,
-            "capacity_row": f.get("capacity_mw"), "units": by_plant.get(s["plant_id"], [])})
+        out.setdefault(s["campus_id"], []).append(
+            {
+                "id": s["plant_id"],
+                "status": (f.get("status") or {}).get("value"),
+                "capacity_mw": cm.mw_of(f["capacity_mw"]["value"]) if "capacity_mw" in f else None,
+                "capacity_row": f.get("capacity_mw"),
+                "units": by_plant.get(s["plant_id"], []),
+            }
+        )
     return out
 
 
@@ -145,23 +172,42 @@ class Market:
         return q[0], statistics.median(pool), q[2]
 
 
-def estimate(cid: str, name: str, scope: str, cur: dict[str, Row], plants: list[dict[str, Any]], mk: Market,
-             dens: dict[str, list[tuple[str, float]]], sqft: tuple[float | None, Row | None, str]) -> dict[str, Any]:
+def estimate(
+    cid: str,
+    name: str,
+    scope: str,
+    cur: dict[str, Row],
+    plants: list[dict[str, Any]],
+    mk: Market,
+    dens: dict[str, list[tuple[str, float]]],
+    sqft: tuple[float | None, Row | None, str],
+) -> dict[str, Any]:
     day = mk.day
     n_chips, chip_row, disclosed_chip = chips_of(cur) if scope == "campus" else (None, None, None)
     year = num((cur.get("online_year") or {}).get("value"))
     gen = disclosed_chip or (next(c for y, c in GEN_BY_YEAR if (year or 0) >= y) if year else None)
     kw, share = mk.kw(gen), mk.share(cid)
-    methods = [m for m in (cm.filed(cur), cm.utility_load(cur), cm.prime_generation(plants), cm.backup(cur),
-                           cm.footprint(sqft[0], sqft[1], cid, cm.developer_key(cur), dens, sqft[2]),
-                           cm.gpu_implied(n_chips, chip_row, kw, share, mk.pue)) if m is not None]
+    methods = [
+        m
+        for m in (
+            cm.filed(cur),
+            cm.utility_load(cur),
+            cm.prime_generation(plants),
+            cm.backup(cur),
+            cm.footprint(sqft[0], sqft[1], cid, cm.developer_key(cur), dens, sqft[2]),
+            cm.gpu_implied(n_chips, chip_row, kw, share, mk.pue),
+        )
+        if m is not None
+    ]
     best, disagree, confidence = cm.combine(methods)
     missing = []
     if best is None:
         missing.append(f"{scope} {cid}: no filed MW, utility load, generation, footprint or chip count")
     elif sum(1 for m in methods if m.known) < 2:
-        missing.append(f"{scope} {cid}: one method only (no {'campus-level records' if scope == 'building' else 'second'}"
-                       " facility MW source: permit generator ratings, utility load, cooling capacity)")
+        missing.append(
+            f"{scope} {cid}: one method only (no {'campus-level records' if scope == 'building' else 'second'}"
+            " facility MW source: permit generator ratings, utility load, cooling capacity)"
+        )
     if mk.pue is None:
         missing.append("series data_center_pue pue_range")
     fac = _r3(best.low, best.base, best.high) if best else _r3(None, None, None)
@@ -170,29 +216,57 @@ def estimate(cid: str, name: str, scope: str, cur: dict[str, Row], plants: list[
         it = _r3(best.low / mk.pue[2], best.base / mk.pue[1], best.high / mk.pue[0])
     gpus = _r3(None, None, None)
     if it["base"] is not None and share and kw:
-        gpus = _r3(it["low"] * share[0] * 1000 / kw, it["base"] * share[1] * 1000 / kw,
-                   it["high"] * share[2] * 1000 / kw)
+        gpus = _r3(
+            it["low"] * share[0] * 1000 / kw, it["base"] * share[1] * 1000 / kw, it["high"] * share[2] * 1000 / kw
+        )
     else:
-        missing.append(f"GPU estimate: {'kW per GPU for ' + str(gen) if not kw else 'GPU share of IT (fewer than 3 campuses disclose chips and IT MW)' if not share else 'IT MW'}")
+        lacking = (
+            f"kW per GPU for {gen}"
+            if not kw
+            else "GPU share of IT (fewer than 3 campuses disclose chips and IT MW)"
+            if not share
+            else "IT MW"
+        )
+        missing.append(f"GPU estimate: {lacking}")
     price = mk.price(gen)
-    value = _r3(gpus["low"] * price[0] / 1e9, gpus["base"] * sum(price) / 2 / 1e9, gpus["high"] * price[1] / 1e9, 2) \
-        if gpus["base"] is not None and price else _r3(None, None, None)
-    replaced = [{"field": f, "value": fact_value(cur[k], cm.mw_of(cur[k]["value"]))}
-                for f, k in (("facilityMw", "facility_mw"), ("itMw", "it_mw"))
-                if k in cur and cur[k]["tag"].strip() == "F" and cm.mw_of(cur[k]["value"]) is not None]
-    gen_doc = fact_value(cur["chip_types"], gen) if disclosed_chip and "chip_types" in cur else \
-        m_value(gen, day, f"{METHOD}: generation by online year", uncalibrated=True)
+    value = (
+        _r3(gpus["low"] * price[0] / 1e9, gpus["base"] * sum(price) / 2 / 1e9, gpus["high"] * price[1] / 1e9, 2)
+        if gpus["base"] is not None and price
+        else _r3(None, None, None)
+    )
+    replaced = [
+        {"field": f, "value": fact_value(cur[k], cm.mw_of(cur[k]["value"]))}
+        for f, k in (("facilityMw", "facility_mw"), ("itMw", "it_mw"))
+        if k in cur and cur[k]["tag"].strip() == "F" and cm.mw_of(cur[k]["value"]) is not None
+    ]
+    gen_doc = (
+        fact_value(cur["chip_types"], gen)
+        if disclosed_chip and "chip_types" in cur
+        else m_value(gen, day, f"{METHOD}: generation by online year", uncalibrated=True)
+    )
     kw_row = mk.chips.get(gen or "", {}).get("tdp_w")
     return {
-        "scope": scope, "id": cid, "name": name,
-        "facilityMw": fac, "itMw": it, "gpus": gpus, "gpuValueB": value,
+        "scope": scope,
+        "id": cid,
+        "name": name,
+        "facilityMw": fac,
+        "itMw": it,
+        "gpus": gpus,
+        "gpuValueB": value,
         "pue": fact_value(mk.pue_row, round(mk.pue[1], 3)) if mk.pue else fact_value(None, as_of=day),
         "gpuGeneration": gen_doc if gen else fact_value(None, as_of=day, tag="M"),
         "kwPerGpu": fact_value(kw_row, round(kw, 3)) if kw and kw_row is not None else fact_value(None, as_of=day),
         "gpuShareOfIt": m_value(round(share[1], 3) if share else None, day, METHOD, uncalibrated=True),
         "confidence": confidence,
-        "methods": [{"method": m.method, "facilityMw": _r3(m.low, m.base, m.high), "assumptions": m.assumptions,
-                     "evidence": _evidence(m.rows)} for m in methods],
+        "methods": [
+            {
+                "method": m.method,
+                "facilityMw": _r3(m.low, m.base, m.high),
+                "assumptions": m.assumptions,
+                "evidence": _evidence(m.rows),
+            }
+            for m in methods
+        ],
         "disagreement": disagree,
         "replacedByFiling": replaced,
         "methodVersion": f"{METHOD} (model v0)",
@@ -204,33 +278,60 @@ def compute(conn: Conn, day: date, ids: list[str] | None = None) -> Batch:
     camps = conn.execute("SELECT id, name FROM campus ORDER BY id").fetchall()
     campuses = _grouped(pit.fact_rows(conn, day, "campus", [c["id"] for c in camps], list(CAMPUS_FIELDS)))
     mk, dens, plants = Market(conn, day, campuses), cm.densities(campuses), load_plants(conn, day)
-    v1 = {r["campus_id"] for r in conn.execute(
-        "SELECT sl.campus_id FROM site_link sl JOIN site s ON s.slug = sl.site_slug WHERE s.in_v1").fetchall()}
+    v1 = {
+        r["campus_id"]
+        for r in conn.execute(
+            "SELECT sl.campus_id FROM site_link sl JOIN site s ON s.slug = sl.site_slug WHERE s.in_v1"
+        ).fetchall()
+    }
     blds = conn.execute(
         """SELECT b.id, b.campus_id, b.label, ST_Area(b.footprint::geography) AS m2 FROM building b
-            WHERE b.campus_id = ANY(%s) ORDER BY b.id""", (sorted(v1),)).fetchall()
+            WHERE b.campus_id = ANY(%s) ORDER BY b.id""",
+        (sorted(v1),),
+    ).fetchall()
     batch = Batch()
     for c in camps:
         if ids and c["id"] not in ids:
             continue
         cur = campuses.get(c["id"], {})
         sq = cur.get("sqft_total")
-        out = estimate(c["id"], c["name"], "campus", cur, plants.get(c["id"], []), mk, dens,
-                       (num(sq["value"]) if sq else None, sq, "campus floor area"))
+        out = estimate(
+            c["id"],
+            c["name"],
+            "campus",
+            cur,
+            plants.get(c["id"], []),
+            mk,
+            dens,
+            (num(sq["value"]) if sq else None, sq, "campus floor area"),
+        )
         if c["id"] not in v1:
             out["missing"].append("buildings: estimated for campuses linked to a V1 site only")
         batch.add("campus", c["id"], out)
         for b in (b for b in blds if b["campus_id"] == c["id"]):
             sqft = float(b["m2"]) * cm.SQFT_PER_M2 if b["m2"] else None
             bdev = {"developer": cur["developer"]} if "developer" in cur else {}
-            batch.add("building", b["id"], estimate(b["id"], b["label"] or b["id"], "building", bdev, [], mk, dens,
-                                                    (sqft, None, "building footprint (polygon area)")))
+            batch.add(
+                "building",
+                b["id"],
+                estimate(
+                    b["id"],
+                    b["label"] or b["id"],
+                    "building",
+                    bdev,
+                    [],
+                    mk,
+                    dens,
+                    (sqft, None, "building footprint (polygon area)"),
+                ),
+            )
     batch.inputs = [len(campuses), [s for _, s in mk.samples]]
     return batch
 
 
-def run(as_of: date | None = None, ids: list[str] | None = None, *, trigger: str = "manual",
-        mark: bool = True) -> dict[str, Any]:
+def run(
+    as_of: date | None = None, ids: list[str] | None = None, *, trigger: str = "manual", mark: bool = True
+) -> dict[str, Any]:
     return run_outputs(MODEL, VERSION, as_of, lambda c, d: compute(c, d, ids), trigger=trigger, mark=mark)
 
 
@@ -240,8 +341,9 @@ def _run_keys(keys: list[str], trigger: str) -> dict[str, Any]:
 
 
 _PLANT_CAMPUSES = "SELECT campus_id FROM plant_serves WHERE plant_id = %s"
-_UNIT_CAMPUSES = ("SELECT ps.campus_id FROM power_unit u JOIN plant_serves ps ON ps.plant_id = u.plant_id "
-                  "WHERE u.id = %s")
+_UNIT_CAMPUSES = (
+    "SELECT ps.campus_id FROM power_unit u JOIN plant_serves ps ON ps.plant_id = u.plant_id WHERE u.id = %s"
+)
 _BUILDING_CAMPUS = "SELECT campus_id FROM building WHERE id = %s"
 
 
@@ -287,7 +389,9 @@ def capacity_cli(args: argparse.Namespace) -> int:
     for sid, o in r["outputs"].items():
         if o["scope"] == "campus" and o["methods"]:
             f, g = o["facilityMw"], o["gpus"]
-            print(f"  {sid:36} {o['confidence']:6} fac {f['low']}-{f['base']}-{f['high']} it {o['itMw']['base']} gpus "
-                  f"{g['base']} ({o['gpuGeneration']['value']}) methods {[m['method'] for m in o['methods']]}"
-                  f"{' DISAGREE' if o['disagreement'] else ''}")
+            print(
+                f"  {sid:36} {o['confidence']:6} fac {f['low']}-{f['base']}-{f['high']} it {o['itMw']['base']} gpus "
+                f"{g['base']} ({o['gpuGeneration']['value']}) methods {[m['method'] for m in o['methods']]}"
+                f"{' DISAGREE' if o['disagreement'] else ''}"
+            )
     return 0

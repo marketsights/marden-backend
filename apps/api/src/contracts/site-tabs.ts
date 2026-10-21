@@ -178,7 +178,8 @@ export type SiteBuildingsTab = SiteBuildings & SiteBuildingsExtras;
 // ---------- GET /api/sites and /api/completion additions (spec 16) ----------
 /** "Bldgs" on Completion (03) and Sites (05): built / total buildings on the site's linked campuses.
  * Copied from the web app's src/lib/api-types.ts (WithBuildingCount); the sites and completion read
- * models send it on every row, null (n/d) when no linked campus has a building. */
+ * models send it on every row, and site_detail (GET /api/sites/:slug: Buildings tab count and the
+ * header's "{n} buildings", spec 16), null (n/d) when no linked campus has a building. */
 export interface SiteBuildingCount {
   built: number;
   total: number;

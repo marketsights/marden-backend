@@ -178,7 +178,7 @@ def test_reconstructed_status_matches_the_status_models_own_backtest(jupiter_row
 
 
 def test_run_shapes_the_output_for_the_read_models_and_marks_the_view(jupiter_rows, committed):
-    result = tr.run(cases=["jupiter", "the-barn"], workers=1, step=56, trigger="test")
+    result = tr.run(cases=["jupiter", "the-barn"], workers=1, step=56, refine=False, trigger="test")
     out = result["output"]
     assert out["methodVersion"] == "track_record v0.1" and out["window"]["start"] == "2026-04-01"
     by_key = {c["key"]: c for c in out["cases"]}
@@ -194,10 +194,10 @@ def test_run_shapes_the_output_for_the_read_models_and_marks_the_view(jupiter_ro
     assert out["scan"]["weekly"][0] == "2026-04-01" and out["scan"]["weekly"][-1] == business_today().isoformat()
     rows = committed.execute("SELECT model, subject_type, subject_id FROM model_output WHERE run_id = %s",
                              (result["run_id"],)).fetchall()
-    assert [(r[0], r[1], r[2]) for r in rows] == [("track_record", "series", "all")]
-    assert committed.execute("SELECT count(*) FROM price_obs WHERE kind = 'marden'").fetchone()[0] == 0
+    assert [(r["model"], r["subject_type"], r["subject_id"]) for r in rows] == [("track_record", "series", "all")]
+    assert committed.execute("SELECT count(*) n FROM price_obs WHERE kind = 'marden'").fetchone()["n"] == 0
     # a run on a subset of cases is not the published backtest: it does not mark the screen
-    assert committed.execute("SELECT count(*) FROM read_model_dirty WHERE view = 'track_record'").fetchone()[0] == 0
+    assert committed.execute("SELECT count(*) n FROM read_model_dirty WHERE view = 'track_record'").fetchone()["n"] == 0
 
     from marden.readmodels.views.track_record import build_track_record
 

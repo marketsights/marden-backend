@@ -196,13 +196,14 @@ def markets_of(conn: Conn, p: dict[str, Any], day: date) -> dict[str, tc.Market]
 
 
 # ---------------------------------------------------------------- runs
-def scan(p: dict[str, Any], day: date, workers: int, step: int) -> tuple[dict[date, ts.State], dict[str, Any]]:
+def scan(p: dict[str, Any], day: date, workers: int, step: int,
+         refine: bool = True) -> tuple[dict[date, ts.State], dict[str, Any]]:
     """Weekly states from the window start, then daily ones in the week before each case's first signal."""
     weekly = ts.scan_days(day, step)
     args = (p["price_ids"], p["slugs"], p["slugs"])
     states = ts.compute_days(weekly, *args, workers)
     extra: set[date] = set()
-    for c in p["cases"]:
+    for c in p["cases"] if refine else []:
         first = ts.first_fires(list(c.instruments), p["sites"][c.key], states)
         earliest = min(first.values(), key=lambda f: f.day, default=None)
         extra |= {d for d in ts.refine_days(states, earliest) if d not in states}
@@ -224,7 +225,7 @@ def _digest(output: dict[str, Any]) -> str:
 
 
 def run(as_of: date | None = None, cases: list[str] | None = None, *, trigger: str = "manual",
-        workers: int = DEFAULT_WORKERS, step: int = 7, mark: bool = True) -> dict[str, Any]:
+        workers: int = DEFAULT_WORKERS, step: int = 7, refine: bool = True, mark: bool = True) -> dict[str, Any]:
     """The full backtest as of `as_of` (default today, US Eastern): market moves and a fresh signal scan."""
     day = as_of or business_today()
     if day > business_today():
@@ -236,7 +237,7 @@ def run(as_of: date | None = None, cases: list[str] | None = None, *, trigger: s
         with db.transaction() as conn:
             p = plan(conn, cases)
             markets = markets_of(conn, p, day)
-        states, meta = scan(p, day, workers, step)
+        states, meta = scan(p, day, workers, step, refine)
         output = assemble(day, p, markets, states, {**meta, "mode": "full", "fullRunId": run_id})
         _write(run_id, day, output, mark=mark and cases is None)
         runs.finish_run(run_id, ok=True, inputs_hash=_digest(output))

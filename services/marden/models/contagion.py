@@ -55,8 +55,9 @@ def _payments(edges: list[graph.Edge], eid: str, day: date) -> tuple[float, list
     return total, unknown
 
 
-def walk(edges: list[graph.Edge], fins: dict[str, Financials], company: str, pay_share: float,
-         day: date) -> tuple[list[dict[str, Any]], dict[str, float], dict[str, float], list[str]]:
+def walk(
+    edges: list[graph.Edge], fins: dict[str, Financials], company: str, pay_share: float, day: date
+) -> tuple[list[dict[str, Any]], dict[str, float], dict[str, float], list[str]]:
     """Returns (hops, pay share per company that pays less than in full, cut share per edge id, missing)."""
     pay = {company: pay_share}
     cut: dict[str, float] = {}
@@ -106,8 +107,9 @@ def walk(edges: list[graph.Edge], fins: dict[str, Financials], company: str, pay
     return hops, pay, cut, sorted(set(missing))
 
 
-def _reprice_hits(conn: Conn, day: date, book: Any, edges: list[graph.Edge], cut: dict[str, float],
-                 hit: list[str], company: str) -> tuple[dict[str, dict[str, Any]], dict[str, Any], list[str]]:
+def _reprice_hits(
+    conn: Conn, day: date, book: Any, edges: list[graph.Edge], cut: dict[str, float], hit: list[str], company: str
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any], list[str]]:
     """Price changes from the hit companies' weaker credit: each one's lost contract value (cut share x
     the remaining schedule, PV) off its equity value, CreditGrades -> intensity multiplier (stress v0.1),
     re-priced by the price engine (its own notes and the site debt it is tenant of)."""
@@ -132,8 +134,12 @@ def _reprice_hits(conn: Conn, day: date, book: Any, edges: list[graph.Edge], cut
             basis[payee] = {**info, "hazardMultiplier": round(mult, 4)}
     ids: set[str] = set()
     for payee in shock.hazard_mult:
-        ids.update(r["id"] for r in conn.execute(
-            "SELECT id FROM instrument WHERE site_slug = ANY(%s)", (_sites_of(conn, payee, ("tenant",)),)).fetchall())
+        ids.update(
+            r["id"]
+            for r in conn.execute(
+                "SELECT id FROM instrument WHERE site_slug = ANY(%s)", (_sites_of(conn, payee, ("tenant",)),)
+            ).fetchall()
+        )
     ids.update(i for v in stress_inputs.issued_by(conn, list(shock.hazard_mult)).values() for i in v)
     out = {}
     for iid in sorted(ids & set(book.insts)):
@@ -143,8 +149,9 @@ def _reprice_hits(conn: Conn, day: date, book: Any, edges: list[graph.Edge], cut
     return out, basis, missing
 
 
-def contagion(conn: Conn, day: date, company: str, pay_pct: float, severity: str = "base",
-              book: Any = None) -> dict[str, Any]:
+def contagion(
+    conn: Conn, day: date, company: str, pay_pct: float, severity: str = "base", book: Any = None
+) -> dict[str, Any]:
     edges = graph.load_edges(conn, day)
     ids = sorted({e.payer for e in edges} | {e.payee for e in edges} | {company})
     fins = load_financials(conn, day, ids)
@@ -180,8 +187,15 @@ def contagion(conn: Conn, day: date, company: str, pay_pct: float, severity: str
             if inst.recovery_low is not None:
                 cut_after = max(cut_after, min(inst.recovery_low, now))
             afters.append(cut_after)
-        rows.append({"instrumentId": iid, "name": inst.name, "priceNow": round(now, 3),
-                     "priceAfter": round(min(afters), 3), "holders": inst.holders_text()})
+        rows.append(
+            {
+                "instrumentId": iid,
+                "name": inst.name,
+                "priceNow": round(now, 3),
+                "priceAfter": round(min(afters), 3),
+                "holders": inst.holders_text(),
+            }
+        )
     rows = [r for r in rows if abs(r["priceAfter"] - r["priceNow"]) >= 0.001]
     rows.sort(key=lambda r: (r["priceAfter"] - r["priceNow"], r["instrumentId"]))
     total = sum(c["lossB"] for h in hops for c in h["companies"])
@@ -190,10 +204,15 @@ def contagion(conn: Conn, day: date, company: str, pay_pct: float, severity: str
         "instruments": rows,
         "totalAtRiskB": round(total, 3),
         "missing": sorted(set(missing)),
-        "basis": {"methodVersion": f"{METHOD} (model v0)", "company": company, "payPct": pay_pct,
-                  "severity": severity, "paysLess": {c: round(f, 4) for c, f in sorted(pay.items())},
-                  "credit": credit,
-                  "loss": "next annual payment on each cut edge (graph schedule)",
-                  "priceAfter": "cash stream cut to share f: price now x f, floored at the recovery low; a hit "
-                                "company's weaker credit: the price engine at its shocked intensity (lower wins)"},
+        "basis": {
+            "methodVersion": f"{METHOD} (model v0)",
+            "company": company,
+            "payPct": pay_pct,
+            "severity": severity,
+            "paysLess": {c: round(f, 4) for c, f in sorted(pay.items())},
+            "credit": credit,
+            "loss": "next annual payment on each cut edge (graph schedule)",
+            "priceAfter": "cash stream cut to share f: price now x f, floored at the recovery low; a hit "
+            "company's weaker credit: the price engine at its shocked intensity (lower wins)",
+        },
     }

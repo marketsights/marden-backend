@@ -68,7 +68,8 @@ describe('Clerk webhooks and product roles', () => {
     );
     expect(audit.rows).toEqual([{ user_id: null, target: `user:${users.first}`, meta: { productId: 'marden', from: null, to: 'owner', rule: 'first_member' } }]);
     const me = await app.inject({ method: 'GET', url: '/api/me', headers: bearer(await signToken(keys, { userId: users.first, orgId: orgP })) });
-    expect(me.json()).toMatchObject({ orgRole: 'admin', products: [{ id: 'marden', role: 'owner', seatsUsed: 1 }] });
+    // Clerk said org:admin; the first member is the org's owner by Marden's rule.
+    expect(me.json()).toMatchObject({ orgRole: 'owner', products: [{ id: 'marden', role: 'owner', seatsUsed: 1 }] });
   });
 
   it('gives later members no product role until one is assigned (fail closed)', async () => {
@@ -80,11 +81,11 @@ describe('Clerk webhooks and product roles', () => {
     expect(me.products).toEqual([{ id: 'marden', name: 'Marden', plan: 'paid', status: 'active', role: null, seats: null, seatsUsed: 1 }]);
   });
 
-  it('does not re-grant on a membership update or change an existing product role', async () => {
+  it('does not re-grant on a membership update or change an existing org or product role', async () => {
     await db.query(`UPDATE member_product_role SET role = 'viewer' WHERE org_id = $1 AND user_id = $2`, [orgP, users.first]);
     expect((await joined(orgP, users.first, 'org:member', 'organizationMembership.updated')).statusCode).toBe(204);
     expect(await rolesOf(orgP, users.first)).toEqual([{ product_id: 'marden', role: 'viewer' }]);
-    expect((await db.query(`SELECT role FROM membership WHERE org_id = $1 AND user_id = $2`, [orgP, users.first])).rows[0]?.role).toBe('member');
+    expect((await db.query(`SELECT role FROM membership WHERE org_id = $1 AND user_id = $2`, [orgP, users.first])).rows[0]?.role).toBe('owner');
   });
 
   it('grants nothing in an org without a live product or without a free seat', async () => {

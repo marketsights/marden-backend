@@ -33,7 +33,7 @@ API should return 404 (not 503) for collateral on non-GPU instruments.
 | --- | --- | --- |
 | marden-web-remaining-screens | wf_6239c834-ac7 | build + review Home, Customize, Watchlist, Payers/Payer, Stress, Risk list, Track record, Obligations, GPUs, Leases; final route walk + build |
 | marden-web-mockup-fidelity | wf_32d85200-a86 | element-by-element audit of every built screen/tab vs its mockup with real data; fix; verify; critic |
-| marden-saas-live | wf_49c2d294-54c | Railway/Neon/R2 deploy setup, alert engine + email, Claude extraction workers; review; end-to-end integration |
+| marden-saas-live-v2 | wf_c6559cea-094 | Railway/Neon/R2 deploy setup; alert engine + email; spec-22 agent system on the Anthropic API (intake incl. upload API/CLI/R2 inbox, router, per-area specialist extractors with domain briefs, verifier, linker, approvals, eval set; then researcher, watchdog, note writer); reviews; end-to-end integration. Replaces wf_49c2d294-54c (stopped). |
 | marden-readiness-a | wf_2ca3d0cf-311 | org roles Marden-owned (no Clerk roles; admins can't change owners); resolve the 7 grid-region review items |
 | marden-data-gaps | wf_5fca7cc9-15c | power-plant locations/county/EIA match (all 74 had none), plant air permits from state records, dc lastChange ordering bug, favicon |
 Shared local dev servers: API :4000 (dev auth), web :3000. FRED was in maintenance at 18:14 UTC; retry scheduled 20:16 UTC (ICE BofA OAS needed by the tier curves).

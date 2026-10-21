@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 import os
 
-from procrastinate import JobContext, builtin_tasks
+from procrastinate import JobContext, builtin_tasks, exceptions
+from procrastinate.jobs import Status
 
 from marden.core.config import ConfigError, get_settings
 from marden.core.queue import QUEUES, app, make_connector
@@ -78,8 +79,15 @@ async def retry_stalled_task(context: JobContext, timestamp: int | None = None) 
     manager = context.app.job_manager
     stalled = list(await manager.get_stalled_jobs(seconds_since_heartbeat=STALLED_AFTER_SECONDS))
     for job in stalled:
-        log.warning("retrying stalled job %s (%s), started by a worker that stopped", job.id, job.task_name)
-        await manager.retry_job(job)
+        try:
+            await manager.retry_job(job)
+            log.warning("retried stalled job %s (%s): its worker stopped", job.id, job.task_name)
+        except exceptions.UniqueViolation:
+            # The same queueing lock is already queued again (a periodic task's next run): that job does
+            # the work; this one is closed as failed so its lock is released.
+            await manager.finish_job(job, status=Status.FAILED, delete_job=False)
+            log.warning("closed stalled job %s (%s): its worker stopped and a newer run is queued", job.id,
+                        job.task_name)
     await manager.prune_stalled_workers(seconds_since_heartbeat=STALLED_AFTER_SECONDS)
     return len(stalled)
 

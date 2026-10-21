@@ -64,7 +64,9 @@ def filed(cur: dict[str, Row]) -> Method | None:
     if v is None:
         return None
     tag = row["tag"].strip()  # type: ignore[index]
-    note = "facility MW stated in a filing" if tag == "F" else "facility MW as reported (press / third party), not filed"
+    note = (
+        "facility MW stated in a filing" if tag == "F" else "facility MW as reported (press / third party), not filed"
+    )
     return Method("Filed", v, v, v, note, [row])  # type: ignore[list-item]
 
 
@@ -74,8 +76,14 @@ def utility_load(cur: dict[str, Row]) -> Method | None:
     if not vals:
         return None
     lo, hi = min(v for v, _ in vals), max(v for v, _ in vals)
-    return Method("Utility load", lo, hi, hi, "large-load request / grid service MW: the facility draw ceiling",
-                  [r for _, r in vals])
+    return Method(
+        "Utility load",
+        lo,
+        hi,
+        hi,
+        "large-load request / grid service MW: the facility draw ceiling",
+        [r for _, r in vals],
+    )
 
 
 def prime_generation(plants: list[dict[str, Any]]) -> Method | None:
@@ -100,18 +108,30 @@ def prime_generation(plants: list[dict[str, Any]]) -> Method | None:
         return None
     lo, hi = sum(f[0] for f in figures), sum(f[1] for f in figures)
     lo = max(lo - largest, 0.0)
-    return Method("Prime generation", lo, (lo + hi) / 2, hi,
-                  "serving plants' prime units (count x rating, diesel excluded) and stated capacity; low less one "
-                  "unit for N+1 redundancy", rows)
+    return Method(
+        "Prime generation",
+        lo,
+        (lo + hi) / 2,
+        hi,
+        "serving plants' prime units (count x rating, diesel excluded) and stated capacity; low less one "
+        "unit for N+1 redundancy",
+        rows,
+    )
 
 
 def backup(cur: dict[str, Row]) -> Method | None:
     row = cur.get("backup_generator_count")
     if row is None or num(row["value"]) is None:
         return None
-    return Method("Backup generators", None, None, None,
-                  f"{int(num(row['value']))} generators seen on site; no permit Marden holds states the standby "
-                  "rating per unit or the redundancy design, so no MW is derived (2N to N+1 once rated)", [row])
+    return Method(
+        "Backup generators",
+        None,
+        None,
+        None,
+        f"{int(num(row['value']))} generators seen on site; no permit Marden holds states the standby "
+        "rating per unit or the redundancy design, so no MW is derived (2N to N+1 once rated)",
+        [row],
+    )
 
 
 def densities(campus_rows: dict[str, dict[str, Row]]) -> dict[str, list[tuple[str, float]]]:
@@ -131,15 +151,18 @@ def developer_key(cur: dict[str, Row]) -> str:
     return re.split(r"[(/,;]| with | and ", text)[0].strip() or "?"
 
 
-def footprint(sqft: float | None, row: Row | None, campus_id: str, dev: str,
-              dens: dict[str, list[tuple[str, float]]], what: str) -> Method | None:
+def footprint(
+    sqft: float | None, row: Row | None, campus_id: str, dev: str, dens: dict[str, list[tuple[str, float]]], what: str
+) -> Method | None:
     if not sqft:
         return None
     pool = [d for c, d in dens.get(dev, []) if c != campus_id]
     basis = f"density of {dev}'s other campuses ({len(pool)})"
     if not pool:
         pool = [d for c, d in dens.get("*", []) if c != campus_id]
-        basis = f"density of every campus stating facility MW and floor area ({len(pool)}): the developer discloses none"
+        basis = (
+            f"density of every campus stating facility MW and floor area ({len(pool)}): the developer discloses none"
+        )
     if len(pool) < 1:
         return None
     if len(pool) >= 4:
@@ -147,19 +170,31 @@ def footprint(sqft: float | None, row: Row | None, campus_id: str, dev: str,
         lo, mid, hi = q[0], statistics.median(pool), q[2]
     else:
         lo, mid, hi = min(pool), statistics.median(pool), max(pool)
-    return Method("Footprint", sqft * lo, sqft * mid, sqft * hi, f"{what} {sqft:,.0f} sq ft x {basis}",
-                  [row] if row is not None else [])
+    return Method(
+        "Footprint",
+        sqft * lo,
+        sqft * mid,
+        sqft * hi,
+        f"{what} {sqft:,.0f} sq ft x {basis}",
+        [row] if row is not None else [],
+    )
 
 
-def gpu_implied(chips: float | None, row: Row | None, kw: float | None, share: tuple[float, float, float] | None,
-                pue: tuple[float, float, float] | None) -> Method | None:
+def gpu_implied(
+    chips: float | None,
+    row: Row | None,
+    kw: float | None,
+    share: tuple[float, float, float] | None,
+    pue: tuple[float, float, float] | None,
+) -> Method | None:
     if not chips or row is None or kw is None or share is None or pue is None:
         return None
     lo = chips * kw / 1000 / share[2] * pue[0]
     mid = chips * kw / 1000 / share[1] * pue[1]
     hi = chips * kw / 1000 / share[0] * pue[2]
-    return Method("Disclosed GPU count", lo, mid, hi,
-                  f"{chips:,.0f} disclosed GPUs x {kw:.2f} kW / GPU share of IT x PUE", [row])
+    return Method(
+        "Disclosed GPU count", lo, mid, hi, f"{chips:,.0f} disclosed GPUs x {kw:.2f} kW / GPU share of IT x PUE", [row]
+    )
 
 
 RANK = ("Filed", "Utility load", "Prime generation", "Disclosed GPU count", "Footprint")
@@ -173,8 +208,8 @@ def combine(methods: list[Method]) -> tuple[Method | None, bool, str]:
     """(the answer range, disagreement, confidence). A filed (F) figure is the answer (High). Otherwise the
     two strongest methods with figures (a reported facility MW, utility load, prime generation, the GPU
     count, the footprint: spec 27's order): their overlap when they overlap, else the span of the two
-    centred on the stronger; Medium when their figures are within 25%, else Low. Disagreement: any two methods' figures differ by more
-    than 25%."""
+    centred on the stronger; Medium when their figures are within 25%, else Low. Disagreement: any two
+    methods' figures differ by more than 25%."""
     known = [m for m in methods if m.known]
     bases = [m.base for m in known if m.base]
     disagree = len(bases) >= 2 and max(bases) / min(bases) - 1 > 0.25

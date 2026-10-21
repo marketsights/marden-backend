@@ -29,21 +29,85 @@ from marden.core.db import Conn, Row
 from marden.models import pit
 from marden.models.sourced import fact_value, num
 
-SP_SCALE = ("AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+", "BBB", "BBB-", "BB+", "BB", "BB-", "B+", "B", "B-",
-            "CCC+", "CCC", "CCC-", "CC", "C", "D")
-MOODYS_SCALE = ("Aaa", "Aa1", "Aa2", "Aa3", "A1", "A2", "A3", "Baa1", "Baa2", "Baa3", "Ba1", "Ba2", "Ba3", "B1", "B2",
-                "B3", "Caa1", "Caa2", "Caa3", "Ca", "C")
+SP_SCALE = (
+    "AAA",
+    "AA+",
+    "AA",
+    "AA-",
+    "A+",
+    "A",
+    "A-",
+    "BBB+",
+    "BBB",
+    "BBB-",
+    "BB+",
+    "BB",
+    "BB-",
+    "B+",
+    "B",
+    "B-",
+    "CCC+",
+    "CCC",
+    "CCC-",
+    "CC",
+    "C",
+    "D",
+)
+MOODYS_SCALE = (
+    "Aaa",
+    "Aa1",
+    "Aa2",
+    "Aa3",
+    "A1",
+    "A2",
+    "A3",
+    "Baa1",
+    "Baa2",
+    "Baa3",
+    "Ba1",
+    "Ba2",
+    "Ba3",
+    "B1",
+    "B2",
+    "B3",
+    "Caa1",
+    "Caa2",
+    "Caa3",
+    "Ca",
+    "C",
+)
 IG_FLOOR = 9  # BBB- / Baa3
 AGENCIES = ("S&P", "Moody's", "Fitch")
 MONTHS = (12, 9, 6, 3)
-DURATION_BASES = ("operating_cash_flow", "capex", "productive_asset_payments", "revenue", "operating_income",
-                  "depreciation_amortization", "depreciation", "amortization_intangibles")
-INSTANT_FIELDS = ("total_debt_usd", "long_term_debt_usd", "long_term_debt_current_usd", "long_term_debt_noncurrent_usd",
-                  "short_term_borrowings_usd", "commercial_paper_usd", "debt_current_usd", "cash_usd",
-                  "operating_lease_liability_usd", "operating_lease_liability_current_usd",
-                  "operating_lease_liability_noncurrent_usd", "finance_lease_liability_usd",
-                  "finance_lease_liability_current_usd", "finance_lease_liability_noncurrent_usd",
-                  "lease_liability_usd", "remaining_performance_obligation_usd", "backlog_rpo_usd")
+DURATION_BASES = (
+    "operating_cash_flow",
+    "capex",
+    "productive_asset_payments",
+    "revenue",
+    "operating_income",
+    "depreciation_amortization",
+    "depreciation",
+    "amortization_intangibles",
+)
+INSTANT_FIELDS = (
+    "total_debt_usd",
+    "long_term_debt_usd",
+    "long_term_debt_current_usd",
+    "long_term_debt_noncurrent_usd",
+    "short_term_borrowings_usd",
+    "commercial_paper_usd",
+    "debt_current_usd",
+    "cash_usd",
+    "operating_lease_liability_usd",
+    "operating_lease_liability_current_usd",
+    "operating_lease_liability_noncurrent_usd",
+    "finance_lease_liability_usd",
+    "finance_lease_liability_current_usd",
+    "finance_lease_liability_noncurrent_usd",
+    "lease_liability_usd",
+    "remaining_performance_obligation_usd",
+    "backlog_rpo_usd",
+)
 FIN_FIELDS = (*(f"{b}_{n}m_usd" for b in DURATION_BASES for n in MONTHS), *INSTANT_FIELDS)
 
 
@@ -114,8 +178,12 @@ class Financials:
         if fys and priors:
             fy, prior = max(fys), max(priors)
             usd = val((fy, 12)) + val((latest, n)) - val((prior, n))
-            return Figure(usd, latest, [per[(fy, 12)], per[(latest, n)], per[(prior, n)]],
-                          f"{base}: FY {fy} + {n}m to {latest} - {n}m to {prior}")
+            return Figure(
+                usd,
+                latest,
+                [per[(fy, 12)], per[(latest, n)], per[(prior, n)]],
+                f"{base}: FY {fy} + {n}m to {latest} - {n}m to {prior}",
+            )
         fy_all = [e for e, m in per if m == 12]
         if fy_all:
             fy = max(fy_all)
@@ -144,36 +212,50 @@ class Financials:
         if (total := self.instant("total_debt_usd", end)) is not None:
             return total
         ltd = self.instant("long_term_debt_usd", end) or _add(
-            self.instant("long_term_debt_noncurrent_usd", end), self.instant("long_term_debt_current_usd", end),
-            basis="long-term debt, current + noncurrent")
+            self.instant("long_term_debt_noncurrent_usd", end),
+            self.instant("long_term_debt_current_usd", end),
+            basis="long-term debt, current + noncurrent",
+        )
         short = self.instant("short_term_borrowings_usd", end) or self.instant("commercial_paper_usd", end)
         return _add(ltd, short, basis=f"long-term debt{' + short-term borrowings' if short else ''} at {end}")
 
     def leases(self) -> Figure | None:
-        end = self._latest_end("operating_lease_liability_usd", "operating_lease_liability_noncurrent_usd",
-                               "lease_liability_usd")
+        end = self._latest_end(
+            "operating_lease_liability_usd", "operating_lease_liability_noncurrent_usd", "lease_liability_usd"
+        )
         if end is None:
             return None
         if (ifrs := self.instant("lease_liability_usd", end)) is not None:
             return ifrs
         op = self.instant("operating_lease_liability_usd", end) or _add(
             self.instant("operating_lease_liability_current_usd", end),
-            self.instant("operating_lease_liability_noncurrent_usd", end), basis="operating lease liability")
+            self.instant("operating_lease_liability_noncurrent_usd", end),
+            basis="operating lease liability",
+        )
         fin = self.instant("finance_lease_liability_usd", end) or _add(
             self.instant("finance_lease_liability_current_usd", end),
-            self.instant("finance_lease_liability_noncurrent_usd", end), basis="finance lease liability")
+            self.instant("finance_lease_liability_noncurrent_usd", end),
+            basis="finance lease liability",
+        )
         return _add(op, fin, basis=f"operating + finance lease liabilities at {end}")
 
     def ebitda(self) -> Figure | None:
         oi = self.ttm("operating_income")
         da = self.ttm("depreciation_amortization")
         if da is None:
-            da = _add(self.ttm("depreciation"), self.ttm("amortization_intangibles"),
-                      basis="depreciation + intangible amortization")
+            da = _add(
+                self.ttm("depreciation"),
+                self.ttm("amortization_intangibles"),
+                basis="depreciation + intangible amortization",
+            )
         if oi is None or da is None:
             return None
-        return Figure(oi.usd + da.usd, min(oi.as_of, da.as_of), oi.rows + da.rows,
-                      f"EBITDA = operating income ({oi.basis}) + D&A ({da.basis})")
+        return Figure(
+            oi.usd + da.usd,
+            min(oi.as_of, da.as_of),
+            oi.rows + da.rows,
+            f"EBITDA = operating income ({oi.basis}) + D&A ({da.basis})",
+        )
 
     def backlog(self) -> Figure | None:
         return self.instant("remaining_performance_obligation_usd") or self.instant("backlog_rpo_usd")
@@ -187,16 +269,29 @@ def load_financials(conn: Conn, day: date, entity_ids: list[str]) -> dict[str, F
 
 
 # ---------------------------------------------------------------- ratings
-_GRADE = r"(?:AAA|AA[+-]?|A[+-]?|BBB[+-]?|BB[+-]?|B[+-]?|CCC[+-]?|CC|C|D|Aaa|Aa[123]|A[123]|Baa[123]|Ba[123]|B[123]|Caa[123]|Ca)"
-_AGENCY = r"(S&P|Moody['’]s|Fitch)"
+_GRADE = (
+    r"(?:AAA|AA[+-]?|A[+-]?|BBB[+-]?|BB[+-]?|B[+-]?|CCC[+-]?|CC|C|D"
+    r"|Aaa|Aa[123]|A[123]|Baa[123]|Ba[123]|B[123]|Caa[123]|Ca)"
+)
+_AGENCY = r"(S&P|Moody['\u2019]s|Fitch)"
 _LABEL_FIRST = re.compile(_AGENCY + r"\s+(?:CFR\s+)?(" + _GRADE + r")(?![\w+-])(\s*\([^)]*\))?")
 _GRADE_FIRST = re.compile(r"(?<![\w+-])(" + _GRADE + r")\s*\(" + _AGENCY + r"([^)]*)\)")
-_MOODYS_ONLY = re.compile(r"(?<![\w+-])((?:Aaa|Aa[123]|A[123]|Baa[123]|Ba[123]|B[123]|Caa[123]))(?![\w+-])(\s*\([^)]*\))?")
+_MOODYS_ONLY = re.compile(
+    r"(?<![\w+-])((?:Aaa|Aa[123]|A[123]|Baa[123]|Ba[123]|B[123]|Caa[123]))(?![\w+-])(\s*\([^)]*\))?"
+)
 _OUTLOOK = re.compile(r"\b(neg(?:ative)?|pos(?:itive)?|stable|developing)\b", re.I)
-_ACTION = re.compile(r"\b(cut|downgraded|lowered|upgraded|raised|affirmed)\b[^;/]{0,30}?"
-                     r"(\d{4}-\d{2}-\d{2}|\d{1,2} [A-Z][a-z]{2,8} \d{4})")
-OUTLOOKS = {"neg": "Negative", "negative": "Negative", "pos": "Positive", "positive": "Positive", "stable": "Stable",
-            "developing": "Developing"}
+_ACTION = re.compile(
+    r"\b(cut|downgraded|lowered|upgraded|raised|affirmed)\b[^;/]{0,30}?"
+    r"(\d{4}-\d{2}-\d{2}|\d{1,2} [A-Z][a-z]{2,8} \d{4})"
+)
+OUTLOOKS = {
+    "neg": "Negative",
+    "negative": "Negative",
+    "pos": "Positive",
+    "positive": "Positive",
+    "stable": "Stable",
+    "developing": "Developing",
+}
 
 
 @dataclass
@@ -232,14 +327,19 @@ def parse_ratings(text: str, row: Row) -> list[AgencyRating]:
         act = _ACTION.search(rest)
         ol = _OUTLOOK.search(rest)
         prev = out.get(agency)
-        out[agency] = AgencyRating(agency, grade, (OUTLOOKS[ol.group(1).lower()] if ol else None) or
-                                   (prev.outlook if prev else None),
-                                   f"{act.group(1)} {act.group(2)}" if act else None, row)
+        out[agency] = AgencyRating(
+            agency,
+            grade,
+            (OUTLOOKS[ol.group(1).lower()] if ol else None) or (prev.outlook if prev else None),
+            f"{act.group(1)} {act.group(2)}" if act else None,
+            row,
+        )
     if "Moody's" not in out:
         for m in _MOODYS_ONLY.finditer(text):
             ol = _OUTLOOK.search(m.group(2) or "")
-            out["Moody's"] = AgencyRating("Moody's", m.group(1), OUTLOOKS[ol.group(1).lower()] if ol else None,
-                                          None, row)
+            out["Moody's"] = AgencyRating(
+                "Moody's", m.group(1), OUTLOOKS[ol.group(1).lower()] if ol else None, None, row
+            )
             break
     return [out[a] for a in AGENCIES if a in out]
 
@@ -255,12 +355,22 @@ def rating_rows(conn: Conn, day: date, entity_id: str) -> list[Row]:
     the tenant is unrated)."""
     insts = conn.execute("SELECT id, kind FROM instrument WHERE issuer_entity_id = %s", (entity_id,)).fetchall()
     kinds = {r["id"]: r["kind"] for r in insts}
-    sites = [r["site_slug"] for r in conn.execute(
-        "SELECT site_slug FROM chain_party WHERE entity_id = %s AND role = 'tenant'", (entity_id,)).fetchall()]
-    rows = [r for r in (pit.fact_rows(conn, day, "instrument", list(kinds), ["rating"]) if kinds else [])
-            if isinstance(r["value"], str) and (kinds.get(r["subject_id"]) in UNSECURED_KINDS or "Issuer:" in r["value"])]
-    rows += [r for r in (pit.fact_rows(conn, day, "site", sites, ["tenant_rating"]) if sites else [])
-             if isinstance(r["value"], str) and not _NOT_ITS_OWN.search(r["value"])]
+    sites = [
+        r["site_slug"]
+        for r in conn.execute(
+            "SELECT site_slug FROM chain_party WHERE entity_id = %s AND role = 'tenant'", (entity_id,)
+        ).fetchall()
+    ]
+    rows = [
+        r
+        for r in (pit.fact_rows(conn, day, "instrument", list(kinds), ["rating"]) if kinds else [])
+        if isinstance(r["value"], str) and (kinds.get(r["subject_id"]) in UNSECURED_KINDS or "Issuer:" in r["value"])
+    ]
+    rows += [
+        r
+        for r in (pit.fact_rows(conn, day, "site", sites, ["tenant_rating"]) if sites else [])
+        if isinstance(r["value"], str) and not _NOT_ITS_OWN.search(r["value"])
+    ]
     return sorted(rows, key=lambda r: (r["valid_from"], r["subject_type"] == "instrument"), reverse=True)
 
 

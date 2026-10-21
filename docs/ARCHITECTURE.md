@@ -108,7 +108,7 @@ Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `
 
 Read without a read model:
 
-- POST /api/stress/run calls the SQL function `stress_run(jsonb)` provided by the stress model; until it exists the API answers 503 with view `model:stress` and key = the scenario.
+- POST /api/stress/run calls the SQL function `stress_run(jsonb)` provided by the stress model (migration `20261021210000_stress_run.sql`); until it exists the API answers 503 with view `model:stress` and key = the scenario. Contract: a saved scenario (`<scenario>:<severity>`, or `contagion:<company>:<severity>`, computed with the request's parameters) returns its stored StressResult / ContagionResult at once with `status: 'done'`; any other parameters return `{status: 'queued' | 'running', jobId, subject}` and queue one `models.stress_custom` job per distinct request (subject `custom:<md5>`), which stores the result for the day; calling again with the same request returns it. The API polls every 250 ms for up to `MARDEN_STRESS_WAIT_MS` (20 s), then answers 202 with the pending body; `status: 'error'` is a 400. The function is `SECURITY DEFINER`, so the API role needs only EXECUTE.
 - GET /api/search reads identity tables (site, instrument, campus, building, power_plant, entity) and `air_permit_number` facts through `fact_current` / `fact_asof`.
 - GET /api/sources/health reads `source` and the latest `source_run`; GET /api/stream reads `stream_event`.
 - The data-center `opposition` filter reads published `event` rows of kind `opposition` that Marden knew by the as-of day.
@@ -118,7 +118,7 @@ Read without a read model:
 
 Procrastinate on the same Postgres. Collectors, extraction, models and read-model rebuilds are tasks; periodic tasks implement the cadences in spec 22 ("What runs when"). Each source run is wrapped in `marden.core.heartbeat.run(source_id)` which writes `source_run` and updates `source.last_ok_at`, so `/api/sources/health` and the stale-data footer work.
 
-Model triggers (`marden.models.triggers`): each model declares its inputs with `model_depends(model, subject_type, field_prefix, keys)`; when a writer publishes a matching value, `mark_dirty_for` also upserts `model_dirty(model, key)` in the same transaction, and `models.run_dirty` (queue `models`, every minute) runs the model on those keys. A model run writes `model_run` + `model_output` (`marden.models.runs`, one output per subject and as-of day), reads inputs point in time (`marden.models.pit`) and marks its subjects' read models dirty with the pseudo-field `@model:<name>`. Methods: `docs/methods/` (e.g. `cushion-v0.1.md`, `status-rules-v0.1.md`: chain status per site and the materiality test the alert engine uses, `marden.models.materiality.is_material`; `price-engine-v0.1.md`: bond-implied CDS, tier curves and facility prices, models `price`, `cds`, `curve`, `curve_fit`).
+Model triggers (`marden.models.triggers`): each model declares its inputs with `model_depends(model, subject_type, field_prefix, keys)`; when a writer publishes a matching value, `mark_dirty_for` also upserts `model_dirty(model, key)` in the same transaction, and `models.run_dirty` (queue `models`, every minute) runs the model on those keys. A model run writes `model_run` + `model_output` (`marden.models.runs`, one output per subject and as-of day), reads inputs point in time (`marden.models.pit`) and marks its subjects' read models dirty with the pseudo-field `@model:<name>`. Methods: `docs/methods/` (e.g. `cushion-v0.1.md`, `status-rules-v0.1.md`: chain status per site and the materiality test the alert engine uses, `marden.models.materiality.is_material`; `price-engine-v0.1.md`: bond-implied CDS, tier curves and facility prices, models `price`, `cds`, `curve`, `curve_fit`; `track-record-v0.1.md`: the backtest of past repricings, model `track_record` (`series` / `all`, weekly Sunday 21:17 UTC plus a refresh on new prices and live runs; marks `track_record`), which re-runs the status, price and cushion code point in time on scan days without storing those reconstructions).
 
 Collateral and holder models. Each output is shaped as the types.ts piece its builder reads. `marden.models.sourced` holds the shared run/output helper: on a run for today it marks `@model:<name>` plus the views named below.
 
@@ -132,6 +132,20 @@ Collateral and holder models. Each output is shaped as the types.ts piece its bu
 | `recovery` | `instrument` | `{recovery: Sourced<string>, valueB, method}` | Mondays 09:41 | `recovery-v0.1.md` |
 
 All six also run on their input facts through `models.run_dirty`, and every output carries `missing` and `basis`.
+
+Credit, stress and ranking models (same helper and conventions; outputs are the types.ts piece plus `missing` and `basis`; ranges and odds carry 'model v0'):
+
+| Model | Subject | Output | Runs (UTC) | Method page |
+| --- | --- | --- | --- | --- |
+| `obligations` | `series` / `all`; `obligation` / id | `ObligationGraph`; per edge `ObligationEdge` (its `annual` schedule feeds the obligations views); marks `obligations` | daily 09:25 | `payer-capacity-v0.1.md` |
+| `obligation_company` | `entity` | `CompanyObligations` (concentration, funding gap) | daily 09:25 | `payer-capacity-v0.1.md` |
+| `payer_capacity` | `entity` (payer ids) | `PayerCapacity` (`exposed` as ExposedInstrument[]); marks `payers`, `leases` | daily 09:29 | `payer-capacity-v0.1.md` |
+| `leases` | `series` / `all` | `LeaseMapPage` (`leases` as LeaseRecord[]); marks `leases` | daily 09:33 | `payer-capacity-v0.1.md` |
+| `capacity` | `campus`; `building` | `CapacityEstimate` per subject (the dc_tab:capacity view lists the campus, then its buildings) | Mondays 09:45 | `capacity-v0.1.md` |
+| `stress` | `scenario` / `<scenario>:<severity>`, `contagion:<company>:<severity>`, `custom:<md5>`; `instrument`; `entity` | `StressResult` / `ContagionResult` (+ `request`); per instrument `{rows: InstrumentDetail.stress}`; per payer `{stressSummary}`; fills `stress_saved.result`; marks `home` | nightly 06:17 | `stress-v0.1.md` |
+| `risk_list` | `week` / Monday | `RiskList` (frozen once published); marks `risk_list` | Mondays 03:40 (Sunday night ET) | `risk-list-v0.1.md` |
+
+Contagion (`ContagionResult`) is computed in-process by the stress model (`marden.models.contagion`); the stress model re-prices with the price engine's own functions (`marden.models.stress_price`) and re-runs the cushion simulation for power delays.
 
 ## Live updates
 

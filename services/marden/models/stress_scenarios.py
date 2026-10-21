@@ -38,8 +38,8 @@ import numpy as np
 
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
-from marden.models import graph, pit, price_equity
 from marden.models import cushion_output as cout
+from marden.models import graph, pit, price_equity
 from marden.models.credit_inputs import AgencyRating, notch, ratings
 from marden.models.cushion import MODEL as CUSHION_MODEL
 from marden.models.cushion import VERSION as CUSHION_VERSION
@@ -94,15 +94,24 @@ def equity_multiplier(conn: Conn, book: Book, entity_id: str, loss_usd: float) -
     d = days[-1] if days else None
     sigma, dps = (eq.vol(d), eq.d_on(d)) if d else (None, None)
     if d is None or sigma is None or dps is None:
-        return None, {}, missing + [f"entity {entity_id}: equity close, volatility or debt per share on {book.day}"]
+        return None, {}, [*missing, f"entity {entity_id}: equity close, volatility or debt per share on {book.day}"]
     s = eq.closes[d]
     s_after = max(s - loss_usd / float(shares["value"]), 0.01 * s)
     r = _r5(book)
     before, after = (price_equity.creditgrades_spread(x, dps[0], sigma, r) for x in (s, s_after))
     if not (before > 0 and after > 0) or math.isnan(before) or math.isnan(after):
-        return None, {}, missing + [f"entity {entity_id}: CreditGrades spread undefined"]
-    return after / before, {"sharePrice": round(s, 2), "sharePriceAfter": round(s_after, 2), "closeDate": d.isoformat(),
-                            "equityVol": round(sigma, 3), "lossB": round(loss_usd / 1e9, 3)}, missing
+        return None, {}, [*missing, f"entity {entity_id}: CreditGrades spread undefined"]
+    return (
+        after / before,
+        {
+            "sharePrice": round(s, 2),
+            "sharePriceAfter": round(s_after, 2),
+            "closeDate": d.isoformat(),
+            "equityVol": round(sigma, 3),
+            "lossB": round(loss_usd / 1e9, 3),
+        },
+        missing,
+    )
 
 
 def _rating_of(rs: dict[str, AgencyRating]) -> AgencyRating | None:
@@ -137,8 +146,9 @@ def severe_spread_bp(conn: Conn, day: date, rating_notch: int | None) -> tuple[f
 
 
 def _sites_of(conn: Conn, entity_id: str, roles: tuple[str, ...]) -> list[str]:
-    rows = conn.execute("SELECT site_slug FROM chain_party WHERE entity_id = %s AND role = ANY(%s) ORDER BY 1",
-                        (entity_id, list(roles))).fetchall()
+    rows = conn.execute(
+        "SELECT site_slug FROM chain_party WHERE entity_id = %s AND role = ANY(%s) ORDER BY 1", (entity_id, list(roles))
+    ).fetchall()
     return [r["site_slug"] for r in rows]
 
 
@@ -170,8 +180,11 @@ def end_user_funding_miss(conn: Conn, book: Book, params: dict[str, Any]) -> Sce
         if mult is not None:
             sc.shock.hazard_mult[payee] = mult
             sc.tenants.append(payee)
-        sc.basis.setdefault("payees", {})[payee] = {"edges": items, **info,
-                                                    "hazardMultiplier": None if mult is None else round(mult, 4)}
+        sc.basis.setdefault("payees", {})[payee] = {
+            "edges": items,
+            **info,
+            "hazardMultiplier": None if mult is None else round(mult, 4),
+        }
     for slug in sorted(set(_sites_of(conn, eu, ("end_user", "tenant")))):
         sc.sites[slug] = SiteHit(slug, "E2", f"End user {eu} cuts {params['cutPct']:g}% of its contracts", "red")
     for t in sc.tenants:
@@ -204,7 +217,7 @@ def tenant_downgrade(conn: Conn, book: Book, params: dict[str, Any]) -> Scenario
 
 
 def power_delay(conn: Conn, book: Book, params: dict[str, Any]) -> Scenario:
-    months = int(round(float(params["months"])))
+    months = round(float(params["months"]))
     sc = Scenario("power_delay", f"Power delayed {months} months")
     day = book.day
     slugs = [r["slug"] for r in conn.execute("SELECT slug FROM site WHERE in_v1 ORDER BY slug").fetchall()]
@@ -215,7 +228,9 @@ def power_delay(conn: Conn, book: Book, params: dict[str, Any]) -> Scenario:
         waiting = [m for m in milestones if m.key in POWER_KEYS and m.applicable and not m.is_done]
         if not waiting:
             continue
-        seed = int(hash_parts(CUSHION_MODEL, CUSHION_VERSION, canonical_json(site.fingerprint()), history_hash)[:15], 16)
+        seed = int(
+            hash_parts(CUSHION_MODEL, CUSHION_VERSION, canonical_json(site.fingerprint()), history_hash)[:15], 16
+        )
         shifted = copy.deepcopy(milestones)
         moved = []
         for m in shifted:
@@ -235,8 +250,13 @@ def power_delay(conn: Conn, book: Book, params: dict[str, Any]) -> Scenario:
         sc.shock.completion_months[site.slug] = slip
         rule = "M2" if (c0 is not None and c1 is not None and c0 >= 0 > c1) else ("M1" if slip >= 3 else None)
         sev = "red" if rule == "M2" else ("amber" if slip >= 3 else ("green" if slip else "none"))
-        sc.sites[site.slug] = SiteHit(site.slug, rule, f"Power {', '.join(moved)} {months} months later: rent start "
-                                      f"P50 {before.get('p50')} -> {after.get('p50')}", sev, (c0, c1))
+        sc.sites[site.slug] = SiteHit(
+            site.slug,
+            rule,
+            f"Power {', '.join(moved)} {months} months later: rent start P50 {before.get('p50')} -> {after.get('p50')}",
+            sev,
+            (c0, c1),
+        )
     return sc
 
 
@@ -246,8 +266,11 @@ def _months_between(a: str | None, b: str | None) -> int | None:
     return (int(b[:4]) - int(a[:4])) * 12 + int(b[5:7]) - int(a[5:7])
 
 
-BUILDERS = {"end_user_funding_miss": end_user_funding_miss, "tenant_downgrade": tenant_downgrade,
-            "power_delay": power_delay}
+BUILDERS = {
+    "end_user_funding_miss": end_user_funding_miss,
+    "tenant_downgrade": tenant_downgrade,
+    "power_delay": power_delay,
+}
 
 
 def build(conn: Conn, book: Book, scenario: str, params: dict[str, Any], severity: str) -> Scenario:

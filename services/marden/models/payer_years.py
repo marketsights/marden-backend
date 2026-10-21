@@ -57,8 +57,13 @@ def path(fin: Financials, edges: list[graph.Edge], day: date, method: str) -> Pa
     debt, leases, ebitda = fin.debt(), fin.leases(), fin.ebitda()
     ocf = fin.ttm("operating_cash_flow")
     capex = fin.ttm("capex") or fin.ttm("productive_asset_payments")
-    for name, fig in (("debt", debt), ("lease liabilities", leases), ("EBITDA", ebitda), ("operating cash flow", ocf),
-                      ("capex", capex)):
+    for name, fig in (
+        ("debt", debt),
+        ("lease liabilities", leases),
+        ("EBITDA", ebitda),
+        ("operating cash flow", ocf),
+        ("capex", capex),
+    ):
         if fig is None:
             p.missing.append(f"entity {fin.entity_id}: {name} (SEC XBRL)")
     base_liab = (debt.usd if debt else 0.0) + (leases.usd if leases else 0.0)
@@ -67,16 +72,24 @@ def path(fin: Financials, edges: list[graph.Edge], day: date, method: str) -> Pa
     elif ebitda is not None and ebitda.usd <= 0:
         p.missing.append(f"entity {fin.entity_id}: EBITDA is not positive (leverage not meaningful)")
     fy = fiscal_end(fin)
-    p.basis = {"debt": _fig(debt), "leaseLiabilities": _fig(leases), "ebitda": _fig(ebitda), "ocf": _fig(ocf),
-               "capex": _fig(capex), "fiscalYearEnd": fy.isoformat() if fy else None,
-               "projection": "trailing twelve months held flat (no guidance collected)"}
+    p.basis = {
+        "debt": _fig(debt),
+        "leaseLiabilities": _fig(leases),
+        "ebitda": _fig(ebitda),
+        "ocf": _fig(ocf),
+        "capex": _fig(capex),
+        "fiscalYearEnd": fy.isoformat() if fy else None,
+        "projection": "trailing twelve months held flat (no guidance collected)",
+    }
     if fy is None:
         p.missing.append(f"entity {fin.entity_id}: a filed fiscal year (SEC XBRL)")
         return p
     own = [e for e in edges if e.payer == fin.entity_id and e.pays]
     unsized = [e.id for e in own if not e.schedule() and e.total is None]
     if unsized:
-        p.missing.append(f"entity {fin.entity_id}: {len(unsized)} lease / compute edges not sized ({', '.join(unsized[:4])})")
+        p.missing.append(
+            f"entity {fin.entity_id}: {len(unsized)} lease / compute edges not sized ({', '.join(unsized[:4])})"
+        )
     added, gaps, levs = 0.0, [], []
     for year in range(fy.year + 1, fy.year + 1 + YEARS_AHEAD):
         commencing = sum(e.total.usd for e in own if e.type in LEASE_TYPES and e.start == year and e.total)
@@ -90,15 +103,17 @@ def path(fin: Financials, edges: list[graph.Edge], day: date, method: str) -> Pa
         lev = round((base_liab + added) / ebitda.usd, 2) if (debt and ebitda and ebitda.usd > 0) else None
         if lev is not None:
             levs.append(lev)
-        p.years.append({
-            "fiscalYear": f"FY{year}",
-            "ocfB": m(_b(ocf.usd) if ocf else None),
-            "capexB": m(_b(capex.usd) if capex else None),
-            "leaseCommencingB": m(_b(commencing)),
-            "computeCommitmentsB": m(_b(compute)),
-            "fundingGapB": m(_b(gap)),
-            "leaseAdjLeverage": m(lev),
-        })
+        p.years.append(
+            {
+                "fiscalYear": f"FY{year}",
+                "ocfB": m(_b(ocf.usd) if ocf else None),
+                "capexB": m(_b(capex.usd) if capex else None),
+                "leaseCommencingB": m(_b(commencing)),
+                "computeCommitmentsB": m(_b(compute)),
+                "fundingGapB": m(_b(gap)),
+                "leaseAdjLeverage": m(lev),
+            }
+        )
     if p.leverage_today is not None:
         p.leverage_peak = max([p.leverage_today, *levs])
     if len(gaps) == YEARS_AHEAD:

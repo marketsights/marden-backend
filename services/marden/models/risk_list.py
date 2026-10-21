@@ -79,8 +79,10 @@ def score_one(conn: Conn, inst: dict[str, Any], day: date, ctx: dict[str, Any]) 
     status = _out(conn, "status", "site", site, day)
     chain = status.get("chain") if status else None
     worst = {"red": 3, "amber": 2}
-    for link in sorted([lk for lk in chain or [] if isinstance(lk, dict) and lk.get("status") in worst],
-                       key=lambda lk: -worst[lk["status"]])[:1]:
+    for link in sorted(
+        [lk for lk in chain or [] if isinstance(lk, dict) and lk.get("status") in worst],
+        key=lambda lk: -worst[lk["status"]],
+    )[:1]:
         points += worst[link["status"]]
         if (ev := risk_note.status_reason(link, site, day)) is not None:
             reasons.append(ev)
@@ -90,8 +92,16 @@ def score_one(conn: Conn, inst: dict[str, Any], day: date, ctx: dict[str, Any]) 
     delta = num(((proj or {}).get("deltaWeek") or {}).get("value"))
     if c is not None and c < 6:
         points += 3 if c < 0 else 2 if c < 3 else 1
-        reasons.append(risk_note.cushion_reason(int(c), proj.get("p50"), (proj.get("outsideDate") or {}).get("value"),
-                                                int(delta) if delta else None, site, day))
+        reasons.append(
+            risk_note.cushion_reason(
+                int(c),
+                proj.get("p50"),
+                (proj.get("outsideDate") or {}).get("value"),
+                int(delta) if delta else None,
+                site,
+                day,
+            )
+        )
     if delta is not None and delta < 0:
         points += 1
     slips = [r for r in ctx["slips"].get(site, []) if day - timedelta(days=30) <= r["valid_from"] <= day]
@@ -104,8 +114,11 @@ def score_one(conn: Conn, inst: dict[str, Any], day: date, ctx: dict[str, Any]) 
     marks = (gap_out or {}).get("fundMarks") or {}
     if gap is not None and abs(gap) >= 2:
         points += 2 if abs(gap) >= 5 else 1
-        reasons.append(risk_note.gap_reason(gap, int(num(gap_out.get("count")) or 0), marks.get("filing"),
-                                            marks.get("date"), iid, day))
+        reasons.append(
+            risk_note.gap_reason(
+                gap, int(num(gap_out.get("count")) or 0), marks.get("filing"), marks.get("date"), iid, day
+            )
+        )
     tenant = ctx["tenants"].get(site)
     band_out = _out(conn, "payer_capacity", "entity", tenant, day)
     band = ((band_out or {}).get("downgradeRisk") or {}).get("value")
@@ -125,18 +138,27 @@ def score_one(conn: Conn, inst: dict[str, Any], day: date, ctx: dict[str, Any]) 
     elif int(num((gap_out or {}).get("count")) or 0) == 0 and gap_out is not None:
         fund_mark = "no fund holds it"
     px_day = date.fromisoformat(px["asOf"]) if isinstance(px.get("asOf"), str) else day
-    return {"instrumentId": iid, "name": inst["name"], "size": size, "_size": size_usd or 0.0, "_points": points,
-            "why": reasons, "price": m_value(round(float(px["price"]), 3), px_day, "price v0.1",
-                                              source_name="Marden model price"),
-            "change1w": m_value(round(change, 3), px_day, "price v0.1", source_name="Marden model price")
-            if change is not None else None,
-            "fundMark": fund_mark, "gap": round(gap, 2) if gap is not None else None}
+    return {
+        "instrumentId": iid,
+        "name": inst["name"],
+        "size": size,
+        "_size": size_usd or 0.0,
+        "_points": points,
+        "why": reasons,
+        "price": m_value(round(float(px["price"]), 3), px_day, "price v0.1", source_name="Marden model price"),
+        "change1w": m_value(round(change, 3), px_day, "price v0.1", source_name="Marden model price")
+        if change is not None
+        else None,
+        "fundMark": fund_mark,
+        "gap": round(gap, 2) if gap is not None else None,
+    }
 
 
 def earlier_calls(conn: Conn, week: date, day: date) -> list[dict[str, Any]]:
     calls = []
-    for prev in conn.execute("SELECT DISTINCT subject_id FROM model_output WHERE model = %s AND subject_id < %s",
-                             (MODEL, week.isoformat())).fetchall():
+    for prev in conn.execute(
+        "SELECT DISTINCT subject_id FROM model_output WHERE model = %s AND subject_id < %s", (MODEL, week.isoformat())
+    ).fetchall():
         out = _out(conn, MODEL, "week", prev["subject_id"], day)
         flagged = date.fromisoformat(prev["subject_id"])
         for r in (out or {}).get("rows") or []:
@@ -146,8 +168,14 @@ def earlier_calls(conn: Conn, week: date, day: date) -> list[dict[str, Any]]:
             for o in outputs_between(conn, "price", "instrument", r["instrumentId"], flagged + timedelta(days=1), day):
                 p1 = num(o["output"].get("price")) if isinstance(o["output"], dict) else None
                 if p1 is not None and abs(p1 - p0) >= MOVE_PTS:
-                    calls.append({"name": r["name"], "flagged": flagged.isoformat(), "moved": o["as_of"].isoformat(),
-                                  "leadDays": (o["as_of"] - flagged).days})
+                    calls.append(
+                        {
+                            "name": r["name"],
+                            "flagged": flagged.isoformat(),
+                            "moved": o["as_of"].isoformat(),
+                            "leadDays": (o["as_of"] - flagged).days,
+                        }
+                    )
                     break
     return sorted(calls, key=lambda c: c["flagged"], reverse=True)
 
@@ -156,10 +184,16 @@ def compute(conn: Conn, day: date) -> Batch:
     week = week_of(day)
     insts = [{**i, "name": display_name(i)} for i in instrument_identity(conn, v1_only=True)]
     sites = sorted({i["site_slug"] for i in insts if i["site_slug"]})
-    ctx = {"tenants": {r["site_slug"]: r["entity_id"] for r in conn.execute(
-               "SELECT site_slug, entity_id FROM chain_party WHERE role = 'tenant' AND site_slug = ANY(%s)",
-               (sites,)).fetchall()},
-           "sizes": {}, "slips": {}}
+    ctx = {
+        "tenants": {
+            r["site_slug"]: r["entity_id"]
+            for r in conn.execute(
+                "SELECT site_slug, entity_id FROM chain_party WHERE role = 'tenant' AND site_slug = ANY(%s)", (sites,)
+            ).fetchall()
+        },
+        "sizes": {},
+        "slips": {},
+    }
     size_rows: dict[str, list[Any]] = {}
     for r in pit.fact_rows(conn, day, "instrument", [i["id"] for i in insts], ["amount_usd"]):
         size_rows.setdefault(r["subject_id"], []).append(r)
@@ -167,46 +201,89 @@ def compute(conn: Conn, day: date) -> Batch:
     for r in pit.fact_rows(conn, day, "site", sites, ["schedule_change"]):
         ctx["slips"].setdefault(r["subject_id"], []).append(r)
     scored = [s for i in insts if (s := score_one(conn, i, day, ctx)) is not None]
-    missing = [f"instrument {i['id']}: no price model output on or before {day}" for i in insts
-               if i["id"] not in {s["instrumentId"] for s in scored}]
-    ranked = sorted((s for s in scored if s["_points"] > 0), key=lambda s: (-s["_points"], -s["_size"], s["instrumentId"]))
-    prev = conn.execute("SELECT DISTINCT subject_id FROM model_output WHERE model = %s AND subject_id < %s "
-                        "ORDER BY 1 DESC LIMIT 1", (MODEL, week.isoformat())).fetchone()
-    before = {r["instrumentId"]: r["rank"] for r in ((_out(conn, MODEL, "week", prev["subject_id"], day) or {})
-                                                     .get("rows") or [])} if prev else None
+    missing = [
+        f"instrument {i['id']}: no price model output on or before {day}"
+        for i in insts
+        if i["id"] not in {s["instrumentId"] for s in scored}
+    ]
+    ranked = sorted(
+        (s for s in scored if s["_points"] > 0), key=lambda s: (-s["_points"], -s["_size"], s["instrumentId"])
+    )
+    prev = conn.execute(
+        "SELECT DISTINCT subject_id FROM model_output WHERE model = %s AND subject_id < %s ORDER BY 1 DESC LIMIT 1",
+        (MODEL, week.isoformat()),
+    ).fetchone()
+    before = (
+        {
+            r["instrumentId"]: r["rank"]
+            for r in ((_out(conn, MODEL, "week", prev["subject_id"], day) or {}).get("rows") or [])
+        }
+        if prev
+        else None
+    )
     rows, reasons = [], {}
     for rank, s in enumerate(ranked[:MAX_ROWS], start=1):
         odds = round(s["_points"] / (s["_points"] + ODDS_K), 3)
         reasons[s["instrumentId"]] = s["why"]
         was = (before or {}).get(s["instrumentId"])
-        move = {"kind": "new"} if was is None else {"kind": "same"} if was == rank else \
-            {"kind": "up" if was > rank else "down", "by": abs(was - rank)}
-        rows.append({"rank": rank, "instrumentId": s["instrumentId"], "name": s["name"], "size": s["size"],
-                     "why": [risk_note.public(e) for e in s["why"]], "price": s["price"], "change1w": s["change1w"],
-                     "fundMark": s["fundMark"], "gap": s["gap"],
-                     "odds": m_value(odds, day, ODDS_METHOD, source_name="Marden risk ranking"), "move": move})
+        move = (
+            {"kind": "new"}
+            if was is None
+            else {"kind": "same"}
+            if was == rank
+            else {"kind": "up" if was > rank else "down", "by": abs(was - rank)}
+        )
+        rows.append(
+            {
+                "rank": rank,
+                "instrumentId": s["instrumentId"],
+                "name": s["name"],
+                "size": s["size"],
+                "why": [risk_note.public(e) for e in s["why"]],
+                "price": s["price"],
+                "change1w": s["change1w"],
+                "fundMark": s["fundMark"],
+                "gap": s["gap"],
+                "odds": m_value(odds, day, ODDS_METHOD, source_name="Marden risk ranking"),
+                "move": move,
+            }
+        )
     batch = Batch()
-    batch.add("week", week.isoformat(), {
-        "week": {"start": week.isoformat(), "end": (week + timedelta(days=6)).isoformat()},
-        "rows": rows, "note": risk_note.note(week, rows, reasons), "earlierCalls": earlier_calls(conn, week, day),
-        "missing": missing,
-        "basis": {"methodVersion": f"{METHOD} (model v0)", "odds": f"score / (score + {ODDS_K:g})", "scored": len(scored),
-                  "points": {s["instrumentId"]: s["_points"] for s in scored}},
-    })
+    batch.add(
+        "week",
+        week.isoformat(),
+        {
+            "week": {"start": week.isoformat(), "end": (week + timedelta(days=6)).isoformat()},
+            "rows": rows,
+            "note": risk_note.note(week, rows, reasons),
+            "earlierCalls": earlier_calls(conn, week, day),
+            "missing": missing,
+            "basis": {
+                "methodVersion": f"{METHOD} (model v0)",
+                "odds": f"score / (score + {ODDS_K:g})",
+                "scored": len(scored),
+                "points": {s["instrumentId"]: s["_points"] for s in scored},
+            },
+        },
+    )
     batch.views.add(("risk_list", week.isoformat()))
     batch.inputs = [week.isoformat(), {s["instrumentId"]: s["_points"] for s in scored}]
     return batch
 
 
-def run(as_of: date | None = None, *, force: bool = False, trigger: str = "manual", mark: bool = True) -> dict[str, Any]:
+def run(
+    as_of: date | None = None, *, force: bool = False, trigger: str = "manual", mark: bool = True
+) -> dict[str, Any]:
     day = as_of or business_today()
     week = week_of(day)
     if not force:
         from marden.core import db
 
         with db.transaction() as conn:
-            done = conn.execute("SELECT as_of FROM model_output WHERE model = %s AND subject_id = %s AND as_of <= %s "
-                                "LIMIT 1", (MODEL, week.isoformat(), day)).fetchone()
+            done = conn.execute(
+                "SELECT as_of FROM model_output WHERE model = %s AND subject_id = %s AND as_of <= %s LIMIT 1",
+                (MODEL, week.isoformat(), day),
+            ).fetchone()
         if done is not None:
             return {"frozen": True, "week": week.isoformat(), "as_of": day.isoformat(), "outputs": {}, "changed": []}
     return run_outputs(MODEL, VERSION, day, compute, trigger=trigger, mark=mark)
@@ -253,8 +330,11 @@ def risk_list_cli(args: argparse.Namespace) -> int:
         return 0
     print(f"risk_list {VERSION} week {week} as of {r['as_of']} (run {r['run_id']}): {len(doc['rows'])} rows")
     for row in doc["rows"]:
-        print(f"  {row['rank']:2} {row['instrumentId']:26} odds {row['odds']['value']:.2f} px {row['price']['value']:7.2f} "
-              f"gap {row['gap']} {row['move']['kind']:4} | {' / '.join(e['text'][:60] for e in row['why'][:2])}")
+        why = " / ".join(e["text"][:60] for e in row["why"][:2])
+        print(
+            f"  {row['rank']:2} {row['instrumentId']:26} odds {row['odds']['value']:.2f} "
+            f"px {row['price']['value']:7.2f} gap {row['gap']} {row['move']['kind']:4} | {why}"
+        )
     for p in doc["note"]["paragraphs"]:
         print(f"  NOTE {p['lead']}: {p['text'][:200]}")
     return 0

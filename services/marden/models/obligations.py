@@ -62,18 +62,29 @@ def graph_doc(conn: Conn, day: date, edges: list[graph.Edge]) -> dict[str, Any]:
     total = sum(e.total.usd for e in edges if e.total) / 1e9
     filed = sum(e.total.usd for e in edges if e.total and e.total.tag == "F") / 1e9
     month = day.replace(day=1)
-    changed = {e.id for e in edges for rows in ([*e.facts.values()], *e.rows.values())
-               for r in rows if month <= r["valid_from"] <= day}
+    changed = {
+        e.id
+        for e in edges
+        for rows in ([*e.facts.values()], *e.rows.values())
+        for r in rows
+        if month <= r["valid_from"] <= day
+    }
     return {
         "asOf": day.isoformat(),
         "nodes": nodes,
         "edges": [e.doc(day, sites) for e in edges],
-        "kpis": {"totalB": round(total, 3), "filedPct": round(100 * filed / total, 1) if total else 0.0,
-                 "changedThisMonth": len(changed)},
+        "kpis": {
+            "totalB": round(total, 3),
+            "filedPct": round(100 * filed / total, 1) if total else 0.0,
+            "changedThisMonth": len(changed),
+        },
         "missing": sorted({m for e in edges for m in e.missing}),
-        "basis": {"methodVersion": METHOD, "edges": len(edges),
-                  "amounts": "total_usd, else the payer's funding_fact naming the payee; annual = annual_usd, "
-                             "else total / term from the start year (tag M)"},
+        "basis": {
+            "methodVersion": METHOD,
+            "edges": len(edges),
+            "amounts": "total_usd, else the payer's funding_fact naming the payee; annual = annual_usd, "
+            "else total / term from the start year (tag M)",
+        },
     }
 
 
@@ -86,9 +97,11 @@ def _concentration(eid: str, incoming: list[graph.Edge], fin: Financials, day: d
         rows[e.payer] += e.total.usd  # type: ignore[union-attr]
     out = [{"payerId": p, "share": _m(round(min(v / base, 1.0), 4), day)} for p, v in sorted(rows.items()) if base]
     out.sort(key=lambda r: -r["share"]["value"])
-    basis = {"denominator": "filed remaining performance obligations" if backlog else "incoming totals mapped",
-             "denominatorB": round(base / 1e9, 3) if base else None,
-             "backlogAsOf": backlog.as_of.isoformat() if backlog else None}
+    basis = {
+        "denominator": "filed remaining performance obligations" if backlog else "incoming totals mapped",
+        "denominatorB": round(base / 1e9, 3) if base else None,
+        "backlogAsOf": backlog.as_of.isoformat() if backlog else None,
+    }
     return out, basis
 
 
@@ -103,16 +116,27 @@ def _funding_gap(owes: list[graph.Edge], fin: Financials, day: date) -> tuple[li
         if not committed or ocf is None:
             continue
         funded = ocf.usd + (cash.usd if cash is not None and year == day.year else 0.0)
-        rows.append({"year": year, "committedB": round(committed / 1e9, 3), "fundedB": round(funded / 1e9, 3),
-                     "gapB": _m(round((committed - funded) / 1e9, 3), day)})
-    basis = {"funded": "trailing-twelve-month operating cash flow held flat (no guidance collected) + cash on "
-                       "hand in the first year", "ocf": ocf.basis if ocf else None,
-             "ocfB": round(ocf.usd / 1e9, 3) if ocf else None, "cashB": round(cash.usd / 1e9, 3) if cash else None}
+        rows.append(
+            {
+                "year": year,
+                "committedB": round(committed / 1e9, 3),
+                "fundedB": round(funded / 1e9, 3),
+                "gapB": _m(round((committed - funded) / 1e9, 3), day),
+            }
+        )
+    basis = {
+        "funded": "trailing-twelve-month operating cash flow held flat (no guidance collected) + cash on "
+        "hand in the first year",
+        "ocf": ocf.basis if ocf else None,
+        "ocfB": round(ocf.usd / 1e9, 3) if ocf else None,
+        "cashB": round(cash.usd / 1e9, 3) if cash else None,
+    }
     return rows, missing, basis
 
 
-def company_doc(conn: Conn, eid: str, edges: list[graph.Edge], fin: Financials, day: date,
-                ctx: dict[str, Any]) -> dict[str, Any]:
+def company_doc(
+    conn: Conn, eid: str, edges: list[graph.Edge], fin: Financials, day: date, ctx: dict[str, Any]
+) -> dict[str, Any]:
     mine = [e for e in edges if eid in (e.payer, e.payee)]
     owes = sorted([e for e in mine if e.payer == eid], key=lambda e: -(e.total.usd if e.total else 0.0))
     owed = sorted([e for e in mine if e.payee == eid], key=lambda e: -(e.total.usd if e.total else 0.0))
@@ -126,9 +150,10 @@ def company_doc(conn: Conn, eid: str, edges: list[graph.Edge], fin: Financials, 
         "node": graph.node_doc(conn, eid, mine, day, ctx["names"], ctx["kinds"]),
         "owes": [e.doc(day, ctx["sites"]) for e in owes],
         "isOwed": [e.doc(day, ctx["sites"]) for e in owed],
-        "owesByYear": [{"year": y, "byCounterparty": [{"id": c, "amountB": round(v / 1e9, 3)}
-                                                      for c, v in sorted(parts.items())]}
-                       for y, parts in sorted(by_year.items())],
+        "owesByYear": [
+            {"year": y, "byCounterparty": [{"id": c, "amountB": round(v / 1e9, 3)} for c, v in sorted(parts.items())]}
+            for y, parts in sorted(by_year.items())
+        ],
         "concentration": concentration,
         "fundingGap": gap,
         "missing": sorted({m for e in mine for m in e.missing} | set(g_missing)),
@@ -142,8 +167,11 @@ def compute_graph(conn: Conn, day: date) -> Batch:
         batch = Batch()
         doc = graph_doc(conn, day, edges)
         batch.add("series", "all", doc)
-        for e, edoc in zip(sorted(edges, key=lambda e: (-(e.total.usd if e.total else 0.0), e.payer, e.payee,
-                                                        e.type)), doc["edges"], strict=True):
+        for e, edoc in zip(
+            sorted(edges, key=lambda e: (-(e.total.usd if e.total else 0.0), e.payer, e.payee, e.type)),
+            doc["edges"],
+            strict=True,
+        ):
             batch.add("obligation", e.id, {**edoc, "missing": e.missing, "basis": {"methodVersion": METHOD}})
         batch.views.add(("obligations", "all"))
         batch.inputs = [[e.id for e in edges], doc["kpis"]]
@@ -169,10 +197,12 @@ def run(as_of: date | None = None, *, trigger: str = "manual", mark: bool = True
     return run_outputs(MODEL, VERSION, as_of, compute_graph, trigger=trigger, mark=mark)
 
 
-def run_companies(as_of: date | None = None, ids: list[str] | None = None, *, trigger: str = "manual",
-                  mark: bool = True) -> dict[str, Any]:
-    return run_outputs(COMPANY_MODEL, VERSION, as_of, lambda c, d: compute_companies(c, d, ids), trigger=trigger,
-                       mark=mark)
+def run_companies(
+    as_of: date | None = None, ids: list[str] | None = None, *, trigger: str = "manual", mark: bool = True
+) -> dict[str, Any]:
+    return run_outputs(
+        COMPANY_MODEL, VERSION, as_of, lambda c, d: compute_companies(c, d, ids), trigger=trigger, mark=mark
+    )
 
 
 def _run_graph_keys(keys: list[str], trigger: str) -> dict[str, Any]:
@@ -225,16 +255,19 @@ def graph_cli(args: argparse.Namespace) -> int:
         print(json.dumps(doc, indent=2, ensure_ascii=False))
         return 0
     k = doc["kpis"]
-    print(f"obligations {VERSION} as of {r['as_of']} (run {r['run_id']}): {len(doc['edges'])} edges, "
-          f"{len(doc['nodes'])} nodes, ${k['totalB']}B mapped, {k['filedPct']}% filed")
+    print(
+        f"obligations {VERSION} as of {r['as_of']} (run {r['run_id']}): {len(doc['edges'])} edges, "
+        f"{len(doc['nodes'])} nodes, ${k['totalB']}B mapped, {k['filedPct']}% filed"
+    )
     for e in doc["edges"][:15]:
         sched = ", ".join(f"{a['year']}: {a['amountB']['value']}" for a in e["annual"][:4])
         print(f"  {e['id']:62} {e['totalB']['value'] or 'n/d':>8} {sched}")
     return 0
 
 
-@cli.action("model", COMPANY_MODEL, help="Each company's obligations, concentration and funding gap",
-            configure=_company_args)
+@cli.action(
+    "model", COMPANY_MODEL, help="Each company's obligations, concentration and funding gap", configure=_company_args
+)
 def company_cli(args: argparse.Namespace) -> int:
     r = run_companies(args.as_of, args.entities, trigger="manual", mark=not args.no_mark)
     if args.json:
@@ -244,6 +277,8 @@ def company_cli(args: argparse.Namespace) -> int:
     for eid, o in r["outputs"].items():
         top = o["concentration"][0] if o["concentration"] else None
         gap = o["fundingGap"][0]["gapB"]["value"] if o["fundingGap"] else None
-        print(f"  {eid:40} owes {len(o['owes']):2} owed {len(o['isOwed']):2} owesB {o['node']['owesB']:8} "
-              f"top {top['payerId'] + ' ' + str(top['share']['value']) if top else '-':30} gap {gap}")
+        print(
+            f"  {eid:40} owes {len(o['owes']):2} owed {len(o['isOwed']):2} owesB {o['node']['owesB']:8} "
+            f"top {top['payerId'] + ' ' + str(top['share']['value']) if top else '-':30} gap {gap}"
+        )
     return 0
