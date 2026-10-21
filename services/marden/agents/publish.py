@@ -429,7 +429,8 @@ def recheck(*, by: str = f"agent:recheck@{PROMPT_VERSION}", document_id: int | N
             if r["outcome"] == "published" and r["fact_status"] == "published" and _published_by_code(r):
                 _withdraw(conn, r, reasons, by)
                 out["withdrawn"].append({"candidate_id": r["id"], "fact_id": r["fact_id"], "reasons": reasons})
-            elif r["outcome"] == "review" and any(v.get("hard") for v in failed.values()):
+            elif (r["outcome"] == "review" and r["fact_status"] in (None, "candidate")
+                  and any(v.get("hard") for v in failed.values())):  # a withdrawn one waits for its person
                 hard = "; ".join(f"{k}: {v.get('detail') or 'failed'}" for k, v in failed.items() if v.get("hard"))
                 if r["fact_id"] and r["fact_status"] == "candidate":
                     FactWriter(conn).reject([r["fact_id"]], f"code check: {hard}", decided_by=by)

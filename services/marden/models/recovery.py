@@ -34,7 +34,7 @@ from marden.models.gpu_facilities import FACILITY_FIELDS, pools, range_text, val
 from marden.models.gpu_facilities import load as load_facilities
 from marden.models.gpu_inputs import ENTITY_FIELDS, SERIES_FIELDS, SERIES_PREFIXES
 from marden.models.gpu_inputs import load as load_market
-from marden.models.gpu_value import fit_decline
+from marden.models.gpu_value import HAIRCUT, fit_decline
 from marden.models.recovery_shell import (
     INSTRUMENT_FIELDS,
     SITE_FIELDS,
@@ -93,7 +93,7 @@ def compute(conn: Conn, day: date, ids: list[str] | None) -> Batch:
                    "missing": v.missing,
                    "basis": {"methodVersion": f"{METHOD} (model v0)", "poolBalanceB": rounded(
                        v.pool_balance / 1e9 if v.pool_balance else None, 4), "pool": v.pool,
-                       "units": rounded(v.units, 0),
+                       "units": rounded(v.units, 0), "haircut": HAIRCUT,
                        "valuePerUnitUsd": rounded(v.per_unit, 0), "seniorClaimsB": 0.0,
                        "rule": "collateral value / pool balance, capped at 100c, default today to a year out"}}
         elif site_of.get(iid):

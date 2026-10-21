@@ -32,7 +32,7 @@ from marden.readmodels.views.instrument_inputs import (
     output_field,
     sourced_number,
 )
-from marden.readmodels.views.instrument_text import gpu_recovery_text
+from marden.readmodels.views.recovery_text import gpu_recovery_text
 
 GPU_FACTS = ("gpu_collateral", "gpu_model", "recovery_gpu", "drawn_usd")
 DEPLOYMENT_SOURCED = (

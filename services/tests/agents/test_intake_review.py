@@ -8,7 +8,7 @@ import pytest
 from agent_rows import COREWEAVE_CIK, case, seed_coreweave, store_case_document
 
 from marden.agents import config
-from marden.agents.config import BackendStatus
+from marden.agents.config import METHOD, BackendStatus
 from marden.agents.intake import claim, ingest_bytes, queue_documents, r2_inbox, reset_stale, store_uploads
 from marden.agents.pipeline import enqueue_document
 from marden.agents.review import apply_pending, decide
@@ -138,7 +138,7 @@ def _fact_review(conn, value, quote, *, doc_id):
     w = FactWriter(conn)
     fid = w.add("entity", "coreweave", "cash_usd", value, tag="F", source_name="SEC EDGAR", valid_from="2026-06-30",
                 producer="agent:periodic", unit="USD", document_id=doc_id, quote=quote,
-                method_version="agents v0.1 periodic").id
+                method_version=f"{METHOD} periodic").id
     w.set_verifier(fid, "unsupported")
     return fid, w.request_review(fid, title="cash_usd", reason="verifier: unsupported", payload={"area": "periodic"})
 

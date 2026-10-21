@@ -1,4 +1,5 @@
-"""Display text for instrument documents: names, type labels, the facts line, terms and recovery text.
+"""Display text for instrument documents: names, type labels, the facts line and terms (recovery
+text: views/recovery_text.py).
 
 Text only: every number shown here is a sourced fact or model value formatted for the screen, and a
 value no fact carries is left out (terms) or null (n/d). The V1 segment of an instrument comes from
@@ -144,75 +145,6 @@ def text_of(value: Any) -> str | None:
 def maturity_text(facts: dict[str, Row]) -> str | None:
     row = facts.get("maturity") or facts.get("maturity_text")
     return text_of(row["value"]) if row else None
-
-
-# ---------------------------------------------------------------- recovery
-def _pct(v: Any) -> int | None:
-    n = num(v)
-    return None if n is None else round(n)
-
-
-def _band(base: int | None, low: int | None, high: int | None) -> str | None:
-    if base is None and low is None and high is None:
-        return None
-    if base is None:
-        return f"{low}{DASH}{high}c" if low is not None and high is not None else f"{low if low is not None else high}c"
-    if low is not None and high is not None and (low, high) != (base, base):
-        return f"{base}c ({low}{DASH}{high}c)"
-    return f"{base}c"
-
-
-def recovery_from_facts(facts: dict[str, Row]) -> dict[str, Any] | None:
-    """Recovery if default, cents per dollar, from the recovery facts (waterfall, project, GPU)."""
-    row = facts.get("recovery_waterfall")
-    if row and isinstance(row["value"], dict):
-        v = row["value"]
-        pick = {
-            k: _pct((v.get(k) or {}).get("total_recovery_pct", (v.get(k) or {}).get("recovery_pct")))
-            for k in ("low", "base", "high")
-        }
-        text = _band(pick["base"], pick["low"], pick["high"])
-        if text:
-            return fact_sourced(row, text)
-    row = facts.get("recovery_project")
-    if row and isinstance(row["value"], dict):
-        v = row["value"]
-        text = _band(_pct(v.get("base_pct")), _pct(v.get("low_pct")), _pct(v.get("high_pct")))
-        if text:
-            return fact_sourced(row, text)
-    row = facts.get("recovery_gpu")
-    if row and isinstance(row["value"], dict):
-        text = gpu_recovery_text(row["value"])
-        if text:
-            return fact_sourced(row, text)
-    return None
-
-
-def gpu_recovery_text(value: dict[str, Any]) -> str | None:
-    """'91-100c' (en dash) from the conservative and moderate GPU-only recovery."""
-    low, high = _pct(value.get("recovery_conservative_pct")), _pct(value.get("recovery_moderate_pct"))
-    if low is None and high is None:
-        return None
-    if low is None or high is None or low == high:
-        return f"{low if low is not None else high}c"
-    return f"{min(low, high)}{DASH}{max(low, high)}c"
-
-
-def recovery_from_output(value: Any) -> str | None:
-    """A recovery model value as text: a number (cents or a 0..1 share), a string, or {base, low, high}."""
-    if isinstance(value, str):
-        return value
-    n = num(value)
-    if n is not None:
-        return f"{round(n * 100 if n <= 1 else n)}c"
-    if isinstance(value, dict):
-
-        def cents(k: str) -> int | None:
-            x = num(value.get(k))
-            return None if x is None else round(x * 100 if x <= 1 else x)
-
-        return _band(cents("base") if value.get("base") is not None else cents("value"), cents("low"), cents("high"))
-    return None
 
 
 # ---------------------------------------------------------------- terms and the facts line

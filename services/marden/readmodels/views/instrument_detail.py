@@ -7,7 +7,7 @@ The row part is `instruments.instrument_row`, so the page agrees with the list. 
 - holders: model 'mark_gap' rows (gap and NAV hit need the Marden price); without the output, the
   count and par of the funds whose latest filing lists the instrument, and no rows;
 - priceHistory: the Marden daily price (price_obs kind 'marden');
-- recovery: model 'recovery', else the price output's recovery, else the recovery facts (M);
+- recovery: model 'recovery', else the price output's assumed recovery, else the recovery facts (M);
 - stress: model 'stress' rows; terms: the instrument's facts; payers: end-user share facts;
 - marketCheck: the issuer's (or the SPV's parent's) bond-implied CDS named for the company, the
   default odds it implies, the tenant's CDS (the price model's inputs), observed
@@ -38,16 +38,9 @@ from marden.readmodels.views.instrument_inputs import (
     output_field,
     price_sourced,
 )
-from marden.readmodels.views.instrument_text import (
-    DASH,
-    facts_line,
-    price_text,
-    recovery_from_facts,
-    recovery_from_output,
-    terms,
-    yield_text,
-)
+from marden.readmodels.views.instrument_text import DASH, facts_line, price_text, terms, yield_text
 from marden.readmodels.views.instruments import gap_rows, instrument_row
+from marden.readmodels.views.recovery_text import recovery_from_facts, recovery_from_output
 
 HOLDER_FILINGS = ("N-PORT", "10-Q")
 _MEDIAN_N = re.compile(r"median of (\d+) funds")
@@ -143,7 +136,7 @@ def next_marks_public(gap_out: Row | None) -> str | None:
 
 
 def recovery(conn: Conn, instrument_id: str, price_out: Row | None, facts: dict[str, Row]) -> dict[str, Any]:
-    """Recovery if default, cents per dollar (M)."""
+    """Recovery if default, cents per dollar (M); the price model's is its default: 'assumed 55c'."""
     rec_out = latest_output(conn, "recovery", instrument_id, "instrument")
     for out in (rec_out, price_out):
         if out is None or not isinstance(out["output"], dict):
@@ -157,11 +150,11 @@ def recovery(conn: Conn, instrument_id: str, price_out: Row | None, facts: dict[
         if isinstance(raw, dict) and "tag" in raw and "value" in raw:
             got = model_sourced(out, raw)
             if got is not None and got["value"] is not None:
-                got["value"] = recovery_from_output(got["value"])
+                got["value"] = recovery_from_output(got["value"], assumed=out is price_out)
                 if got["value"]:
                     return got
             continue
-        text = recovery_from_output(raw)
+        text = recovery_from_output(raw, assumed=out is price_out)
         if text:
             return model_sourced(out, text)  # type: ignore[return-value]
     return recovery_from_facts(facts) or nd("M")

@@ -15,6 +15,7 @@ model values, tag M, are not comps):
   guarantees and leases are not claims on the buildings).
 Shell value = gross MW x completion x comp value per MW; recovery = (value - claims ranking ahead) /
 claims at the instrument's rank, between 0 and 100c; low / base / high from the 25th / 50th / 75th comp.
+The basis carries the arithmetic (shell value low / base / high, `valueUsd`; cover before the cap, `coverCents`).
 Not in v0 (named in `missing` / basis): re-letting time and carry, unspent proceeds held in project
 accounts, third-party support (residual value guarantees, backstops).
 """
@@ -197,6 +198,9 @@ def shell_recovery(site: SiteFacts | None, comp: Comps, claims: list[Claim], ins
         "compMedianUsdPerMw": None if not comp.per_mw else round(statistics.median(v for _, v in comp.per_mw)),
         "grossMw": None if gross_mw is None else round(gross_mw, 1), "grossMwBasis": gross_basis,
         "completion": None if share is None else round(share, 4), "completionBasis": share_basis,
+        "valueUsd": None if value is None else [round(v) for v in value],
+        "coverCents": [round((v - ahead) / pari * 100) for v in value] if value and ahead is not None and pari
+        else None,
         "claims": [{"instrumentId": c.instrument_id, "rank": c.rank, "amountUsd": c.amount, "basis": c.basis}
                    for c in claims],
         "notInV0": ["re-letting time and carry", "unspent proceeds in project accounts",

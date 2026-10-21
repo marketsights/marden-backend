@@ -23,8 +23,8 @@ from agent_rows import (
 )
 
 from marden.agents.config import METHOD, AgentSettings
-from marden.agents.publish import _price_inputs
 from marden.agents.pipeline import enqueue_document, run_job
+from marden.agents.publish import _price_inputs
 from marden.agents.review import decide
 from marden.core import db
 from marden.core.facts import FactWriter
