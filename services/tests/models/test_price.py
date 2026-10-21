@@ -234,3 +234,13 @@ def test_an_instrument_is_not_priced_before_its_issue_date():
         after = run_day(conn, date(2026, 10, 14), ["EX-CRWV-097"])["prices"]["EX-CRWV-097"]
     assert before["price"] is None and any("issued 2026-08-07" in m for m in before["missing"])
     assert after["price"] is not None and after["basis"]["calibration"]["comp"] == "issue_comp:CRWV_DDTL55"
+
+
+def test_a_print_outside_the_engine_universe_does_not_mark_it():
+    copy_price_inputs(["EX-CRWV-103"])
+    from marden.core.records import PriceWriter
+
+    with db.transaction() as conn:
+        conn.execute("INSERT INTO instrument (id, name, kind, issuer_name) VALUES ('T-OTHER', 'x', 'bond', 'x')")
+        PriceWriter(conn).add("T-OTHER", date(2026, 10, 20), "dealer", 99.0, tag="R", source_name="Test desk")
+        assert triggers.dirty_marks(conn, "price") == []

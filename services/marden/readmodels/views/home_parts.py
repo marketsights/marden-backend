@@ -19,6 +19,7 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.readmodels.views.instrument_inputs import day, num
+from marden.readmodels.views.instrument_text import short_name
 from marden.readmodels.views.monitor_common import Doc, is_iso_date, method_of, plain_sourced, when_label
 from marden.readmodels.views.sites_common import event_evidence, next_day
 
@@ -26,6 +27,7 @@ ROLE_LABELS = {"end_user": "End-user", "tenant": "Tenant", "developer": "Develop
 LINK_RANK = {"red": 3, "amber": 2, "green": 1, "none": 0}
 QUIET = frozenset({"none", "green"})  # a party named (none -> green) is not a status change
 PRICE_MOVE_PTS = 1.0  # the lowest user threshold (AlertSettings.priceThresholdPts 1 | 2 | 3)
+LENDER_RED_BELOW = 95.0
 
 
 def site_watch(slug: str, instrument_ids: Sequence[str]) -> list[str]:
@@ -76,19 +78,21 @@ def status_changes(site: Doc, watch: list[str], now: Row | None, before: Row | N
                         "name": site["name"], "type": "status", "label": f"{ROLE_LABELS[role]} link", "from": prev,
                         "to": to, "status": site["status"], "record": record})
     status_now, status_before = _status(now), _status(before)
+    name = short_name(site["name"]) or site["name"]  # "Project Jupiter", not its long name with aliases
     if status_now and status_before and status_now != status_before:
-        line = f"{site['name']} to {status_now}"
+        line = f"{name} to {status_now}"
     elif changes:
         top = max(changes, key=lambda c: c["severity"])
-        line = f"{site['name']} {top['label'].lower()} to {top['to']['value']}"
+        line = f"{name} {top['label'].lower()} to {top['to']['value']}"
     else:
         return None, []
     return {"watch": watch, "name": site["name"], "line": line, "at": now["as_of"].isoformat()}, changes
 
 
 def _cushion_value(out: Row | None) -> float | None:
+    """The cushion a site showed with this output (as views/sites.projection_of: a projection with a P50)."""
     projection = out["output"].get("projection") if out is not None and isinstance(out["output"], dict) else None
-    months = projection.get("cushionMonths") if isinstance(projection, dict) else None
+    months = projection.get("cushionMonths") if isinstance(projection, dict) and projection.get("p50") else None
     return num(months.get("value")) if isinstance(months, dict) else None
 
 
@@ -113,12 +117,14 @@ def price_change(row: Doc, watch: list[str]) -> Doc | None:
     now, moved = num(price.get("value")), num(change.get("value"))
     if now is None or moved is None or abs(moved) < PRICE_MOVE_PTS:
         return None
-    severity = 3 if now < 95 else 2 if moved <= -2 else 1
-    record = {"date": change["asOf"], "text": f"Marden price {now - moved:.1f} to {now:.1f} over the week",
+    before = now - moved
+    crossed = before >= LENDER_RED_BELOW > now  # the lenders link's red line (00-global: price below 95)
+    severity = 3 if crossed or moved <= -3 else 2 if moved <= -2 else 1
+    record = {"date": change["asOf"], "text": f"Marden price {before:.1f} to {now:.1f} over the week",
               "tag": change["tag"], "sourceName": change.get("sourceName") or price.get("sourceName") or "Marden price",
               "sourceUrl": change.get("sourceUrl") or ""}
     return {"severity": severity, "watch": watch, "kind": "instrument", "refId": row["id"], "name": row["name"],
-            "type": "price", "from": round(now - moved, 4), "to": price, "status": row.get("chainStatus"),
+            "type": "price", "from": round(before, 4), "to": price, "status": row.get("chainStatus"),
             "record": record}
 
 
@@ -144,23 +150,21 @@ def _detail(title: str) -> tuple[str, str]:
 
 
 def merge_events(rows: Sequence[Row], subjects: dict[tuple[str, str], Doc]) -> list[Doc]:
-    """One entry per distinct filing or scheduled step: the subjects it is on merged (the site first)."""
-    merged: dict[tuple[Any, ...], Doc] = {}
+    """One entry per subject and distinct filing or scheduled step. The loaders write one step twice
+    (same detail, two headlines) and copy it to each instrument; every copy of a step gets the same
+    `heads`, so the API's de-duplication by date and text keeps one per watched name."""
+    groups: dict[tuple[Any, ...], dict[tuple[str, str], Doc]] = {}
+    heads: dict[tuple[Any, ...], list[str]] = {}
     for ev in rows:
         subject = subjects.get((ev["subject_type"], ev["subject_id"]))
         if subject is None:
             continue
         head, detail = _detail(ev["title"])
         key = (ev["kind"], ev["event_date"], detail if ev["kind"] == "catalyst" else (ev["title"], ev["source_url"]))
-        entry = merged.get(key)
-        if entry is None:
-            merged[key] = {"event": ev, "heads": [head], "subject": subject, "watch": list(subject["watch"])}
-            continue
-        entry["heads"].append(head)
-        entry["watch"] += [w for w in subject["watch"] if w not in entry["watch"]]
-        if subject["kind"] == "site" and entry["subject"]["kind"] != "site":
-            entry["subject"], entry["event"] = subject, ev
-    return list(merged.values())
+        heads.setdefault(key, []).append(head)
+        groups.setdefault(key, {}).setdefault((subject["kind"], subject["id"]), {"event": ev, "subject": subject,
+                                                                                "watch": subject["watch"]})
+    return [{**entry, "heads": heads[key]} for key, by_subject in groups.items() for entry in by_subject.values()]
 
 
 def filing_change(entry: Doc) -> Doc:
@@ -178,8 +182,8 @@ def filing_change(entry: Doc) -> Doc:
 
 def coming_up_event(entry: Doc) -> Doc:
     ev, subject = entry["event"], entry["subject"]
-    heads = entry["heads"]
-    what = min(heads, key=len) if len(heads) > 1 else ev["title"]
+    heads = sorted(set(entry["heads"]), key=lambda h: (len(h), h))
+    what = heads[0] if len(heads) > 1 else ev["title"]  # a step written twice: its short headline
     return {"watch": entry["watch"], "date": ev["event_date"].isoformat(), "when": when_label(ev["event_date"], day()),
             "what": what, "refUrl": subject["href"]}
 

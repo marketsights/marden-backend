@@ -84,7 +84,8 @@ const READ_MODEL_ROUTES: Record<string, [string, ...Expect]> = {
 const EXPORTS: Record<string, Expect | null> = {
   'data-centers': ['dc_row', '*'], 'power-plants': ['plant_row', '*'], completion: ['completion', 'all'],
   sites: ['sites', 'all'], instruments: ['instruments', 'all'], holders: ['instrument_detail', INST],
-  'risk-list': ['risk_list', 'latest'], payers: ['payers', 'all'], leases: ['leases', 'all'],
+  'risk-list': ['risk_list', 'latest'], payers: ['payers', 'all'], payer: ['payer', ENTITY], 'payer-exposed': ['payer_capacity', ENTITY],
+  leases: ['leases', 'all'],
   obligations: ['obligations', 'all'], watchlist: null,
 };
 
@@ -142,7 +143,7 @@ describe('view/key contract', () => {
       served.add(view);
     }
     for (const [table, expected] of Object.entries(EXPORTS)) {
-      const qs = table === 'holders' ? `?instrument=${INST}` : '';
+      const qs = table === 'holders' ? `?instrument=${INST}` : table === 'payer' || table === 'payer-exposed' ? `?slug=${ENTITY}` : '';
       const res = await app.inject({ method: 'GET', url: `/api/export/${table}.xlsx${qs}` });
       if (expected === null) {
         expect(res.statusCode).toBe(200);

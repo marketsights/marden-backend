@@ -77,7 +77,7 @@ Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `
 
 | View | Key | Served by | Marked dirty by |
 | --- | --- | --- | --- |
-| `home` | `all` | GET /api/home (the API adds the org's unread alerts) | site, instrument |
+| `home` | `all` | GET /api/home (every name's pieces, each tagged with the watchlist entries it belongs to; the API keeps the org's names, sums the headline over them, applies the caller's price threshold and adds the unread alerts: apps/api/src/lib/home-doc.ts) | site, instrument |
 | `completion` | `all` | GET /api/completion (endUser, tenant, holder, state, driver, cushion, watchlist); export `completion` | site, instrument |
 | `sites` | `all` | GET /api/sites (status, endUser, state); export `sites` | site, instrument |
 | `site_detail` | `site.slug` | GET /api/sites/:slug; watchlist items | site; its instruments, approved campuses and buildings, chain-party entities |

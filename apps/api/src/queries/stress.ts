@@ -2,18 +2,85 @@
 // SQL function stress_run(request jsonb) -> jsonb; until that function exists the API answers 503.
 import type { SavedStress } from '../contracts/app.js';
 import type { Db, Queryable } from '../db.js';
-import type { StressRunRequest } from '../lib/defaults.js';
+import { badRequest } from '../errors.js';
+import { stressRequestSchema, type StressRunRequest } from '../lib/defaults.js';
+import { first, type Query } from '../lib/params.js';
 
 export const STRESS_FUNCTION = 'stress_run(jsonb)';
 
+/** True when stress_run(jsonb) exists in the connection's own schema (public in production; a test's
+ *  throwaway schema in the API tests, so a stand-in there never reaches the real function in public). */
 export async function stressModelAvailable(db: Db): Promise<boolean> {
-  const res = await db.query<{ fn: string | null }>(`SELECT to_regprocedure($1)::text AS fn`, [STRESS_FUNCTION]);
+  const res = await db.query<{ fn: string | null }>(
+    `SELECT to_regprocedure(quote_ident(current_schema()) || '.' || $1)::text AS fn`, [STRESS_FUNCTION]);
   return res.rows[0]?.fn != null;
 }
 
 export async function runStress(db: Db, request: StressRunRequest): Promise<unknown> {
   const res = await db.query<{ result: unknown }>(`SELECT stress_run($1::jsonb) AS result`, [JSON.stringify(request)]);
   return res.rows[0]?.result ?? null;
+}
+
+/** stress_run's answer for a custom run the model has queued but not finished ({status, jobId, subject}). */
+export function isPendingStress(result: unknown): result is { status: 'queued' | 'running'; jobId: unknown } {
+  const status = (result as { status?: unknown } | null)?.status;
+  return status === 'queued' || status === 'running';
+}
+
+export function isStressError(result: unknown): result is { status: 'error'; error: string } {
+  return (result as { status?: unknown } | null)?.status === 'error';
+}
+
+const POLL_INTERVAL_MS = 250;
+/** How long POST /api/stress/run waits for a queued custom run (MARDEN_STRESS_WAIT_MS, default 20 s). */
+export function stressWaitMs(): number {
+  const v = Number(process.env.MARDEN_STRESS_WAIT_MS);
+  return Number.isFinite(v) && v >= 0 ? v : 20_000;
+}
+
+/**
+ * The stress_run contract (db/migrations/20261021210000_stress_run.sql): a saved scenario answers at once;
+ * a custom run answers {status: 'queued' | 'running', jobId} while the stress model's worker computes it,
+ * and the same call returns the result once it is stored. Calls again every 250 ms until done or the wait
+ * runs out; the last answer (possibly still pending) is returned.
+ */
+export async function runStressWaiting(db: Db, request: StressRunRequest, waitMs = stressWaitMs()): Promise<unknown> {
+  const deadline = Date.now() + waitMs;
+  let result = await runStress(db, request);
+  while (isPendingStress(result) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(POLL_INTERVAL_MS, Math.max(deadline - Date.now(), 0))));
+    result = await runStress(db, request);
+  }
+  return result;
+}
+
+const RESERVED = new Set(['scenario', 'severity', 'asOf']);
+
+/**
+ * The run an export URL names, in the screen's own URL form (/stress?scenario=&severity=&<param>=):
+ * every other query parameter is a scenario parameter, numbers parsed. 400 when it is not a valid run.
+ */
+export function stressRequestFromQuery(q: Query): StressRunRequest {
+  const params: Record<string, string | number> = {};
+  for (const key of Object.keys(q).sort()) {
+    const value = first(q, key);
+    if (RESERVED.has(key) || value === undefined) continue;
+    params[key] = /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : value;
+  }
+  const parsed = stressRequestSchema.safeParse({ scenario: first(q, 'scenario'), params, severity: first(q, 'severity') ?? 'base' });
+  if (!parsed.success) {
+    throw badRequest('invalid_stress_request', parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })));
+  }
+  return parsed.data;
+}
+
+/** The table rows of a finished run (StressResult.rows, ContagionResult.instruments); null for anything else (e.g. queued). */
+export function stressResultRows(result: unknown): Record<string, unknown>[] | null {
+  if (typeof result !== 'object' || result === null) return null;
+  const r = result as { rows?: unknown; instruments?: unknown };
+  if (Array.isArray(r.rows)) return r.rows as Record<string, unknown>[];
+  if (Array.isArray(r.instruments)) return r.instruments as Record<string, unknown>[];
+  return null;
 }
 
 interface SavedRow {
@@ -29,6 +96,7 @@ const toSaved = (r: SavedRow): SavedStress => ({
   ranAt: r.ran_at ? r.ran_at.toISOString() : null,
   createdAt: r.created_at.toISOString(),
   createdBy: r.user_id,
+  savedAt: r.created_at.toISOString(),
 });
 
 const COLUMNS = `id::text, name, request, result, ran_at, created_at, user_id`;

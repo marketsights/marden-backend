@@ -1,4 +1,4 @@
-// Sidebar search (spec 00, 16): sites, instruments (name, CUSIP, ISIN), campuses, buildings (label,
+// Sidebar search (spec 00, 16): sites, instruments (name, CUSIP, ISIN, issuer and site words), campuses, buildings (label,
 // parcel ID), plants, entities and permit numbers, ranked by trigram word similarity. Permit numbers
 // are facts, read through fact_current (or fact_asof for ?asOf), never from `fact` directly.
 import type { SearchResult } from '../contracts/app.js';
@@ -12,14 +12,21 @@ const bestOf = (arr: string): string => `(SELECT coalesce(max(word_similarity($1
 const known = (alias: string): string => `($3::date IS NULL OR ${alias}.created_at < ($3::date + 1))`;
 const score = (...parts: string[]): string => `greatest(${parts.join(', ')})::float8`;
 const exact = (expr: string): string => `CASE WHEN ${expr} ILIKE $2 THEN 0.6 ELSE 0 END`;
+// Every word of the query appears in the text ("CoreWeave DDTL", "Oracle notes", "Jupiter loan").
+const allWords = (expr: string): string =>
+  `NOT EXISTS (SELECT 1 FROM regexp_split_to_table(btrim($1), '\\s+') w WHERE strpos(lower(${expr}), lower(w)) = 0)`;
+// An instrument is found by its issuer and its financed site too: its own name is often only "DDTL 3.0".
+const INSTRUMENT_TEXT = `concat_ws(' ', i.issuer_name, s.name, i.name)`;
 
 const BRANCHES = [
   `SELECT 'site' AS kind, s.slug AS id, s.name AS label, nullif(concat_ws(', ', s.county, s.state), '') AS sub,
           '/sites/' || s.slug AS href, ${score(sim('s.name'), exact('s.name'), bestOf('s.tracking_names'))} AS score
    FROM site s WHERE (${hit('s.name')} OR ${anyHit('s.tracking_names')}) AND ${known('s')}`,
   `SELECT 'instrument', i.id, i.name, concat_ws(' · ', i.issuer_name, i.cusip), '/instruments/' || i.id,
-          ${score(sim('i.name'), exact('i.name'), `CASE WHEN i.cusip ILIKE $2 OR i.isin ILIKE $2 THEN 1 ELSE 0 END`)}
-   FROM instrument i WHERE (${hit('i.name')} OR i.cusip ILIKE $2 OR i.isin ILIKE $2) AND ${known('i')}`,
+          ${score(sim('i.name'), exact('i.name'), `CASE WHEN i.cusip ILIKE $2 OR i.isin ILIKE $2 THEN 1 ELSE 0 END`,
+                  `CASE WHEN ${allWords(INSTRUMENT_TEXT)} THEN 0.7 ELSE 0 END`)}
+   FROM instrument i LEFT JOIN site s ON s.slug = i.site_slug
+   WHERE (${hit('i.name')} OR i.cusip ILIKE $2 OR i.isin ILIKE $2 OR ${allWords(INSTRUMENT_TEXT)}) AND ${known('i')}`,
   `SELECT 'campus', c.id, c.name, nullif(concat_ws(', ', c.county, c.state), ''), '/data-centers/' || c.id,
           ${score(sim('c.name'), exact('c.name'), bestOf('c.aliases'), `CASE WHEN ${anyHit('c.parcel_ids')} THEN 0.9 ELSE 0 END`)}
    FROM campus c WHERE (${hit('c.name')} OR ${anyHit('c.aliases')} OR ${anyHit('c.parcel_ids')}) AND ${known('c')}`,

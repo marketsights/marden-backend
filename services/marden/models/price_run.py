@@ -33,7 +33,7 @@ from marden.core.db import Conn
 from marden.core.queue import app
 from marden.core.records import PriceWriter
 from marden.models import price_equity, price_signals, price_terms, runs, triggers
-from marden.models.price import MODEL, PRICE_LABEL, VERSION, inputs_hash, run_day, week_change
+from marden.models.price import MODEL, PRICE_LABEL, VERSION, inputs_hash, is_target, run_day, week_change
 from marden.readmodels.context import business_today
 from marden.readmodels.deps import mark_dirty_for
 
@@ -113,10 +113,13 @@ def run(as_of: date | None = None, ids: list[str] | None = None, *, trigger: str
 
 # ---------------------------------------------------------------- triggers and schedule
 def _observed_price(conn: Conn, instrument_id: str) -> list[str]:
-    """A new price observation re-runs the model, except the model's own 'marden' rows (no loop)."""
+    """A new price observation of an instrument the engine prices or reads re-runs the model, except the
+    model's own 'marden' rows (no loop)."""
     row = conn.execute("SELECT kind FROM price_obs WHERE instrument_id = %s ORDER BY id DESC LIMIT 1",
                        (instrument_id,)).fetchone()
-    return [] if row is None or row["kind"] == "marden" else ["*"]
+    if row is None or row["kind"] == "marden":
+        return []
+    return ["*"] if is_target(conn, instrument_id) else []
 
 
 def _price_series(conn: Conn, subject_id: str) -> list[str]:

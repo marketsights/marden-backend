@@ -1,14 +1,17 @@
 // Tables that GET /api/export/:table.xlsx can export: the same read model and filters as the
 // screen's own endpoint, without paging.
 import type {
-  CompletionResponse, InstrumentDetail, InstrumentRow, LeaseMapPage, ObligationGraph, PayersPage, RiskList, SiteSummary,
+  CompletionResponse, InstrumentDetail, InstrumentRow, LeaseMapPage, ObligationGraph, Payer, PayerCapacity, PayersPage, RiskList,
+  SiteSummary,
 } from '../contracts/types.js';
 import type { Db } from '../db.js';
 import { badRequest, notFound, notReady } from '../errors.js';
 import { queryRows } from '../queries/rows.js';
+import { runStress, stressModelAvailable, stressRequestFromQuery, stressResultRows } from '../queries/stress.js';
 import { watchedSiteSlugs, watchRows } from '../queries/watchlist.js';
 import { filterCompletion, filterInstruments, filterObligations, filterSites, wantsWatchlist } from './doc-filters.js';
 import { first, isoDate, type Query } from './params.js';
+import { filterPayers, payerIndexRow, payerSiteRows } from './payer-filters.js';
 import type { RowViewDef } from './row-query.js';
 import { DC_ROWS, PLANT_ROWS } from './row-views.js';
 import { toWatchItem } from './watch-items.js';
@@ -54,9 +57,25 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     if (!week) throw notReady('risk_list', 'latest');
     return { view: 'risk_list', asOf: week, rows: asRows((await doc<RiskList>(ctx, 'risk_list', week)).rows) };
   },
+  // The index's columns for the filtered rows (?kind=&risk=), as on screen (spec 24).
   payers: async (ctx) => {
     const d = await doc<PayersPage>(ctx, 'payers', 'all');
-    return { view: 'payers', asOf: d.asOf, rows: asRows(d.rows) };
+    return { view: 'payers', asOf: d.asOf, rows: filterPayers(d.rows, ctx.q).map(payerIndexRow) };
+  },
+  // One payer's sites table (?slug=, spec 08), sourced per site from the sites document when built.
+  payer: async (ctx) => {
+    const slug = first(ctx.q, 'slug');
+    if (!slug) throw badRequest('slug is required for the payer export');
+    const payer = await doc<Payer>(ctx, 'payer', slug);
+    const sites = await ctx.db.readModel<SiteSummary[]>('sites', 'all', ctx.asOf);
+    return { view: 'payer', asOf: ctx.asOf, rows: payerSiteRows(payer, sites) };
+  },
+  // The instruments that depend on one payer (?slug=, spec 24 "Capacity to pay").
+  'payer-exposed': async (ctx) => {
+    const slug = first(ctx.q, 'slug');
+    if (!slug) throw badRequest('slug is required for the payer-exposed export');
+    const cap = await doc<PayerCapacity>(ctx, 'payer_capacity', slug);
+    return { view: 'payer_capacity', asOf: ctx.asOf, rows: asRows(cap.exposed) };
   },
   leases: async (ctx) => {
     const d = await doc<LeaseMapPage>(ctx, 'leases', 'all');
@@ -65,6 +84,15 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
   obligations: async (ctx) => {
     const d = filterObligations(await doc<ObligationGraph>(ctx, 'obligations', 'all'), ctx.q);
     return { view: 'obligations', asOf: d.asOf, rows: asRows(d.edges) };
+  },
+  // ?scenario=&severity=&<param>= as on /stress: the run's debt-hit rows (StressResult.rows, or
+  // ContagionResult.instruments), straight from the stress model; 503 until the model is deployed.
+  stress: async (ctx) => {
+    const request = stressRequestFromQuery(ctx.q);
+    if (!(await stressModelAvailable(ctx.db))) throw notReady('model:stress', request.scenario);
+    const rows = stressResultRows(await runStress(ctx.db, request));
+    if (rows === null) throw notReady('model:stress', request.scenario);
+    return { view: 'model:stress', asOf: null, rows };
   },
   watchlist: async (ctx) => {
     // ?kind=site|instrument: the Watchlist tab on screen (All / Sites / Instruments).

@@ -9,6 +9,7 @@ null), never a placeholder. Every read is dated by the snapshot being built (`bu
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable
 from datetime import date, timedelta
 from typing import Any
@@ -30,6 +31,17 @@ def is_iso_date(value: Any) -> bool:
     except ValueError:
         return False
     return True
+
+
+PARTIAL_DATE = re.compile(r"^\d{4}(-(0[1-9]|1[0-2]|H[12]|Q[1-4])(-\d{2})?)?$")
+
+
+def is_record_date(value: Any) -> bool:
+    """An Evidence date: a day, or the year, half, quarter or month a record gives when that is all it
+    states ('2026', '2026-H2', '2026-Q3', '2026-10')."""
+    if not isinstance(value, str) or not PARTIAL_DATE.match(value):
+        return False
+    return len(value) < 10 or is_iso_date(value)
 
 
 def week_end(start: str) -> str:
@@ -110,7 +122,7 @@ def evidence_of(raw: Any) -> Doc | None:
     """types.ts Evidence (date, text, tag, sourceName, sourceUrl), or None when it lacks a dated text."""
     if not isinstance(raw, dict) or not isinstance(raw.get("text"), str) or not raw["text"]:
         return None
-    if not is_iso_date(raw.get("date")) or raw.get("tag") not in TAGS:
+    if not is_record_date(raw.get("date")) or raw.get("tag") not in TAGS:
         return None
     return {"date": raw["date"], "text": raw["text"], "tag": raw["tag"],
             "sourceName": raw.get("sourceName") if isinstance(raw.get("sourceName"), str) else "",

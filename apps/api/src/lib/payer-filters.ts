@@ -25,7 +25,18 @@ export function filterPayers(rows: PayerCapacity[], q: Query): PayerCapacity[] {
   );
 }
 
-const agency = (row: PayerCapacity, name: string) => row.ratings.find((r) => r.agency === name);
+const AGENCY_COLUMNS = [['S&P', 'sp'], ["Moody's", 'moodys'], ['Fitch', 'fitch']] as const;
+
+/** spRating, spOutlook, moodysRating, ... : each agency's rating and outlook, null when it has none. */
+function ratingColumns(row: PayerCapacity): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [agency, prefix] of AGENCY_COLUMNS) {
+    const state = row.ratings.find((r) => r.agency === agency);
+    out[`${prefix}Rating`] = state?.rating ?? null;
+    out[`${prefix}Outlook`] = state?.outlook ?? null;
+  }
+  return out;
+}
 
 /** Exposed instruments' total ($B) over the amounts that are known; null when none is. */
 export function exposedTotalB(row: PayerCapacity): number | null {
@@ -39,12 +50,7 @@ export function payerIndexRow(row: PayerCapacity): Record<string, unknown> {
     slug: row.slug,
     name: row.name,
     kind: row.kind,
-    spRating: agency(row, 'S&P')?.rating ?? null,
-    spOutlook: agency(row, 'S&P')?.outlook ?? null,
-    moodysRating: agency(row, "Moody's")?.rating ?? null,
-    moodysOutlook: agency(row, "Moody's")?.outlook ?? null,
-    fitchRating: agency(row, 'Fitch')?.rating ?? null,
-    fitchOutlook: agency(row, 'Fitch')?.outlook ?? null,
+    ...ratingColumns(row),
     leaseAdjLeverageToday: row.leaseAdjLeverageToday,
     leaseAdjLeveragePeak: row.leaseAdjLeveragePeak,
     triggerHeadroomTurns: row.triggerHeadroomTurns,

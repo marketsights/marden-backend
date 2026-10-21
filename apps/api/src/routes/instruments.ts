@@ -1,11 +1,12 @@
 // Instruments and curve (spec 06), Instrument detail (spec 07), GPU collateral (spec 19),
 // Payer (spec 08) and payer capacity (spec 24).
 import type { FastifyInstance } from 'fastify';
-import type { GpuCollateral, InstrumentDetail, InstrumentRow } from '../contracts/types.js';
+import type { GpuCollateral, InstrumentDetail, InstrumentRow, PayersPage } from '../contracts/types.js';
 import type { Db } from '../db.js';
 import { notFound } from '../errors.js';
 import { filterInstruments, priceRange } from '../lib/doc-filters.js';
 import { asOfOf, queryOf } from '../lib/params.js';
+import { filterPayers } from '../lib/payer-filters.js';
 import { ENTITY, INSTRUMENT, keyed, param, serveDoc } from './serve.js';
 
 export function instrumentRoutes(app: FastifyInstance, db: Db): void {
@@ -45,7 +46,11 @@ export function instrumentRoutes(app: FastifyInstance, db: Db): void {
     return serveDoc<GpuCollateral>(db, 'gpu_collateral', keyed(INSTRUMENT, id), asOf);
   });
 
-  app.get('/api/payers', async (req) => serveDoc(db, 'payers', 'all', asOfOf(req)));
+  // ?kind=&risk= (spec 24 index filters); the Excel export applies the same filters.
+  app.get('/api/payers', async (req) => {
+    const doc = await serveDoc<PayersPage>(db, 'payers', 'all', asOfOf(req));
+    return { ...doc, rows: filterPayers(doc.rows, queryOf(req)) };
+  });
 
   app.get('/api/payers/:slug', async (req) => serveDoc(db, 'payer', keyed(ENTITY, param(req, 'slug')), asOfOf(req)));
 

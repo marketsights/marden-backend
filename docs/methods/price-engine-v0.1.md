@@ -109,7 +109,7 @@ Not priced in v0.1, each listed in `missing`: convertible notes (no equity-optio
 **Scheduled run.** Daily at 09:40 UTC (05:40 EDT). That is after the 09:35 cushion run and before the 09:53 status run, which reads the price.
 
 **Triggered runs.** Within a minute of any of these inputs (`marden.models.triggers`, every mark re-runs the whole engine):
-- an observed `@price` other than the model's own `marden` rows (so the model never triggers itself);
+- an observed `@price` on an instrument the engine prices or reads, other than the model's own `marden` rows (so the model never triggers itself);
 - a series `value` or `close` of `ust_par_*`, `sofr`, `ice_bofa_*`, `equity:*` or `gpu_residual:*`;
 - an issue comp;
 - an instrument term;
@@ -120,7 +120,44 @@ Not priced in v0.1, each listed in `missing`: convertible notes (no equity-optio
 
 ## 6. Validation (grading only; `price_validate`)
 
-[RESULTS]
+Run 2026-10-21 on the local database. The numbers move as more N-PORT filings load.
+
+**CoreWeave 5y CDS against vendor composites.** Unfiltered bond-implied CDS of the nearest cross-section: N-PORT month-end medians with at least 3 holders, or TRACE on 2026-10-14/15.
+
+| Reported | Vendor | Methodology | Marden | Error | Bonds from |
+| --- | --- | --- | --- | --- | --- |
+| 2026-10-15 | 1,194 | 1,019 | 994 | −16.8% | TRACE 10-15 |
+| 2026-10-14 | 1,050 | 1,176 | 1,054 | +0.4% | TRACE 10-14 |
+| 2026-07-29 | 855 | 736 | 740 | −13.4% | N-PORT 07-31 (4 notes) |
+| 2026-06 (mid) | 452 | 436 | 439 | −2.8% | N-PORT 05-31 (3 notes) |
+| 2025-12-12 | 774 | 765 | n/d | | no CoreWeave N-PORT marks for Oct–Dec 2025 loaded |
+| 2025-11-20 | 675 | 766 | n/d | | same |
+| 2025-09-26 | 371 | 432 | 438 | +18.0% | N-PORT 09-30 (1 note, 3 holders) |
+
+- **Graded:** 5 of 7. Mean absolute error 10.3%, bias −2.9% (target ~12%, +1%).
+- **Tie-break.** Mid-June is equidistant from 05-31 and 06-30, and the code takes the earlier cross-section (no look-ahead). Taking 06-30 gives 506bp (+12.0%), which moves the mean absolute error to 12.1% and the bias to 0.0%.
+- **Matches with the methodology.** The month-end values match its own column within 4–6bp: 740 vs 736, 439 vs 436, 438 vs 432.
+
+**CoreWeave leave-one-bond-out (Apr–Jul 2026).**
+- Result: 14 prices, MAE 0.89pt, RMSE 0.98pt, 57% within 1pt.
+- Target: 17 prices, 0.76pt, 0.87pt, 65%.
+- The largest misses are the shortest and the longest note, which are extrapolated or sit at the line's ends: 21873SAK4 on 06-30 (−1.66pt) and 07-31 (−1.31pt); 21873SAG3 on 05-29/05-31 (+1.4pt).
+
+**Jupiter, locked path.** SOFR+250 at par on 2025-11-07, 4-year term, Oracle point in time, protection 0.5, completion 2028-06-30, 1.5%/yr, recovery 55%, the methodology's dated signals.
+
+| Date | Methodology | Marden locked | Marden from records |
+| --- | --- | --- | --- |
+| 2025-11-07 | 100.0 | n/d (no Oracle intensity public yet) | n/d |
+| 2026-03-31 | 98.2 | 98.74 | 99.80 |
+| 2026-07-16 | 96.7 | 96.94 | 99.38 |
+| 2026-08-17 | 94.3 | 94.30 | 99.30 |
+| 2026-09-18 | 94.1 (quoted 89–91) | 94.42 | 99.20 |
+| 2026-09-24 | 89.0 | 91.81 | 91.81 |
+
+- **First price below 95:** 2026-08-17 on the locked path (target: below 95 on 2026-08-17). On Marden's own records it is 2026-09-28 (weekly scan), after the 2026-09-24 record.
+- **Liquidity premium.** 160.5bp (methodology 172bp). It is solved with Oracle's first bond-implied intensity, 2026-01-02 (TRACE), because no Oracle N-PORT median with 5 or more holders was public on the issue date.
+- **Oracle input on 09-18.** 153bp, against the methodology's 125bp: our Oracle level is TRACE-driven. The methodology used only N-PORT with the lag.
+- **2026-09-24 miss.** 91.8 vs 89.0. The methodology's force majeure step is not stated as a rule; v0.1 counts the notice as one more confirmed power delay (+0.25 force majeure odds).
 
 ## 7. Known gaps
 

@@ -3,22 +3,28 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authOf } from '../auth/plugin.js';
 import type { Db } from '../db.js';
-import { notFound, notReady } from '../errors.js';
+import { badRequest, notFound, notReady } from '../errors.js';
 import { stressRequestSchema } from '../lib/defaults.js';
 import { asOfOf } from '../lib/params.js';
 import { audit } from '../queries/audit.js';
-import { getSaved, insertSaved, listSaved, runStress, stressModelAvailable } from '../queries/stress.js';
+import {
+  getSaved, insertSaved, isPendingStress, isStressError, listSaved, runStressWaiting, stressModelAvailable,
+} from '../queries/stress.js';
 import { param, parseBody } from './serve.js';
 
 const saveSchema = z.strictObject({ name: z.string().trim().min(1).max(120), request: stressRequestSchema });
 
 export function stressRoutes(app: FastifyInstance, db: Db): void {
-  // The API never computes a stress result itself: until the model is deployed this answers 503.
-  app.post('/api/stress/run', async (req) => {
+  // The API never computes a stress result itself: until the model is deployed this answers 503. A saved
+  // scenario answers at once; a custom run is queued by stress_run and polled here for a bounded time,
+  // then answered 202 {status, jobId} (the client repeats the same POST to collect it).
+  app.post('/api/stress/run', async (req, reply) => {
     const request = parseBody(stressRequestSchema, req.body);
     if (!(await stressModelAvailable(db))) throw notReady('model:stress', request.scenario);
-    const result = await runStress(db, request);
+    const result = await runStressWaiting(db, request);
     if (result === null) throw notReady('model:stress', request.scenario);
+    if (isStressError(result)) throw badRequest('invalid_stress_request', result.error);
+    if (isPendingStress(result)) return reply.code(202).send(result);
     return result;
   });
 

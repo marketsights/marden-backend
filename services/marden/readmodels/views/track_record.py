@@ -62,6 +62,7 @@ MODEL_INFO: dict[str, tuple[str, str, str, str | None]] = {
     "leases": ("Lease map", "10-K lease notes, lease and compute contracts", "On each filing", None),
     "capacity": ("Capacity and GPU estimate", "Utility load, generation, cooling, footprints, disclosed GPUs",
                  "On each published input", None),
+    "contagion": ("Contagion", "Obligation map edges and payers' capacity to pay", "On request", None),
     "risk_list": ("Risk ranking", "Status, cushion, mark gap and recent slips", "Sunday night, published Monday",
                   None),
     "track_record": ("Backtest", "Dated snapshots of Marden flags vs later price moves", "Weekly",

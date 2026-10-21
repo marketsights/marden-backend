@@ -45,16 +45,20 @@ PRICE_LABEL = "Marden model price"
 HISTORY_START = date(2025, 1, 1)  # the Treasury curve archive starts 2025-01-02
 
 
+TARGETS_SQL = """WITH v1 AS (SELECT id, issuer_entity_id, site_slug FROM instrument WHERE in_v1),
+        ents AS (SELECT issuer_entity_id e FROM v1 UNION SELECT cp.entity_id FROM chain_party cp
+                 JOIN site s ON s.slug = cp.site_slug WHERE s.in_v1 AND cp.role = 'tenant'),
+        t AS (SELECT id FROM v1 UNION
+              SELECT i.id FROM instrument i JOIN ents ON ents.e = i.issuer_entity_id WHERE i.kind = 'bond')"""
+
+
 def targets(conn: Conn) -> list[str]:
     """V1 instruments plus every bond of their issuers and of the V1 sites' tenants."""
-    rows = conn.execute(
-        """WITH v1 AS (SELECT id, issuer_entity_id, site_slug FROM instrument WHERE in_v1),
-                ents AS (SELECT issuer_entity_id e FROM v1 UNION SELECT cp.entity_id FROM chain_party cp
-                         JOIN site s ON s.slug = cp.site_slug WHERE s.in_v1 AND cp.role = 'tenant')
-           SELECT id FROM v1 UNION
-           SELECT i.id FROM instrument i JOIN ents ON ents.e = i.issuer_entity_id WHERE i.kind = 'bond'
-           ORDER BY 1""").fetchall()
-    return [r["id"] for r in rows]
+    return [r["id"] for r in conn.execute(TARGETS_SQL + " SELECT id FROM t ORDER BY 1").fetchall()]
+
+
+def is_target(conn: Conn, instrument_id: str) -> bool:
+    return conn.execute(TARGETS_SQL + " SELECT 1 FROM t WHERE id = %s", (instrument_id,)).fetchone() is not None
 
 
 def instrument_tier(inst: Instrument, ch: Chain | None) -> str | None:

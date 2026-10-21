@@ -46,6 +46,10 @@ from marden.readmodels.views.payers_common import (
 from marden.readmodels.views.sites_common import with_value
 
 GRAPH_METHOD = "obligations v0.1"
+# Edges that are payment streams (revenue or rent to the payee). Guarantees, warrants and equity stakes are
+# contingent or ownership claims: they are on the map but carry no schedule into concentration or contagion.
+PAYMENT_TYPES = ("Lease", "Compute purchase", "Chip purchase", "Power purchase", "Loan or credit facility",
+                 "Revenue share")
 _YEAR = re.compile(r"\b(20\d\d)\b")
 _BN = re.compile(r"\$\s*~?\s*(\d+(?:\.\d+)?)\s*(bn|billion|b|tn|trillion)\b", re.I)
 _TERM = re.compile(r"~?\s*(\d+(?:\.\d+)?)[- ]?(?:years?|yrs?)\b", re.I)
@@ -112,9 +116,14 @@ class Edge:
     def status(self) -> str:
         return edge_status(self.facts, self.rows)
 
+    @property
+    def pays(self) -> bool:
+        """A live payment stream (not a guarantee, warrant or stake; not terminated)."""
+        return self.type in PAYMENT_TYPES and self.status != "Terminated"
+
     def schedule(self) -> list[tuple[int, float, str]]:
         """[(year, usd, tag)] of the payments by year (empty when amount, start or term is unknown)."""
-        if self.status == "Terminated" or self.start is None:
+        if not self.pays or self.start is None:
             return []
         if self.annual is not None:
             per, tag = self.annual.usd, self.annual.tag
