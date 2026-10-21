@@ -30,13 +30,18 @@ fields the instrument lacks become facts (coupon_rate_pct, maturity, is_144a, is
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import re
+import time
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
+
+import psycopg
 
 from marden import cli
 from marden.collectors.finra_trace_parse import (
@@ -63,6 +68,7 @@ CASE_PX, AIDEBT = "aiwc/pxsrc/case_px.json", "aidebt.json"
 ROUNDED_3DP = Decimal("0.0005") + Decimal("1e-9")  # copies rounded to 3 decimals
 ROUNDED_2DP = Decimal("0.0051")  # aidebt px (2 decimals), as seed/instruments_prices.TOLERANCE
 CUSIP_IN_URL = re.compile(r"cusip=([0-9A-Z]{9})")
+DEADLOCK_TRIES = 3
 
 
 @dataclass
@@ -209,6 +215,23 @@ def _aidebt_copies(book: Book, universe: Universe, report: Report) -> list[tuple
     return out
 
 
+def _write_retrying(report: Report, write: Callable[[TraceWriter], None]) -> None:
+    """One idempotent write transaction. A deadlock with another writer marking the same read models dirty
+    (seen with `collect sec_nport` running alongside) rolls it back; it is retried with the counts restored."""
+    for attempt in range(DEADLOCK_TRIES):
+        saved = copy.deepcopy(report.trace)
+        try:
+            with db.transaction() as conn:
+                write(TraceWriter(conn, producer=PRODUCER, counts=report.trace))
+            return
+        except psycopg.errors.DeadlockDetected:
+            report.trace = saved
+            if attempt == DEADLOCK_TRIES - 1:
+                raise
+            report.counts["deadlock_retries"] += 1
+            time.sleep(1.0 + attempt)
+
+
 def load() -> Report:
     upsert_spec(get_spec(SEED_SOURCE_ID))
     report = Report()
@@ -231,8 +254,8 @@ def load() -> Report:
                 report.unmapped[cusip] = {"prints": len(by_cusip[cusip]),
                                           "archive_match": sorted(i for i, cs in hints.items() if cusip in cs)}
                 continue
-            with db.transaction() as conn:
-                writer = TraceWriter(conn, producer=PRODUCER, counts=report.trace)
+
+            def write_cusip(writer: TraceWriter, cusip: str = cusip, iids: list[str] = iids) -> None:
                 for iid in iids:
                     for o in sorted(by_cusip[cusip], key=lambda x: x.day):
                         writer.trade(iid, cusip, o.day, o.price, yield_pct=o.yield_pct, spread_bp=o.spread_bp,
@@ -240,12 +263,16 @@ def load() -> Report:
                     if cusip in secs and universe.facts_from(iid, cusip):
                         sec, asof, rel = secs[cusip]
                         writer.security_facts(iid, sec, valid_from=asof, document_id=docs[rel])
+
+            _write_retrying(report, write_cusip)
         before = report.trace.prices_new
-        with db.transaction() as conn:
-            writer = TraceWriter(conn, producer=PRODUCER, counts=report.trace)
+
+        def write_copies(writer: TraceWriter) -> None:
             for iid, o in copies:
                 writer.trade(iid, o.cusip, o.day, o.price, yield_pct=o.yield_pct, spread_bp=o.spread_bp,
                              obs_at=o.obs_at, document_id=docs[o.relpath])
+
+        _write_retrying(report, write_copies)
         report.counts["aidebt_px.rows_added"] = report.trace.prices_new - before
         report.counts["observations"] = len(book.obs)
         report.counts["cusips_in_archive"] = len(by_cusip)

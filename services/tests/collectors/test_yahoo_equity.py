@@ -3,6 +3,7 @@ the schedule, the terms note, and one live run."""
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -92,16 +93,35 @@ def test_run_backfills_then_reads_the_last_month(committed):
         assert request.headers["user-agent"] == "Marden research cody@marden.ai"
         return httpx.Response(200, content=ORCL, headers={"content-type": "application/json;charset=utf-8"})
 
-    first = Y.run(tickers=["orcl"], today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    first = Y.run(tickers=["orcl"], today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
     assert first["ok"], first
     assert (first["facts_new"], first["documents_new"], first["tickers"]["ORCL"]["range"]) == (264, 1, "2y")
-    second = Y.run(tickers=["ORCL"], today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    second = Y.run(tickers=["ORCL"], today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
     assert second["ok"] and second["facts_new"] == 0
     assert second["tickers"]["ORCL"]["range"] == "1mo" and second["documents_new"] == 1  # a new URL
     assert "range=2y" in calls[0] and "range=1mo" in calls[1] and len(calls) == 2
     runs = committed.execute(
         "SELECT ok, items_new FROM source_run WHERE source_id = 'yahoo_equity' ORDER BY id").fetchall()
     assert [(r["ok"], r["items_new"]) for r in runs] == [(True, 264), (True, 0)]
+
+
+def test_a_new_dividend_refetches_the_history_it_restates(committed):
+    with_div = json.loads(ORCL)  # the same answer, now carrying an ex-dividend date (adj_close is restated)
+    ex = int(datetime(2026, 10, 9, 13, 30, tzinfo=UTC).timestamp())
+    with_div["chart"]["result"][0]["events"] = {"dividends": {str(ex): {"amount": 0.5, "date": ex}}}
+    answers = [ORCL, json.dumps(with_div).encode(), json.dumps(with_div).encode()]
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(200, content=answers[len(calls) - 1], headers={"content-type": "application/json"})
+
+    Y.run(tickers=["ORCL"], today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
+    out = Y.run(tickers=["ORCL"], today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
+    assert out["ok"] and out["tickers"]["ORCL"]["range"] == "2y"
+    assert ["range=2y" in calls[0], "range=1mo" in calls[1], "range=2y" in calls[2]] == [True] * 3
+    div = committed.execute("SELECT value, valid_from FROM fact WHERE field = 'dividend'").fetchone()
+    assert (div["value"], div["valid_from"]) == (0.5, date(2026, 10, 9))
 
 
 def test_a_429_is_recorded_and_the_run_stops(committed):
@@ -111,7 +131,7 @@ def test_a_429_is_recorded_and_the_run_stops(committed):
         calls.append(request.url.path)
         return httpx.Response(429, content=TOO_MANY, headers={"content-type": "text/html"})
 
-    out = Y.run(tickers=["AMD", "CRWV", "ORCL"], today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    out = Y.run(tickers=["AMD", "CRWV", "ORCL"], today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
     assert out["ok"] is False and out["error"].startswith("Challenged: stopped: HTTP 429")
     assert calls == ["/v8/finance/chart/AMD"] * 2  # one polite retry, then stop: no other ticker is tried
     src = committed.execute("SELECT last_error, blocked FROM source WHERE id = 'yahoo_equity'").fetchone()
@@ -128,7 +148,7 @@ def test_a_cloudflare_challenge_is_recorded_and_the_run_stops(committed):
         headers = {"cf-mitigated": "challenge", "content-type": "text/html"}
         return httpx.Response(403, content=challenge, headers=headers)
 
-    out = Y.run(tickers=["AMD", "CRWV"], today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    out = Y.run(tickers=["AMD", "CRWV"], today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
     assert out["ok"] is False and out["error"].startswith("Challenged: stopped: HTTP 403")
     assert calls == ["/v8/finance/chart/AMD"]  # no retry, no other ticker, no other identity
     src = committed.execute("SELECT last_error, blocked FROM source WHERE id = 'yahoo_equity'").fetchone()
@@ -143,7 +163,7 @@ def test_an_unknown_ticker_is_skipped_not_fatal(committed):
             return httpx.Response(200, content=ORCL, headers={"content-type": "application/json"})
         return httpx.Response(404, content=b'{"chart":{"result":null,"error":{"code":"Not Found"}}}')
 
-    out = Y.run(tickers=["ORCL", "ZZZZ"], today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    out = Y.run(tickers=["ORCL", "ZZZZ"], today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
     assert out["ok"] and out["not_found"] == ["ZZZZ"] and out["with_data"] == 1
 
 
@@ -157,6 +177,32 @@ def test_terms_note_quotes_the_terms_and_robots():
     assert (DATA / "robots_query1.txt").read_text().split() == ["User-agent:", "*", "Disallow:", "/"]
     assert Y.SOURCE.blocked is False and "UNLICENSED" in Y.SOURCE.terms_note
     assert Y.SOURCE_NAME == licensing.YAHOO_FINANCE == "Yahoo Finance"
+
+
+def _ran(committed, source_id: str, at: datetime, scope: str) -> None:
+    committed.execute("INSERT INTO source (id, name, kind) VALUES (%s, %s, 'api') ON CONFLICT DO NOTHING",
+                      (source_id, source_id))
+    committed.execute("INSERT INTO source_run (source_id, started_at, finished_at, ok, meta) VALUES "
+                      "(%s, %s, %s, true, %s)", (source_id, at, at, json.dumps({"scope": scope})))
+
+
+def test_runs_only_once_a_day_after_the_close(committed):
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(200, content=ORCL, headers={"content-type": "application/json"})
+
+    afternoon = datetime(2026, 10, 21, 17, 30, tzinfo=UTC)  # 13:30 EDT
+    out = Y.run(tickers=["ORCL"], now=afternoon, fetcher=_fetcher(handler))
+    assert out == {"ok": True, "skipped": "before 18:00 ET (once a day after the close; --force overrides)"}
+    evening = datetime(2026, 10, 21, 22, 30, tzinfo=UTC)  # 18:30 EDT
+    _ran(committed, Y.SOURCE_ID, datetime(2026, 10, 21, 22, 20, tzinfo=UTC), "subset")  # a --ticker run
+    assert Y.run(tickers=["ORCL"], now=evening, fetcher=_fetcher(handler))["ok"] and calls  # still due
+    _ran(committed, Y.SOURCE_ID, datetime(2026, 10, 21, 22, 21, tzinfo=UTC), "all")  # the full scheduled run
+    calls.clear()
+    assert Y.run(now=evening, fetcher=_fetcher(handler))["skipped"].startswith("already collected")
+    assert calls == []
 
 
 def test_scheduled_on_weekdays_after_the_us_close():
@@ -175,6 +221,8 @@ def test_scheduled_on_weekdays_after_the_us_close():
 @pytest.mark.network
 def test_live_run_twice_writes_nothing_new(committed):
     first = Y.run(tickers=["MSFT"])
+    if first.get("skipped"):  # the owner's limit holds for tests too: Yahoo only after 18:00 ET
+        pytest.skip(f"outside the daily window: {first['skipped']}")
     if not first["ok"] and first["error"].startswith("Challenged"):
         pytest.skip(f"Yahoo refused the request; recorded on the source: {first['error']}")
     assert first["ok"], first

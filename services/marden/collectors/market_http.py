@@ -11,6 +11,9 @@ Used by `yahoo_equity` and `boerse_frankfurt`. The limits the business owner set
   page, a redirect to a login or consent page, HTTP 401/403, or a 429 that persists after one polite
   retry raises `Challenged`: the run is recorded as failed on the source row and stops. Nothing is
   retried with different headers.
+- Once a day after the close: `closed_window` says why a run now would break that (before the source's
+  window opens, or a full run already succeeded since it opened); the collectors skip such a run unless
+  forced. The scheduled tasks run inside the window.
 """
 
 from __future__ import annotations
@@ -18,9 +21,11 @@ from __future__ import annotations
 import random
 import re
 import time
+from datetime import datetime, tzinfo
 from typing import Any
 from urllib.parse import urlparse
 
+from marden.core import db
 from marden.core.config import Settings
 from marden.core.http import Fetcher, FetchError, FetchResponse, Validators
 
@@ -102,3 +107,21 @@ class MarketFetcher(Fetcher):
         if reason:
             raise Challenged(resp.url, resp.status, f"stopped: {reason} (no evasion attempted)")
         return resp
+
+
+FULL_RUN = "all"  # source_run.meta['scope'] of a run over the whole watched universe
+
+
+def closed_window(source_id: str, now: datetime, zone: tzinfo, opens: tuple[int, int], label: str) -> str | None:
+    """Why a run at `now` would break the once-a-day-after-the-close limit, or None when it may run:
+    before `opens` (local time in `zone`), or a full run (meta scope 'all') already ok since then."""
+    local = now.astimezone(zone)
+    since = local.replace(hour=opens[0], minute=opens[1], second=0, microsecond=0)
+    if local < since:
+        return f"before {opens[0]:02d}:{opens[1]:02d} {label} (once a day after the close; --force overrides)"
+    with db.transaction() as conn:
+        row = conn.execute(
+            """SELECT 1 FROM source_run WHERE source_id = %s AND ok AND started_at >= %s
+               AND meta->>'scope' = %s LIMIT 1""", (source_id, since, FULL_RUN),
+        ).fetchone()
+    return "already collected after today's close (--force overrides)" if row else None

@@ -1,22 +1,21 @@
 """Yahoo Finance end-of-day equity prices -> series facts `equity:<TICKER>` (tag F, 'Yahoo Finance').
 
-Unlicensed for commercial use (marden.core.licensing; docs/methods/licensing.md): the business owner
-decided Marden collects it daily and accepts the terms risk. The terms clause and robots.txt are on
-the source row; nothing here works around Yahoo's controls (collectors/market_http.py).
+Unlicensed for commercial use (marden.core.licensing; docs/methods/licensing.md): collected daily by the
+owner's decision. Terms and robots.txt are on the source row; nothing here works around Yahoo's controls.
 
 Endpoint (the one finance.yahoo.com's own charts call), one request per ticker:
 https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}?range={2y|1mo}&interval=1d&events=div%2Csplit&includeAdjustedClose=true
 
 - Watched tickers: market_watch.BASE_TICKERS plus every entity.ticker.
-- Backfill: 2 years for a ticker this collector has not loaded (or last loaded > 25 days ago, or a
-  new split in the window, since Yahoo restates history for splits); otherwise the last month.
+- Backfill: 2 years for a ticker this collector has not loaded (or last loaded > 25 days ago, or a new
+  split or dividend in the window, since Yahoo then restates history); otherwise the last month.
 - Facts on subject_type 'series', subject_id 'equity:<TICKER>', one per trading date (valid_from):
   open, high, low, close, adj_close (unit = trading currency), volume (shares); dividend (per share)
   and split ({numerator, denominator}) on their ex-dates. source_url is the ticker's Yahoo history page;
   the exact response is the fact's document. A value `seed legacy_yahoo` already holds for the date is
   not written again (write_chart).
-- A session that has not closed (the run is early, or the bar is still live) is not written.
-- Cadence: weekdays 18:20 ET, after the US close. `python -m marden collect yahoo_equity [--ticker T]`.
+- A session that has not closed is not written. Cadence: weekdays 18:20 ET; a run before 18:00 ET or after a
+  full ok run that evening is skipped unless forced. `python -m marden collect yahoo_equity [--ticker T] [--force]`.
 """
 
 from __future__ import annotations
@@ -31,9 +30,9 @@ from typing import Any
 from dateutil import tz
 
 from marden import cli
-from marden.collectors.market_http import Challenged, MarketFetcher
+from marden.collectors.market_http import FULL_RUN, Challenged, MarketFetcher, closed_window
 from marden.collectors.market_watch import watched_tickers, yahoo_symbol
-from marden.collectors.rates_common import ParseError, RunStats, collect, due_et, print_stats, today_et
+from marden.collectors.rates_common import ET, ParseError, RunStats, collect, due_et, print_stats
 from marden.core import db, http, licensing
 from marden.core.db import Conn
 from marden.core.facts import FactWriter
@@ -56,6 +55,7 @@ DAILY_RANGE = "1mo"
 BACKFILL_IF_OLDER_DAYS = 25
 FINAL_AFTER = timedelta(minutes=10)  # a session is final this long after its scheduled close
 RUN_AT_ET = (18, 20)
+WINDOW_ET = (18, 0)  # the owner's limit: equities after 18:00 ET
 CRON_UTC = "20 22,23 * * 1-5"  # 18:20 ET is 22:20 UTC (EDT) or 23:20 UTC (EST); due_et keeps the right one
 PRICE_QUANTUM = Decimal("0.0001")  # the API sends float32 noise (69.69000244140625)
 
@@ -73,7 +73,7 @@ TERMS_NOTE = (
     "portion thereof, for any commercial purpose.\" https://query1.finance.yahoo.com/robots.txt: "
     "\"User-agent: * / Disallow: /\". No Yahoo permission has been obtained. Access: declared User-Agent "
     "\"Marden research cody@marden.ai\", 1 request/second plus jitter, one request per ticker per weekday (a second "
-    "after a new split) after "
+    "after a new split or dividend) after "
     "18:00 ET; any challenge, login wall, 401/403 or repeated 429 is recorded here and the run stops (no "
     "evasion). Licensed replacement: an exchange or vendor equity feed with redistribution rights."
 )
@@ -296,12 +296,11 @@ def latest_loaded(conn: Conn, ticker: str) -> date | None:
     return row["d"] if row and row["own"] else None
 
 
-def stored_splits(conn: Conn, ticker: str) -> set[date]:
-    rows = conn.execute(
-        "SELECT valid_from FROM fact WHERE subject_type = 'series' AND subject_id = %s AND field = 'split'",
-        (series_id(ticker),),
-    ).fetchall()
-    return {r["valid_from"] for r in rows}
+def stored_actions(conn: Conn, ticker: str) -> set[tuple[str, date]]:
+    """(field, ex-date) of the splits and dividends held for a ticker."""
+    rows = conn.execute("""SELECT field, valid_from FROM fact WHERE subject_type = 'series' AND subject_id = %s
+                           AND field IN ('split', 'dividend')""", (series_id(ticker),)).fetchall()
+    return {(r["field"], r["valid_from"]) for r in rows}
 
 
 # ---------------------------------------------------------------- run
@@ -324,9 +323,10 @@ def collect_ticker(ticker: str, today: date, fetcher: MarketFetcher, stats: RunS
         chart, doc_id = _fetch_chart(ticker, range_, fetcher, stats)
         if range_ == DAILY_RANGE:
             with db.transaction() as conn:
-                known = stored_splits(conn, ticker)
-            if any(day not in known for day, _, _ in chart.splits):
-                range_ = BACKFILL_RANGE  # a split restates history: re-learn the whole window
+                known = stored_actions(conn, ticker)
+            new = {("split", d) for d, _, _ in chart.splits} | {("dividend", d) for d, _ in chart.dividends}
+            if new - known:  # a split or dividend restates adj_close (splits: all prices) for the whole history
+                range_ = BACKFILL_RANGE
                 chart, doc_id = _fetch_chart(ticker, range_, fetcher, stats)
     except Challenged:
         raise  # bot protection or rate limiting: the whole run stops
@@ -346,10 +346,14 @@ def collect_ticker(ticker: str, today: date, fetcher: MarketFetcher, stats: RunS
 
 def run(
     *, tickers: list[str] | None = None, backfill: bool = False, today: date | None = None,
-    fetcher: MarketFetcher | None = None,
+    fetcher: MarketFetcher | None = None, force: bool = False, now: datetime | None = None,
 ) -> dict[str, Any]:
-    """One collection run over the watched tickers (or `tickers`). Returns the run stats."""
-    today = today or today_et()
+    """One collection run over the watched tickers (or `tickers`). Returns the run stats. Skipped unless
+    forced before 18:00 ET or after a full ok run this evening (once a day after the close)."""
+    now = now or datetime.now(UTC)
+    if not force and (why := closed_window(SOURCE_ID, now, ET, WINDOW_ET, "ET")):
+        return {"ok": True, "skipped": why}
+    today = today or now.astimezone(ET).date()
     own = fetcher is None
     market = fetcher or MarketFetcher()
 
@@ -359,7 +363,7 @@ def run(
         else:
             with db.transaction() as conn:
                 names = watched_tickers(conn)
-        stats.extra["watched"] = len(names)
+        stats.extra.update(watched=len(names), scope="subset" if tickers else FULL_RUN)
         try:
             for ticker in names:
                 collect_ticker(ticker, today, market, stats, backfill=backfill)
@@ -387,9 +391,10 @@ def collect_task(timestamp: int | None = None) -> dict[str, Any]:
 def _args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--ticker", action="append", dest="tickers", help="only this ticker (repeatable)")
     p.add_argument("--backfill", action="store_true", help="fetch the full 2-year window for every ticker")
+    p.add_argument("--force", action="store_true", help="run outside the daily window (before 18:00 ET or again)")
 
 
 @cli.action("collect", SOURCE_ID, help="Yahoo Finance daily equity prices -> series equity:<TICKER>",
             configure=_args)
 def collect_cli(args: argparse.Namespace) -> int:
-    return print_stats(run(tickers=args.tickers, backfill=args.backfill))
+    return print_stats(run(tickers=args.tickers, backfill=args.backfill, force=args.force))

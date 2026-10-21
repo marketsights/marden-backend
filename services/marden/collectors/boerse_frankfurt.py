@@ -20,7 +20,8 @@ https://api.live.deutsche-boerse.com/v1/data/quote_box/single?isin={ISIN}&mic=XF
   bid or ask at all (seen 2026-10-21), so bid/ask appear only in runs during trading hours.
 - source_url is the bond's page (https://live.deutsche-boerse.com/anleihe/<isin>); the exact JSON is
   each row's document.
-- Cadence: weekdays 18:05 Frankfurt time (trading ends 17:30). `python -m marden collect boerse_frankfurt`.
+- Cadence: weekdays 18:05 Frankfurt time (trading ends 17:30); a run before 17:45 or after a full ok run that
+  evening is skipped unless forced. `python -m marden collect boerse_frankfurt [--isin I] [--force]`.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from typing import Any
 from dateutil import tz
 
 from marden import cli
-from marden.collectors.market_http import Challenged, MarketFetcher
+from marden.collectors.market_http import FULL_RUN, Challenged, MarketFetcher, closed_window
 from marden.collectors.market_watch import isin_valid, watched_isins
 from marden.collectors.rates_common import ParseError, RunStats, collect, print_stats
 from marden.core import db, http, licensing
@@ -58,6 +59,7 @@ QUOTE_FIELD = "exchange_quote"
 NOT_LISTED_RECHECK_DAYS = 7
 BERLIN = tz.gettz("Europe/Berlin")
 RUN_AT_BERLIN = (18, 5)
+WINDOW_BERLIN = (17, 45)  # the owner's limit: after 17:45 CET (trading ends 17:30)
 CRON_UTC = "5 16,17 * * 1-5"  # 18:05 Frankfurt is 16:05 UTC (CEST) or 17:05 UTC (CET); due_berlin keeps one
 PRICE_RANGE = (Decimal(0), Decimal(1000))  # percent of par; outside means the shape changed
 
@@ -300,10 +302,14 @@ def collect_isin(isin: str, iids: list[str], today: date, fetcher: MarketFetcher
 
 def run(
     *, isins: list[str] | None = None, recheck_all: bool = False, today: date | None = None,
-    fetcher: MarketFetcher | None = None,
+    fetcher: MarketFetcher | None = None, force: bool = False, now: datetime | None = None,
 ) -> dict[str, Any]:
-    """One collection run over the watched ISINs (or `isins`). Returns the run stats."""
-    today = today or datetime.now(BERLIN).date()
+    """One collection run over the watched ISINs (or `isins`). Returns the run stats. Skipped unless forced
+    before 17:45 Frankfurt time or after a full ok run that evening (once a day after the close)."""
+    now = now or datetime.now(UTC)
+    if not force and (why := closed_window(SOURCE_ID, now, BERLIN, WINDOW_BERLIN, "Frankfurt time")):
+        return {"ok": True, "skipped": why}
+    today = today or now.astimezone(BERLIN).date()
     own = fetcher is None
     market = fetcher or MarketFetcher()
 
@@ -320,7 +326,7 @@ def run(
         skip = {} if (recheck_all or isins) else known
         not_listed: dict[str, str] = dict(known)  # carried forward; this run's answers update it
         stats.extra.update(watched=len(universe), skipped_recently_not_listed=len(skip), not_listed=not_listed,
-                           price_obs_seen=0, price_obs_new=0)
+                           price_obs_seen=0, price_obs_new=0, scope="subset" if isins else FULL_RUN)
         try:
             for isin, iids in universe.items():
                 if isin in skip:
@@ -365,9 +371,10 @@ def collect_task(timestamp: int | None = None) -> dict[str, Any]:
 def _args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--isin", action="append", dest="isins", help="only this ISIN (repeatable)")
     p.add_argument("--recheck-all", action="store_true", help="also re-check ISINs recently found not listed")
+    p.add_argument("--force", action="store_true", help="run outside the daily window (before 17:45 or again)")
 
 
 @cli.action("collect", SOURCE_ID, help="Börse Frankfurt bond quotes -> price_obs 'exchange' + exchange_quote facts",
             configure=_args)
 def collect_cli(args: argparse.Namespace) -> int:
-    return print_stats(run(isins=args.isins, recheck_all=args.recheck_all))
+    return print_stats(run(isins=args.isins, recheck_all=args.recheck_all, force=args.force))

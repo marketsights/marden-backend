@@ -128,8 +128,8 @@ def ran_ok_this_evening(now: datetime) -> bool:
     if local < since:
         return False
     with db.transaction() as conn:
-        row = conn.execute("SELECT 1 FROM source_run WHERE source_id = %s AND ok AND started_at >= %s LIMIT 1",
-                           (SOURCE_ID, since)).fetchone()
+        row = conn.execute("""SELECT 1 FROM source_run WHERE source_id = %s AND ok AND started_at >= %s
+                              AND meta->>'scope' = 'all' LIMIT 1""", (SOURCE_ID, since)).fetchone()
     return row is not None
 
 
@@ -198,7 +198,7 @@ def run(*, cusips: list[str] | None = None, force: bool = False, now: datetime |
             priced = _priced_cusips(conn)
         targets = [c.strip().upper() for c in cusips] if cusips else universe.cusips()
         stats.extra.update(cusips_watched=len(universe.cusips()), isins_watched=len(universe.isins),
-                           cusips_requested=len(targets))
+                           cusips_requested=len(targets), scope="subset" if cusips else "all")
         client = flow or BondPageClient(SOURCE_ID)
         try:
             if not targets:

@@ -64,9 +64,10 @@ The owner set these limits. `services/marden/collectors/market_http.py` enforces
 - **Honest identity.** The User-Agent is `Marden research cody@marden.ai`, the declared `SEC_USER_AGENT`, sent with an ordinary `Accept` header. There is no browser User-Agent, no fingerprint headers, no proxies and no rotating identities.
 - **Low rate.** Each host is capped at 1 request/second, and each request waits a further random 0.2–0.8 s.
 - **Once a day, after the close:**
-  - Yahoo: weekdays 18:20 ET.
-  - Börse Frankfurt: weekdays 18:05 Frankfurt time; trading ends 17:30.
-  - TRACE: weekdays 18:45 ET, after TRACE reporting closes at 18:30 ET. A second run after an ok run that evening is skipped unless forced.
+  - Yahoo: weekdays 18:20 ET. The window opens at 18:00 ET.
+  - Börse Frankfurt: weekdays 18:05 Frankfurt time; trading ends 17:30. The window opens at 17:45.
+  - TRACE: weekdays 18:45 ET, after TRACE reporting closes at 18:30 ET. The window opens at 18:30 ET.
+  - The collectors enforce this themselves, so a manual `collect` obeys it too. A run is skipped, with no request made, before its window opens or after a full ok run that evening. `--force` overrides; use it only when the owner asks. A run limited with `--ticker`, `--isin` or `--cusip` does not count as the evening's full run.
   - Frankfurt ISINs that are not listed are re-checked only weekly.
 - **Never evade bot protection.** Each of these raises `Challenged`:
   - a Cloudflare `cf-mitigated` header;
@@ -146,8 +147,8 @@ uv run python -m marden seed legacy_trace        # ~5 min on a fresh database; F
 uv run python -m marden seed legacy_frankfurt    # Börse Frankfurt fixings from the bondq snapshots
 uv run python -m marden seed legacy_yahoo        # Yahoo Finance bars from aiwc/research/dl/y_*.json
 uv run python -m marden collect finra_trace      # after 18:30 ET; skipped earlier unless --force
-uv run python -m marden collect boerse_frankfurt # after 17:45 Frankfurt time
-uv run python -m marden collect yahoo_equity     # after 18:00 ET
+uv run python -m marden collect boerse_frankfurt # after 17:45 Frankfurt time; skipped earlier unless --force
+uv run python -m marden collect yahoo_equity     # after 18:00 ET; skipped earlier unless --force
 ```
 
 In short: after `seed all`, run `seed legacy_trace`, `legacy_frankfurt`, `legacy_yahoo`; then `collect finra_trace`, `boerse_frankfurt`, `yahoo_equity`.
@@ -155,6 +156,7 @@ In short: after `seed all`, run `seed legacy_trace`, `legacy_frankfurt`, `legacy
 - **Order.** Load the archive first, then collect. Either order leaves one row per value, but loading the archive first leaves the collector's newer values (Yahoo's revised volumes, today's quotes) as the latest.
 - **Once.** Run each collector once, in its window after the close, as the daily schedule does. Do not run them several times to test. A second run the same evening writes nothing new, but it is still more requests to the publisher.
 - **Repeat runs.** Every step is idempotent. A second run of any loader or collector writes 0 new rows.
+- **One writer at a time.** Run the loaders while no other loader or collector is writing. Concurrent writers can deadlock on `read_model_dirty`; this happened on 2026-10-21 with `collect sec_nport`. `legacy_trace` now rolls back and retries a deadlocked bond up to 3 times; the other loaders fail and can simply be rerun.
 - **Expected on the scratch database `marden_prices` (2026-10-21, 707 instruments):**
   - `legacy_trace`: about 24,709 TRACE rows on 203 instruments (203 of 294 watched CUSIPs), 404 security-master facts, 0 rows from `aidebt.json` copies. The 36 `eod.json` CUSIPs that no `identifiers` fact names (mostly RegS twins) are listed under `unmapped` with the archive's `match.json` guess. The other 233 `unmapped` CUSIPs appear only in the security-master searches.
   - `legacy_frankfurt`: 474 fixings on 158 instruments, plus the 5 unmatched ISINs in §5.

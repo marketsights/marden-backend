@@ -129,13 +129,13 @@ def test_run_over_the_watched_isins_then_rerun(committed):
     _instrument(committed, "EX-ORCL-254", cusip="68389XBX2")  # US ISIN derived from the CUSIP
     _instrument(committed, "NP-BTDR-09175RAE0", cusip="09175RAE0")
     calls: list[str] = []
-    first = FWB.run(today=date(2026, 10, 21), fetcher=_fetcher(_server(calls)))
+    first = FWB.run(today=date(2026, 10, 21), force=True, fetcher=_fetcher(_server(calls)))
     assert first["ok"], first
     assert first["watched"] == 3 and first["listed"] == 2 and first["not_listed"] == {BTDR31: "2026-10-21"}
     assert first["price_obs_new"] == 2 and first["facts_new"] == 2 and first["requests"] == 5
     assert sorted(first["with_data"]) == [CRWV33, ORCL50]
     calls.clear()
-    second = FWB.run(today=date(2026, 10, 22), fetcher=_fetcher(_server(calls)))
+    second = FWB.run(today=date(2026, 10, 22), force=True, fetcher=_fetcher(_server(calls)))
     assert second["ok"] and second["price_obs_new"] == 0 and second["facts_new"] == 0
     assert second["skipped_recently_not_listed"] == 1 and not any(BTDR31 in c for c in calls)  # not re-asked
     assert second["documents_new"] == 0
@@ -152,7 +152,7 @@ def test_one_unparseable_isin_fails_the_run_but_keeps_the_rest(committed):
         body = _pi(CRWV33) if request.url.path.endswith("/price_information/single") else _qb(isin)
         return httpx.Response(200, content=body, headers={"content-type": "application/json"})  # ORCL gets CRWV's
 
-    out = FWB.run(today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    out = FWB.run(today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
     assert out["ok"] is False and out["error"].startswith("ParseError: 1 ISIN responses did not parse")
     assert list(out["parse_errors"]) == [ORCL50] and out["with_data"] == [CRWV33]
     assert [r["instrument_id"] for r in committed.execute("SELECT instrument_id FROM price_obs").fetchall()] == [
@@ -169,7 +169,7 @@ def test_a_challenge_is_recorded_and_the_run_stops(committed):
         headers = {"cf-mitigated": "challenge", "content-type": "text/html"}
         return httpx.Response(403, content=CHALLENGE, headers=headers)
 
-    out = FWB.run(today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    out = FWB.run(today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
     assert out["ok"] is False and out["error"].startswith("Challenged: stopped: HTTP 403")
     assert len(calls) == 1  # no retry, no other ISIN, no other headers
     assert "403" in committed.execute("SELECT last_error FROM source WHERE id = 'boerse_frankfurt'").fetchone()[
@@ -183,8 +183,23 @@ def test_a_challenge_page_with_status_200_also_stops(committed):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, content=CHALLENGE, headers={"content-type": "text/html; charset=UTF-8"})
 
-    out = FWB.run(today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    out = FWB.run(today=date(2026, 10, 21), force=True, fetcher=_fetcher(handler))
     assert out["ok"] is False and "HTML challenge page" in out["error"]
+
+
+def test_runs_only_once_a_day_after_the_close(committed):
+    _instrument(committed, "EX-ORCL-254", isin=ORCL50)
+    calls: list[str] = []
+    noon = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)  # 12:00 CEST, trading hours
+    out = FWB.run(now=noon, fetcher=_fetcher(_server(calls)))
+    assert out["skipped"].startswith("before 17:45 Frankfurt time") and calls == []
+    evening = datetime(2026, 10, 21, 16, 5, tzinfo=UTC)  # 18:05 CEST
+    assert FWB.run(now=evening, fetcher=_fetcher(_server(calls)))["ok"] and calls
+    calls.clear()
+    second = FWB.run(now=evening + timedelta(minutes=10), fetcher=_fetcher(_server(calls)))
+    assert second["skipped"].startswith("already collected") and calls == []  # the full run counts once
+    assert FWB.run(isins=[ORCL50], now=evening, fetcher=_fetcher(_server(calls)))["skipped"]
+    assert FWB.run(isins=[ORCL50], now=evening, force=True, fetcher=_fetcher(_server(calls)))["ok"] and calls
 
 
 def test_terms_note_quotes_the_disclaimer():
@@ -212,6 +227,8 @@ def test_scheduled_on_weekdays_after_the_frankfurt_close():
 def test_live_run_twice(committed):
     _instrument(committed, "EX-ORCL-254", isin=ORCL50)
     first = FWB.run(isins=[ORCL50])
+    if first.get("skipped"):  # the owner's limit holds for tests too: Frankfurt only after 17:45
+        pytest.skip(f"outside the daily window: {first['skipped']}")
     if not first["ok"] and first["error"].startswith("Challenged"):
         pytest.skip(f"Börse Frankfurt refused the request; recorded on the source: {first['error']}")
     assert first["ok"], first

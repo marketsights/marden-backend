@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,7 +21,7 @@ from marden.seed import common
 
 REFRESHED_AT = datetime(2026, 10, 20, 14, 55, 29, tzinfo=UTC)  # refresh_state.json t: 10:55:29 ET
 
-pytestmark = pytest.mark.skipif(not os.environ.get("MARDEN_SEED_DIR"), reason="MARDEN_SEED_DIR is not set")
+needs_archive = pytest.mark.skipif(not os.environ.get("MARDEN_SEED_DIR"), reason="MARDEN_SEED_DIR is not set")
 
 
 @pytest.fixture(scope="module")
@@ -32,6 +33,7 @@ def book():
     return _read_books()
 
 
+@needs_archive
 def test_copies_of_one_print_collapse_to_the_unrounded_observation(book):
     b, secs = book
     assert len(b.obs) == 26329 and b.outcome["eod.new"] == 25951
@@ -55,6 +57,7 @@ def _instrument(conn, iid: str, cusip: str) -> None:
                  (iid, iid, cusip))
 
 
+@needs_archive
 def test_load_writes_each_mapped_print_once(committed, book):
     from marden.seed import legacy_trace
 
@@ -95,3 +98,24 @@ def test_load_writes_each_mapped_print_once(committed, book):
     again = legacy_trace.load()
     assert again.trace.prices_new == 0 and again.trace.facts_new == 0
     assert committed.execute("SELECT count(*) AS n FROM price_obs").fetchone()["n"] == len(rows)
+
+
+def test_a_deadlocked_write_is_rolled_back_and_retried_once(committed, monkeypatch):
+    import psycopg
+
+    from marden.seed import legacy_trace
+
+    _instrument(committed, "EX-IREN-180", "46270CAE9")
+    monkeypatch.setattr(legacy_trace, "time", SimpleNamespace(sleep=lambda _s: None))
+    report, attempts = legacy_trace.Report(), []
+
+    def write(writer) -> None:
+        attempts.append(1)
+        writer.trade("EX-IREN-180", "46270CAE9", date(2026, 10, 16), Decimal("57.9426"))
+        if len(attempts) == 1:  # as Postgres aborts a transaction that deadlocks with another writer
+            raise psycopg.errors.DeadlockDetected("deadlock detected")
+
+    legacy_trace._write_retrying(report, write)
+    assert len(attempts) == 2 and report.counts["deadlock_retries"] == 1
+    assert (report.trace.prices_seen, report.trace.prices_new) == (1, 1)  # the rolled-back try is not counted
+    assert committed.execute("SELECT count(*) AS n FROM price_obs").fetchone()["n"] == 1
