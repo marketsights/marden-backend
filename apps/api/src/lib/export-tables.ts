@@ -1,7 +1,7 @@
 // Tables that GET /api/export/:table.xlsx can export: the same read model and filters as the
 // screen's own endpoint, without paging.
 import type {
-  CompletionResponse, GpuDeploymentPage, GpuModelDetail, InstrumentDetail, InstrumentRow, LeaseMapPage, ObligationGraph, Payer, PayerCapacity, PayersPage, RiskList,
+  CompletionResponse, GpuDeploymentPage, InstrumentDetail, InstrumentRow, LeaseMapPage, ObligationGraph, Payer, PayerCapacity, PayersPage, RiskList,
   SiteSummary,
 } from '../contracts/types.js';
 import type { GpuIndexPage, TrackRecord } from '../contracts/app.js';
@@ -14,6 +14,7 @@ import { runStress, stressModelAvailable, stressRequestFromQuery, stressResultRo
 import { watchedSiteSlugs, watchRows } from '../queries/watchlist.js';
 import { filterCompletion, filterInstruments, filterObligations, filterSites, wantsWatchlist } from './doc-filters.js';
 import { gpuDeploymentRows, gpuModelPartRows, gpuModelRows, gpuProviderRows } from './gpu-export.js';
+import { loadGpuModel } from './gpu-model-doc.js';
 import { filterLeases, leaseExportRow } from './lease-filters.js';
 import { completionExportRow, sitesExportRow } from './list-export.js';
 import { first, isoDate, type Query } from './params.js';
@@ -115,7 +116,7 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
   'gpu-model': async (ctx) => {
     const model = first(ctx.q, 'model');
     if (!model) throw badRequest('model is required for the gpu-model export');
-    return { view: 'gpu_model', asOf: ctx.asOf, rows: gpuModelPartRows(await doc<GpuModelDetail>(ctx, 'gpu_model', model), ctx.q) };
+    return { view: 'gpu_model', asOf: ctx.asOf, rows: gpuModelPartRows(await loadGpuModel(ctx.db, model, ctx.asOf), ctx.q) };
   },
   obligations: async (ctx) => {
     const d = filterObligations(await doc<ObligationGraph>(ctx, 'obligations', 'all'), ctx.q);

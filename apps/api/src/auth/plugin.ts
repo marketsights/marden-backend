@@ -5,6 +5,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Db } from '../db.js';
 import { forbidden, noProduct, unauthorized } from '../errors.js';
 import { DEV_IDENTITY, resolveAccess, type AuthContext } from './access.js';
+import { createActivityRecorder } from './activity.js';
 import { sessionToken, type TokenVerifier } from './clerk.js';
 import { decide, type Denial } from './grants.js';
 import { routeKey, ruleFor, unmappedRoutes } from './permissions.js';
@@ -61,6 +62,7 @@ export function trackRoutes(app: FastifyInstance): void {
 /** The per-request checks. Registered after CORS and security headers so a 401/403 still carries them. */
 export function registerAuth(app: FastifyInstance, opts: AuthOptions): void {
   app.decorateRequest('auth', null);
+  const activity = createActivityRecorder(opts.db);
   app.addHook('onRequest', async (req) => {
     const url = req.routeOptions.url;
     if (!url) return; // no such route: the not-found handler answers 404
@@ -69,6 +71,8 @@ export function registerAuth(app: FastifyInstance, opts: AuthOptions): void {
     if (rule.scope === 'public') return;
     const identity = opts.devMode ? DEV_IDENTITY : await identify(req, opts.verify);
     const ctx = await resolveAccess(opts.db, identity, opts.devMode);
+    // Last active (spec 13): any request by a member counts, allowed or not; never fails the request.
+    await activity.touch(ctx.orgId, ctx.userId).catch((err: unknown) => req.log.warn({ err }, 'last_active_at not recorded'));
     const decision = decide(rule, ctx, opts.products);
     if (!decision.ok) throw refusal(decision.reason);
     req.auth = ctx;

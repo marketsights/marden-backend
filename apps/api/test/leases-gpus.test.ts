@@ -185,6 +185,24 @@ describe('lease map and GPU index', () => {
     expect((await sheet('/api/export/gpu-model.xlsx?model=H100&part=facilities')).rows[0]).toMatchObject({ instrumentId: 'EX-1', units: 43000 });
     expect((await get('/api/export/gpu-model.xlsx')).statusCode).toBe(400);
     expect((await get('/api/export/gpu-model.xlsx?model=H100&part=bogus')).statusCode).toBe(400);
-    expect((await get('/api/export/gpu-model.xlsx?model=Z9')).json()).toEqual({ error: 'not_ready', view: 'gpu_model', key: 'Z9' });
+    expect((await get('/api/export/gpu-model.xlsx?model=Z9')).statusCode).toBe(404);
+    expect((await sheet('/api/export/gpu-model.xlsx?model=h100&part=resale')).rows).toHaveLength(1);
+  });
+
+  it('serves a GPU model page by its case-insensitive name; 404 for a model the index does not list', async () => {
+    const h100 = await get('/api/gpus/h100');
+    expect(h100.statusCode).toBe(200);
+    expect(h100.json()).toEqual(MODEL);
+    expect((await get('/api/gpus/H100')).json()).toEqual(MODEL);
+    const unknown = await get('/api/gpus/Z9');
+    expect(unknown.statusCode).toBe(404);
+    expect(unknown.json()).toMatchObject({ error: 'not_found' });
+    // Listed by the index but not computed by the GPU model yet: not ready, under the index's name.
+    expect((await get('/api/gpus/b200')).json()).toEqual({ error: 'not_ready', view: 'gpu_model', key: 'B200' });
+    expect((await get('/api/gpus/b200')).statusCode).toBe(503);
+    // Before the index exists nothing can be ruled out: not ready.
+    const early = await get('/api/gpus/Z9?asOf=2026-10-01');
+    expect(early.statusCode).toBe(503);
+    expect(early.json()).toEqual({ error: 'not_ready', view: 'gpu_model', key: 'Z9' });
   });
 });

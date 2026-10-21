@@ -19,6 +19,7 @@ describe('auth (Clerk mode)', () => {
     invite: (org, email) => { clerkCalls.push(`invite ${org} ${email}`); return Promise.resolve({ id: uid('orginv'), expiresAt: null }); },
     removeMember: (org, user) => { clerkCalls.push(`remove ${org} ${user}`); return Promise.resolve(); },
     mfaEnabled: () => Promise.resolve(true),
+    sso: (org) => Promise.resolve(org === orgA ? { connected: true, name: 'Fund Okta', provider: 'saml_okta' } : { connected: false, name: null, provider: null }),
   };
   const token = (userId: string, orgId: string | null = orgA, extra: Parameters<typeof signToken>[1] = { userId }) =>
     signToken(keys, { ...extra, userId, orgId });
@@ -183,6 +184,15 @@ describe('auth (Clerk mode)', () => {
     }]);
     expect(res.json().org).not.toHaveProperty('plan');
     expect(res.json().seats).toEqual({ used: 4, total: null });
+    // Security from Clerk: the caller's second factor and the org's enterprise connection (spec 13, 23).
+    expect(res.json().security).toEqual({
+      authProvider: 'clerk', mfaEnabled: true, sso: { connected: true, name: 'Fund Okta', provider: 'saml_okta' },
+    });
+    const other = await get('/api/account', await token(u.other, orgB));
+    expect(other.json().security.sso).toEqual({ connected: false, name: null, provider: null });
+    // Last active: the caller's own request just stamped it.
+    const viewer = res.json().team.find((m: { userId: string }) => m.userId === u.viewer);
+    expect(Date.now() - Date.parse(viewer.lastActiveAt)).toBeLessThan(60_000);
   });
 });
 

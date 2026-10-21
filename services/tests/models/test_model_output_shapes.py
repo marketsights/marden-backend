@@ -59,7 +59,7 @@ SPECS: list[tuple[str, str, Callable[[str], bool], str, Pick]] = [
      _keep("label", "spreadBp", "upfrontPct", "hazard", "maturity", "years", "band", "missing", "methodVersion")),
     ("curve", "series", lambda s: s == "all", "T.CurveTier[]", lambda _s, o: o),
     ("mark_gap", "instrument", lambda s: True,
-     "{ holders: NDFields<T.Holder, 'lastMark' | 'gapPts' | 'navHitMm' | 'shareOfNav'>[]; count: number; "
+     "{ holders: NDFields<T.Holder, 'parMm' | 'lastMark' | 'gapPts' | 'navHitMm' | 'shareOfNav'>[]; count: number; "
      "parMm: number; "
      "fundMarks: T.InstrumentDetail['fundMarks'] | null; "
      "nextMarksPublic: string | null; markGap: T.InstrumentRow['markGap']; "

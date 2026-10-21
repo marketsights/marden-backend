@@ -91,9 +91,16 @@ def crwv_lobo(conn: Conn) -> dict[str, Any]:
     bonds, obs = _universe(conn, "coreweave")
     secs = sections(bonds, obs, book, 3, sources=("nport",))
     by_id = {b.id: b for b in bonds}
+    # One month-end cross-section per month: funds whose fiscal month ends on the last business day (05-29)
+    # and on the calendar month end (05-31) report the same month; grading both would count May twice.
+    month_end: dict[tuple[int, int], date] = {}
+    for day, pts in secs.items():
+        key = (day.year, day.month)
+        if key not in month_end or sum(p.holders for p in pts) > sum(p.holders for p in secs[month_end[key]]):
+            month_end[key] = day
     rows = []
     for day, pts in sorted(secs.items()):
-        if not date(2026, 4, 1) <= day <= date(2026, 7, 31):
+        if not date(2026, 4, 1) <= day <= date(2026, 7, 31) or month_end[(day.year, day.month)] != day:
             continue
         nport = [p for p in pts if p.source == "nport"]
         for p in nport:

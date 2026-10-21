@@ -100,6 +100,26 @@ def test_filer_identifier_publishes_routine_facts_and_holds_material_or_conflict
     assert link == {"method": "identifier", "status": "accepted"}
 
 
+def test_reported_sources_wait_for_a_person_even_when_every_check_passes():
+    # Spec 22 layer 5: only routine *filed* facts publish by themselves; the same verified value read from a
+    # document staff marked as reported (press, a deck) waits for a click, and approving it publishes it.
+    seed_coreweave()
+    case_id = "periodic_coreweave_10q_liquidity"
+    doc = store_case_document(case_id, meta={"cik": COREWEAVE_CIK, "filed": False}, doc_type="10-Q")
+    llm, _ = make_llm({"router": route_to("periodic"), "extractor": lambda r: recorded(case_id),
+                       "verifier": agree_all, "linker": no_links})
+    out = run_job(enqueue_document(doc.id), llm)
+    assert out.state == "needs_review" and out.stats["published"] == 0
+    cand = rows("SELECT outcome, outcome_reason, fact_id FROM agent_candidate WHERE document_id = %s", (doc.id,))[0]
+    assert cand["outcome"] == "review" and cand["outcome_reason"].startswith("reported source")
+    fact = rows("SELECT tag, status, verifier FROM fact WHERE id = %s", (cand["fact_id"],))[0]
+    assert fact == {"tag": "R", "status": "candidate", "verifier": "agree"}
+    item = rows("SELECT id FROM review_item WHERE kind = 'fact' AND ref_type = 'fact' AND ref_id = %s",
+                (str(cand["fact_id"]),))[0]
+    assert decide(item["id"], "approve", "staff_user")["ok"]
+    assert rows("SELECT status FROM fact WHERE id = %s", (cand["fact_id"],))[0]["status"] == "published"
+
+
 def test_the_same_fact_twice_in_a_document_is_one_candidate_and_reruns_keep_its_outcome():
     seed_coreweave()
     case_id = "periodic_coreweave_10q_liquidity"

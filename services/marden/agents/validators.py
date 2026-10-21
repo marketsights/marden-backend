@@ -10,7 +10,7 @@ Hard checks reject a candidate outright (an extracted value without its exact pa
     range            numbers and dates within sane bounds for the unit
 Soft checks send a candidate to review instead of publishing it:
     implied_scale    the number matches only through a table's unstated scale ('in thousands')
-    month_in_quote   a full date's month is not written in the quote
+    month_in_quote   a date's (or month's) month is not written in the quote
     date_order       closing <= commitment termination <= maturity on one subject
     tranche_sum      tranche amounts add to the facility size (within 0.5%)
 """
@@ -145,7 +145,7 @@ def check_candidate(c: Candidate, doc: DocText, today: date | None = None) -> No
             norm = normalize(quote).lower()
             year_ok = str(day.year) in norm or f"'{str(day.year)[2:]}" in norm
             checks["year_in_quote"] = _check(year_ok, True, "" if year_ok else f"{day.year} not in the quote")
-            if len(str(c.value)) == 10:
+            if len(str(c.value)) in (7, 10):  # YYYY-MM-DD or a month field's YYYY-MM
                 month = MONTHS[day.month - 1]
                 written = (month[:3] in norm or f"{day.month}/" in norm or f"-{day.month:02d}-" in norm
                            or f"{day.month:02d}/" in norm)

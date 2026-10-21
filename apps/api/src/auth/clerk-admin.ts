@@ -4,6 +4,7 @@
 // carries Clerk's built-in basic member role, and there is deliberately no role-change call here.
 // Absent without CLERK_SECRET_KEY.
 import { createClerkClient } from '@clerk/backend';
+import type { OrgSso } from '../contracts/app.js';
 
 /** Clerk's built-in basic member role: the only Clerk role Marden ever sends (on invitations). */
 export const CLERK_MEMBER_ROLE = 'org:member';
@@ -14,6 +15,8 @@ export interface ClerkAdmin {
   /** Ends the Clerk organization membership (membership existence is Clerk's). */
   removeMember(orgId: string, userId: string): Promise<void>;
   mfaEnabled(userId: string): Promise<boolean | null>;
+  /** The org's single sign-on (Clerk enterprise connections, SAML or OIDC); null when Clerk could not be asked. */
+  sso(orgId: string): Promise<OrgSso | null>;
 }
 
 export function createClerkAdmin(secretKey: string | null): ClerkAdmin | null {
@@ -32,6 +35,17 @@ export function createClerkAdmin(secretKey: string | null): ClerkAdmin | null {
     async mfaEnabled(userId) {
       try {
         return (await clerk.users.getUser(userId)).twoFactorEnabled;
+      } catch {
+        return null;
+      }
+    },
+    async sso(orgId) {
+      try {
+        const { data } = await clerk.enterpriseConnections.getEnterpriseConnectionList({ organizationId: orgId, limit: 10 });
+        const connection = data.find((c) => c.active) ?? null;
+        return connection
+          ? { connected: true, name: connection.name || null, provider: connection.provider || null }
+          : { connected: false, name: null, provider: null };
       } catch {
         return null;
       }

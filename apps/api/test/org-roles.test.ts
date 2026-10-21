@@ -28,6 +28,7 @@ describe('Marden-owned org roles', () => {
     },
     removeMember: (orgId, userId) => { calls.push(`remove ${orgId} ${userId}`); return Promise.resolve(); },
     mfaEnabled: () => Promise.resolve(true),
+    sso: () => Promise.resolve(null),
   };
 
   const send = (evt: Record<string, unknown>) => {
@@ -176,7 +177,7 @@ describe('Marden-owned org roles', () => {
   it('calls Clerk only to invite and remove, never for a role', () => {
     expect(calls.length).toBeGreaterThan(0);
     for (const c of calls) expect(c).toMatch(/^(invite|remove) /);
-    expect(Object.keys(clerkAdmin).sort()).toEqual(['invite', 'mfaEnabled', 'removeMember']);
+    expect(Object.keys(clerkAdmin).sort()).toEqual(['invite', 'mfaEnabled', 'removeMember', 'sso']);
   });
 
   it('changes roles without Clerk configured; invitations and removals need it', async () => {

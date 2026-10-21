@@ -108,6 +108,24 @@ def test_candidate_checks_reject_unquoted_or_wrong_values_and_flag_soft_problems
     assert future.as_of is None
 
 
+def test_month_precision_maturity_is_a_value_not_a_rejection():
+    # The 10-Q tables give some maturities by month only ("matures in September 2031"); the fact store
+    # already holds month maturities such as "2029-11", so the agents keep them instead of rejecting them.
+    doc = read_plain(b"The DDTL 3.0 Facility matures in September 2031 and bears interest at SOFR plus 4.00%.")
+    quote = "The DDTL 3.0 Facility matures in September 2031"
+    item = {"subject_kind": "instrument", "subject_name": "DDTL 3.0 Facility", "subject_identifier": None,
+            "field": "maturity", "value_number": None, "value_text": None, "value_date": "2031-09",
+            "value_bool": None, "value_json": None, "as_of": None, "quote": quote, "page": None,
+            "confidence": 0.9, "note": None}
+    (month,), _, _ = parse("debt", "all", {"facts": [item], "subjects": [], "summary": ""})
+    assert month.value == "2031-09" and not month.problems
+    check_candidate(month, doc)
+    assert not month.hard_fail and not month.soft_fail
+    wrong_month = cand("maturity", "2031-08", quote)
+    check_candidate(wrong_month, doc)
+    assert not wrong_month.hard_fail and wrong_month.checks["month_in_quote"]["ok"] is False
+
+
 def test_group_checks_date_order_and_tranche_sums():
     doc = read_plain(b"Dated as of August 7, 2026. Matures September 1, 2025. Facility of $2.6 billion. "
                      b"Tranche A $1.0 billion and Tranche B $1.0 billion.")

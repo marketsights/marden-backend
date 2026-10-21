@@ -1,6 +1,7 @@
 """Running the agents: the sweep (intake) and the work loop (claim jobs, run them, respect caps and budgets).
 
-    sweep()        store uploads, queue documents, reset stale jobs, apply staff decisions
+    sweep()        store uploads, queue documents, reset stale jobs, resume budget-paused jobs, apply staff
+                   decisions
     work()         run queued live jobs: highest priority first, at most MARDEN_AGENT_SOURCE_CAP per source
                    at once, MARDEN_AGENT_CONCURRENCY threads, one shared run budget
 
@@ -17,7 +18,7 @@ from typing import Any
 
 from marden.agents.backends import make_backend
 from marden.agents.config import AgentSettings, BackendStatus, detect_backend
-from marden.agents.intake import claim, queue_documents, record_status, reset_stale, store_uploads
+from marden.agents.intake import claim, queue_documents, record_status, reset_stale, resume_budget, store_uploads
 from marden.agents.llm import Llm, RunBudget
 from marden.agents.pipeline import JobOutcome, run_job
 from marden.agents.review import apply_pending
@@ -51,6 +52,7 @@ def sweep() -> dict[str, Any]:
         out["queued"] = 0
         return out
     out["stale_reset"] = reset_stale()
+    out["budget_resumed"] = resume_budget(settings)
     out["queued"] = queue_documents()
     out["status"] = "ok"
     return out

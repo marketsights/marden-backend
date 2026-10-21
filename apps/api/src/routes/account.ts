@@ -62,6 +62,13 @@ async function changeMember(
   });
 }
 
+/** The caller's second factor and the org's single sign-on, from Clerk; null where Clerk can't be asked (dev mode). */
+async function clerkSecurity(clerk: ClerkAdmin | null, auth: AuthContext): Promise<Pick<AccountResponse['security'], 'mfaEnabled' | 'sso'>> {
+  if (!clerk) return { mfaEnabled: null, sso: null };
+  const [mfaEnabled, sso] = await Promise.all([clerk.mfaEnabled(auth.userId), clerk.sso(auth.orgId)]);
+  return { mfaEnabled, sso };
+}
+
 export function accountRoutes(app: FastifyInstance, deps: AccountDeps): void {
   const { db } = deps;
 
@@ -91,7 +98,7 @@ export function accountRoutes(app: FastifyInstance, deps: AccountDeps): void {
       seats: { used: members.length, total: null },
       security: {
         authProvider: deps.devMode ? 'dev' : 'clerk',
-        mfaEnabled: deps.clerkAdmin ? await deps.clerkAdmin.mfaEnabled(auth.userId) : null,
+        ...await clerkSecurity(deps.clerkAdmin, auth),
       },
     };
   });

@@ -65,6 +65,26 @@ def test_sweep_queues_each_document_once_with_priorities(backend):
     assert (jobs[old.id]["priority"], jobs[old.id]["priority_reason"]) == (20, "backfill")
 
 
+def test_budget_paused_jobs_resume_when_the_budget_has_room(backend, monkeypatch):
+    backend("cli")
+    job = enqueue_document(store_case_document("debt_coreweave_8k_ddtl55").id)
+    stuck = enqueue_document(store_case_document("power_ferc_oklo_pjm", source_id="ferc").id)
+    with db.transaction() as conn:
+        conn.execute("UPDATE agent_job SET state = 'budget', attempts = 1 WHERE id = %s", (job,))
+        conn.execute("UPDATE agent_job SET state = 'budget', attempts = 5 WHERE id = %s", (stuck,))
+    out = sweep()
+    assert out["budget_resumed"] == 1
+    assert {r["id"]: r["state"] for r in rows("SELECT id, state FROM agent_job")} == {job: "queued", stuck: "budget"}
+    # The daily budget is spent: nothing resumes before 00:00 UTC.
+    monkeypatch.setenv("MARDEN_AGENT_DAY_TOKENS", "1000")
+    with db.transaction() as conn:
+        conn.execute("UPDATE agent_job SET state = 'budget' WHERE id = %s", (job,))
+        conn.execute("""INSERT INTO agent_call (request_hash, agent, backend, model, prompt_version, input_tokens)
+                        VALUES ('test-spent', 'router', 'cli', 'claude-haiku-5-5', '0.1', 2000)""")
+    assert sweep()["budget_resumed"] == 0
+    assert rows("SELECT state FROM agent_job WHERE id = %s", (job,))[0]["state"] == "budget"
+
+
 def test_claim_takes_priority_first_within_per_source_caps():
     docs = [store_case_document(c) for c in ("debt_coreweave_8k_ddtl55", "gpu_coreweave_q2_2026_release",
                                              "ratings_coreweave_ddtl55_release")]

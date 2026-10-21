@@ -98,7 +98,9 @@ def cds_doc(cur: IssuerCurve, book: CurveBook, as_of: date) -> dict[str, Any]:
         "label": CDS_LABEL, "methodVersion": VERSION, "sourceUrl": METHOD_URL,
         "spreadBp": None, "upfrontPct": None, "hazard": None, "maturity": None, "years": None, "band": None,
         "raw": raw, "bonds": cur.bonds,
-        "equity": {"ticker": cur.ticker, "loading": round(cur.loading, 3), "pairs": cur.loading_pairs,
+        # loading n/d (null, never 0) when the equity model could not run: no elasticity prior and no pairs
+        "equity": {"ticker": cur.ticker, "pairs": cur.loading_pairs,
+                   "loading": None if not cur.loading_prior and not cur.loading_pairs else round(cur.loading, 3),
                    "prior": None if cur.loading_prior is None else round(cur.loading_prior, 3),
                    "model": "CreditGrades (L=0.5, lambda=0.3, R=0.4); loading prior = 0.018 per unit equity log "
                             "return at the issuer's CreditGrades elasticity"},

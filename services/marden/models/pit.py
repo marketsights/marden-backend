@@ -9,8 +9,10 @@ backtest and reads only what was public by that day:
   it, which for the archive and the collectors' first runs (2026-10-21) is after every backtest day, so
   `mode="public"` (the default) ignores it and `mode="known"` applies it (exactly `fact_asof`).
 - publication lags (`public_date`): an N-PORT mark is public 60 days after its period end; an XBRL
-  value 40 days after the period end (pricing-v0.1 "Data"); an EIA-860M monthly inventory on the 24th of
-  the following month (the release convention noted in collectors/eia_860m.py). Others: the record date.
+  value 40 days after the period end (pricing-v0.1 "Data") or, when later, on the date of the filing that
+  reported it (`quote_loc` '... filed YYYY-MM-DD': 10-Ks, late filers, restatements); an EIA-860M monthly
+  inventory on the 24th of the following month (the release convention noted in collectors/eia_860m.py).
+  Others: the record date.
 - events: published; dated on or before as_of (public that day), or dated later (a scheduled hearing or
   deadline) and learned by Marden by as_of.
 - licensing: when MARDEN_SHOW_UNLICENSED_PRICES is false, rows from unlicensed sources are dropped from
@@ -26,6 +28,7 @@ as an `Input` with the day it became public, so a backtest can be checked for lo
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -40,6 +43,7 @@ from marden.readmodels.context import business_today
 NPORT_LAG_DAYS = 60
 XBRL_LAG_DAYS = 40
 EIA_860M_RELEASE_DAY = 24
+_XBRL_FILED = re.compile(r"\bfiled (\d{4}-\d{2}-\d{2})\b")
 
 
 @dataclass(frozen=True)
@@ -134,7 +138,11 @@ def public_date(row: Row) -> date:
         year, month = (day.year + 1, 1) if day.month == 12 else (day.year, day.month + 1)
         return date(year, month, EIA_860M_RELEASE_DAY)
     if row.get("subject_type") == "entity" and (row.get("producer") or "").startswith("collector:sec_xbrl"):
-        return day + timedelta(days=XBRL_LAG_DAYS)
+        # 40 days after the period end (pricing-v0.1), but never before the filing that reported the value
+        # (a 10-K, a late filer or a restating 10-K/A is public only on its filing date: quote_loc names it)
+        filed = _XBRL_FILED.search(row.get("quote_loc") or "")
+        lagged = day + timedelta(days=XBRL_LAG_DAYS)
+        return max(lagged, date.fromisoformat(filed.group(1))) if filed else lagged
     return day
 
 

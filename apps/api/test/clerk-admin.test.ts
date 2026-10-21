@@ -14,6 +14,16 @@ vi.mock('@clerk/backend', () => {
         recorded.calls.push({ api, method, args });
         if (method === 'createOrganizationInvitation') return Promise.resolve({ id: 'orginv_1', expiresAt: 1_800_000_000_000 });
         if (method === 'getUser') return Promise.resolve({ twoFactorEnabled: true });
+        if (method === 'getEnterpriseConnectionList') {
+          const { organizationId } = args[0] as { organizationId: string };
+          if (organizationId === 'org_down') return Promise.reject(new Error('clerk unavailable'));
+          return Promise.resolve({
+            data: organizationId === 'org_sso'
+              ? [{ name: 'Old IdP', provider: 'saml_custom', active: false }, { name: 'Fund Okta', provider: 'saml_okta', active: true }]
+              : [],
+            totalCount: organizationId === 'org_sso' ? 2 : 0,
+          });
+        }
         return Promise.resolve({});
       };
     },
@@ -60,6 +70,19 @@ describe('Clerk admin wrapper', () => {
     const sentRoles = recorded.calls.flatMap((c) => c.args).map((a) => (a as { role?: unknown }).role).filter((r) => r !== undefined);
     expect(sentRoles).toEqual(['org:member']);
     // The interface itself has no role call.
-    expect(Object.keys(admin).sort()).toEqual(['invite', 'mfaEnabled', 'removeMember']);
+    expect(Object.keys(admin).sort()).toEqual(['invite', 'mfaEnabled', 'removeMember', 'sso']);
+  });
+
+  it("reads the org's single sign-on from its active Clerk enterprise connection", async () => {
+    const admin = createClerkAdmin('sk_test_unit')!;
+    expect(await admin.sso('org_sso')).toEqual({ connected: true, name: 'Fund Okta', provider: 'saml_okta' });
+    expect(await admin.sso('org_plain')).toEqual({ connected: false, name: null, provider: null });
+    // Clerk unreachable: unknown (n/d), never "not set up".
+    expect(await admin.sso('org_down')).toBeNull();
+    expect(recorded.calls.map((c) => [`${c.api}.${c.method}`, c.args[0]])).toEqual([
+      ['enterpriseConnections.getEnterpriseConnectionList', { organizationId: 'org_sso', limit: 10 }],
+      ['enterpriseConnections.getEnterpriseConnectionList', { organizationId: 'org_plain', limit: 10 }],
+      ['enterpriseConnections.getEnterpriseConnectionList', { organizationId: 'org_down', limit: 10 }],
+    ]);
   });
 });

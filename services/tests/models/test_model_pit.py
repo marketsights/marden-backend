@@ -102,3 +102,14 @@ def test_licence_switch_keeps_unlicensed_sources_out_of_every_input(committed, m
         config.reload_settings()
     assert used and not [i for i in used if i.source in hidden_names]
     assert result["prices"]["EX-CRWV-103"]["price"] is not None  # still priced, from the N-PORT marks
+
+
+def test_xbrl_value_is_public_on_its_filing_date_when_later_than_the_lag():
+    """A 10-K (or a restating 10-K/A) filed after the 40-day rule is public only once filed (quote_loc)."""
+    base = {"subject_type": "entity", "producer": "collector:sec_xbrl", "source_name": "SEC EDGAR XBRL",
+            "valid_from": date(2025, 12, 31)}
+    ten_k = {**base, "quote_loc": "us-gaap:Revenues [USD]; 10-K 0001819989-26-000012 filed 2026-03-26"}
+    quick = {**base, "quote_loc": "us-gaap:Revenues [USD]; 10-K 0000320193-26-000001 filed 2026-01-20"}
+    assert pit.public_date(ten_k) == date(2026, 3, 26)  # not 2026-02-09 (period end + 40)
+    assert pit.public_date(quick) == date(2026, 2, 9)  # filed early: the locked 40-day rule still applies
+    assert pit.public_date({**base, "quote_loc": None}) == date(2026, 2, 9)

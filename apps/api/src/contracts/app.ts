@@ -31,7 +31,10 @@ export interface MeResponse {
 
 // GET /api/account, PATCH /api/account/members/:id(/products)
 export interface MemberProductRole { productId: string; role: Role }
-export interface TeamMember { userId: string; email: string; name: string | null; role: Role; products: MemberProductRole[] }
+export interface TeamMember {
+  userId: string; email: string; name: string | null; role: Role; products: MemberProductRole[];
+  lastActiveAt: string | null;                         // last request in this org (membership.last_active_at); null = n/d
+}
 /** One of the org's products, live or not (POST/PATCH /api/admin/orgs/:orgId/products answer this too). */
 export interface OrgProduct {
   id: string; name: string; plan: Plan; status: ProductStatus;
@@ -44,8 +47,14 @@ export interface AccountResponse {
   team: TeamMember[];
   products: OrgProduct[];
   seats: { used: number; total: number | null };       // members of the org; per-product seats are in products
-  security: { authProvider: 'clerk' | 'dev'; mfaEnabled: boolean | null };
+  security: {
+    authProvider: 'clerk' | 'dev';
+    mfaEnabled: boolean | null;                        // the caller's own second factor (Clerk); null when the API cannot ask Clerk
+    sso: OrgSso | null;                                // the org's Clerk enterprise connection; null when the API cannot ask Clerk
+  };
 }
+/** Single sign-on for the org (spec 13, 23): its Clerk enterprise connections (SAML or OIDC). */
+export interface OrgSso { connected: boolean; name: string | null; provider: string | null }
 
 // GET /api/sources/health
 export type SourceStatus = 'ok' | 'delayed' | 'down';

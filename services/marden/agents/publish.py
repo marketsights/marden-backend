@@ -1,11 +1,13 @@
 """Publishing and approvals (spec 22 layers 4-5): what publishes by itself and what waits for a person.
 
-A candidate publishes automatically only when every hard and soft code check passed, the verifier agreed,
-its subject link is accepted (an exact identifier, the upload's own subject, or a person's earlier
-confirmation), it is not material, and it does not contradict the current value from another source.
-Otherwise it waits in the review queue (review_item, kind 'fact'): disagreement, unsupported, a soft check,
-a proposed link, a conflict (filed beats reported; conflicts are flagged, never resolved silently), or
-materiality (a value that can change a chain status, cushion band or fire an alert). Hard check failures are
+A candidate publishes automatically only when it comes from a filed document (tag F: spec 22 layer 5,
+"routine filed facts that pass layers 1-4 publish automatically"), every hard and soft code check passed,
+the verifier agreed, its subject link is accepted (an exact identifier, the upload's own subject, or a
+person's earlier confirmation), it is not material, and it does not contradict the current value from
+another source. Otherwise it waits in the review queue (review_item, kind 'fact'): a reported (R) source,
+disagreement, unsupported, a soft check, a proposed link, a conflict (filed beats reported; conflicts are
+flagged, never resolved silently), or materiality (a value that can change a chain status, cushion band or
+fire an alert). Hard check failures are
 rejected outright. Published facts mark read models and models dirty through the fact writer.
 """
 
@@ -140,8 +142,11 @@ def _outcome(conn: db.Conn, cid: int, outcome: str, reason: str, *, fact_id: int
     )
 
 
-def review_reasons(c: Candidate, material_codes: list[str], conflict: list[dict[str, Any]]) -> list[str]:
+def review_reasons(c: Candidate, material_codes: list[str], conflict: list[dict[str, Any]],
+                   tag: str = "F") -> list[str]:
     out = []
+    if tag != "F":
+        out.append("reported source (not a filing): a person confirms before it publishes")
     if c.verdict != "agree":
         out.append(f"verifier: {c.verdict or 'no verdict'}" + (f" ({c.verdict_reason})" if c.verdict_reason else ""))
     out += [f"check {k}: {v.get('detail') or 'failed'}" for k, v in c.checks.items() if not v.get("ok")]
@@ -177,7 +182,7 @@ def publish_candidates(job: dict[str, Any], doc: Any, cands: list[Candidate]) ->
             material, codes = materiality(conn, c)
             valid_from = c.as_of if c.as_of and c.as_of <= today else (doc.doc_date or doc.fetched_at.date())
             conflict = conflicts(conn, c, doc.id, valid_from, tag) if c.subject_id else []
-            reasons = review_reasons(c, codes, conflict)
+            reasons = review_reasons(c, codes, conflict, tag)
             payload = {"candidate_id": cid, "job_id": job["id"], "document_id": doc.id, "area": c.area,
                        "field": c.field, "value": c.value, "unit": c.unit, "quote": c.quote, "page": c.page,
                        "subject": {"kind": c.subject_kind, "mention": c.subject_name, "type": c.subject_type,
@@ -210,8 +215,8 @@ def publish_candidates(job: dict[str, Any], doc: Any, cands: list[Candidate]) ->
                 facts.publish([written.id])
                 if event_id is not None:
                     events.publish([event_id])
-                _outcome(conn, cid, "published", "verified routine filed fact" if tag == "F" else "verified fact",
-                         fact_id=written.id, material=material, codes=codes)
+                _outcome(conn, cid, "published", "verified routine filed fact", fact_id=written.id,
+                         material=material, codes=codes)
                 stats["published"] += 1
             elif written.status == "published":  # a candidate that published itself on an earlier run keeps that
                 conn.execute(
@@ -253,13 +258,13 @@ def _event(events: EventWriter, c: Candidate, fact_id: int, doc: Any, tag: str, 
 def release_after_link(conn: db.Conn, link_id: int, by: str) -> list[int]:
     """A person accepted a proposed subject link: candidates that waited only for it publish now.
 
-    Only candidates whose checks all passed, that the verifier agreed with, that are not material and that
-    still contradict nothing are released; the rest keep their review items."""
+    Only candidates from a filed document whose checks all passed, that the verifier agreed with, that are
+    not material and that still contradict nothing are released; the rest keep their review items."""
     rows = conn.execute(
         """SELECT c.*, f.status AS fact_status, f.valid_from, f.tag FROM agent_candidate c
            JOIN fact f ON f.id = c.fact_id
            WHERE c.link_id = %s AND c.outcome = 'review' AND c.verdict = 'agree' AND NOT c.material
-             AND f.status = 'candidate'""",
+             AND f.status = 'candidate' AND f.tag = 'F'""",
         (link_id,),
     ).fetchall()
     released: list[int] = []

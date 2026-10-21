@@ -20,7 +20,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from marden.agents.config import PROMPT_VERSION, BackendStatus
+from marden.agents.config import PROMPT_VERSION, AgentSettings, BackendStatus
+from marden.agents.llm import day_tokens_used
 from marden.agents.text import sniff
 from marden.core import db, documents
 from marden.core.config import get_settings
@@ -45,6 +46,7 @@ CONTENT_TYPES = {"pdf": "application/pdf", "html": "text/html", "txt": "text/pla
                  "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
 ACCEPTED_KINDS = frozenset({"pdf", "docx", "html", "txt", "xlsx", "pptx"})
 STALE_RUNNING = timedelta(minutes=45)
+BUDGET_RESUMES = 5  # a job paused this many times by a budget stays paused (status 'budget') for a person
 SWEEP_LIMIT = 500
 
 PRIORITY_SQL = """
@@ -105,6 +107,20 @@ def reset_stale(now: datetime | None = None) -> int:
         rows = conn.execute(
             "UPDATE agent_job SET state = 'queued', updated_at = now() WHERE state = 'running' AND updated_at < %s "
             "RETURNING id", (cutoff,)).fetchall()
+    return len(rows)
+
+
+def resume_budget(settings: AgentSettings) -> int:
+    """Jobs paused by a token budget go back to the queue when there is room again: a run budget resets with
+    the next run, the daily budget at 00:00 UTC. Model calls already made are cached, so a resumed job
+    continues where it stopped. A job paused BUDGET_RESUMES times (it needs more than one run's budget)
+    stays paused and visible in the status API."""
+    if day_tokens_used() >= settings.day_tokens:
+        return 0
+    with db.transaction() as conn:
+        rows = conn.execute(
+            """UPDATE agent_job SET state = 'queued', updated_at = now()
+               WHERE state = 'budget' AND attempts < %s RETURNING id""", (BUDGET_RESUMES,)).fetchall()
     return len(rows)
 
 

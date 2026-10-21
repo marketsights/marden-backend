@@ -70,15 +70,17 @@ def holder_row(h: Holder, price: Price | None) -> dict[str, Any]:
     """One Holder (types.ts). Gap fields are null without a Marden price or a filed mark."""
     mark = h.last_mark
     gap = price.value - mark if price is not None and mark is not None else None
-    par_mm = h.marked_par_usd / 1e6 if mark is not None else h.par_usd / 1e6
-    hit = par_mm * gap / 100.0 if gap is not None else None
+    par_mm: float | None = h.marked_par_usd / 1e6 if mark is not None else h.par_usd / 1e6
+    if mark is None and not h.par_usd and h.par_missing:
+        par_mm = None  # filed without a principal amount or a mark: par n/d, never 0
+    hit = par_mm * gap / 100.0 if gap is not None and par_mm is not None else None
     share = hit * 1e6 / h.net_assets if hit is not None and h.net_assets else None
     return {
         "name": h.name,
         "filing": "N-PORT" if h.filing_type == "N-PORT" else "10-Q",
         "filingUrl": h.filing_url,
         "filingDate": h.period_end.isoformat(),
-        "parMm": round(par_mm, 3),
+        "parMm": rounded(par_mm, 3),
         "lastMark": rounded(mark, 4),
         "gapPts": rounded(gap, 4),
         "navHitMm": rounded(hit, 4),
@@ -106,14 +108,20 @@ def fund_marks(holders: list[Holder]) -> dict[str, Any] | None:
 def instrument_output(iid: str, inputs: Inputs) -> dict[str, Any]:
     day, price = inputs.as_of, inputs.prices.get(iid)
     listed = inputs.holders.get(iid, [])
-    # A filed line with zero or negative par (a closed or short position) does not make the fund a holder.
-    holders = sorted((h for h in listed if h.par_usd > 0), key=lambda h: (-h.par_usd, h.name))
+    # A filed line with zero or negative par (a closed or short position) does not make the fund a holder;
+    # a line filed with a positive value but no principal amount does (its par is n/d).
+    holders = sorted((h for h in listed if h.par_usd > 0 or (not h.par_usd and h.par_missing and h.value_usd > 0)),
+                     key=lambda h: (-h.par_usd, h.name))
     rows = [holder_row(h, price) for h in holders]
-    rows.sort(key=lambda r: (-(abs(r["navHitMm"]) if r["navHitMm"] is not None else -1), -r["parMm"], r["name"]))
+    rows.sort(key=lambda r: (-(abs(r["navHitMm"]) if r["navHitMm"] is not None else -1), -(r["parMm"] or 0.0),
+                             r["name"]))
     missing: list[str] = []
     if len(holders) < len(listed):
         missing.append(f"{len(listed) - len(holders)} filed lines with zero or negative par left out "
                        "(closed or short positions)")
+    if no_par := sorted(r["name"] for r in rows if r["parMm"] is None):
+        missing.append("par (filed without a principal amount or a mark) for " + ", ".join(no_par)
+                       + ": left out of parMm")
     marked = [r for r in rows if r["lastMark"] is not None]
     if not holders:
         gap: Any = "no fund"

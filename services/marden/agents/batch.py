@@ -5,7 +5,10 @@ mode), every request it would make that is not cached yet is submitted as one ba
 written to agent_call under each request's hash. The next planning pass then finds those answers cached and
 either needs the next stage's requests (another batch) or is complete, and the job is run live on cache hits
 to publish. Refusal fallbacks are not available on the Batches API, so a declined request is recorded as a
-refusal and the job fails over to review honestly.
+refusal and the job fails over to review honestly. A request the Batches API errors on (or lets expire) is
+resubmitted with the next stage; after BATCH_ATTEMPTS such results its job fails with the error. Token
+budgets apply: a submission takes only the requests that fit what is left of the run and daily budgets
+(MARDEN_AGENT_RUN_TOKENS, MARDEN_AGENT_DAY_TOKENS); the rest wait for the next poll.
 """
 
 from __future__ import annotations
@@ -16,13 +19,14 @@ from typing import Any
 from marden.agents.backends import ApiBackend
 from marden.agents.config import AgentSettings, cost_usd, detect_backend
 from marden.agents.intake import queue_documents
-from marden.agents.llm import Llm, LlmRequest, LlmResult
+from marden.agents.llm import Llm, LlmRequest, LlmResult, day_tokens_used, estimate_tokens
 from marden.agents.pipeline import run_job
-from marden.core import db
+from marden.core import db, documents
 from marden.core.jsonutil import jsonb
 
 log = logging.getLogger(__name__)
 MAX_REQUESTS = 5_000
+BATCH_ATTEMPTS = 3
 
 
 def _jobs(limit: int) -> list[int]:
@@ -90,6 +94,7 @@ def apply_results(batch_id: str, backend: ApiBackend, settings: AgentSettings) -
             continue
         if result.result.type != "succeeded":
             counts["errored" if result.result.type == "errored" else "other"] += 1
+            _job_error(meta.get("job_id"), result.result)
             continue
         msg = result.result.message
         usage = ApiBackend.usage(msg)
@@ -104,6 +109,37 @@ def apply_results(batch_id: str, backend: ApiBackend, settings: AgentSettings) -
     with db.transaction() as conn:
         conn.execute("UPDATE agent_batch SET status = 'applied', applied_at = now() WHERE id = %s", (batch_id,))
     return counts
+
+
+def _job_error(job_id: int | None, result: Any) -> None:
+    """Count an errored / expired / canceled batch result against its job; fail the job after BATCH_ATTEMPTS."""
+    if job_id is None:
+        return
+    err = getattr(getattr(result, "error", None), "error", None)
+    detail = f"batch result {result.type}" + (f": {getattr(err, 'type', '')} {getattr(err, 'message', '')}"
+                                              if err is not None else "")
+    with db.transaction() as conn:
+        row = conn.execute(
+            """UPDATE agent_job SET attempts = attempts + 1, error = %s, updated_at = now(),
+                      state = CASE WHEN attempts + 1 >= %s THEN 'failed' ELSE state END,
+                      finished_at = CASE WHEN attempts + 1 >= %s THEN now() ELSE finished_at END
+               WHERE id = %s AND state = 'queued' RETURNING state, document_id""",
+            (detail[:500], BATCH_ATTEMPTS, BATCH_ATTEMPTS, job_id)).fetchone()
+    if row is not None and row["state"] == "failed":
+        documents.set_extract_state(row["document_id"], "failed")
+
+
+def within_budget(requests: list[Any], settings: AgentSettings) -> list[Any]:
+    """The requests whose estimated tokens fit what is left of the run and daily budgets."""
+    room = min(settings.run_tokens, settings.day_tokens - day_tokens_used())
+    out, used = [], 0
+    for item in requests:
+        need = estimate_tokens(item[1])
+        if used + need > room:
+            break
+        out.append(item)
+        used += need
+    return out
 
 
 def poll() -> dict[str, Any]:
@@ -134,8 +170,13 @@ def advance(settings: AgentSettings, backend: ApiBackend, limit: int = 500) -> d
     for job_id in ready:
         out = run_job(job_id, Llm(backend, settings))
         published.append({"job_id": job_id, "state": out.state})
-    batch_id = submit(requests, backend)
-    return {"jobs": len(jobs), "requests": len(requests), "batch_id": batch_id, "finished": published}
+    affordable = within_budget(requests, settings)
+    batch_id = submit(affordable, backend)
+    out: dict[str, Any] = {"jobs": len(jobs), "requests": len(affordable), "batch_id": batch_id,
+                           "finished": published}
+    if len(affordable) < len(requests):
+        out["budget_deferred"] = len(requests) - len(affordable)
+    return out
 
 
 def backfill(limit: int = 500) -> dict[str, Any]:

@@ -71,7 +71,8 @@ DEBT = [
       new=True),
     F("upfront_fee_pct", "instrument", "pct", "Upfront or closing fee, percent of commitments.", new=True),
     F("undrawn_fee_pct", "instrument", "pct", "Commitment / undrawn / unused fee, percent per annum.", new=True),
-    F("maturity", "instrument", "date", "Final maturity date."),
+    F("maturity", "instrument", "month", "Final maturity date; the month when only the month is stated "
+      "(\"matures in September 2031\" -> 2031-09)."),
     F("commitment_termination_date", "instrument", "month", "Last date (or month) loans may be drawn.", new=True),
     F("closing_date", "instrument", "date", "Date the agreement or indenture was entered into / dated as of.",
       new=True),

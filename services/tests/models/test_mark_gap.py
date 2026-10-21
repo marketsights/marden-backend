@@ -27,8 +27,10 @@ def copied(test_database):
 
 def _expected_holders(iid: str, day: date) -> dict[str, date]:
     """Fund -> period of its latest usable filing listing the instrument, kept when it is also the fund's newest
-    usable filing (the rule, recomputed in Python from the copied rows)."""
-    lines = rows("SELECT fund_entity_id, instrument_id, period_end, filing_type, filed_at FROM holding")
+    usable filing and the position is long: positive par, or no par filed and a positive value (the rule,
+    recomputed in Python from the copied rows)."""
+    lines = rows("SELECT fund_entity_id, instrument_id, period_end, filing_type, filed_at, par, value_usd "
+                 "FROM holding")
     usable = [r for r in lines if line_public_date(r["filing_type"], r["period_end"], r["filed_at"]) <= day]
     newest: dict[str, date] = {}
     for r in usable:
@@ -37,7 +39,16 @@ def _expected_holders(iid: str, day: date) -> dict[str, date]:
     for r in usable:
         if r["instrument_id"] == iid:
             mine[r["fund_entity_id"]] = max(mine.get(r["fund_entity_id"], r["period_end"]), r["period_end"])
-    return {f: d for f, d in mine.items() if newest[f] == d}
+
+    def long(fund: str, period: date) -> bool:
+        held = [r for r in usable if r["instrument_id"] == iid and r["fund_entity_id"] == fund
+                and r["period_end"] == period]
+        par = sum(float(r["par"]) for r in held if r["par"] is not None)
+        if par:
+            return par > 0
+        return any(r["par"] is None for r in held) and sum(float(r["value_usd"] or 0) for r in held) > 0
+
+    return {f: d for f, d in mine.items() if newest[f] == d and long(f, d)}
 
 
 def test_today_lists_the_funds_whose_latest_public_filing_holds_it(copied):

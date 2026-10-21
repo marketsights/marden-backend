@@ -51,6 +51,8 @@ class Holder:
     par_usd: float = 0.0
     marked_par_usd: float = 0.0
     marked_value_usd: float = 0.0
+    value_usd: float = 0.0  # every line's filed value, marked or not (a short or closed line is <= 0)
+    par_missing: bool = False  # a line filed with no principal amount
     net_assets: float | None = None
     net_assets_basis: str | None = None
     lines: list[int] = field(default_factory=list)
@@ -135,6 +137,8 @@ def _add_line(h: Holder, line: Row, facts: dict[str, Any]) -> bool:
     """Add one line's par and mark to its holder. Returns False when the line has no usable mark."""
     h.lines.append(int(line["id"]))
     par, value = num(line["par"]), num(line["value_usd"])
+    h.value_usd += value or 0.0
+    h.par_missing = h.par_missing or par is None
     currency = facts.get("cur_cd")
     mark = num(line["mark_price"])
     if mark is None and currency not in (None, "USD"):

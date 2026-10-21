@@ -16,9 +16,9 @@ from marden.agents import batch
 from marden.agents.areas import extract_tool, system_prompt
 from marden.agents.backends import FALLBACK_BETA, ApiBackend, CliBackend
 from marden.agents.config import AgentSettings
-from marden.agents.llm import Llm, LlmError, LlmRequest, PdfBlock
-from marden.agents.pipeline import enqueue_document, set_job
-from marden.core import db
+from marden.agents.llm import Llm, LlmError, LlmRequest, PdfBlock, estimate_tokens
+from marden.agents.pipeline import enqueue_document, load_job, set_job
+from marden.core import db, documents
 
 DEBT = "debt_coreweave_8k_ddtl55"
 
@@ -176,3 +176,22 @@ def test_batch_backfill_fills_the_cache_stage_by_stage_then_publishes():
     full = Llm(None, settings)
     assert full.cached(debt_request()) is None  # a different request is not answered from the cache
     assert case(DEBT).excerpt.startswith("Item 1.01")
+
+
+def test_batch_errors_count_against_their_job_and_submissions_fit_the_budget():
+    doc = store_case_document(DEBT)
+    job = enqueue_document(doc.id, priority=20)
+    set_job(job, mode="batch")
+    errored = SimpleNamespace(type="errored", error=SimpleNamespace(
+        type="error", error=SimpleNamespace(type="invalid_request_error", message="document too large")))
+    for n in range(1, batch.BATCH_ATTEMPTS + 1):
+        batch._job_error(job, errored)
+        row = load_job(job)
+        assert row["attempts"] == n and row["state"] == ("failed" if n == batch.BATCH_ATTEMPTS else "queued")
+    assert "invalid_request_error document too large" in row["error"]
+    assert documents.get_document(doc.id).extract_state == "failed"
+    req = debt_request()
+    settings = AgentSettings(run_tokens=estimate_tokens(req) + 10)
+    pending = [("h1", req, "claude-sonnet-5-5", "medium"), ("h2", req, "claude-sonnet-5-5", "medium")]
+    assert [p[0] for p in batch.within_budget(pending, settings)] == ["h1"]
+    assert batch.within_budget(pending, AgentSettings(day_tokens=10)) == []
