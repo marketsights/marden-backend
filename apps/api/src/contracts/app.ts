@@ -104,7 +104,11 @@ export interface DataCenterSummaryResponse extends Omit<DataCenterSummary, 'cove
 }
 
 /** One ISO/RTO service area (HIFLD "Independent System Operators", tag F), simplified for the map. */
-export interface IsoBoundaryProps { id: string; label: string; name: string; source: Sourced<string> }
+export interface IsoBoundaryProps {
+  id: string; label: string; name: string;
+  labelPoint: [number, number] | null;                 // [lon, lat] inside the largest part: where the name is drawn
+  source: Sourced<string>;
+}
 /** GET /api/grid/iso-rto: the US ISO/RTO boundaries layer of the Data centers map (spec 14 Map view). */
 export interface IsoBoundaries {
   type: 'FeatureCollection';

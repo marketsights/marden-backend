@@ -22,7 +22,8 @@ from agent_rows import (
     store_case_document,
 )
 
-from marden.agents.config import AgentSettings
+from marden.agents.config import METHOD, AgentSettings
+from marden.agents.publish import _price_inputs
 from marden.agents.pipeline import enqueue_document, run_job
 from marden.agents.review import decide
 from marden.core import db
@@ -61,7 +62,7 @@ def test_debt_8k_end_to_end_with_review_and_link_release():
     assert len(facts) == n and {f["status"] for f in facts} == {"candidate"}
     amount = next(f for f in facts if f["field"] == "amount_usd")
     assert amount["value"] == 2600000000 and amount["tag"] == "F" and amount["producer"] == "agent:debt"
-    assert amount["method_version"] == "agents v0.1 debt" and amount["verifier"] == "agree"
+    assert amount["method_version"] == f"{METHOD} debt" and amount["verifier"] == "agree"
     assert "2.6 billion" in amount["quote"]
     link = rows("SELECT * FROM agent_link WHERE subject_id = 'EX-CRWV-097'")
     assert len(link) == 1 and link[0]["status"] == "proposed" and link[0]["method"] == "agent"
@@ -69,18 +70,27 @@ def test_debt_8k_end_to_end_with_review_and_link_release():
                 (str(link[0]["id"]),))[0]
     assert rows("SELECT count(*) AS n FROM review_item WHERE kind = 'fact' AND status = 'open'")[0]["n"] == n
 
+    # The price model's inputs (size, coupon, spread, maturity, seniority...) would reprice the facility, which
+    # can fire a price alert: they are material and keep waiting; the routine rest is released with the link.
+    pricing = _price_inputs()["instrument"]
+    held = {c["field"] for c in rows("SELECT field, material, material_codes FROM agent_candidate WHERE job_id = %s",
+                                     (job,)) if "price_input" in c["material_codes"]}
+    assert held and held <= pricing and "amount_usd" in held
     result = decide(item["id"], "approve", "staff_user")
-    assert result["ok"] and len(result["released_facts"]) == n
-    assert {f["status"] for f in rows("SELECT status FROM fact WHERE document_id = %s", (doc.id,))} == {"published"}
+    routine = [f for f in facts if f["field"] not in held]
+    assert result["ok"] and len(result["released_facts"]) == len(routine) > 0
+    status = {f["field"]: f["status"] for f in rows("SELECT field, status FROM fact WHERE document_id = %s", (doc.id,))}
+    assert {status[f] for f in held} == {"candidate"} and {status[f["field"]] for f in routine} == {"published"}
     dirty = rows("SELECT view FROM read_model_dirty WHERE key = 'EX-CRWV-097'")
     assert "instrument_detail" in {d["view"] for d in dirty}
-    assert rows("SELECT count(*) AS n FROM review_item WHERE kind = 'fact' AND status = 'open'")[0]["n"] == 0
+    assert rows("SELECT count(*) AS n FROM review_item WHERE kind = 'fact' AND status = 'open'")[0]["n"] == \
+        len(facts) - len(routine)
 
     # A rerun is free (every call cached; the mention now resolves through the accepted link, so the linker
     # model is not asked again) and writes nothing twice.
     llm2, backend2 = make_llm(answers)
     again = run_job(job, llm2)
-    assert backend2.calls == [] and llm2.cache_hits == 3 and again.state == "published"
+    assert backend2.calls == [] and llm2.cache_hits == 3 and again.state == "needs_review"
     assert len(rows("SELECT id FROM fact WHERE document_id = %s", (doc.id,))) == n
     assert len(rows("SELECT id FROM agent_candidate WHERE job_id = %s", (job,))) == n
 

@@ -186,11 +186,17 @@ describe('data centers and power plants', () => {
       const rto = fc.features.find((f: { id: string }) => f.id === 'iso:TESTRTO');
       expect(rto.properties).toEqual({
         id: 'iso:TESTRTO', label: 'TESTRTO', name: 'Test Regional Transmission Organization',
+        labelPoint: expect.any(Array),
         source: {
           value: 'Test Regional Transmission Organization', tag: 'F', sourceName: 'HIFLD Independent System Operators',
           sourceUrl: 'https://example.test/hifld-iso.gpkg', asOf: '2022-12-15',
         },
       });
+      const [lon, lat] = rto.properties.labelPoint;
+      expect(lon).toBeGreaterThan(-100);
+      expect(lon).toBeLessThan(-95);
+      expect(lat).toBeGreaterThan(30);
+      expect(lat).toBeLessThan(35);
       // The near-duplicate vertex at -95.000001 is simplified away: a closed ring of 5 points.
       const ring = rto.geometry.type === 'MultiPolygon' ? rto.geometry.coordinates[0][0] : rto.geometry.coordinates[0];
       expect(['Polygon', 'MultiPolygon']).toContain(rto.geometry.type);

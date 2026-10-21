@@ -225,7 +225,24 @@ def queue_entry(facts: dict[str, Row]) -> Doc | None:
     return None
 
 
+def first_operational(conn: Conn, campus_id: str) -> Row | None:
+    """The first record of a building in service on the campus: the earliest dated count of
+    operational buildings above zero (`buildings_operational`, e.g. Epoch AI's imagery series, 0 -> 1)."""
+    rows = known_fact_rows(conn, "campus", campus_id, ["buildings_operational"])["buildings_operational"]
+    live = [
+        r
+        for r in rows
+        if r["valid_from"] <= day()
+        and isinstance(r["value"], int | float)
+        and not isinstance(r["value"], bool)
+        and r["value"] > 0
+    ]
+    return min(live, key=lambda r: (r["valid_from"], r["id"])) if live else None
+
+
 def key_dates(conn: Conn, campus_id: str, facts: dict[str, Row]) -> list[Doc]:
+    """Overview key dates (spec 14): first seen, construction start, first building complete, first
+    building operational, online (first or expected), each with the record that dates it."""
     out = []
     if (row := facts.get("first_seen")) and isinstance(row["value"], str):
         out.append({"label": "First seen", "date": with_value(row, row["value"][:10])})
@@ -239,6 +256,8 @@ def key_dates(conn: Conn, campus_id: str, facts: dict[str, Row]) -> list[Doc]:
         if dated:
             first = min(dated, key=lambda r: r["value"])
             out.append({"label": label, "date": with_value(first, first["value"][:10])})
+    if (row := first_operational(conn, campus_id)) is not None:
+        out.append({"label": "First building operational", "date": with_value(row, row["valid_from"].isoformat())})
     if (row := facts.get("online_year")) and isinstance(row["value"], int):
         basis = (facts.get("online_year_basis") or {}).get("value")
         label = "Online" if basis == "observed" else "Expected online"

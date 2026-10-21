@@ -16,6 +16,7 @@ interface BoundaryRow {
   as_of: string | null;
   source_url: string | null;
   updated: string;
+  label_point: { coordinates: [number, number] } | null;
   geometry: IsoBoundaries['features'][number]['geometry'];
 }
 
@@ -32,6 +33,7 @@ function feature(row: BoundaryRow): IsoBoundaries['features'][number] {
     id: row.id,
     label,
     name: row.name,
+    labelPoint: row.label_point?.coordinates ?? null,
     source: {
       value: row.name,
       tag: 'F',
@@ -54,6 +56,9 @@ export async function isoBoundaries(db: Db): Promise<IsoBoundaries> {
   const res = await db.query<BoundaryRow>(
     `SELECT id, name, meta ->> 'label' AS label, meta #>> '{hifld,as_of}' AS as_of,
             meta #>> '{hifld,source_url}' AS source_url, updated_at::text AS updated,
+            -- One label per ISO/RTO: a point inside its largest part (not one per island or exclave).
+            (SELECT ST_AsGeoJSON(ST_PointOnSurface(d.geom), $2)::jsonb FROM ST_Dump(geom) d
+              ORDER BY ST_Area(d.geom) DESC LIMIT 1) AS label_point,
             ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, $1), $2)::jsonb AS geometry
        FROM grid_region WHERE kind = 'iso_rto' AND country = 'US' AND geom IS NOT NULL
       ORDER BY id`,
