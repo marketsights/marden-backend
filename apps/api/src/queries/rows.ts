@@ -20,7 +20,7 @@ export function filteredRows(def: RowViewDef, scope: RowScope): FilteredRows {
   const params = new SqlParams();
   const viewPh = params.add(def.view);
   const asOfPh = params.add(scope.asOf);
-  const where = buildWhere(def, scope.q, params, { orgId: scope.orgId, day: asOfDay(scope.asOf) });
+  const where = buildWhere(def, scope.q, params, { orgId: scope.orgId, day: asOfDay(scope.asOf), asOf: scope.asOf });
   const cte = `WITH latest AS (${latestRowsSql(viewPh, asOfPh)}),
     filtered AS (SELECT r.key, r.as_of, r.doc FROM latest r WHERE ${where})`;
   return { params, cte };

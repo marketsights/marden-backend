@@ -9,7 +9,7 @@ import { ensureDevIdentity } from './auth/access.js';
 import { createClerkAdmin, type ClerkAdmin } from './auth/clerk-admin.js';
 import { createClerkVerifier } from './auth/clerk.js';
 import { registerAuth, trackRoutes } from './auth/plugin.js';
-import type { AppConfig } from './config.js';
+import { assertDevAuthAllowed, type AppConfig } from './config.js';
 import { createDb, type Db } from './db.js';
 import { HttpError } from './errors.js';
 import { asOfOf } from './lib/params.js';
@@ -97,6 +97,11 @@ async function registerHttpPlugins(app: FastifyInstance, config: AppConfig): Pro
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const { config } = deps;
   const devMode = config.authMode === 'dev';
+  if (devMode) {
+    // Re-checked here (not only in loadConfig): the process environment wins over the config object.
+    assertDevAuthAllowed(config.nodeEnv);
+    if (process.env.NODE_ENV !== undefined) assertDevAuthAllowed(process.env.NODE_ENV);
+  }
   const db = deps.db ?? createDb(config.databaseUrl);
   const app = Fastify({
     logger: config.logLevel === false ? false : {

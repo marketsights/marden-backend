@@ -56,10 +56,28 @@ export function issuerFromPublishableKey(key: string | null): string | null {
   return `https://${decoded.slice(0, -1)}`;
 }
 
-function assertAuthConfig(nodeEnv: string, mode: AuthMode, clerk: ClerkConfig): void {
+/** NODE_ENV values where dev auth (one local owner + staff user, no token) may run. */
+const DEV_AUTH_NODE_ENVS = new Set(['development', 'test']);
+/** Set by Railway on every deployed service (staging and production). */
+const DEPLOY_MARKERS = ['RAILWAY_ENVIRONMENT', 'RAILWAY_ENVIRONMENT_NAME', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_PROJECT_ID'];
+
+/**
+ * Dev auth only on a developer machine or in tests: refused unless NODE_ENV is development or test,
+ * and refused on any deployed (Railway) environment whatever NODE_ENV says. Called by loadConfig and
+ * again by buildApp, so a hand-built config cannot skip it.
+ */
+export function assertDevAuthAllowed(nodeEnv: string, env: NodeJS.ProcessEnv = process.env): void {
+  if (!DEV_AUTH_NODE_ENVS.has(nodeEnv)) {
+    throw new Error(`MARDEN_AUTH_MODE=dev is refused when NODE_ENV=${nodeEnv || '(empty)'}; only development or test`);
+  }
+  const marker = DEPLOY_MARKERS.find((name) => blank(env[name]) !== null);
+  if (marker) throw new Error(`MARDEN_AUTH_MODE=dev is refused on a deployed environment (${marker} is set)`);
+}
+
+function assertAuthConfig(env: NodeJS.ProcessEnv, nodeEnv: string, mode: AuthMode, clerk: ClerkConfig): void {
   const production = nodeEnv === 'production';
   if (mode === 'dev') {
-    if (production) throw new Error('MARDEN_AUTH_MODE=dev is refused when NODE_ENV=production');
+    assertDevAuthAllowed(nodeEnv, env);
     return;
   }
   if (production && (!clerk.secretKey || !clerk.publishableKey)) {
@@ -84,7 +102,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     issuer: issuerFromPublishableKey(publishableKey),
     webhookSecret: blank(e.CLERK_WEBHOOK_SIGNING_SECRET),
   };
-  assertAuthConfig(e.NODE_ENV, e.MARDEN_AUTH_MODE, clerk);
+  assertAuthConfig(env, e.NODE_ENV, e.MARDEN_AUTH_MODE, clerk);
   return {
     nodeEnv: e.NODE_ENV,
     databaseUrl: e.DATABASE_URL,

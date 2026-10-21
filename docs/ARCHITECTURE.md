@@ -53,13 +53,58 @@ API ──SELECT doc FROM read_model──> app;  GET /api/stream LISTENs on mar
 - Status: `candidate` → `published` | `rejected`; superseding values are new rows, older rows stay.
 - Publishing rules (spec 22): structured filed data that passes validators publishes directly. Extracted facts publish only when the verifier agrees and the fact is not material; otherwise a `review_item` is opened. Material facts (change a chain status, cushion band or alert) always wait for a person.
 - Units: money in USD (not billions) unless the field name says otherwise; MW in MW; dates ISO; prices in percent of par.
+- Reads: the current value comes from `fact_current`, what Marden knew on a date from `fact_asof(date)`. Only the writers touch `fact` directly; builders read through `marden.readmodels.known_facts`, and the API's one fact lookup (air permit numbers for search and the data-center/plant search box) goes through the same two.
 
 ## Read models
 
-- `read_model(view, key, as_of, doc)`. Views are named after screens/endpoints: `completion` (key `all`), `sites` (`all`), `site_detail` (slug), `site_schedule` (slug), `site_tab:<tab>` (slug), `instruments` (`all`), `instrument_detail` (id), `dc_row` (campus id), `dc_detail` (campus id), `plant_row`, `plant_detail`, `payer` (slug), `risk_list` (week start), `home` (`all`), `track_record` (`all`), `obligations` (`all`), `leases` (`all`), `project_file` (slug), `search_index` (`all`) ...
-- The `doc` is exactly the response type in `handoff/api/types.ts`. The API adds only per-user data (watchlist, alerts) and filtering.
-- Builders mark nothing themselves; `marden.core.facts.publish()` marks dependents dirty via `marden.readmodels.deps`.
-- One row per view/key per day keeps snapshots for `?asOf=`.
+- `read_model(view, key, as_of, doc)`: one precomputed document per screen piece. The `doc` is exactly the response type in `handoff/api/types.ts`; the API adds only per-user data (watchlist, unread alerts) and filtering, and never recomputes a value.
+- Snapshots: one row per view/key per day (US Eastern). The API serves the latest snapshot, or with `?asOf=` the latest on or before that date. Today's snapshot is built from `fact_current`. `rebuild_all(view, as_of=<past day>)` backfills a past day from `fact_asof(day)` (builders read facts with `known_facts` and date other reads with `build_date()`), sends no live event and leaves today's dirty marks. A snapshot dated after today is refused.
+- Builders mark nothing themselves: the writers (`FactWriter`, `PriceWriter`, `EventWriter`, `HoldingWriter`) mark dependents dirty through `marden.readmodels.deps` when a value is published; the risk-list, backtest and GPU-index tasks call `mark_dirty` for their own views.
+- A keyed GET answers 404 when the id is not in its identity table, and 503 `{error: 'not_ready', view, key}` while the read model has not been built.
+- View names live in `marden.readmodels.views.VIEWS`. Builders, dependencies and dirty marks are checked against it; `services/tests/test_readmodels.py` checks it against the table below, and `apps/api/test/views.test.ts` checks every API read-model route against the same table.
+
+### View and key table
+
+Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `week` (the Monday a risk list was published, YYYY-MM-DD); `gpu_model` (the `:model` path segment).
+
+| View | Key | Served by | Marked dirty by |
+| --- | --- | --- | --- |
+| `home` | `all` | GET /api/home (the API adds the org's unread alerts) | site, instrument |
+| `completion` | `all` | GET /api/completion (endUser, tenant, holder, state, driver, cushion, watchlist); export `completion` | site, instrument |
+| `sites` | `all` | GET /api/sites (status, endUser, state); export `sites` | site, instrument |
+| `site_detail` | `site.slug` | GET /api/sites/:slug; watchlist items | site; its instruments, approved campuses and buildings, chain-party entities |
+| `site_schedule` | `site.slug` | GET /api/sites/:slug/schedule | site |
+| `site_tab:<tab>` for `evidence`, `power`, `opposition`, `events`, `debt`, `lease`, `buildings` | `site.slug` | GET /api/sites/:slug/&lt;tab&gt; | site; `debt` also its instruments, `buildings` its campuses and buildings, `power` its campuses and their plants |
+| `project_file` | `site.slug` | GET /api/sites/:slug/project-file | site, its instruments |
+| `instruments` | `all` | GET /api/instruments (type); export `instruments` | instrument, linked holding |
+| `curve` | `all` | GET /api/curve | instrument |
+| `instrument_detail` | `instrument.id` | GET /api/instruments/:id, …/price-history?range=, …/holders (cut from the same doc); export `holders`; watchlist items | instrument (with its prices and events), linked holding |
+| `gpu_collateral` | `instrument.id` | GET /api/instruments/:id/collateral | instrument |
+| `payers` | `all` | GET /api/payers; export `payers` | site, instrument, entity, obligation, contract |
+| `payer` | `entity.id` | GET /api/payers/:slug | entity; sites and instruments it is a chain party of; obligations it owes |
+| `payer_capacity` | `entity.id` | GET /api/payers/:slug/capacity | as `payer` |
+| `risk_list` | `week` | GET /api/risk-list?week= (default: the highest key); export `risk-list` | the risk-ranking task (Sunday night) |
+| `track_record` | `all` | GET /api/track-record | the backtest task |
+| `dc_row` | `campus.id` | GET /api/data-centers (filters and sort in SQL, 50 a page, `?format=geojson`), GET /api/data-centers/summary (computed from the filtered rows); export `data-centers` | campus, its buildings, plants serving it, its approved site and that site's instruments |
+| `dc_detail` | `campus.id` | GET /api/data-centers/:id | as `dc_row` |
+| `dc_tab:<tab>` for `buildings`, `records`, `history`, `capacity` | `campus.id` | GET /api/data-centers/:id/&lt;tab&gt; | campus; `buildings` and `capacity` also its buildings |
+| `plant_row` | `power_plant.id` | GET /api/power-plants (as data centers), GET /api/power-plants/summary; export `power-plants` | plant, its units, the campuses it serves |
+| `plant_detail` | `power_plant.id` | GET /api/power-plants/:id; GET /api/power-plants/summary (MW by OEM, permit dates) | as `plant_row` |
+| `plant_debt` | `power_plant.id` | GET /api/power-plants/:id/debt | plant, its units |
+| `obligations` | `all` | GET /api/obligations (type, status, minB, company, format graph or table); export `obligations` | obligation, contract, entity, instrument |
+| `obligation_company` | `entity.id` | GET /api/obligations/:company | entity; obligations at either end and their instruments |
+| `gpus` | `all` | GET /api/gpus | the GPU-index task |
+| `gpu_deployment` | `all` | GET /api/gpus/deployment | campus |
+| `gpu_model` | `gpu_model` | GET /api/gpus/:model | the GPU-index task |
+| `leases` | `all` | GET /api/leases, GET /api/leases/:id (404 when the id is not in the doc); export `leases` | obligation, contract, site, campus |
+
+Read without a read model:
+
+- POST /api/stress/run calls the SQL function `stress_run(jsonb)` provided by the stress model; until it exists the API answers 503 with view `model:stress` and key = the scenario.
+- GET /api/search reads identity tables (site, instrument, campus, building, power_plant, entity) and `air_permit_number` facts through `fact_current` / `fact_asof`.
+- GET /api/sources/health reads `source` and the latest `source_run`; GET /api/stream reads `stream_event`.
+- The data-center `opposition` filter reads published `event` rows of kind `opposition` that Marden knew by the as-of day.
+- App tables: watchlist, alerts, alert settings, home layout, saved stress runs, account, invites, members, `/api/me`, Clerk webhooks (ledger in `audit_log`).
 
 ## Queue and schedule
 
@@ -71,7 +116,7 @@ Write a `stream_event` row (payload = a `StreamEvent` from types.ts, optional `o
 
 ## Auth (spec 23)
 
-Clerk session tokens verified by the API; Marden roles owner/admin/member/viewer plus staff; every route declares a permission and the server refuses to start if a route has none. Until Clerk keys exist, `MARDEN_AUTH_MODE=dev` gives one local owner+staff user in org `dev`; it is refused when `NODE_ENV=production`.
+Clerk session tokens verified by the API; Marden roles owner/admin/member/viewer plus staff; every route declares a permission and the server refuses to start if a route has none. Until Clerk keys exist, `MARDEN_AUTH_MODE=dev` gives one local owner+staff user in org `dev`. Dev mode is refused unless `NODE_ENV` is `development` or `test`, and on any Railway environment (`RAILWAY_ENVIRONMENT*` set); `buildApp` re-checks this, so a hand-built config cannot bypass it.
 
 ## Environment
 
@@ -82,4 +127,4 @@ See `.env.example`. Local development: Postgres 16 + PostGIS on localhost (`post
 - Python: 3.12+, `ruff` + `pytest`, type hints, files ≤ 400 lines, snake_case modules. psycopg 3 (sync, pooled). httpx for HTTP.
 - TypeScript: strict, ESLint, vitest, files ≤ 300 lines, kebab-case files.
 - No throwaway names (`_v2`, `old`, `new`, `final`, `tmp`). No secrets or `.env` files in git. No data files over 512 KB in git.
-- Tests that need the database use the local Postgres and a throwaway schema or transaction rollback; tests never mock away the thing they claim to test.
+- Tests that need the database use the local Postgres and a throwaway database (Python), a throwaway schema (API) or transaction rollback; tests never mock away the thing they claim to test.

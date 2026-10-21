@@ -29,7 +29,7 @@ describe('user data', () => {
     await db.query(`DELETE FROM site WHERE slug = $1`, [SITE]);
     await db.query(`DELETE FROM source_run WHERE source_id LIKE 'ud_%'`);
     await db.query(`DELETE FROM source WHERE id LIKE 'ud_%'`);
-    await db.query(`DELETE FROM fact WHERE dedupe_key = 'ud-permit'`);
+    await db.query(`DELETE FROM fact WHERE dedupe_key LIKE 'ud-permit%'`);
     await app.close();
     await db.close();
   });
@@ -140,5 +140,22 @@ describe('user data', () => {
     expect(await kinds('12345ABC')).toEqual([expect.objectContaining({ kind: 'instrument', id: LOAN })]);
     expect(await kinds('PSDTX1692')).toEqual([expect.objectContaining({ kind: 'permit', id: SITE, label: 'PSDTX1692' })]);
     expect((await call('GET', '/api/search?q=x')).statusCode).toBe(400);
+  });
+
+  it('finds permit numbers through fact_current, and through fact_asof for ?asOf', async () => {
+    await db.query(`UPDATE fact SET learned_at = '2025-12-13T00:00:00Z' WHERE dedupe_key = 'ud-permit'`);
+    await db.query(
+      `INSERT INTO fact (subject_type, subject_id, field, value, tag, source_name, valid_from, status, producer, dedupe_key, learned_at)
+       VALUES ('site', $1, 'air_permit_number', '"PSDTX1692M1"', 'F', 'TCEQ', '2026-06-01', 'published', 'test', 'ud-permit-2', '2026-06-02T00:00:00Z'),
+              ('site', $1, 'air_permit_number', '"PSDTX1692X"', 'F', 'TCEQ', '2026-07-01', 'candidate', 'test', 'ud-permit-3', '2026-07-02T00:00:00Z')`,
+      [SITE],
+    );
+    const labels = async (qs: string) =>
+      ((await call('GET', `/api/search?q=PSDTX1692${qs}`)).json().results as { kind: string; label: string }[])
+        .filter((r) => r.kind === 'permit').map((r) => r.label);
+    expect(await labels('')).toEqual(['PSDTX1692M1']); // the current value; the candidate is not published
+    expect(await labels('&asOf=2026-01-15')).toEqual(['PSDTX1692']); // what Marden knew then
+    expect(await labels('&asOf=2026-06-01')).toEqual(['PSDTX1692']); // amendment not learned until Jun 2
+    expect(await labels('&asOf=2025-12-01')).toEqual([]);
   });
 });

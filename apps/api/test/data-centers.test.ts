@@ -83,6 +83,26 @@ describe('data centers and power plants', () => {
     expect((await app.inject({ method: 'GET', url: '/api/data-centers?sort=evil' })).statusCode).toBe(400);
   });
 
+  it('searches permit numbers and opposition as known on the as-of day', async () => {
+    await db.query(
+      `INSERT INTO fact (subject_type, subject_id, field, value, tag, source_name, valid_from, status, producer, dedupe_key, learned_at)
+       VALUES ('campus', 'dc-b', 'air_permit_number', '"O-4410"', 'F', 'TCEQ', '2026-09-01', 'published', 'test', 'dc-permit', '2026-10-20T12:00:00Z')`,
+    );
+    await db.query(
+      `INSERT INTO event (subject_type, subject_id, event_date, kind, title, tag, source_name, status, dedupe_key, learned_at)
+       VALUES ('campus', 'dc-c', '2026-09-15', 'opposition', 'Residents petition', 'F', 'County', 'published', 'dc-opp', '2026-10-20T12:00:00Z')`,
+    );
+    try {
+      expect(await ids('q=O-4410')).toEqual(['dc-b']);
+      expect(await ids('q=O-4410&asOf=2026-10-16')).toEqual([]); // learned Oct 20: not known on Oct 16
+      expect(await ids('opposition=true')).toEqual(['dc-c']);
+      expect(await ids('opposition=true&asOf=2026-10-16')).toEqual([]);
+    } finally {
+      await db.query(`DELETE FROM fact WHERE dedupe_key = 'dc-permit'`);
+      await db.query(`DELETE FROM event WHERE dedupe_key = 'dc-opp'`);
+    }
+  });
+
   it('returns GeoJSON for the map with the same filters', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/data-centers?format=geojson&state=TX' });
     expect(res.headers['content-type']).toContain('application/geo+json');

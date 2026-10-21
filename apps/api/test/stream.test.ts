@@ -1,43 +1,11 @@
 // GET /api/stream over a real socket: a stream_event inserted after connect is delivered (NOTIFY ->
 // row -> client), other orgs' events are not, and a reconnect with Last-Event-ID replays what was missed.
-import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db.js';
 import { makeApp, testDb } from './helpers.js';
-
-interface Sse { chunks: () => string; close: () => void; status: number; headers: http.IncomingHttpHeaders }
-
-function connect(port: number, lastEventId?: string): Promise<Sse> {
-  return new Promise((resolve, reject) => {
-    let buf = '';
-    const req = http.get(
-      { host: '127.0.0.1', port, path: '/api/stream', headers: lastEventId ? { 'last-event-id': lastEventId } : {} },
-      (res) => {
-        res.setEncoding('utf8');
-        res.on('data', (d: string) => (buf += d));
-        resolve({ chunks: () => buf, close: () => req.destroy(), status: res.statusCode ?? 0, headers: res.headers });
-      },
-    );
-    req.on('error', reject);
-  });
-}
-
-async function until(check: () => boolean, ms = 5000): Promise<void> {
-  const start = Date.now();
-  while (!check()) {
-    if (Date.now() - start > ms) throw new Error('timed out waiting for stream data');
-    await new Promise((r) => setTimeout(r, 25));
-  }
-}
-
-const events = (text: string): { id: string; data: unknown }[] =>
-  text.split('\n\n').flatMap((block) => {
-    const id = /^id: (\d+)$/m.exec(block)?.[1];
-    const data = /^data: (.*)$/m.exec(block)?.[1];
-    return id && data ? [{ id, data: JSON.parse(data) as unknown }] : [];
-  });
+import { connect, events, until } from './sse-client.js';
 
 describe('GET /api/stream', () => {
   let db: Db;

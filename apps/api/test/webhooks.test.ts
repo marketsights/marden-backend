@@ -60,6 +60,32 @@ describe('POST /api/webhooks/clerk', () => {
     expect((await db.query(`SELECT 1 FROM app_user WHERE id = $1`, [userId])).rowCount).toBe(0);
   });
 
+  it('rejects a tampered body, another secret and a stale or future timestamp', async () => {
+    const body = JSON.stringify({ type: 'user.created', data: { id: userId }, timestamp: Date.now() });
+    const post = (headers: Record<string, string>, payload = body) =>
+      app.inject({ method: 'POST', url: '/api/webhooks/clerk', headers: { 'content-type': 'application/json', ...headers }, payload });
+    const signed = (msgId: string, at: Date, signedBody: string, by = signer) => ({
+      'svix-id': msgId, 'svix-timestamp': String(Math.floor(at.getTime() / 1000)), 'svix-signature': by.sign(msgId, at, signedBody),
+    });
+    const now = new Date();
+    const tampered = body.replace(userId, `${userId}_other`);
+    expect((await post(signed('msg_t1', now, body), tampered)).statusCode).toBe(400);
+    const otherSecret = new Webhook(`whsec_${randomBytes(24).toString('base64')}`);
+    expect((await post(signed('msg_t2', now, body, otherSecret))).statusCode).toBe(400);
+    const stale = new Date(now.getTime() - 10 * 60_000);
+    expect((await post(signed('msg_t3', stale, body))).statusCode).toBe(400);
+    const future = new Date(now.getTime() + 10 * 60_000);
+    expect((await post(signed('msg_t4', future, body))).statusCode).toBe(400);
+    const replayedId = signed('msg_t5', now, body);
+    expect((await post({ ...replayedId, 'svix-id': 'msg_t6' })).statusCode).toBe(400); // id is signed too
+    expect((await db.query(`SELECT 1 FROM app_user WHERE id = $1`, [userId])).rowCount).toBe(0);
+    expect((await db.query(`SELECT 1 FROM audit_log WHERE target LIKE 'msg_t%'`)).rowCount).toBe(0);
+    // A charset parameter on the content type still reaches the signature check with the exact bytes.
+    const ignored = JSON.stringify({ type: 'email.created', data: { id: 'ema_1' }, timestamp: Date.now() });
+    const ok = await post({ ...signed('msg_c1', now, ignored), 'content-type': 'application/json; charset=utf-8' }, ignored);
+    expect(ok.statusCode).toBe(204);
+  });
+
   it('answers 503 when the signing secret is not configured', async () => {
     const bare = await makeApp({ mode: 'clerk', db, keys });
     const res = await bare.inject({ method: 'POST', url: '/api/webhooks/clerk', headers: { 'content-type': 'application/json' }, payload: '{}' });

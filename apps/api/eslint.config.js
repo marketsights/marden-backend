@@ -35,7 +35,7 @@ export default tseslint.config(
   {
     files: ['test/**/*.ts'],
     rules: {
-      'max-lines': ['error', { max: 600 }],
+      'max-lines': ['error', { max: 300 }], // repo rule: TypeScript files <= 300 lines, tests included
       'max-lines-per-function': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',

@@ -15,6 +15,10 @@ export class SqlParams {
 export interface FilterCtx {
   org(): string;   // placeholder for the caller's org id
   day(): string;   // placeholder for the as-of day (YYYY-MM-DD)
+  /** SQL source of facts as known on the as-of day: fact_current, or fact_asof(day) for ?asOf reads. */
+  facts(): string;
+  /** SQL condition: a row learned at `learnedAt` was known on the as-of day (TRUE without ?asOf). */
+  known(learnedAt: string): string;
 }
 
 export type FilterKind = 'list' | 'number' | 'date' | 'flag' | 'text';
@@ -76,12 +80,17 @@ function bindFilter(def: FilterDef, q: Query, params: SqlParams, ctx: FilterCtx)
   }
 }
 
-export function buildWhere(def: RowViewDef, q: Query, params: SqlParams, scope: { orgId: string; day: string }): string {
+export interface WhereScope { orgId: string; day: string; asOf: string | null }
+
+export function buildWhere(def: RowViewDef, q: Query, params: SqlParams, scope: WhereScope): string {
   let orgPh: string | null = null;
   let dayPh: string | null = null;
+  const day = (): string => (dayPh ??= params.add(scope.day));
   const ctx: FilterCtx = {
     org: () => (orgPh ??= params.add(scope.orgId)),
-    day: () => (dayPh ??= params.add(scope.day)),
+    day,
+    facts: () => (scope.asOf === null ? 'fact_current' : `fact_asof(${day()}::date)`),
+    known: (learnedAt) => (scope.asOf === null ? 'TRUE' : `${learnedAt} < (${day()}::date + 1)`),
   };
   const conds = def.filters.map((f) => bindFilter(f, q, params, ctx)).filter((c): c is string => c !== null);
   return conds.length ? conds.map((c) => `(${c})`).join(' AND ') : 'TRUE';

@@ -1,6 +1,6 @@
 // Filters and sorts for the Data centers (spec 14) and On-site power (spec 15) tables.
 // Each row view holds one DataCenterRow / PowerPlantRow doc per campus / plant id.
-import { arrAt, inList, low, numAt, txt, type FilterDef, type RowViewDef } from './row-query.js';
+import { arrAt, inList, low, numAt, txt, type FilterCtx, type FilterDef, type RowViewDef } from './row-query.js';
 
 const PERMIT_FIELD = 'air_permit_number';
 
@@ -16,12 +16,13 @@ const anyText = (arrayExpr: string, ph: string): string =>
 const parcelMatch = (table: string, keyColumn: string, ph: string): string =>
   `EXISTS (SELECT 1 FROM ${table} t WHERE t.${keyColumn} = r.key AND EXISTS (SELECT 1 FROM unnest(t.parcel_ids) pid WHERE pid ILIKE ${ph}))`;
 
-const permitMatch = (subjects: string, ph: string): string =>
-  `EXISTS (SELECT 1 FROM fact f WHERE f.field = '${PERMIT_FIELD}' AND f.status = 'published'
+/** Permit numbers as known on the as-of day (fact_current, or fact_asof for ?asOf reads). */
+const permitMatch = (subjects: string, ph: string, ctx: FilterCtx): string =>
+  `EXISTS (SELECT 1 FROM ${ctx.facts()} f WHERE f.field = '${PERMIT_FIELD}'
      AND (f.value #>> '{}') ILIKE ${ph} AND ${subjects})`;
 
 /** Search box: name, aliases, developer, parcel ID (campus or building), permit number. */
-const dcSearch: FilterDef['pred'] = (ph) =>
+const dcSearch: FilterDef['pred'] = (ph, ctx) =>
   [
     `r.doc ->> 'name' ILIKE ${ph}`,
     anyText(arrAt('aliases'), ph),
@@ -33,6 +34,7 @@ const dcSearch: FilterDef['pred'] = (ph) =>
         OR (f.subject_type = 'building' AND f.subject_id IN (SELECT b.id FROM building b WHERE b.campus_id = r.key))
         OR (f.subject_type = 'plant' AND f.subject_id IN (SELECT ps.plant_id FROM plant_serves ps WHERE ps.campus_id = r.key)))`,
       ph,
+      ctx,
     ),
   ].join(' OR ');
 
@@ -57,7 +59,8 @@ export const DC_ROWS: RowViewDef = {
       param: 'opposition',
       kind: 'flag',
       pred: (_p, ctx) => `EXISTS (SELECT 1 FROM event e WHERE e.subject_type = 'campus' AND e.subject_id = r.key
-        AND e.kind = 'opposition' AND e.status = 'published' AND e.event_date <= ${ctx.day()}::date)`,
+        AND e.kind = 'opposition' AND e.status = 'published' AND e.event_date <= ${ctx.day()}::date
+        AND ${ctx.known('e.learned_at')})`,
     },
     { param: 'financed', kind: 'flag', pred: financedPred },
     { param: 'watchlist', kind: 'flag', pred: watchlistPred },
@@ -82,12 +85,12 @@ const unitMatch = (field: 'oem' | 'model'): FilterDef['pred'] => (ph) =>
   `EXISTS (SELECT 1 FROM jsonb_array_elements(${arrAt('units,byModel')}) u WHERE lower(u ->> '${field}') = ANY(${ph}::text[]))`;
 
 /** Search box: plant name, permit number, OEM model. */
-const plantSearch: FilterDef['pred'] = (ph) =>
+const plantSearch: FilterDef['pred'] = (ph, ctx) =>
   [
     `r.doc ->> 'name' ILIKE ${ph}`,
     `${txt('airPermit,number')} ILIKE ${ph}`,
     `EXISTS (SELECT 1 FROM jsonb_array_elements(${arrAt('units,byModel')}) u WHERE u ->> 'model' ILIKE ${ph} OR u ->> 'oem' ILIKE ${ph})`,
-    permitMatch(`f.subject_type = 'plant' AND f.subject_id = r.key`, ph),
+    permitMatch(`f.subject_type = 'plant' AND f.subject_id = r.key`, ph, ctx),
   ].join(' OR ');
 
 export const PLANT_ROWS: RowViewDef = {

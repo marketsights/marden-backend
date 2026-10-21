@@ -1,5 +1,6 @@
 // Sidebar search (spec 00, 16): sites, instruments (name, CUSIP, ISIN), campuses, buildings (label,
-// parcel ID), plants, entities and permit numbers, ranked by trigram word similarity.
+// parcel ID), plants, entities and permit numbers, ranked by trigram word similarity. Permit numbers
+// are facts, read through fact_current (or fact_asof for ?asOf), never from `fact` directly.
 import type { SearchResult } from '../contracts/app.js';
 import type { Db } from '../db.js';
 
@@ -37,13 +38,13 @@ const BRANCHES = [
           CASE f.subject_type WHEN 'plant' THEN '/power/' WHEN 'campus' THEN '/data-centers/' WHEN 'site' THEN '/sites/' END
             || f.subject_id,
           CASE WHEN (f.value #>> '{}') ILIKE $2 THEN 1 ELSE ${sim(`f.value #>> '{}'`)} END::float8
-   FROM fact f
+   FROM (SELECT * FROM fact_current WHERE $3::date IS NULL AND field = 'air_permit_number'
+         UNION ALL
+         SELECT * FROM fact_asof($3::date) WHERE $3::date IS NOT NULL AND field = 'air_permit_number') f
    LEFT JOIN power_plant pp ON f.subject_type = 'plant' AND pp.id = f.subject_id
    LEFT JOIN campus c ON f.subject_type = 'campus' AND c.id = f.subject_id
    LEFT JOIN site s ON f.subject_type = 'site' AND s.slug = f.subject_id
-   WHERE f.field = 'air_permit_number' AND (f.value #>> '{}') ILIKE $2
-     AND (($3::date IS NULL AND f.status = 'published')
-          OR (f.status IN ('published', 'superseded') AND f.valid_from <= $3::date AND f.learned_at < ($3::date + 1)))
+   WHERE (f.value #>> '{}') ILIKE $2
    ORDER BY f.subject_type, f.subject_id, f.value #>> '{}', f.learned_at DESC`,
 ];
 
