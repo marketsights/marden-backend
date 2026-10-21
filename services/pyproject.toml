@@ -1,0 +1,27 @@
+[project]
+name = "marden"
+version = "0.1.0"
+description = "Marden collectors, fact store, models, read models and worker"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic==1.17.0",
+    "boto3==1.43.116",
+    "httpx==0.28.1",
+    "lxml==6.1.3",
+    "numpy==2.5.4",
+    "openpyxl==3.1.5",
+    "planetary-computer==1.0.0",
+    "procrastinate==3.10.0",
+    "psycopg[binary,pool]==3.3.6",
+    "pymupdf==2.0",
+    "pystac-client==0.9.1",
+    "python-dateutil==2.9.0.post0",
+    "rapidfuzz==3.14.6",
+    "scipy==1.18.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.17.1",
+]
