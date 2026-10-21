@@ -26,10 +26,12 @@ class Borrower:
     pattern: re.Pattern[str]
     tranches: tuple[str, ...] = ()  # instruments of this legal borrower a line may link to
     placeholder: str | None = None  # borrower-level BDC-* instrument (loans only, no prices)
+    sole: bool = False  # the one tranche is this borrower's only debt (an SPV's single facility)
 
 
-def _b(key: str, name: str, pattern: str, tranches: tuple[str, ...] = (), placeholder: str | None = None) -> Borrower:
-    return Borrower(key, name, re.compile(pattern, re.I), tranches, placeholder)
+def _b(key: str, name: str, pattern: str, tranches: tuple[str, ...] = (), placeholder: str | None = None,
+       *, sole: bool = False) -> Borrower:
+    return Borrower(key, name, re.compile(pattern, re.I), tranches, placeholder, sole)
 
 
 def _ccac(numeral: str) -> str:
@@ -54,9 +56,9 @@ CALPINE = "BDC-CEG-Calpine"
 BORROWERS: tuple[Borrower, ...] = (
     # CoreWeave SPVs first (DDTL V-V before DDTL V; CCAC numerals are matched whole)
     _b("coreweave_ddtl_v_v", "CoreWeave Financing DDTL V-V, LLC", r"core\s*weave\s+financing\s+ddtl\s+v\s*-\s*v\b",
-       ("EX-CRWV-097",), CRWV),
+       ("EX-CRWV-097",), CRWV, sole=True),
     _b("coreweave_ddtl_v", "CoreWeave Financing DDTL V, LLC", r"core\s*weave\s+financing\s+ddtl\s+v\b",
-       ("EX-CRWV-096",), CRWV),
+       ("EX-CRWV-096",), CRWV, sole=True),
     _b("coreweave_ccac_viii", "CoreWeave Compute Acquisition Co. VIII, LLC", _ccac("viii"), ("EX-CRWV-095",), CRWV),
     _b("coreweave_ccac_vii", "CoreWeave Compute Acquisition Co. VII, LLC", _ccac("vii"), ("EX-CRWV-094",), CRWV),
     _b("coreweave_ccac_v", "CoreWeave Compute Acquisition Co. V, LLC", _ccac("v"), ("EX-CRWV-094",), CRWV),
@@ -66,12 +68,12 @@ BORROWERS: tuple[Borrower, ...] = (
     _b("coreweave", "CoreWeave, Inc.", r"core\s*weave", CRWV_DEBT, CRWV),
     _b("crusoe", "Crusoe Energy Systems LLC", r"crusoe\s+energy\s+systems", _ids("EX-CRUSOE", *range(74, 84)),
        "BDC-CRUSOE-CrusoeEnergy"),
-    _b("galaxy_helios", "Galaxy Helios I, LLC", r"galaxy\s+helios", ("EX-GLXY-162",)),
+    _b("galaxy_helios", "Galaxy Helios I, LLC", r"galaxy\s+helios", ("EX-GLXY-162",), sole=True),
     _b("retained_vantage", "Retained Vantage Data Centers Intermediate Holdco, L.P.", r"retained\s+vantage",
        ("EX-VANTAGE-361",), VANTAGE),
     _b("vantage_dc_europe", "Vantage Data Centers Europe S.a r.l.", r"vantage\s+data\s+cent(?:er|re)s?\s+europe"),
     _b("vantage_dc", "Vantage Data Centers, LLC", r"vantage\s+data\s+cent(?:er|re)s", ("EX-VANTAGE-362",), VANTAGE),
-    _b("qts_project_ram", "QTS Project Ram", r"project\s+ram\b", ("EX-QTS-302",)),
+    _b("qts_project_ram", "QTS Project Ram", r"project\s+ram\b", ("EX-QTS-302",), sole=True),
     _b("vci_1", "VCI Asset Holdings 1 LLC", r"vci\s+asset\s+holdings,?\s+(?:1|one)\b", ("EX-XAI_VCI-388",), VCI),
     _b("vci_2", "VCI Asset Holdings 2 LLC", r"vci\s+asset\s+holdings,?\s+(?:2|two)\b", ("EX-XAI_VCI-389",), VCI),
     _b("vci_3", "VCI Asset Holdings 3 LLC", r"vci\s+asset\s+holdings,?\s+(?:3|three)\b", ("EX-XAI_VCI-390",), VCI),
@@ -92,12 +94,13 @@ BORROWERS: tuple[Borrower, ...] = (
     _b("applied_digital", "Applied Digital Corporation", r"applied\s+digital\s+corp", (), "BDC-APLD-AppliedDigital"),
     _b("together", "Together Computer, Inc.", r"together\s+computer", _ids("EX-TOGETHER", 341, 342),
        "BDC-TOGETHER-TogetherComputer"),
-    _b("switch_bbf", "Switch BBF, LLC", r"switch\s+bbf", ("EX-SWITCH-340",)),
+    _b("switch_bbf", "Switch BBF, LLC", r"switch\s+bbf", ("EX-SWITCH-340",), sole=True),
     _b("cyrusone_warehouse", "CyrusOne Revolving Warehouse", r"cyrusone\s+revolving\s+warehouse",
-       ("EX-CYRUSONE-125",), CYRUSONE),
+       ("EX-CYRUSONE-125",), CYRUSONE, sole=True),
     _b("cyrusone", "CyrusOne Holdco LLC", r"cyrusone", ("EX-CYRUSONE-124",), CYRUSONE),
     _b("flexential_issuer", "Flexential Issuer, LLC", r"flexential\s+issuer", _ids("EX-FLEXENTIAL", *range(148, 154))),
-    _b("flexential", "Flexential Topco Corporation", r"flexential", ("EX-FLEXENTIAL-154",), "BDC-FLEXENTIAL-Flexential"),
+    _b("flexential", "Flexential Topco Corporation", r"flexential", ("EX-FLEXENTIAL-154",),
+       "BDC-FLEXENTIAL-Flexential"),
     _b("dartpoints", "DartPoints", r"dart\s*points", (), "BDC-DARTPOINTS-DartPoints"),
     _b("dc_blox", "DC BLOX", r"\bdc\s*blox\b", (), "BDC-DCBLOX-DCBlox"),
     _b("us_signal", "US Signal Company, LLC", r"\bu\.?s\.?\s+signal\b", (), "BDC-USSIGNAL-USSignal"),
@@ -143,6 +146,9 @@ EXCLUDED: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
         ("Valor (Buyco, CI Blocker, PayTech)", r"valor\s+(?:buyco|ci\s+blocker|paytech)"),
     )
 )
+# One search per SOI row before the per-borrower patterns (a big monthly file has ~190k rows).
+PREFILTER = re.compile("|".join([*(f"(?:{b.pattern.pattern})" for b in BORROWERS),
+                                 *(f"(?:{p.pattern})" for _, p in EXCLUDED)]), re.I)
 # Lines an unconsolidated JV or senior loan program holds (the BDC discloses the JV's schedule).
 _JV = re.compile(r"[|,]\s*[^|,]*\b(?:JV|Joint Venture|Senior Loan Program|SLF)\b")
 
@@ -184,7 +190,7 @@ def spread_bp_from_text(text: str) -> Decimal | None:
 
 
 def maturity_from_text(text: str) -> date | None:
-    m = _MATURITY_TEXT.search(text) or None
+    m = _MATURITY_TEXT.search(text)
     found = m.group(1) if m else None
     if found is None:
         dates = _DATE.findall(text)
@@ -198,9 +204,18 @@ def maturity_from_text(text: str) -> date | None:
         return None
 
 
+_EQUITY = re.compile(
+    r"\b(?:lp|llc|membership|partnership)\s+interests?\b|\bclass\s+[a-z0-9]+\s+(?:common\s+)?(?:units|interests?)\b"
+    r"|\bpreferred\s+(?:equity|stock|shares|units)\b|\bseries\s+[a-z0-9-]+\s+preferred\b"
+    r"|\bcommon\s+(?:stock|equity|units|shares)\b|\bwarrants?\b|\bequity\s+(?:investments?|securities)\b"
+    r"|[|,]\s*equity\b|\btype of investment equity\b", re.I)
+
+
 def line_class(text: str) -> str:
-    """'revolver', 'security' (bonds, notes, ABS) or 'loan' from a schedule line's text."""
+    """'equity', 'revolver', 'security' (bonds, notes, ABS) or 'loan' from a schedule line's text."""
     t = text.lower()
+    if _EQUITY.search(t):
+        return "equity"
     if "revolv" in t:
         return "revolver"
     if re.search(r"\bbonds?\b|\bnotes?\b|asset[- ]backed|\bstructured\b|\bclass [a-z0-9-]+\b", t):

@@ -45,11 +45,14 @@ instrument, period and cohort (and per CUSIP for multi-CUSIP instruments); M unf
 from __future__ import annotations
 
 import argparse
+import time
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
+
+from psycopg import errors as pg_errors
 
 from marden import cli
 from marden.core import db, heartbeat
@@ -62,7 +65,7 @@ from marden.seed import instruments_prices as IP
 from marden.seed.common import SEED_SOURCE_ID, as_of, producer, source_name_for_url, tag_for_url
 from marden.seed.holdings_archive import HTML, HoldingsArchive, read_holdings_archive
 from marden.seed.holdings_entities import ensure_funds
-from marden.seed.holdings_lines import HoldingLine
+from marden.seed.holdings_lines import HoldingLine, NavRecord
 from marden.seed.holdings_link import (
     Catalog,
     LinkReport,
@@ -80,7 +83,8 @@ from marden.seed.instruments_ids import build_identifiers
 
 LOADER = "holdings"
 PRODUCER = producer(LOADER)
-CHUNK = 2000
+CHUNK = 500
+ATTEMPTS = 4  # per chunk: collectors writing read_model_dirty at the same time can deadlock a chunk
 
 
 @dataclass
@@ -103,7 +107,9 @@ def _cited_marks(arc: HoldingsArchive, cat: Catalog) -> tuple[dict[Any, set[str]
     citations = fund_citations(base)
     nport = IP.nport_marks(citations, base.records, idents, base.rows, loanish)
     bdc, _ = IP.bdc_marks(citations, base.fundpos, base.bdc_names, base.rows)
-    return nport_anchors(nport), bdc_anchors(bdc)
+    known = set(cat.insts)
+    return (nport_anchors(m for m in nport if m.instrument_id in known),
+            bdc_anchors(m for m in bdc if m.instrument_id in known))
 
 
 def _dedupe_by_entity(lines: list[HoldingLine], report: LoadReport) -> list[HoldingLine]:
@@ -162,9 +168,10 @@ def _number(value: Decimal) -> int | float:
     return int(value) if value == value.to_integral_value() else float(value)
 
 
-def _write_navs(conn: Conn, arc: HoldingsArchive, fund_ids: dict[str, str], report: LoadReport) -> None:
+def _write_navs(conn: Conn, navs: list[NavRecord], doc_id: int, fund_ids: dict[str, str],
+                report: LoadReport) -> None:
     facts = FactWriter(conn)
-    for nav in arc.navs:
+    for nav in navs:
         eid = fund_ids.get(nav.fund_key)
         if eid is None:
             continue
@@ -173,21 +180,37 @@ def _write_navs(conn: Conn, arc: HoldingsArchive, fund_ids: dict[str, str], repo
                 continue
             res = facts.add("entity", eid, fname, _number(value), tag=tag_for_url(nav.url),
                             source_name=source_name_for_url(nav.url), source_url=nav.url, valid_from=as_of(nav.as_of),
-                            producer=PRODUCER, status="published", unit="USD", document_id=arc.docs[HTML])
+                            producer=PRODUCER, status="published", unit="USD", document_id=doc_id)
             report.counts[f"fact.{'created' if res.created else 'existing'}"] += 1
             report.counts[f"field.entity.{fname}"] += 1
 
 
-def _chunks(items: list[Any], size: int = CHUNK) -> list[list[Any]]:
-    return [items[i:i + size] for i in range(0, len(items), size)]
+def _in_chunks(items: list[Any], write: Callable[[Conn, list[Any]], None], report: LoadReport) -> None:
+    """``write`` each chunk in its own transaction. A chunk that loses a deadlock (another writer marking the
+    same read models dirty) is rolled back and written again; every write is idempotent, and the report's
+    counts are restored to before the failed attempt."""
+    for start in range(0, len(items), CHUNK):
+        chunk = items[start:start + CHUNK]
+        for attempt in range(1, ATTEMPTS + 1):
+            counts, skipped = Counter(report.counts), {k: list(v) for k, v in report.skipped.items()}
+            try:
+                with db.transaction() as conn:
+                    write(conn, chunk)
+                break
+            except (pg_errors.DeadlockDetected, pg_errors.SerializationFailure):
+                report.counts, report.skipped = counts, defaultdict(list, skipped)
+                if attempt == ATTEMPTS:
+                    raise
+                report.counts["chunk_retries"] += 1
+                time.sleep(attempt)
 
 
 def load(*, select: Callable[[HoldingLine], bool] | None = None) -> LoadReport:
     """Run the loader. ``select`` keeps only some parsed lines (tests load a slice of the real files).
 
-    Entities and links are made in one transaction; holdings, prices and facts follow in chunks, each its own
-    transaction (every write marks read models dirty). Every write is idempotent, so a run that stops part way
-    is completed by running again.
+    Entities and links are made in one transaction; holdings, prices and facts follow in chunks of CHUNK, each
+    its own transaction (every write marks read models dirty), retried on a deadlock. Every write is idempotent,
+    so a run that stops part way is completed by running again.
     """
     upsert_spec(get_spec(SEED_SOURCE_ID))
     report = LoadReport()
@@ -203,25 +226,22 @@ def load(*, select: Callable[[HoldingLine], bool] | None = None) -> LoadReport:
             link_bdc(lines, cat, bdc_a, report.link)
             link_naic(lines, cat, report.link)
             keys = {ln.fund_key for ln in lines} | ({n.fund_key for n in arc.navs} if select is None else set())
-            fund_ids, entity_counts = ensure_funds(conn, {k: arc.funds[k] for k in keys})
+            fund_ids, entity_counts, conflicts = ensure_funds(conn, {k: arc.funds[k] for k in keys})
             report.counts.update({f"entity.{k}": v for k, v in entity_counts.items()})
+            if conflicts:
+                report.skipped["holder CIK already on another entity (left untouched)"].extend(conflicts)
         for ln in lines:
             ln.fund_id = fund_ids[ln.fund_key]
         lines = _dedupe_by_entity(lines, report)
         with db.transaction() as conn:
             existing = _existing_holdings(conn)
-        for chunk in _chunks(lines):
-            with db.transaction() as conn:
-                _write_holdings(conn, chunk, arc.docs, existing, report)
+        _in_chunks(lines, lambda conn, chunk: _write_holdings(conn, chunk, arc.docs, existing, report), report)
         adjusted, notes = adjusted_prices(lines)
         for note in notes:
             report.skip("unfunded-adjusted DDTL mark not written", note)
         rows = holder_prices(lines) + median_prices(lines) + adjusted
-        for chunk in _chunks(rows):
-            with db.transaction() as conn:
-                _write_prices(conn, chunk, arc.docs, report)
-        with db.transaction() as conn:
-            _write_navs(conn, arc, fund_ids, report)
+        _in_chunks(rows, lambda conn, chunk: _write_prices(conn, chunk, arc.docs, report), report)
+        _in_chunks(arc.navs, lambda conn, chunk: _write_navs(conn, chunk, arc.docs[HTML], fund_ids, report), report)
         report.linked_instruments.update(ln.instrument_id for ln in lines if ln.instrument_id)
         report.counts["documents"] = len(arc.docs)
         report.counts["instruments_linked"] = len(report.linked_instruments)

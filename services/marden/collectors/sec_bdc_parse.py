@@ -28,18 +28,22 @@ from marden.collectors import sec_bdc_borrowers as bb
 
 PAGE_URL = "https://www.sec.gov/data-research/sec-markets-data/bdc-data-sets"
 FILES_BASE = "https://www.sec.gov/files/datastandardsinnovation/data/business-development-company-bdc-data-sets"
-_ZIP_LINK = re.compile(r'href="[^"]*/business-development-company-bdc-data-sets/((\d{4})(?:_(\d{2})|q([1-4]))_bdc\.zip)"')
+_ZIP_LINK = re.compile(
+    r'href="[^"]*/business-development-company-bdc-data-sets/((\d{4})(?:_(\d{2})|q([1-4]))_bdc\.zip)"')
 METADATA = ("adsh", "cik", "name", "ddate", "qtrs", "form", "filed", "period", "inlineurl", "cstm")
 IDENTIFIER = "Investment, Identifier Axis"
 ISSUER_AXIS = "Investment, Issuer Name Axis"
 TYPE_AXIS = "Investment Type Axis"
 NONCONSOLIDATED_AXIS = "Investment Company, Nonconsolidated Subsidiary Axis"
 
-# concept -> (us-gaap tag, labels the SOI presets use)
+# The preset axis columns (readme figure 10) that identify a line within a filing.
+KEY_AXES = ("Industry Sector Axis", IDENTIFIER, "Investment, Issuer Affiliation Axis", TYPE_AXIS, ISSUER_AXIS)
+# concept -> (us-gaap tag, labels seen in SOI headers). The SOI is regenerated with the latest
+# taxonomy labels while each zip's tag.tsv keeps its filings' taxonomy years, so both are listed.
 CONCEPTS: dict[str, tuple[str, tuple[str, ...]]] = {
     "par": ("InvestmentOwnedBalancePrincipalAmount", ("Investment Owned, Balance, Principal Amount",)),
-    "cost": ("InvestmentOwnedAtCost", ("Investment Owned, Cost",)),
-    "fv": ("InvestmentOwnedAtFairValue", ("Investment Owned, Fair Value",)),
+    "cost": ("InvestmentOwnedAtCost", ("Investment Owned, Cost", "Adjusted cost basis")),
+    "fv": ("InvestmentOwnedAtFairValue", ("Investment Owned, Fair Value", "Initial fair value of Investment")),
     "pct_nav": ("InvestmentOwnedPercentOfNetAssets", ("Investment Owned, Net Assets, Percentage",)),
     "rate": ("InvestmentInterestRate", ("Investment Interest Rate",)),
     "spread": ("InvestmentBasisSpreadVariableRate", ("Investment, Basis Spread, Variable Rate",)),
@@ -57,6 +61,7 @@ class ParseError(ValueError):
 @dataclass(frozen=True, order=True)
 class DataSetFile:
     start: date  # first month the file covers (monthly files: that month; 2025 and earlier: quarters)
+    end: date  # last month the file covers (first day of that month)
     name: str
     url: str
 
@@ -67,7 +72,8 @@ def parse_index_page(html: str) -> list[DataSetFile]:
     for m in _ZIP_LINK.finditer(html):
         name, year, month, quarter = m.group(1), int(m.group(2)), m.group(3), m.group(4)
         start = date(year, int(month), 1) if month else date(year, 3 * int(quarter) - 2, 1)
-        files[name] = DataSetFile(start, name, f"{FILES_BASE}/{name}")
+        end = start if month else start.replace(month=start.month + 2)
+        files[name] = DataSetFile(start, end, name, f"{FILES_BASE}/{name}")
     if not files:
         raise ParseError("BDC data sets page: no zip links found")
     return sorted(files.values())
@@ -112,21 +118,16 @@ class ParsedSoi:
     bad_values: Counter = field(default_factory=Counter)  # concept -> unparseable cells
 
 
-def _labels(tag_tsv: bytes) -> tuple[dict[str, set[str]], set[str]]:
-    """concept -> its labels; plus every value (non-abstract standard tag) label."""
+def _labels(tag_tsv: bytes) -> dict[str, set[str]]:
+    """concept -> the column labels its tag may carry in this zip."""
     wanted = {tag: concept for concept, (tag, _) in CONCEPTS.items()}
     by_concept: dict[str, set[str]] = {c: set(presets) for c, (_, presets) in CONCEPTS.items()}
-    values: set[str] = {lbl for _, presets in CONCEPTS.values() for lbl in presets}
     reader = csv.DictReader(io.StringIO(tag_tsv.decode("utf-8", errors="replace")), delimiter="\t")
     for row in reader:
-        if row.get("custom") != "0" or not row.get("tlabel"):
-            continue
-        if row.get("abstract") == "0":
-            values.add(row["tlabel"])
         concept = wanted.get(row.get("tag") or "")
-        if concept:
+        if concept and row.get("custom") == "0" and row.get("tlabel"):
             by_concept[concept].add(row["tlabel"])
-    return by_concept, values
+    return by_concept
 
 
 def _iso(text: str) -> date | None:
@@ -156,7 +157,7 @@ def parse_zip(data: bytes) -> ParsedSoi:
         raise ParseError(f"BDC data set: not a zip ({exc})") from None
     if "soi.tsv" not in names or "datasets/tag.tsv" not in names:
         raise ParseError(f"BDC data set: soi.tsv or datasets/tag.tsv missing ({sorted(names)[:5]})")
-    by_concept, value_labels = _labels(zf.read("datasets/tag.tsv"))
+    by_concept = _labels(zf.read("datasets/tag.tsv"))
     out = ParsedSoi()
     with zf.open("soi.tsv") as raw:
         rows = _rows(io.TextIOWrapper(raw, encoding="utf-8", errors="replace", newline=""))
@@ -165,15 +166,15 @@ def parse_zip(data: bytes) -> ParsedSoi:
             return out
         if tuple(header[: len(METADATA)]) != METADATA or IDENTIFIER not in header:
             raise ParseError(f"soi.tsv: unexpected header {header[:12]!r}")
-        _parse_rows(rows, header, by_concept, value_labels, out)
+        _parse_rows(rows, header, by_concept, out)
     return out
 
 
 def _parse_rows(rows: Iterator[list[str]], header: list[str], by_concept: dict[str, set[str]],
-                value_labels: set[str], out: ParsedSoi) -> None:
+                out: ParsedSoi) -> None:
     idx = {name: i for i, name in enumerate(header)}
     cols = {c: [i for i, name in enumerate(header) if name in labels] for c, labels in by_concept.items()}
-    axes = [i for i, name in enumerate(header) if i >= len(METADATA) and name not in value_labels]
+    axes = [idx[name] for name in KEY_AXES if name in idx]
     ident_i, issuer_i = idx[IDENTIFIER], idx.get(ISSUER_AXIS)
     enum_i = cols["issuer_enum"]
     nonconsolidated_i = idx.get(NONCONSOLIDATED_AXIS)
@@ -181,10 +182,13 @@ def _parse_rows(rows: Iterator[list[str]], header: list[str], by_concept: dict[s
     for row in rows:
         out.rows += 1
         if len(row) != len(header):
-            raise ParseError(f"soi.tsv row {out.rows}: {len(row)} fields, header has {len(header)}")
+            out.bad_values["row_length"] += 1
+            continue
+        haystack = " ".join([row[ident_i], row[issuer_i] if issuer_i is not None else "", *(row[i] for i in enum_i)])
+        if not bb.PREFILTER.search(haystack):
+            continue
         identifier = " ".join(row[ident_i].split())
         issuer = " ".join(row[issuer_i].split()) if issuer_i is not None else ""
-        haystack = " ".join([identifier, issuer, *(row[i] for i in enum_i)])
         label = bb.excluded_by(haystack)
         if label is not None:
             out.excluded[label] += 1
@@ -214,6 +218,8 @@ def _parse_rows(rows: Iterator[list[str]], header: list[str], by_concept: dict[s
 
 def _line(row: list[str], idx: dict[str, int], cols: dict[str, list[int]], axes: list[int], header: list[str],
           identifier: str, issuer: str, form: str, borrower: str, out: ParsedSoi) -> SoiLine | None:
+    """One SOI row as a line; its key is the period plus the preset axis members (stable across the SEC's
+    regenerations of the report, which add and relabel value columns)."""
     def first(concept: str) -> str | None:
         return next((row[i] for i in cols[concept] if row[i].strip()), None)
 

@@ -1,4 +1,6 @@
-"""PJM Reliability Pricing Model (RPM) auction results -> capacity series facts (tag F, source PJM). See capacity_common.
+"""PJM Reliability Pricing Model (RPM) auction results -> capacity series facts (tag F, source PJM).
+
+See capacity_common for the data model.
 
 Auctions: every Base Residual Auction (BRA) and Incremental Auction (1st/2nd/3rd IA) whose results workbook the
 RPM page (https://www.pjm.com/markets-and-operations/rpm) links, delivery year 2020/2021 onward (pjm_rpm_parse).
@@ -35,6 +37,7 @@ from marden.collectors.pjm_queue import HOST, TERMS_URL
 from marden.collectors.pjm_rpm_parse import PAGE_URL, Listed, find_auctions, parse_results, report_dates, zone_results
 from marden.collectors.rates_common import ParseError, RunStats, collect, print_stats
 from marden.core import db, http
+from marden.core.documents import DocumentRow
 from marden.core.http import Fetcher, FetchError, fetch_document
 from marden.core.queue import app
 from marden.core.sources import declare_source
@@ -77,21 +80,26 @@ def load_auction(listed: Listed, stats: RunStats, *, fetcher: Fetcher | None = N
         external_id=listed.period, meta={"period": listed.period, "auction": listed.auction}, fetcher=fetcher,
     )
     stats.document(report)
-    dates = report_dates(report.read(), _name(listed.report_url))
+    auction = build_auction(listed, workbook, report)
+    with db.transaction() as conn:
+        CapacityWriter(conn, stats, source_name=SOURCE_NAME, producer=PRODUCER).write(auction)
+    return auction
+
+
+def build_auction(listed: Listed, workbook: DocumentRow, report: DocumentRow) -> Auction:
+    """The auction's zone results from its stored workbook, dated by its stored report."""
+    dates = report_dates(report.read(), _name(report.url))
     start, end = delivery_year(listed.start_year)
     if not date(listed.start_year - 5, 1, 1) <= dates.published <= end:
         raise ParseError(f"{listed.name}: publication date {dates.published} is implausible ({dates.published_loc})")
-    results = parse_results(workbook.read(), listed, _name(listed.results_url))
-    auction = Auction(
+    results = parse_results(workbook.read(), listed, _name(workbook.url))
+    return Auction(
         iso="pjm", period=listed.period, name=listed.name, delivery_start=start, delivery_end=end,
-        published=dates.published, published_loc=dates.published_loc, source_url=listed.results_url,
+        published=dates.published, published_loc=dates.published_loc, source_url=workbook.url,
         document_id=workbook.id, auction_date=dates.opened,
         auction_date_loc=f"auction window opened: {dates.opened_loc}" if dates.opened_loc else None,
         zones=[ZoneResult(code, vals) for code, vals in sorted(zone_results(results).items())],
     )
-    with db.transaction() as conn:
-        CapacityWriter(conn, stats, source_name=SOURCE_NAME, producer=PRODUCER).write(auction)
-    return auction
 
 
 def run(*, years: list[int] | None = None, fetcher: Fetcher | None = None) -> dict[str, Any]:

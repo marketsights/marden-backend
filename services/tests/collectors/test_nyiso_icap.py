@@ -60,7 +60,7 @@ def test_parses_the_strip_auction_page():
     assert page.values["NYC"][0] == {"price": Decimal("19.28"), "awarded": Decimal("475.4")}
     assert page.values["G-J Locality"][0]["price"] == Decimal("5.35")
     found = ny.auctions(page, "strip", _seasons()["Summer 2026"], source_url="u", document_id=None)
-    [(auction, headline, title)] = found
+    [(auction, headline, _title)] = found
     assert (auction.period, auction.name, headline) == ("summer-2026-strip", "NYISO Summer 2026 Strip Auction", True)
     assert (auction.delivery_start, auction.delivery_end) == (date(2026, 5, 1), date(2026, 10, 31))
     nyc = next(z for z in auction.zones if z.zone == "NYC")

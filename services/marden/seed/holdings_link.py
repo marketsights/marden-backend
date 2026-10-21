@@ -45,9 +45,25 @@ _STOP = frozenset({
 RATE_TOLERANCE = 0.0051  # filers round the coupon (7.375 -> 7.38)
 
 
+_ROMAN = frozenset({"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"})
+
+
 def name_tokens(*texts: Any) -> frozenset[str]:
     words = normalize_name(" ".join(str(t or "") for t in texts)).split()
     return frozenset(w for w in words if len(w) >= 3 and w not in _STOP and not w.isdigit())
+
+
+def qualifiers(name: Any, title: Any = None) -> frozenset[str]:
+    """Entity numbers that tell sibling issuers apart ('Co. IV' vs 'Co. VIII', 'Holdings 2' vs 'Holdings 3'):
+    roman numerals in the name or title, single digits in the name only (titles carry coupons and dates)."""
+    name_words = normalize_name(str(name or "")).split()
+    title_words = normalize_name(str(title or "")).split()
+    return frozenset({w for w in (*name_words, *title_words) if w in _ROMAN}
+                     | {w for w in name_words if len(w) == 1 and w.isdigit() and w != "0"})
+
+
+def qualifiers_agree(inst_q: frozenset[str], line_q: frozenset[str]) -> bool:
+    return not inst_q or not line_q or bool(inst_q & line_q)
 
 
 def lien_of(seniority: Any, name: Any) -> str | None:
@@ -73,6 +89,13 @@ class Inst:
     spread: float | None
     lien: str | None
     tokens: frozenset[str]
+    quals: frozenset[str] = frozenset()
+
+    @property
+    def term_target(self) -> bool:
+        """Can be matched on issuer + coupon + maturity: a debt tranche with stated coupon terms (not a
+        guarantee, preferred or placeholder row of kind 'other')."""
+        return self.kind != "other" and self.coupon_type is not None
 
 
 @dataclass
@@ -105,6 +128,7 @@ def load_catalog(conn: Conn) -> Catalog:
             maturity=str(mat) if mat else None, coupon_type=f.get("coupon_type"),
             rate=_float(f.get("coupon_rate_pct")), spread=_float(f.get("coupon_spread_bp")),
             lien=lien_of(f.get("seniority"), r["name"]), tokens=name_tokens(r["issuer_name"]),
+            quals=qualifiers(r["issuer_name"]),
         )
         if not r["id"].startswith("BDC-"):
             for k in keys:
@@ -283,9 +307,9 @@ def link_nport(lines: list[HoldingLine], cat: Catalog, anchors: Anchor, report: 
         def terms(pending: list[HoldingLine] = pending) -> set[str]:
             out: set[str] = set()
             for ln in pending:
-                toks = name_tokens(ln.issuer_name, ln.title)
-                out |= {i.id for i in cat.candidates(toks) if names_agree(i, toks)
-                        and maturity_agrees(i.maturity, ln.maturity)
+                toks, quals = name_tokens(ln.issuer_name, ln.title), qualifiers(ln.issuer_name, ln.title)
+                out |= {i.id for i in cat.candidates(toks) if i.term_target and names_agree(i, toks)
+                        and qualifiers_agree(i.quals, quals) and maturity_agrees(i.maturity, ln.maturity)
                         and nport_coupon_agrees(i, ln.coupon_kind, ln.coupon_rate)}
             return out
 
@@ -302,15 +326,16 @@ def link_bdc(lines: list[HoldingLine], cat: Catalog, anchors: Anchor, report: Li
             groups[ln.facility_key].append(ln)
     for fkey, group in groups.items():
         toks = name_tokens(*sorted({f"{ln.bkey} {ln.issuer_name}" for ln in group}))
+        quals = frozenset().union(*(qualifiers(ln.issuer_name) for ln in group))
         head = group[0]
 
         def cited(group: list[HoldingLine] = group, toks: frozenset[str] = toks) -> set[str]:
             return {iid for ln in group for iid in anchors.get((ln.filing_url, ln.raw_mark), set())
                     if cat.insts[iid].tokens & toks and maturity_agrees(cat.insts[iid].maturity, ln.maturity)}
 
-        def terms(head: HoldingLine = head, toks: frozenset[str] = toks) -> set[str]:
-            return {i.id for i in cat.candidates(toks) if names_agree(i, toks)
-                    and maturity_agrees(i.maturity, head.maturity)
+        def terms(head: HoldingLine = head, toks: frozenset[str] = toks, quals: frozenset[str] = quals) -> set[str]:
+            return {i.id for i in cat.candidates(toks) if i.term_target and names_agree(i, toks)
+                    and qualifiers_agree(i.quals, quals) and maturity_agrees(i.maturity, head.maturity)
                     and (i.lien is None or head.lien is None or i.lien == head.lien)
                     and bdc_coupon_agrees(i, head.spread_bp)}
 

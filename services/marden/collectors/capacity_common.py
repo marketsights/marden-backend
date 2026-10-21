@@ -92,7 +92,8 @@ def kw_month_to_mw_day(price: Decimal) -> Decimal:
 
 
 def conversion_note(price: Decimal) -> str:
-    return f"converted by Marden: {price} USD/kW-month x 1000 / {DAYS_PER_MONTH} = {kw_month_to_mw_day(price)} USD/MW-day"
+    converted = kw_month_to_mw_day(price)
+    return f"converted by Marden: {price} USD/kW-month x 1000 / {DAYS_PER_MONTH} = {converted} USD/MW-day"
 
 
 @dataclass(frozen=True)
@@ -195,7 +196,8 @@ FROM zoned JOIN site s ON zoned.subject_type = 'site' AND s.slug = zoned.subject
 WHERE s.in_v1
 UNION
 SELECT s.slug, zoned.market, zoned.zone, zoned.subject_type, zoned.subject_id
-FROM zoned JOIN site_link l ON zoned.subject_type = 'campus' AND l.campus_id = zoned.subject_id AND l.status = 'approved'
+FROM zoned JOIN site_link l
+  ON zoned.subject_type = 'campus' AND l.campus_id = zoned.subject_id AND l.status = 'approved'
 JOIN site s ON s.slug = l.site_slug
 WHERE s.in_v1
 ORDER BY 1, 2, 3
@@ -235,7 +237,8 @@ def emit_auction_events(conn: Conn, isos: dict[str, str], stats: RunStats) -> in
         if latest is None:
             continue
         res = events.add(
-            "site", row["slug"], latest["valid_from"], EVENT_KIND, event_title(isos[row["market"]], row["zone"], latest),
+            "site", row["slug"], latest["valid_from"], EVENT_KIND,
+            event_title(isos[row["market"]], row["zone"], latest),
             tag="F", source_name=latest["source_name"], source_url=latest["source_url"],
             document_id=latest["document_id"], fact_id=latest["id"], status="published",
         )

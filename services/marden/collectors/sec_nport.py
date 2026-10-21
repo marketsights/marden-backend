@@ -28,21 +28,26 @@ from __future__ import annotations
 
 import argparse
 import io
-import json
 import logging
+import random
+import time
 import zipfile
-from collections import Counter
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
+
+import psycopg
 
 from marden import cli
 from marden.collectors import sec_nport_store as store
 from marden.collectors.rates_common import due_et, today_et
 from marden.collectors.sec_index_parse import daily_index_url, parse_form_index
 from marden.collectors.sec_nport_dataset import dataset_candidates
+from marden.collectors.sec_nport_fx import FxVotes, document_rates
 from marden.collectors.sec_nport_marks import write_medians
 from marden.collectors.sec_nport_parse import (
+    NportHeader,
     NportParseError,
     dataset_label,
     dataset_url,
@@ -54,6 +59,7 @@ from marden.collectors.sec_nport_parse import (
     primary_doc_url,
     quarter_end,
 )
+from marden.collectors.sec_nport_stats import RunStats
 from marden.core import db, documents, heartbeat, http, sources
 from marden.core.checks import ValidationError
 from marden.core.documents import DocumentRow
@@ -73,7 +79,7 @@ RUN_AT_ET = (7, 0)
 CRON_UTC = "0 11,12 * * *"  # 07:00 ET is 11:00 UTC (EDT) or 12:00 UTC (EST); due_et keeps the right one
 INDEX_DOC_TYPE = "edgar_daily_index"
 DATASET_DOC_TYPE = "nport_dataset_zip"
-MAX_LISTED = 100
+WRITE_ATTEMPTS = 4
 
 TERMS_NOTE = (
     'Checked 2026-10-21. SEC: "Information presented on sec.gov is considered public information and may be '
@@ -98,60 +104,33 @@ if http.bucket_for("www.sec.gov")[1].rate > SEC_RATE_PER_SECOND:  # never raise 
     http.set_rate_limit("sec.gov", SEC_RATE_PER_SECOND)
 
 
+def _in_transaction[T](work: Callable[[db.Conn], T]) -> T:
+    """Run `work` in one transaction, retried when Postgres breaks a deadlock with another writer
+    (dirty marks of concurrent loaders can take row locks in opposite orders)."""
+    for attempt in range(WRITE_ATTEMPTS):
+        try:
+            with db.transaction() as conn:
+                return work(conn)
+        except psycopg.errors.DeadlockDetected:
+            if attempt == WRITE_ATTEMPTS - 1:
+                raise
+            log.warning("sec_nport: deadlock with another writer, retrying (%d)", attempt + 1)
+            time.sleep(0.5 * (attempt + 1) + random.random())
+    raise AssertionError("unreachable")
+
+
 class CollectError(RuntimeError):
     """Some fetches or filings failed; the run is recorded as failed after everything else was collected."""
 
 
-@dataclass
-class RunStats:
-    today: date
-    since: date
-    until: date
-    datasets: list[str]
-    periods: list[str] | None = None
-    watched_keys: int = 0
-    watched_instruments: int = 0
-    ambiguous_keys: dict[str, list[str]] = field(default_factory=dict)
-    index_days_read: list[str] = field(default_factory=list)
-    index_days_done_before: list[str] = field(default_factory=list)
-    index_days_missing: list[str] = field(default_factory=list)
-    datasets_read: list[str] = field(default_factory=list)
-    datasets_done_before: list[str] = field(default_factory=list)
-    datasets_missing: list[str] = field(default_factory=list)
-    dataset: dict[str, Any] = field(default_factory=dict)
-    filings_listed: int = 0
-    filings_known: int = 0
-    filings_fetched: int = 0
-    filings_skipped_no_match: int = 0
-    bytes_skipped: int = 0
-    filings_reference_only: int = 0
-    dataset_candidates_unmatched: int = 0
-    filings_matched: int = 0
-    matched_by_period: Counter = field(default_factory=Counter)
-    documents_new: int = 0
-    holdings_new: int = 0
-    holdings_seen: int = 0
-    positions_marked: int = 0
-    positions_without_mark: int = 0
-    facts_new: int = 0
-    prices_new: int = 0
-    median_groups: int = 0
-    median_prices_new: int = 0
-    median_facts_new: int = 0
-    wide_dispersion: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-    ok: bool = True
-    error: str | None = None
+@dataclass(frozen=True)
+class _Pending:
+    """A matching filing, stored raw, waiting to be written once the listing's rates are tallied."""
 
-    def meta(self) -> dict[str, Any]:
-        out = {k: v for k, v in self.__dict__.items() if k not in ("today", "since", "until", "matched_by_period")}
-        out.update(today=self.today.isoformat(), since=self.since.isoformat(), until=self.until.isoformat(),
-                   matched_by_period=dict(sorted(self.matched_by_period.items())), errors=self.errors[:MAX_LISTED],
-                   wide_dispersion=self.wide_dispersion[:MAX_LISTED])
-        return out
-
-    def summary(self) -> str:
-        return json.dumps(self.meta(), indent=2, default=str)
+    doc: DocumentRow
+    header: NportHeader
+    found: list[store.Match]
+    filed: date
 
 
 class _Run:
@@ -161,16 +140,19 @@ class _Run:
         self.rescan = rescan
         self.periods = periods
         self.watched = store.Watched()
+        self.fx = FxVotes()
 
     def collect(self) -> None:
         st = self.stats
+        oldest = min([st.today - timedelta(days=MEDIAN_WINDOW_DAYS), *(self.periods or ())])
         with db.transaction() as conn:
             self.watched = store.watched_identifiers(conn)
+            self.fx.load_stored(conn, oldest)
         st.watched_keys = len(self.watched.keys)
         st.watched_instruments = len({i for ids in self.watched.keys.values() for i in ids})
         st.ambiguous_keys = self.watched.ambiguous()
         if not self.watched.keys:
-            st.errors.append("no watched identifiers (instrument cusip/isin or identifiers facts): nothing to match")
+            st.notes.append("no watched identifiers (instrument cusip/isin or identifiers facts): nothing fetched")
             return
         for label in st.datasets:
             self._dataset(label)
@@ -179,11 +161,10 @@ class _Run:
             if day.weekday() < 5:
                 self._index_day(day)
             day += timedelta(days=1)
-        oldest = min([st.today - timedelta(days=MEDIAN_WINDOW_DAYS), *(self.periods or ())])
-        with db.transaction() as conn:
-            res = write_medians(conn, self.watched, since=oldest, producer=PRODUCER)
+        res = _in_transaction(lambda conn: write_medians(conn, self.watched, since=oldest, producer=PRODUCER))
         st.median_groups, st.median_prices_new, st.median_facts_new = res.groups, res.prices_new, res.facts_new
         st.wide_dispersion = res.wide
+        st.fx = self.fx.summary()
 
     # ------------------------------------------------------------ discovery
     def _fetch_listing(self, url: str, missing: list[str], label: str, **kw: Any) -> DocumentRow | None:
@@ -212,9 +193,10 @@ class _Run:
         lines, _ = parse_form_index(doc.read().decode("utf-8", errors="replace"))
         filings = nport_lines(lines)
         st.filings_listed += len(filings)
-        complete = all([self._filing(f.cik, f.accession, f.form, f.filed, via="daily_index") for f in filings])
+        checked = [self._check(f.cik, f.accession, f.form, f.filed, via="daily_index") for f in filings]
+        self._write_all(checked)
         st.index_days_read.append(day.isoformat())
-        if complete:
+        if all(ok for ok, _ in checked):
             documents.set_extract_state(doc.id, "done")
 
     def _dataset(self, label: str) -> None:
@@ -229,26 +211,27 @@ class _Run:
             st.datasets_done_before.append(label)
             return
         with zipfile.ZipFile(io.BytesIO(doc.read())) as zf:
-            found, dstats = dataset_candidates(zf, set(self.watched.keys), self.periods)
+            found, dstats = dataset_candidates(zf, set(self.watched.keys), self.periods, self.fx)
         st.datasets_read.append(label)
         st.dataset[label] = {**dstats.__dict__, "candidates": len(found)}
-        complete = all([
-            self._filing(c.cik, c.accession, c.form, c.filing_date, via=f"dera:{label}", expected=True)
-            for c in found
-        ])
-        if complete and self.periods is None:
+        checked = [self._check(c.cik, c.accession, c.form, c.filing_date, via=f"dera:{label}", expected=True)
+                   for c in found]
+        self._write_all(checked)
+        if all(ok for ok, _ in checked) and self.periods is None:
             documents.set_extract_state(doc.id, "done")
 
     # ------------------------------------------------------------ one filing
-    def _filing(self, cik: str, accession: str, form: str, filed: date, *, via: str, expected: bool = False) -> bool:
-        """Check, store and write one filing. False when a fetch failed (the listing stays open)."""
+    def _check(self, cik: str, accession: str, form: str, filed: date, *, via: str,
+               expected: bool = False) -> tuple[bool, _Pending | None]:
+        """Fetch one filing, tally its rates and keep it (stored raw) if it holds a watched identifier.
+        (False, None) when the fetch failed, so the listing stays open for the next run."""
         st = self.stats
+        url = primary_doc_url(cik, accession)
         with db.transaction() as conn:
-            written = store.accession_written(conn, accession)
+            written = store.filing_written(conn, SOURCE_ID, url)
         if written and not self.rescan:
             st.filings_known += 1
-            return True
-        url = primary_doc_url(cik, accession)
+            return True, None
         doc = documents.latest_document(SOURCE_ID, url)
         resp = None
         if doc is not None:
@@ -258,46 +241,54 @@ class _Run:
                 resp = self.fetcher.get(url, use_cache=False)
             except FetchError as exc:
                 st.errors.append(f"{form} {accession} (CIK {cik}): {exc}")
-                return False
+                return False, None
             data = resp.content
             st.filings_fetched += 1
+        self.fx.add(accession, *document_rates(data))
         if not prescan(data) & self.watched.keys.keys():
             st.filings_skipped_no_match += 1
             st.bytes_skipped += len(data)
             st.dataset_candidates_unmatched += int(expected)
-            return True
+            return True, None
         try:
             parsed = parse_nport(data)
         except NportParseError as exc:  # the bytes will not change: recorded once, not retried
             st.errors.append(f"{form} {accession}: unparseable: {exc}")
-            return True
+            return True, None
         found = store.matches(parsed.positions, self.watched)
         if not found:  # a watched id only as a derivative's reference instrument
             st.filings_reference_only += 1
             st.dataset_candidates_unmatched += int(expected)
             st.bytes_skipped += len(data) if doc is None else 0
-            return True
+            return True, None
         if doc is None:
             assert resp is not None
             doc = self._store(resp, form, accession, filed, cik, parsed.header, via, found)
-        try:
-            with db.transaction() as conn:
-                w = store.write_filing(conn, doc, parsed.header, found, filing_date=filed, producer=PRODUCER)
-        except ValidationError as exc:  # refused by a code validator: recorded once, not retried
-            st.errors.append(f"{form} {accession}: refused: {exc}")
-            return True
-        st.filings_matched += 1
-        st.matched_by_period[parsed.header.period.isoformat()] += 1
-        st.holdings_new += w.holdings_new
-        st.holdings_seen += w.holdings_seen
-        st.positions_marked += w.marks
-        st.positions_without_mark += w.no_mark
-        st.facts_new += w.facts_new
-        st.prices_new += w.prices_new
-        return True
+        return True, _Pending(doc, parsed.header, found, filed)
+
+    def _write_all(self, checked: list[tuple[bool, _Pending | None]]) -> None:
+        st = self.stats
+        for _, item in checked:
+            if item is None:
+                continue
+            try:
+                w = _in_transaction(lambda conn, item=item: store.write_filing(
+                    conn, item.doc, item.header, item.found, filing_date=item.filed, producer=PRODUCER, fx=self.fx))
+            except ValidationError as exc:  # refused by a code validator: recorded once, not retried
+                st.errors.append(f"{item.doc.doc_type} {item.doc.external_id}: refused: {exc}")
+                continue
+            st.filings_matched += 1
+            st.matched_by_period[item.header.period.isoformat()] += 1
+            st.holdings_new += w.holdings_new
+            st.holdings_seen += w.holdings_seen
+            st.holdings_linked += w.holdings_linked
+            st.positions_marked += w.marks
+            st.positions_without_mark += w.no_mark
+            st.facts_new += w.facts_new
+            st.prices_new += w.prices_new
 
     def _store(self, resp: http.FetchResponse, form: str, accession: str, filed: date, cik: str,
-               header: Any, via: str, found: list[store.Match]) -> DocumentRow:
+               header: NportHeader, via: str, found: list[store.Match]) -> DocumentRow:
         http_meta: dict[str, Any] = {"status": resp.status}
         if resp.etag:
             http_meta["etag"] = resp.etag

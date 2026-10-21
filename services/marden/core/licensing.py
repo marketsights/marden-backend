@@ -8,7 +8,7 @@ the read models and the models can filter them out with one switch:
     MARDEN_SHOW_UNLICENSED_PRICES=false  every row whose source_name is unlicensed is left out
 
 Collectors and loaders for these sources write EXACTLY the names below in `price_obs.source_name`
-and `fact.source_name`; `tests/collectors/test_licensing.py` checks that they do.
+and `fact.source_name`; `tests/test_licensing.py` checks that they do.
 
 Statuses: 'public' (public record, commercial reuse allowed, attribution or notice may apply),
 'licensed' (Marden holds a licence), 'unlicensed-commercial' (the publisher's terms require a paid
@@ -77,9 +77,51 @@ SOURCE_LICENCE: dict[str, dict[str, str]] = {
             "SEC's permission.\" Declared User-Agent, under 10 requests/second."
         ),
     },
+    "SPP": {
+        "status": "unlicensed-commercial",
+        "note": (
+            "Southwest Power Pool OpsPortal and spp.org (interconnection queue, seed facts from spp.org). "
+            "https://www.spp.org/terms-conditions/, Copyright: \"Permission is implicitly granted to copy and "
+            "distribute ... (with appropriate citation) EXCEPT when such materials will be used, in whole or in "
+            "part, within a commercial publication ... Any commercial use of these materials requires prior, "
+            "express written authorization from the author(s) or a duly authorized officer of SPP.\" Marden has "
+            "no such authorization. Licensed route: written authorization from SPP (communication@spp.org)."
+        ),
+    },
+    "CAISO": {
+        "status": "public",
+        "note": (
+            "https://www.caiso.com/privacy-terms-of-use: materials \"freely available for public use consistent "
+            "with the general policies of the Public Records Act ... may be used by you provided that you keep "
+            "intact all copyright, trademark and other proprietary notices and that you credit the California "
+            "ISO\"."
+        ),
+    },
+    "ERCOT": {
+        "status": "public",
+        "note": (
+            "https://www.ercot.com/help/terms: \"raw data provided in public portions of this website may be "
+            "used, reproduced, and redistributed in compilations, charts, and analyses without maintaining such "
+            "notices.\" Automated access only through the Public API (free account), per robots.txt and the API "
+            "terms."
+        ),
+    },
     "U.S. Treasury": {
         "status": "public",
         "note": "Daily Treasury par yield curve rates: a U.S. Government work (17 U.S.C. 105), no copyright.",
+    },
+    "LBNL Queued Up": {
+        "status": "public",
+        "note": (
+            "Interconnection queue compilation (collectors/lbnl_queued_up). The edition page says \"The Queued Up "
+            "data file is licensed CC BY 4.0 . You may use, share, or adapt the dataset as long as you attribute "
+            "it to Lawrence Berkeley National Laboratory and GridTracker.\" Attribution to show with LBNL values: "
+            "\"Lawrence Berkeley National Laboratory and GridTracker. Queued Up Data File. CC BY 4.0.\""
+        ),
+    },
+    "Bonneville Power Administration": {
+        "status": "public",
+        "note": "BPA interconnection request queue (collectors/bpa_queue): a U.S. Government work (17 U.S.C. 105).",
     },
     "Federal Reserve Bank of New York": {
         "status": "public",

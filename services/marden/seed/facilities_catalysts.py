@@ -25,13 +25,20 @@ from marden.seed.facilities_sink import ARCHIVE_CUTOFF, EventSink, FactSink, cle
 CAT_SEVERITY = {"severe": "red", "material": "amber", "watch": "none"}
 
 
-def write_catalysts(conn: Conn, facts: FactSink, events: EventSink, arc: Archive,
-                    existing_sites: set[str]) -> dict[str, Any]:
-    instruments = {r["id"] for r in conn.execute("SELECT id FROM instrument").fetchall()}
+def catalyst_stats(conn: Conn) -> dict[str, Any]:
+    """Run state shared by the catalyst sections: counts, skips, loaded instruments, and each
+    subject's earliest upcoming catalyst (written by ``write_next_catalysts``)."""
+    return {"catalysts": 0, "events": 0, "skipped": [], "next": {},
+            "instruments": {r["id"] for r in conn.execute("SELECT id FROM instrument").fetchall()}}
+
+
+def write_catalysts(events: EventSink, arc: Archive, existing_sites: set[str], rows: list[dict[str, Any]],
+                    stats: dict[str, Any]) -> None:
+    instruments, nxt = stats["instruments"], stats["next"]
     src = arc.sources[CATALYSTS]
-    stats: dict[str, Any] = {"catalysts": 0, "events": 0, "skipped": []}
-    nxt: dict[tuple[str, str], tuple[str, dict[str, Any], str | None, str]] = {}
-    for r in arc.data[CATALYSTS]["rows"]:
+    for r in rows:
+        if not arc.in_scope(r.get("case")):
+            continue
         subjects: list[tuple[str, str]] = []
         slug = arc.site_slugs.get(r.get("case")) if r.get("case") else None
         if slug in existing_sites:
@@ -65,17 +72,23 @@ def write_catalysts(conn: Conn, facts: FactSink, events: EventSink, arc: Archive
         for subject in subjects:
             if subject not in nxt or day.isoformat() < nxt[subject][0]:
                 nxt[subject] = (day.isoformat(), value, url, tag)
-    for (st, sid), (_, value, url, tag) in sorted(nxt.items()):
-        facts.add(st, sid, "next_catalyst", value, src=src, url=url, judged=tag == "M",
+
+
+def write_next_catalysts(facts: FactSink, arc: Archive, items: list[tuple[Any, Any]]) -> None:
+    """`next_catalyst` on each subject: its earliest catalyst on or after the archive date."""
+    for (st, sid), (_, value, url, tag) in items:
+        facts.add(st, sid, "next_catalyst", value, src=arc.sources[CATALYSTS], url=url, judged=tag == "M",
                   tag=None if tag == "M" else tag)
-    return stats
 
 
-def write_exhibit_documents(conn: Conn, arc: Archive) -> dict[str, int]:
+def exhibit_records(arc: Archive) -> list[dict[str, Any]]:
+    return arc.data[LIBRARY]["docs"][: arc.exhibit_limit]
+
+
+def write_exhibit_documents(conn: Conn, arc: Archive, records: list[dict[str, Any]], stats: dict[str, int]) -> None:
     """One document row per curated SEC exhibit URL (metadata only; idempotent on url + sha256)."""
     curated = {d["url"]: d for d in arc.data[DOCS]["docs"]}
-    stats = {"documents": 0, "new": 0}
-    for rec in arc.data[LIBRARY]["docs"]:
+    for rec in records:
         url = rec.get("url")
         if not url:
             continue
@@ -100,4 +113,3 @@ def write_exhibit_documents(conn: Conn, arc: Archive) -> dict[str, int]:
         )
         stats["documents"] += 1
         stats["new"] += int(doc.was_new)
-    return stats

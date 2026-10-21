@@ -23,7 +23,7 @@ from typing import Any
 from marden.core.db import Conn
 from marden.seed.common import slugify
 from marden.seed.facilities_archive import DCMAP, INVENTORY, POWER, SITE_POWER, Archive
-from marden.seed.facilities_plants import PLANT_TYPES, PowerLinks, plant_id
+from marden.seed.facilities_plants import PLANT_TYPES, PowerLinks, plant_id, tech_in, technology
 from marden.seed.facilities_sink import FactSink, Src, clean, first_url, num
 
 ONSITE_TYPES = frozenset({"data center campus power", "gas plant", "fuel cell"})
@@ -36,7 +36,7 @@ _RATING = r"(?:\s*\((?P<r1>[\d.]+)\s*(?P<u1>MW|kW)\)|\s+(?P<r2>[\d.]+)\s*(?P<u2>
 UNIT_PATTERNS = (
     re.compile(rf"(?P<upto>up to\s+)?(?P<count>\d[\d,]*)\s+(?P<oem>{_OEMS})(?:\s+(?P<model>{_MODEL}))?{_RATING}?"),
     re.compile(rf"(?P<upto>up to\s+)?(?P<count>\d[\d,]*)\s+(?P<model>{_MODEL})\s*\((?P<r1>[\d.]+)\s*(?P<u1>MW|kW)\)"),
-    re.compile(r"(?P<count>\d{1,3})\s*[x×]\s*(?P<r1>\d[\d,.]*)\s*(?P<u1>MW|kW)\b"),
+    re.compile(r"(?P<count>\d{1,3})\s*[x\u00d7]\s*(?P<r1>\d[\d,.]*)\s*(?P<u1>MW|kW)\b"),  # 3 x 754 MW
     re.compile(rf"(?P<oem>{_OEMS})\s*\((?P<count>\d[\d,]*)\s+(?P<model>{_MODEL})\)"),
 )
 MENTION = re.compile(rf"(?P<oem>{_OEMS})\s+(?P<model>{_MODEL})")
@@ -102,6 +102,8 @@ def write_units(conn: Conn, sink: FactSink, arc: Archive, links: PowerLinks) -> 
         if arc.projects.get(pid, {}).get("ty") in ONSITE_TYPES:
             case_plants.setdefault(case, []).append(pid)
     for case, proj in sorted((arc.data[SITE_POWER].get("projects") or {}).items()):
+        if not arc.in_scope(case):
+            continue
         sp = proj.get("site_power") or {}
         if isinstance(sp.get("onsite_generation"), str):
             texts.append((arc.sources[SITE_POWER], first_url(sp.get("src")), sp["onsite_generation"],
@@ -135,6 +137,9 @@ def write_units(conn: Conn, sink: FactSink, arc: Archive, links: PowerLinks) -> 
         for u in units:
             _unit(conn, sink, src, url, ppid, u)
             stats["units"] += 1
+        tech = tech_in(" ".join(u.quote for u in units))
+        if tech and technology(arc.projects[pid]) is None:  # the unit text names the technology
+            sink.add("plant", ppid, "technology", tech, src=src, url=url, rule=True)
     return stats
 
 

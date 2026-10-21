@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?><edgarSubmission xmlns="http://www.sec.gov/edgar/nport" xmlns:com="http://www.sec.gov/edgar/common" xmlns:ncom="http://www.sec.gov/edgar/nportcommon" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sec.gov/edgar/nport eis_NPORT_Filer.xsd">
+  <headerData>
+    <submissionType>NPORT-P</submissionType>
+    <isConfidential>false</isConfidential>
+    <filerInfo>
+
+      <filer>
+        <issuerCredentials>
+          <cik>0000804123</cik>
+          <ccc>XXXXXXXX</ccc>
+        </issuerCredentials>
+      </filer>
+
+
+
+
+    </filerInfo>
+  </headerData>
+  <formData>
+    <genInfo>
+      <regName>TAIWAN FUND INC</regName>
+      <regFileNumber>811-04893</regFileNumber>
+      <regCik>0000804123</regCik>
+      <regLei>549300B0OHIYIAWV0Z83</regLei>
+      <regStreet1>One Congress Street</regStreet1>
+      <regStreet2>Suite 1</regStreet2>
+      <regCity>BOSTON</regCity>
+      <regStateConditional regCountry="US" regState="US-MA"/>
+      <regZipOrPostalCode>02114-2016</regZipOrPostalCode>
+      <regPhone>1-800-426-5523</regPhone>
+      <seriesName>TAIWAN FUND INC</seriesName>
+      <seriesLei>549300B0OHIYIAWV0Z83</seriesLei>
+      <repPdEnd>2026-08-31</repPdEnd>
+      <repPdDate>2026-08-31</repPdDate>
+      <isFinalFiling>N</isFinalFiling>
+    </genInfo>
+    <fundInfo>
+      <totAssets>687124833.93</totAssets>
+      <totLiabs>1817951.02</totLiabs>
+      <netAssets>685306882.91</netAssets>
+      <assetsAttrMiscSec>0.00000000</assetsAttrMiscSec>
+      <assetsInvested>0.00000000</assetsInvested>
+      <amtPayOneYrBanksBorr>0.00000000</amtPayOneYrBanksBorr>
+      <amtPayOneYrCtrldComp>0.00000000</amtPayOneYrCtrldComp>
+      <amtPayOneYrOthAffil>0.00000000</amtPayOneYrOthAffil>
+      <amtPayOneYrOther>0.00000000</amtPayOneYrOther>
+      <amtPayAftOneYrBanksBorr>0.00000000</amtPayAftOneYrBanksBorr>
+      <amtPayAftOneYrCtrldComp>0.00000000</amtPayAftOneYrCtrldComp>
+      <amtPayAftOneYrOthAffil>0.00000000</amtPayAftOneYrOthAffil>
+      <amtPayAftOneYrOther>0.00000000</amtPayAftOneYrOther>
+      <delayDeliv>0.00000000</delayDeliv>
+      <standByCommit>0.00000000</standByCommit>
+      <liquidPref>0.00000000</liquidPref>
+      <cshNotRptdInCorD>25534823.52000000</cshNotRptdInCorD>
+      <borrowers>
+        <borrower aggrVal="57471369.81000000" lei="K9WDOH4D2PYBSLSOB484" name="Barclays Capital Securities Limited"/>
+        <borrower aggrVal="793955.61000000" lei="W22LROWP2IHZNBB6K528" name="Goldman Sachs International"/>
+        <borrower aggrVal="757081.52000000" lei="5299007QVIQ7IO64NX37" name="UBS Europe SE"/>
+      </borrowers>
+      <aggregateCondition isNonCashCollateral="Y">
+        <aggregateInfos>
+          <aggregateInfo amt="63486381.39000000" collatrl="62342487.43000000">
+            <invstCat>UST</invstCat>
+          </aggregateInfo>
+        </aggregateInfos>
+      </aggregateCondition>
+      <returnInfo>
+        <monthlyTotReturns>
+          <monthlyTotReturn rtn1="-3.01000000" rtn2="-14.62000000" rtn3="24.30000000"/>
+        </monthlyTotReturns>
+        <othMon1 netRealizedGain="15861735.89000000" netUnrealizedAppr="-35014866.43000000"/>
+        <othMon2 netRealizedGain="2335487.54000000" netUnrealizedAppr="-64143121.57000000"/>
+        <othMon3 netRealizedGain="5990677.51000000" netUnrealizedAppr="108142605.35000000"/>
+      </returnInfo>
+      <mon1Flow redemption="0.00000000" reinvestment="0.00000000" sales="0.00000000"/>
+      <mon2Flow redemption="0.00000000" reinvestment="0.00000000" sales="0.00000000"/>
+      <mon3Flow redemption="0.00000000" reinvestment="0.00000000" sales="0.00000000"/>
+
+
+    </fundInfo>
+    <invstOrSecs>
+      <invstOrSec>
+        <name>Accton Technology Corp</name>
+        <lei>529900M1YRZ0GWMDF920</lei>
+        <title>Accton Technology Corp</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="TW0002345006"/>
+        </identifiers>
+        <balance>112000.00000000</balance>
+        <units>NS</units>
+        <currencyConditional curCd="TWD" exchangeRt="31.72200000"/>
+        <valUSD>7184918.98000000</valUSD>
+        <pctVal>1.048423583532</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>TW</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Gold Circuit Electronics Ltd</name>
+        <lei>98450054BB82F5560D45</lei>
+        <title>Gold Circuit Electronics Ltd</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="TW0002368008"/>
+        </identifiers>
+        <balance>355000.00000000</balance>
+        <units>NS</units>
+        <currencyConditional curCd="TWD" exchangeRt="31.72200000"/>
+        <valUSD>13037481.87000000</valUSD>
+        <pctVal>1.902429728217</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>TW</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Unimicron Technology Corp</name>
+        <lei>529900552WPFHC1YI579</lei>
+        <title>Unimicron Technology Corp</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="TW0003037008"/>
+        </identifiers>
+        <balance>992000.00000000</balance>
+        <units>NS</units>
+        <currencyConditional curCd="TWD" exchangeRt="31.72200000"/>
+        <valUSD>31240400.98000000</valUSD>
+        <pctVal>4.558600206573</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>TW</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>KMC Kuei Meng International Inc</name>
+        <lei>N/A</lei>
+        <title>KMC Kuei Meng International Inc</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="TW0005306005"/>
+        </identifiers>
+        <balance>8000.00000000</balance>
+        <units>NS</units>
+        <currencyConditional curCd="TWD" exchangeRt="31.72200000"/>
+        <valUSD>23605.07000000</valUSD>
+        <pctVal>0.003444452491</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>TW</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Chroma ATE Inc</name>
+        <lei>N/A</lei>
+        <title>Chroma ATE Inc</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="TW0002360005"/>
+        </identifiers>
+        <balance>78000.00000000</balance>
+        <units>NS</units>
+        <currencyConditional curCd="TWD" exchangeRt="31.72200000"/>
+        <valUSD>4819368.26000000</valUSD>
+        <pctVal>0.703242354656</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>TW</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Delta Electronics Inc</name>
+        <lei>529900UVZWNWGDLJSM52</lei>
+        <title>Delta Electronics Inc</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="TW0002308004"/>
+        </identifiers>
+        <balance>371000.00000000</balance>
+        <units>NS</units>
+        <currencyConditional curCd="TWD" exchangeRt="31.72200000"/>
+        <valUSD>21519450.22000000</valUSD>
+        <pctVal>3.140118793003</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>TW</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+    </invstOrSecs>
+    <explntrNotes>
+      <explntrNote note="Monthly returns presented in Item B.5(a) have been calculated without deducting any applicable sales loads or redemption fees." noteItem="B.5.a"/>
+    </explntrNotes>
+    <signature>
+      <ncom:dateSigned>2026-09-15</ncom:dateSigned>
+      <ncom:nameOfApplicant>TAIWAN FUND INC</ncom:nameOfApplicant>
+      <ncom:signature>Monique Labbe</ncom:signature>
+      <ncom:signerName>Monique Labbe</ncom:signerName>
+      <ncom:title>Treasurer and Principal Financial Officer</ncom:title>
+    </signature>
+  </formData>
+</edgarSubmission>

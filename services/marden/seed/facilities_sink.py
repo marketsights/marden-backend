@@ -221,9 +221,10 @@ class EventSink:
         elif material_rule:
             note = {"event_date": day.isoformat(), "kind": kind, "title": text, "judgment": "material",
                     "rule": material_rule, "event_source_url": url}
-            if self.facts.add(subject_type, subject_id, "materiality_note", note, src=src, url=url,
-                              rule=True, valid_from=min(day, ARCHIVE_CUTOFF), source_name=name):
-                self.notes += 1
+            before = self.facts.created
+            self.facts.add(subject_type, subject_id, "materiality_note", note, src=src, url=url,
+                           rule=True, valid_from=min(day, ARCHIVE_CUTOFF), source_name=name)
+            self.notes += self.facts.created - before
         return res.id
 
     def _review(self, event_id: int, title: str, rule: str, st: str, sid: str, url: str | None) -> None:
@@ -238,21 +239,42 @@ class EventSink:
 
 
 def material_text(*texts: Any) -> str | None:
-    """The materiality rule for titles: denials, force majeure, withdrawals, terminations,
-    revocations, cancellations, moratoria and deficiency findings are status changes."""
+    """The materiality rule for item titles (a status change, a denial, force majeure): an order
+    or decision denying, rejecting, revoking or dismissing; an application, permit or certificate
+    denied, withdrawn, rejected or revoked; a deficiency letter / deficient filing; a moratorium
+    adopted; a contract terminated; an injunction or stop-work order. Procedural noise is not
+    material: confidentiality designations ('DENY CONFIDENTIAL'), discovery fights, counsel
+    withdrawals, cancelled meetings, permit-review step names ('deficiency cycle')."""
     for t in texts:
-        if isinstance(t, str):
-            m = _MATERIAL.search(t)
+        if not isinstance(t, str) or _NOISE.search(t):
+            continue
+        for pattern in _MATERIAL:
+            m = pattern.search(t)
             if m:
-                return m.group(0).lower()
+                return " ".join(m.group(0).lower().split())[:80]
     return None
 
 
-_MATERIAL = re.compile(
-    r"\b(den(y|ies|ied|ial)|force majeure|withdr[ae]w(n|al|s)?|terminat\w*|revok\w*|revocation|"
-    r"rescind\w*|cancel+(ed|led|ation)|moratorium|deficien(t|cy)|injunction|stop[- ]work)\b",
+_NOISE = re.compile(
+    r"deny confidential|denial of discovery|motion to compel|withdraw(al)? (of|as) (counsel|appearance)|"
+    r"deficiency cycle|deficiency due|agenda cancel|meeting (is )?cancel|cancel+ed\s*\[|\bcancel+ed\b.{0,20}\bmeeting",
     re.I,
 )
+_MATERIAL = tuple(re.compile(p, re.I) for p in (
+    r"force majeure",
+    r"\border\s+(denying|rejecting|revoking|dismissing|terminating)\b",
+    r"\b(application|permit|petition|request|certificate|cpcn|ccn|interconnection|rezoning|zoning)\b[^.;]{0,50}"
+    r"\b(denied|withdrawn|rejected|revoked|dismissed|terminated)\b",
+    r"\b(den(y|ies|ied)|reject(s|ed)?|revok(e|es|ed)|withdr[ae]w(s|n)?)\b[^.;]{0,20}\b(application|permit|petition|"
+    r"certificate|cpcn|ccn|request for (a )?(permit|certificate|rezoning))\b",
+    r"\bnotice of withdrawal of (the |its )?(application|petition|request|filing|complaint)\b",
+    r"\bdeficiency letter\b|\bfiling is deficient\b|\bdeficient filing\b",
+    r"\b(adopt\w*|approv\w*|pass(es|ed)?|enact\w*|impos\w*|extend\w*)\b[^.;]{0,40}\bmoratorium\b",
+    r"\bmoratorium\b[^.;]{0,30}\b(adopted|approved|passed|enacted|imposed|extended)\b",
+    r"\bterminat(es|ed|ion of)\b[^.;]{0,40}\b(lease|agreement|contract|ppa|esa|offtake)\b",
+    r"\b(preliminary |temporary )?injunction (granted|issued)\b|\bgrant(s|ed)? (a |an )?(preliminary |temporary )?"
+    r"injunction\b|\bstop[- ]work order\b",
+))
 
 
 def tags_weakest(tags: Iterable[str]) -> str:

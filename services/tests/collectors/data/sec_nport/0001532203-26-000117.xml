@@ -1,0 +1,638 @@
+<?xml version="1.0" encoding="UTF-8"?><edgarSubmission xmlns="http://www.sec.gov/edgar/nport" xmlns:com="http://www.sec.gov/edgar/common" xmlns:ncom="http://www.sec.gov/edgar/nportcommon" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sec.gov/edgar/nport eis_NPORT_Filer.xsd">
+  <headerData>
+    <submissionType>NPORT-P</submissionType>
+    <isConfidential>false</isConfidential>
+    <filerInfo>
+
+      <filer>
+        <issuerCredentials>
+          <cik>0001532203</cik>
+          <ccc>XXXXXXXX</ccc>
+        </issuerCredentials>
+      </filer>
+
+
+      <seriesClassInfo>
+        <seriesId>S000067956</seriesId>
+        <classId>C000217897</classId>
+        <classId>C000217896</classId>
+      </seriesClassInfo>
+
+
+    </filerInfo>
+  </headerData>
+  <formData>
+    <genInfo>
+      <regName>VANGUARD CHARLOTTE FUNDS</regName>
+      <regFileNumber>811-22619</regFileNumber>
+      <regCik>0001532203</regCik>
+      <regLei>549300Z9BHDBGHMJLU94</regLei>
+      <regStreet1>100 Vanguard Boulevard</regStreet1>
+      <regCity>Malvern</regCity>
+      <regStateConditional regCountry="US" regState="US-PA"/>
+      <regZipOrPostalCode>19355</regZipOrPostalCode>
+      <regPhone>610-669-1000</regPhone>
+      <seriesName>VANGUARD TOTAL INTERNATIONAL BOND II INDEX FUND</seriesName>
+      <seriesId>S000067956</seriesId>
+      <seriesLei>549300ROYBGCYUJI4283</seriesLei>
+      <repPdEnd>2026-10-31</repPdEnd>
+      <repPdDate>2026-07-31</repPdDate>
+      <isFinalFiling>N</isFinalFiling>
+    </genInfo>
+    <fundInfo>
+      <totAssets>151225304293.82</totAssets>
+      <totLiabs>2486072494.48</totLiabs>
+      <netAssets>148739231799.34</netAssets>
+      <assetsAttrMiscSec>0.00000000</assetsAttrMiscSec>
+      <assetsInvested>0.00000000</assetsInvested>
+      <amtPayOneYrBanksBorr>0.00000000</amtPayOneYrBanksBorr>
+      <amtPayOneYrCtrldComp>0.00000000</amtPayOneYrCtrldComp>
+      <amtPayOneYrOthAffil>0.00000000</amtPayOneYrOthAffil>
+      <amtPayOneYrOther>0.00000000</amtPayOneYrOther>
+      <amtPayAftOneYrBanksBorr>0.00000000</amtPayAftOneYrBanksBorr>
+      <amtPayAftOneYrCtrldComp>0.00000000</amtPayAftOneYrCtrldComp>
+      <amtPayAftOneYrOthAffil>0.00000000</amtPayAftOneYrOthAffil>
+      <amtPayAftOneYrOther>0.00000000</amtPayAftOneYrOther>
+      <delayDeliv>0.00000000</delayDeliv>
+      <standByCommit>0.00000000</standByCommit>
+      <liquidPref>0.00000000</liquidPref>
+      <cshNotRptdInCorD>648256556.99000000</cshNotRptdInCorD>
+      <curMetrics>
+        <curMetric>
+          <curCd>AUD</curCd>
+          <intrstRtRiskdv01 period10Yr="-1223661.37528704" period1Yr="-337106.93736915" period30Yr="-134185.32297331" period3Mon="1873.40939327" period5Yr="-1227824.22377155"/>
+          <intrstRtRiskdv100 period10Yr="-117801095.37179170" period1Yr="-33452271.16411053" period30Yr="-12674462.13653748" period3Mon="187169.44754810" period5Yr="-120464719.48891850"/>
+        </curMetric>
+        <curMetric>
+          <curCd>CAD</curCd>
+          <intrstRtRiskdv01 period10Yr="-2395096.61262610" period1Yr="-549209.58720565" period30Yr="-1805958.75472668" period3Mon="2547.90859250" period5Yr="-1790160.44764189"/>
+          <intrstRtRiskdv100 period10Yr="-230108905.50523320" period1Yr="-54541793.62859945" period30Yr="-164154317.96067570" period3Mon="252014.99132675" period5Yr="-175760220.24956700"/>
+        </curMetric>
+        <curMetric>
+          <curCd>CHF</curCd>
+          <intrstRtRiskdv01 period10Yr="-732375.50091063" period1Yr="-90064.62531348" period30Yr="-312451.08521444" period3Mon="1769.68997655" period5Yr="-377338.47089629"/>
+          <intrstRtRiskdv100 period10Yr="-69774835.62500706" period1Yr="-8923475.08909250" period30Yr="-28859604.07857070" period3Mon="176113.57701781" period5Yr="-36943837.74201190"/>
+        </curMetric>
+        <curMetric>
+          <curCd>CLP</curCd>
+          <intrstRtRiskdv01 period10Yr="-58607.69403973" period1Yr="-14995.16263084" period30Yr="-21636.33011847" period3Mon="953.50367223" period5Yr="-43259.13016774"/>
+          <intrstRtRiskdv100 period10Yr="-5628802.29627200" period1Yr="-1487517.60333417" period30Yr="-2021216.08720103" period3Mon="95081.87955727" period5Yr="-4249929.63151379"/>
+        </curMetric>
+        <curMetric>
+          <curCd>CNY</curCd>
+          <intrstRtRiskdv01 period10Yr="-344642.94999721" period1Yr="-129924.15983259" period30Yr="-252107.45074114" period3Mon="11655.16943408" period5Yr="-411523.42703507"/>
+          <intrstRtRiskdv100 period10Yr="-33242351.31938820" period1Yr="-12869898.78769396" period30Yr="-22334916.92812750" period3Mon="1159262.79168758" period5Yr="-40294469.71878393"/>
+        </curMetric>
+        <curMetric>
+          <curCd>CZK</curCd>
+          <intrstRtRiskdv01 period10Yr="-156487.81272461" period1Yr="-32920.51079211" period30Yr="-16650.85437308" period3Mon="240.29625393" period5Yr="-127332.97333668"/>
+          <intrstRtRiskdv100 period10Yr="-15070743.28291645" period1Yr="-3263752.06741038" period30Yr="-1530660.94110395" period3Mon="23915.70646026" period5Yr="-12503613.02184131"/>
+        </curMetric>
+        <curMetric>
+          <curCd>DKK</curCd>
+          <intrstRtRiskdv01 period10Yr="-129966.65122275" period1Yr="-59259.24150482" period30Yr="-27618.16941341" period3Mon="674.36099611" period5Yr="-184920.74618726"/>
+          <intrstRtRiskdv100 period10Yr="-12518671.88058984" period1Yr="-5871865.33571492" period30Yr="-2583204.59022277" period3Mon="67133.81774504" period5Yr="-18112116.31818844"/>
+        </curMetric>
+        <curMetric>
+          <curCd>EUR</curCd>
+          <intrstRtRiskdv01 period10Yr="-19997675.53460857" period1Yr="-5097928.18151697" period30Yr="-8744381.50430548" period3Mon="225031.81631389" period5Yr="-16573888.02475932"/>
+          <intrstRtRiskdv100 period10Yr="-1918872557.11477500" period1Yr="-505685139.43694930" period30Yr="-803113631.17078660" period3Mon="22380064.75019066" period5Yr="-1627870838.15036500"/>
+        </curMetric>
+        <curMetric>
+          <curCd>GBP</curCd>
+          <intrstRtRiskdv01 period10Yr="-3692964.45241101" period1Yr="-713678.46323078" period30Yr="-2185899.24021562" period3Mon="4923.53268649" period5Yr="-2184288.03779093"/>
+          <intrstRtRiskdv100 period10Yr="-353683175.54915180" period1Yr="-70834884.91544342" period30Yr="-198424629.99471310" period3Mon="491135.44206050" period5Yr="-214570750.38030960"/>
+        </curMetric>
+        <curMetric>
+          <curCd>HKD</curCd>
+          <intrstRtRiskdv01 period10Yr="-17227.42782965" period1Yr="-3913.70212703" period30Yr="-438.04268740" period3Mon="30.78542599" period5Yr="-9357.22382181"/>
+          <intrstRtRiskdv100 period10Yr="-1657794.89965924" period1Yr="-388104.59679807" period30Yr="-42763.86141778" period3Mon="3073.04628426" period5Yr="-921847.72891730"/>
+        </curMetric>
+        <curMetric>
+          <curCd>HUF</curCd>
+          <intrstRtRiskdv01 period10Yr="-58666.53276954" period1Yr="-23794.80620611" period30Yr="-4843.29774575" period3Mon="126.64511549" period5Yr="-75241.75080673"/>
+          <intrstRtRiskdv100 period10Yr="-5618050.54121061" period1Yr="-2357507.62417694" period30Yr="-478470.31868587" period3Mon="12616.54702339" period5Yr="-7357009.71394127"/>
+        </curMetric>
+        <curMetric>
+          <curCd>IDR</curCd>
+          <intrstRtRiskdv01 period10Yr="-394330.80457114" period1Yr="-67034.05637839" period30Yr="-104150.05029076" period3Mon="7250.33095507" period5Yr="-246741.64260652"/>
+          <intrstRtRiskdv100 period10Yr="-37765746.14551678" period1Yr="-6652630.61703931" period30Yr="-9884987.60070493" period3Mon="724077.89868500" period5Yr="-24202212.92301870"/>
+        </curMetric>
+        <curMetric>
+          <curCd>ILS</curCd>
+          <intrstRtRiskdv01 period10Yr="-194705.60346275" period1Yr="-37517.46636728" period30Yr="-85512.80745693" period3Mon="2451.44225731" period5Yr="-118320.75789192"/>
+          <intrstRtRiskdv100 period10Yr="-18637820.88206986" period1Yr="-3715241.33987269" period30Yr="-7950932.31596389" period3Mon="243863.73931480" period5Yr="-11593649.65386733"/>
+        </curMetric>
+        <curMetric>
+          <curCd>JPY</curCd>
+          <intrstRtRiskdv01 period10Yr="-6523246.47632260" period1Yr="-700214.85936907" period30Yr="-4472856.64473677" period3Mon="54469.00610613" period5Yr="-2297381.39501745"/>
+          <intrstRtRiskdv100 period10Yr="-623262550.89656970" period1Yr="-69479213.99103007" period30Yr="-409156919.98375680" period3Mon="5431682.42891777" period5Yr="-225609930.85293770"/>
+        </curMetric>
+        <curMetric>
+          <curCd>KRW</curCd>
+          <intrstRtRiskdv01 period10Yr="-1064108.48369461" period1Yr="-229054.23444425" period30Yr="-1300176.60438349" period3Mon="25019.53648822" period5Yr="-501398.22326022"/>
+          <intrstRtRiskdv100 period10Yr="-101924979.01292110" period1Yr="-22721382.58589434" period30Yr="-117588619.59877310" period3Mon="2494652.74011488" period5Yr="-49247131.79071495"/>
+        </curMetric>
+        <curMetric>
+          <curCd>MXN</curCd>
+          <intrstRtRiskdv01 period10Yr="-290473.27707390" period1Yr="-91065.84493656" period30Yr="-89707.83705407" period3Mon="-1133.67464399" period5Yr="-245597.83079624"/>
+          <intrstRtRiskdv100 period10Yr="-27870755.94818157" period1Yr="-9031417.92706578" period30Yr="-8429223.19387727" period3Mon="-112915.99036679" period5Yr="-24112019.23517270"/>
+        </curMetric>
+        <curMetric>
+          <curCd>MYR</curCd>
+          <intrstRtRiskdv01 period10Yr="-551284.27746208" period1Yr="-82735.37713133" period30Yr="-280489.35753717" period3Mon="8771.49081554" period5Yr="-249678.51640057"/>
+          <intrstRtRiskdv100 period10Yr="-52657051.76368897" period1Yr="-8206166.30190927" period30Yr="-26156476.12993757" period3Mon="874638.37682484" period5Yr="-24491694.25894699"/>
+        </curMetric>
+        <curMetric>
+          <curCd>NOK</curCd>
+          <intrstRtRiskdv01 period10Yr="-71597.71210945" period1Yr="-17736.58261280" period30Yr="-4755.82499283" period3Mon="217.15995338" period5Yr="-70055.87510685"/>
+          <intrstRtRiskdv100 period10Yr="-6890138.40913568" period1Yr="-1758784.46580988" period30Yr="-465323.07389784" period3Mon="21608.66883638" period5Yr="-6873664.08049354"/>
+        </curMetric>
+        <curMetric>
+          <curCd>NZD</curCd>
+          <intrstRtRiskdv01 period10Yr="-126948.22150155" period1Yr="-37722.38343513" period30Yr="-26292.37137592" period3Mon="214.61265966" period5Yr="-127746.84554094"/>
+          <intrstRtRiskdv100 period10Yr="-12215518.42131796" period1Yr="-3742729.08603661" period30Yr="-2432098.76302619" period3Mon="21440.67723017" period5Yr="-12534070.20213981"/>
+        </curMetric>
+        <curMetric>
+          <curCd>PEN</curCd>
+          <intrstRtRiskdv01 period10Yr="-95665.59895187" period1Yr="-10104.00362963" period30Yr="-8909.85454004" period3Mon="1185.25781293" period5Yr="-65056.33008157"/>
+          <intrstRtRiskdv100 period10Yr="-9187659.42717040" period1Yr="-1002258.05099835" period30Yr="-859145.24210776" period3Mon="117856.41527637" period5Yr="-6372919.27338182"/>
+        </curMetric>
+        <curMetric>
+          <curCd>PLN</curCd>
+          <intrstRtRiskdv01 period10Yr="-153613.07920042" period1Yr="-72972.32894821" period30Yr="-1321.03055505" period3Mon="3763.29257131" period5Yr="-233930.54678330"/>
+          <intrstRtRiskdv100 period10Yr="-14856855.57205533" period1Yr="-7232005.75136580" period30Yr="-125684.24604718" period3Mon="374389.30403779" period5Yr="-22944075.87401341"/>
+        </curMetric>
+        <curMetric>
+          <curCd>RON</curCd>
+          <intrstRtRiskdv01 period10Yr="-38477.42695040" period1Yr="-29710.26909380" period30Yr="0.00000000" period3Mon="1054.80247568" period5Yr="-76749.63763199"/>
+          <intrstRtRiskdv100 period10Yr="-3729784.96287855" period1Yr="-2943668.02053787" period30Yr="0.00000000" period3Mon="104896.89383897" period5Yr="-7520011.94488824"/>
+        </curMetric>
+        <curMetric>
+          <curCd>SEK</curCd>
+          <intrstRtRiskdv01 period10Yr="-91957.23620655" period1Yr="-120041.29170616" period30Yr="-29192.03870697" period3Mon="4540.33236860" period5Yr="-233896.85848972"/>
+          <intrstRtRiskdv100 period10Yr="-8818757.76657249" period1Yr="-11890615.82123234" period30Yr="-2419305.21368012" period3Mon="452899.85724763" period5Yr="-22928527.22793288"/>
+        </curMetric>
+        <curMetric>
+          <curCd>SGD</curCd>
+          <intrstRtRiskdv01 period10Yr="-229086.24747644" period1Yr="-45329.41090343" period30Yr="-204400.06708636" period3Mon="451.84993842" period5Yr="-130008.62770256"/>
+          <intrstRtRiskdv100 period10Yr="-21937860.19037120" period1Yr="-4496485.52161207" period30Yr="-18243309.13912199" period3Mon="45124.46772998" period5Yr="-12760890.73070621"/>
+        </curMetric>
+        <curMetric>
+          <curCd>THB</curCd>
+          <intrstRtRiskdv01 period10Yr="-503500.32771925" period1Yr="-66247.94574839" period30Yr="-393425.18461589" period3Mon="7810.24933472" period5Yr="-190737.16660485"/>
+          <intrstRtRiskdv100 period10Yr="-48043083.65231493" period1Yr="-6569565.98099892" period30Yr="-35081467.63328774" period3Mon="778772.61335006" period5Yr="-18709772.64274993"/>
+        </curMetric>
+        <curMetric>
+          <curCd>USD</curCd>
+          <intrstRtRiskdv01 period10Yr="-0.00000002" period1Yr="-0.00000002" period30Yr="-0.00000002" period3Mon="-1037792.99863584" period5Yr="-0.00000002"/>
+          <intrstRtRiskdv100 period10Yr="-0.00000002" period1Yr="-0.00000002" period30Yr="-0.00000002" period3Mon="-103493711.68543930" period5Yr="-0.00000002"/>
+        </curMetric>
+      </curMetrics>
+      <creditSprdRiskInvstGrade period10Yr="-10630121.58713452" period1Yr="-3491687.50985874" period30Yr="-3800550.30917305" period3Mon="-34244.95792511" period5Yr="-10843149.86690570"/>
+      <creditSprdRiskNonInvstGrade period10Yr="-17366.82842349" period1Yr="-18767.34171030" period30Yr="-2614.42435884" period3Mon="-186.43913900" period5Yr="-41892.62686924"/>
+      <isNonCashCollateral>N</isNonCashCollateral>
+      <returnInfo>
+        <monthlyTotReturns>
+          <monthlyTotReturn classId="C000217897" rtn1="0.93458328" rtn2="0.46995426" rtn3="-1.15182222"/>
+          <monthlyTotReturn classId="C000217896" rtn1="0.92380406" rtn2="0.46428562" rtn3="-1.14025086"/>
+        </monthlyTotReturns>
+        <monthlyReturnCats>
+          <commodityContracts>
+            <mon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <forwardCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </forwardCategory>
+            <futureCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </futureCategory>
+            <optionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </optionCategory>
+            <swaptionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swaptionCategory>
+            <swapCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swapCategory>
+            <warrantCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </warrantCategory>
+            <otherCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </otherCategory>
+          </commodityContracts>
+          <creditContracts>
+            <mon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <forwardCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </forwardCategory>
+            <futureCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </futureCategory>
+            <optionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </optionCategory>
+            <swaptionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swaptionCategory>
+            <swapCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swapCategory>
+            <warrantCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </warrantCategory>
+            <otherCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </otherCategory>
+          </creditContracts>
+          <equityContracts>
+            <mon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <forwardCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </forwardCategory>
+            <futureCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </futureCategory>
+            <optionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </optionCategory>
+            <swaptionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swaptionCategory>
+            <swapCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swapCategory>
+            <warrantCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </warrantCategory>
+            <otherCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </otherCategory>
+          </equityContracts>
+          <foreignExchgContracts>
+            <mon1 netRealizedGain="-2582676506.93000000" netUnrealizedAppr="3832620168.35000000"/>
+            <mon2 netRealizedGain="1138168821.56000000" netUnrealizedAppr="2431866366.99000000"/>
+            <mon3 netRealizedGain="3064404935.19000000" netUnrealizedAppr="-5130880719.35000000"/>
+            <forwardCategory>
+              <instrMon1 netRealizedGain="-2582676506.93000000" netUnrealizedAppr="3832620168.35000000"/>
+              <instrMon2 netRealizedGain="1138168821.56000000" netUnrealizedAppr="2431866366.99000000"/>
+              <instrMon3 netRealizedGain="3064404935.19000000" netUnrealizedAppr="-5130880719.35000000"/>
+            </forwardCategory>
+            <futureCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </futureCategory>
+            <optionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </optionCategory>
+            <swaptionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swaptionCategory>
+            <swapCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swapCategory>
+            <warrantCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </warrantCategory>
+            <otherCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </otherCategory>
+          </foreignExchgContracts>
+          <interestRtContracts>
+            <mon1 netRealizedGain="-7671400.60000000" netUnrealizedAppr="10995970.87000000"/>
+            <mon2 netRealizedGain="-18949858.88000000" netUnrealizedAppr="18254099.64000000"/>
+            <mon3 netRealizedGain="-1715868.18000000" netUnrealizedAppr="-5242402.54000000"/>
+            <forwardCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </forwardCategory>
+            <futureCategory>
+              <instrMon1 netRealizedGain="-7671400.60000000" netUnrealizedAppr="10995970.87000000"/>
+              <instrMon2 netRealizedGain="-18949858.88000000" netUnrealizedAppr="18254099.64000000"/>
+              <instrMon3 netRealizedGain="-1715868.18000000" netUnrealizedAppr="-5242402.54000000"/>
+            </futureCategory>
+            <optionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </optionCategory>
+            <swaptionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swaptionCategory>
+            <swapCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swapCategory>
+            <warrantCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </warrantCategory>
+            <otherCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </otherCategory>
+          </interestRtContracts>
+          <otherContracts>
+            <mon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <forwardCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </forwardCategory>
+            <futureCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </futureCategory>
+            <optionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </optionCategory>
+            <swaptionCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swaptionCategory>
+            <swapCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </swapCategory>
+            <warrantCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </warrantCategory>
+            <otherCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </otherCategory>
+          </otherContracts>
+        </monthlyReturnCats>
+        <othMon1 netRealizedGain="-60176536.27000000" netUnrealizedAppr="-200207091.43000000"/>
+        <othMon2 netRealizedGain="-16820021.90000000" netUnrealizedAppr="-3008021957.29000000"/>
+        <othMon3 netRealizedGain="-48938955.60000000" netUnrealizedAppr="-355098758.68000000"/>
+      </returnInfo>
+      <mon1Flow redemption="712832156.00000000" reinvestment="343726834.70000000" sales="3023682785.09000000"/>
+      <mon2Flow redemption="967226063.00000000" reinvestment="355859321.61000000" sales="1516978314.18002000"/>
+      <mon3Flow redemption="1047817716.00000000" reinvestment="348776289.17000000" sales="787199977.88998400"/>
+
+
+    </fundInfo>
+    <invstOrSecs>
+      <invstOrSec>
+        <name>Citigroup Inc</name>
+        <lei>6SHGI4ZSSLCXXQSBB395</lei>
+        <title>CITIGROUP INC</title>
+        <cusip>N/A</cusip>
+        <identifiers>
+          <isin value="XS1795252672"/>
+        </identifiers>
+        <balance>3000000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="EUR" exchangeRt="1.15315000"/>
+        <valUSD>3382782.20000000</valUSD>
+        <pctVal>0.002274303933</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2028-03-21</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>1.62500000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Intesa Sanpaolo SpA</name>
+        <lei>2W8N8UU78PMDQKZENC08</lei>
+        <title>INTESA SANPAOLO</title>
+        <cusip>N/A</cusip>
+        <identifiers>
+          <isin value="XS2673808726"/>
+        </identifiers>
+        <balance>18570000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="EUR" exchangeRt="1.15315000"/>
+        <valUSD>22833765.70000000</valUSD>
+        <pctVal>0.015351542040</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>IT</invCountry>
+
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2031-08-29</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>5.12500000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Nationwide Building Society</name>
+        <lei>549300XFX12G42QIKN82</lei>
+        <title>NATIONWIDE BLDG</title>
+        <cusip>N/A</cusip>
+        <identifiers>
+          <isin value="XS2525246901"/>
+        </identifiers>
+        <balance>5000000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="EUR" exchangeRt="1.15315000"/>
+        <valUSD>5733129.42000000</valUSD>
+        <pctVal>0.003854483683</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>GB</invCountry>
+
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2029-09-05</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>3.25000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Global Switch Finance BV</name>
+        <lei>635400GVJAKOJNEUMF33</lei>
+        <title>GLOBAL SWITCH</title>
+        <cusip>N/A</cusip>
+        <identifiers>
+          <isin value="XS2241825111"/>
+        </identifiers>
+        <balance>2800000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="EUR" exchangeRt="1.15315000"/>
+        <valUSD>2950542.42000000</valUSD>
+        <pctVal>0.001983701532</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>NL</invCountry>
+
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2030-10-07</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>1.37500000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Digital Dutch Finco BV</name>
+        <lei>549300ONZ5IS6B6IMJ70</lei>
+        <title>DIGITAL DUTCH</title>
+        <cusip>N/A</cusip>
+        <identifiers>
+          <isin value="XS2232115423"/>
+        </identifiers>
+        <balance>4000000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="EUR" exchangeRt="1.15315000"/>
+        <valUSD>3926532.36000000</valUSD>
+        <pctVal>0.002639876724</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>NL</invCountry>
+
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2032-01-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>1.00000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+    </invstOrSecs>
+    <signature>
+      <ncom:dateSigned>2026-09-28</ncom:dateSigned>
+      <ncom:nameOfApplicant>VANGUARD CHARLOTTE FUNDS</ncom:nameOfApplicant>
+      <ncom:signature>My Trieu-Gatt</ncom:signature>
+      <ncom:signerName>My Trieu-Gatt</ncom:signerName>
+      <ncom:title>Treasurer</ncom:title>
+    </signature>
+  </formData>
+  <documents>XXXX</documents>
+</edgarSubmission>

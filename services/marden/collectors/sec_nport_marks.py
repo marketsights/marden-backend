@@ -4,7 +4,8 @@ Per instrument and report period, over the fund series holding it (each series' 
 the period, its lines combined as 100 x sum of value / sum of par): the median as a `fund_mark`
 price named 'N-PORT median of N funds (<period>)', and fact `fund_mark_dispersion` on the
 instrument with n_funds, median, min, max, the range in points (flagged above 1 point) and the
-first and last public (filing) dates, so a backtest knows when the median could have been known.
+first and last public (filing) dates, so a backtest knows when the median could have been known
+(public_date is null when a constituent's filing date is unknown).
 An instrument held under several CUSIPs also gets one median per CUSIP ('..., CUSIP <cusip>)').
 Written when at least two funds report (with one, that fund's own row is the observation), the same
 rule and names as the holdings seed loader (seed/holdings_prices.py), so equal medians are one row.
@@ -40,7 +41,8 @@ def fund_marks(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """One mark per fund series: its latest filing's lines combined (par-weighted), with that
     filing's public date."""
     latest: dict[str, dict[str, Any]] = {}
-    for r in sorted(rows, key=lambda r: (r["fund_entity_id"], r["filed_at"], r["accession"]), reverse=True):
+    for r in sorted(rows, key=lambda r: (r["fund_entity_id"], r["filed_at"] or date.min, r["accession"]),
+                    reverse=True):
         cur = latest.setdefault(r["fund_entity_id"], {"accession": r["accession"], "filed_at": r["filed_at"],
                                                        "par": Decimal(0), "value": Decimal(0)})
         if cur["accession"] == r["accession"]:
@@ -51,6 +53,17 @@ def fund_marks(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
          "mark": (100 * v["value"] / v["par"]).quantize(PRICE_QUANTUM, rounding=ROUND_HALF_EVEN)}
         for f, v in sorted(latest.items())
     ]
+
+
+def _public_dates(filed: list[date | None]) -> dict[str, Any]:
+    """When the median became knowable: the last constituent's filing date (None when a line's filing
+    date is unknown, e.g. a seeded line without one)."""
+    known = [d for d in filed if d is not None]
+    out: dict[str, Any] = {"first_public_date": min(known).isoformat() if known else None,
+                           "public_date": max(known).isoformat() if len(known) == len(filed) else None}
+    if len(known) < len(filed):
+        out["funds_without_public_date"] = len(filed) - len(known)
+    return out
 
 
 @dataclass
@@ -103,8 +116,7 @@ def write_medians(conn: Conn, watched: Watched, *, since: date, producer: str) -
         value = {
             "period": period.isoformat(), "n_funds": len(values), "median": med, "min": low, "max": high,
             "range_pts": high - low, "wide": wide, "cusip": cusip,
-            "first_public_date": min(m["filed_at"] for m in marks).isoformat(),
-            "public_date": max(m["filed_at"] for m in marks).isoformat(),
+            **_public_dates([m["filed_at"] for m in marks]),
         }
         out.facts_new += facts.add(
             "instrument", iid, "fund_mark_dispersion" if cusip is None else "fund_mark_dispersion_cusip", value,

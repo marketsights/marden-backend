@@ -14,9 +14,14 @@ from typing import Any
 from marden.core.db import Conn
 from marden.seed.common import as_of, parse_date
 from marden.seed.facilities_archive import (
-    DCMAP, EPOCH_TIMELINES, PW_FOUND, SITE_POWER, SQFT, Archive,
+    DCMAP,
+    EPOCH_TIMELINES,
+    PW_FOUND,
+    SITE_POWER,
+    SQFT,
+    Archive,
 )
-from marden.seed.facilities_geo import County, county_at, state_code
+from marden.seed.facilities_geo import COUNTIES, US_ATLAS, US_ATLAS_URL, County, county_at, state_code
 from marden.seed.facilities_sink import FactSink, confidence, first_url, is_nd, num
 
 SQFT_FILED = {"permit", "filing", "county"}  # dictionary 3.2: permit/filing/county -> F; company/press -> R
@@ -63,7 +68,7 @@ def campus_record(arc: Archive, row: dict[str, Any], counties: list[County]) -> 
     ep = row.get("ep") or {}
     lat, lon = num(row.get("lat")), num(row.get("lon"))
     code = state_code(row.get("state")) or state_code(ep.get("state"))
-    us = code is not None or ep.get("country") == "United States"
+    us = code is not None or ep.get("country") in (None, "United States")  # not stated as foreign
     county = county_at(counties, lon, lat) if us else None
     if county is not None and code is not None and county.state != code:
         county = None  # the point falls outside the stated state: no county rather than a wrong one
@@ -95,7 +100,8 @@ def upsert_campus(conn: Conn, rec: CampusRecord) -> None:
 def power_source(row: dict[str, Any], arc: Archive, pw_found: dict[str, Any] | None) -> str | None:
     """types.ts PowerSource from the archive's power class (rule): Grid, Hybrid (on-site + grid),
     On-site gas when on-site generation is gas-fired by the record's own text or its case-linked
-    plants, Unknown when the fuel is not stated; n/d when the class is 'not disclosed'."""
+    plants; n/d when the fuel of on-site generation is not stated or the class is 'not disclosed'
+    (the class itself stays in ``power_source_text``)."""
     text = (row.get("psrc") or (pw_found or {}).get("source") or "").strip().lower()
     if text in POWER_SOURCE:
         return POWER_SOURCE[text]
@@ -104,7 +110,7 @@ def power_source(row: dict[str, Any], arc: Archive, pw_found: dict[str, Any] | N
     prose = " ".join(str(x or "") for x in (row.get("pwr_detail"), row.get("pwr_status"),
                                             (pw_found or {}).get("detail")))
     linked = [arc.projects.get(p["id"], {}).get("ty") for p in row.get("pw") or []] if row.get("cov") else []
-    return "On-site gas" if _GAS.search(prose) or GAS_PLANT_TYPES & set(linked) else "Unknown"
+    return "On-site gas" if _GAS.search(prose) or GAS_PLANT_TYPES & set(linked) else None
 
 
 def write_campus_facts(sink: FactSink, arc: Archive, row: dict[str, Any], rec: CampusRecord) -> None:
@@ -113,9 +119,10 @@ def write_campus_facts(sink: FactSink, arc: Archive, row: dict[str, Any], rec: C
     add = sink.add
     if rec.county is not None:
         add("campus", cid, "county", {"name": rec.county.name, "fips": rec.county.fips, "state": rec.county.state},
-            src=arc.sources["aiwc/q3x/geo/us-atlas-3.0.1/counties-10m.json"], rule=True, valid_from=src.as_of)
+            src=arc.sources[COUNTIES], rule=True, valid_from=src.as_of, url=US_ATLAS_URL, source_name=US_ATLAS)
     if rec.state and not state_code(row.get("state")) and rec.county and rec.state == rec.county.state:
-        add("campus", cid, "state", rec.state, src=src, rule=True)  # from the county the point falls in
+        add("campus", cid, "state", rec.state, src=arc.sources[COUNTIES], rule=True, url=US_ATLAS_URL,
+            source_name=US_ATLAS, valid_from=src.as_of)  # from the county the point falls in
     in_epoch = (row.get("ep") or {}).get("name") in arc.timelines
     add("campus", cid, "first_seen", rec.first_seen.isoformat(),
         src=arc.sources[EPOCH_TIMELINES] if in_epoch else src, rule=True, valid_from=src.as_of)

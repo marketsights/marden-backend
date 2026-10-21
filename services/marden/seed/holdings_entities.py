@@ -30,6 +30,20 @@ def _existing(conn: Conn, name: str) -> dict[str, Any] | None:
     ).fetchone()
 
 
+def _ensure_with_cik(conn: Conn, name: str, kind: str, cik: str | None, meta: dict[str, Any],
+                     conflicts: list[str]) -> str:
+    """``ensure_entity`` with a CIK, unless another party already carries that CIK (an earlier loader can attach
+    a filer's CIK to a name it mentions): then the holder is made without ``entity.cik`` (CIK kept in
+    ``meta.cik``) and the conflict is reported, so a BDC never merges into an unrelated company."""
+    owner = conn.execute("SELECT id, name, aliases FROM entity WHERE cik = %s ORDER BY id LIMIT 1",
+                         (cik,)).fetchone() if cik else None
+    if owner is not None and not any(core_name(n) == core_name(name) for n in [owner["name"], *owner["aliases"]]):
+        conflicts.append(f"CIK {cik} is already on entity '{owner['id']}' ({owner['name']}), not '{name}': "
+                         f"holder entity made without entity.cik (kept in meta.cik)")
+        return ensure_entity(conn, name, kind, meta={**meta, "cik": cik})
+    return ensure_entity(conn, name, kind, cik=cik, meta=meta)
+
+
 def _registrant_names(funds: dict[str, FundSpec]) -> dict[str, str]:
     """One registrant name per CIK (the filer string and the agg 'reg' field differ in case and spelling):
     the most frequent, ties broken alphabetically, so every run picks the same."""
@@ -40,9 +54,10 @@ def _registrant_names(funds: dict[str, FundSpec]) -> dict[str, str]:
     return {cik: sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] for cik, c in seen.items()}
 
 
-def ensure_funds(conn: Conn, funds: dict[str, FundSpec]) -> tuple[dict[str, str], Counter[str]]:
-    """fund_key -> entity id, and counts by role ('<role>.created' / '<role>.existing')."""
+def ensure_funds(conn: Conn, funds: dict[str, FundSpec]) -> tuple[dict[str, str], Counter[str], list[str]]:
+    """fund_key -> entity id, counts by role ('<role>.created' / '<role>.existing') and CIK conflicts."""
     before = {r["id"] for r in conn.execute("SELECT id FROM entity").fetchall()}
+    conflicts: list[str] = []
     series_regs: dict[str, set[str | None]] = defaultdict(set)
     for spec in funds.values():
         if spec.meta.get("role") == "nport_series":
@@ -55,9 +70,9 @@ def ensure_funds(conn: Conn, funds: dict[str, FundSpec]) -> tuple[dict[str, str]
         spec = funds[key]
         role = str(spec.meta.get("role"))
         if role == "nport_series":
-            eid = _series(conn, spec, reg_names.get(spec.parent_cik or ""), spec.name.lower() in shared)
+            eid = _series(conn, spec, reg_names.get(spec.parent_cik or ""), spec.name.lower() in shared, conflicts)
         elif role == "bdc":
-            eid = ensure_entity(conn, spec.name, "bdc", cik=spec.cik, meta=spec.meta)
+            eid = _ensure_with_cik(conn, spec.name, "bdc", spec.cik, spec.meta, conflicts)
         else:
             parent = None
             if spec.parent_name:
@@ -65,14 +80,14 @@ def ensure_funds(conn: Conn, funds: dict[str, FundSpec]) -> tuple[dict[str, str]
             eid = ensure_entity(conn, spec.name, "company", parent_id=parent, meta=spec.meta)
         out[key] = eid
         counts[f"{role}.{'existing' if eid in before else 'created'}"] += 1
-    return out, counts
+    return out, counts, sorted(set(conflicts))
 
 
-def _series(conn: Conn, spec: FundSpec, registrant: str | None, shared_name: bool) -> str:
+def _series(conn: Conn, spec: FundSpec, registrant: str | None, shared_name: bool, conflicts: list[str]) -> str:
     reg_id = None
     if spec.parent_cik and registrant:
-        reg_id = ensure_entity(conn, registrant, "fund", cik=spec.parent_cik,
-                               meta={"role": "nport_registrant", "registrant_cik": spec.parent_cik})
+        reg_id = _ensure_with_cik(conn, registrant, "fund", spec.parent_cik,
+                                  {"role": "nport_registrant", "registrant_cik": spec.parent_cik}, conflicts)
         if core_name(registrant) == core_name(spec.name):
             return reg_id  # a single-series registrant: the trust is the fund
     name = spec.name

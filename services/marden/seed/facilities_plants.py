@@ -50,16 +50,21 @@ def bad_mw(project: dict[str, Any]) -> str | None:
     return None
 
 
-def technology(project: dict[str, Any]) -> str:
-    """types.ts PlantTech by rule from the project type and its own text."""
+def tech_in(text: str) -> str | None:
+    for pattern, tech in _TECH:
+        if pattern.search(text):
+            return tech
+    return None
+
+
+def technology(project: dict[str, Any]) -> str | None:
+    """types.ts PlantTech by rule: Fuel cell for fuel-cell projects, Other for nuclear (SMR,
+    restart); gas, campus and co-location plants by the technology their own text names, else n/d."""
     if project["ty"] == "fuel cell":
         return "Fuel cell"
-    text = " ".join(str(project.get(k) or "") for k in ("n", "rw", "why", "dc"))
-    if project["ty"] in ("gas plant", "data center campus power", "co-location"):
-        for pattern, tech in _TECH:
-            if pattern.search(text):
-                return tech
-    return "Other"
+    if project["ty"] in ("SMR", "nuclear restart"):
+        return "Other"
+    return tech_in(" ".join(str(project.get(k) or "") for k in ("n", "rw", "why", "dc")))
 
 
 @dataclass
@@ -116,19 +121,24 @@ def _operator_entity(conn: Conn, arc: Archive, project: dict[str, Any]) -> str |
     return ensure_entity(conn, name, kind, aliases=[dev] if dev != name else ())
 
 
-def write_plants(conn: Conn, sink: FactSink, arc: Archive, links: PowerLinks) -> dict[str, Any]:
-    plants, other = 0, defaultdict(int)
-    unlinked: list[str] = []
-    for pid, p in arc.projects.items():
+def plant_stats() -> dict[str, Any]:
+    return {"plants": 0, "non_plant_linked": defaultdict(int), "non_plant_unlinked": []}
+
+
+def write_plants(conn: Conn, sink: FactSink, arc: Archive, links: PowerLinks, pids: list[str],
+                 stats: dict[str, Any]) -> None:
+    """Plant rows and facts for plant-type projects; large-load / grid facts for the others."""
+    for pid in pids:
+        p = arc.projects[pid]
         if p["ty"] in PLANT_TYPES:
             _plant(conn, sink, arc, pid, p)
-            plants += 1
+            stats["plants"] += 1
             continue
         subjects = links.subjects(pid, arc)
         if not subjects:
-            unlinked.append(pid)
+            stats["non_plant_unlinked"].append(pid)
             continue
-        other[p["ty"]] += 1
+        stats["non_plant_linked"][p["ty"]] += 1
         field_name = "large_load_request" if p["ty"] == LARGE_LOAD else "grid_project"
         value = {k: v for k, v in {
             "project_id": pid, "name": clean(p.get("n")), "type": p["ty"], "developer": clean(p.get("dev")),
@@ -140,7 +150,6 @@ def write_plants(conn: Conn, sink: FactSink, arc: Archive, links: PowerLinks) ->
         for st, sid in subjects:
             sink.add(st, sid, field_name, value, src=arc.sources[POWER], url=first_url(p.get("src")),
                      confidence=confidence(p.get("conf")))
-    return {"plants": plants, "non_plant_linked": dict(other), "non_plant_unlinked": unlinked}
 
 
 def _plant(conn: Conn, sink: FactSink, arc: Archive, pid: str, p: dict[str, Any]) -> None:

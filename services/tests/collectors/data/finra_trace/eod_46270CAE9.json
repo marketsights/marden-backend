@@ -1,0 +1,1280 @@
+{
+"cusip": "46270CAE9",
+"eod": [
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-02",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.35
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-05",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.786
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-06",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 82.5
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-07",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.9343
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-08",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 82.0778
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-09",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.6251
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-12",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 87.3942
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-13",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 89.4206
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-14",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 88.8252
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-15",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 90.4165
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-16",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 96.3772
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-20",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 92.7602
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-21",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 91.5251
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-22",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 91.0393
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-23",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 94.8356
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-26",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 91.0176
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-27",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 97.6747
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-28",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 101.256
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-29",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 98.8808
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-01-30",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 92.8156
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-02",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 92.8484
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-03",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 90.592
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-04",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 85.0893
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-05",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.219
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-06",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.511
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-09",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.8115
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-10",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.1172
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-11",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.4856
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-12",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.75
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-13",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.2449
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-17",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.8961
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-18",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.4221
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-20",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.4875
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-23",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.757074
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-24",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.2824
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-25",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.316
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-26",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.1836
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-02-27",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.2491
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-03",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 77.1484
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-04",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.7357
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-05",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.4936
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-06",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 76.9197
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-09",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 75.625
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-10",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 76.4297
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-11",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.041
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-12",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.9839
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-13",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.0249
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-16",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 82.3999
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-17",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.9047
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-18",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.2584
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-19",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.2096
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-20",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.2771
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-23",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.7736
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-24",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-26",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 75.4815
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-27",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 73.4352
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-30",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 72.625
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-03-31",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 73.2077
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-01",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 73.7941
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-02",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 73.6717
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-07",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 74.9
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-08",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.3011
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-09",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.5107
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-10",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.7304
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-13",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 84.25
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-14",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 88.498754
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-15",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 90.1853
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-16",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 88.8362
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-17",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 89.9188
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-20",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 90.091
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-21",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 87.723
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-22",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 90.3827
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-23",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 93.5589
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-24",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 92.5128
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-27",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 89.9383
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-28",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 86.0331
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-29",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.95
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-04-30",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 87.4138
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-01",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 87.6708
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-04",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 91.0763
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-05",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 94.3467
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-06",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 101.6684
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-07",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 99.0459
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-08",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 102.6471
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-11",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 96.8311
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-12",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 96.4032
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-13",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 96.136
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-14",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 99.0779
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-15",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 93.8117
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-18",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 90.1843
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-19",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 88.8595
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-20",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 92.8627
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-21",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 97.8252
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-22",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 98.35
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-26",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 100.1752
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-27",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 107.0035
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-28",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 104.568
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-05-29",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 102.8757
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-01",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 105.25
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-03",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 105
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-04",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 102.6127
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-05",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 95.43
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-08",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 98.817725
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-09",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 96.5
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-10",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 92.6392
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-11",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 97.3051
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-12",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 100.25
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-15",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 101.672
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-16",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 101
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-18",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 101.3148
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-23",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 95.274409
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-24",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 94.75
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-25",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 90.357
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-26",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 88.5996
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-29",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 88.2256
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-06-30",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 87.4715
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-01",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 85.299
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-02",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.8829
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-06",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 85.6009
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-07",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.647907
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-08",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 82.521
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-09",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.3622
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-13",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.251
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-14",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.719
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-15",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.779
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-16",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 76.9406
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-17",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 75.5278
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-20",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.6861
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-21",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.114
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-22",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.5885
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-23",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.9114
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-27",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 76.8436
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-28",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 74.1636
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-29",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 69.3277
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-30",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.51
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-07-31",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 77.3225
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-03",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.1619
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-04",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.7102
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-05",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.7163
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-06",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.5
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-10",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.0537
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-12",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 82.8999
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-13",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 84.0078
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-14",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.7291
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-18",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.1057
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-19",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.668
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-20",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.6894
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-21",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.4127
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-26",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 77.1109
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-27",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-28",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 72.2083
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-08-31",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 73.0465
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-02",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 73.7445
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-03",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 77.5714
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-04",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.3871
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-08",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 83.8714
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-09",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 81.0376
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-10",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.3807
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-11",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.1381
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-14",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 78.5952
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-17",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 79.0625
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-18",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.3359
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-21",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 82.85
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-22",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 82.8329
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-23",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 82.71
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-24",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 80.6054
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-28",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 76.3184
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-29",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 75.8137
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-09-30",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 75.5883
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-01",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 73.5965
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-05",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 76
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-06",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 74.934
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-07",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 72.8452
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-08",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 68.25
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-09",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 69.9567
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-12",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 68.9223
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-13",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 66.1672
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-14",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 62.3852
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-15",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 61.125
+},
+{
+"cusip": "46270CAE9",
+"tradeDate": "2026-10-16",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 57.9426
+}
+],
+"sec": [
+{
+"cusip": "46270CAE9",
+"issuerName": "IREN LTD",
+"couponRate": "0E-19",
+"maturityDate": "2031-07-01",
+"lastTradeDate": "2026-10-16",
+"lastSalePrice": "57.942600",
+"lastSaleYield": null,
+"is144A": "Y",
+"isConvertible": "Y",
+"moodysRating": null,
+"standardAndPoorsRating": null
+}
+]
+}

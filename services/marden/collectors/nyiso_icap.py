@@ -6,10 +6,13 @@ linked from https://www.nyiso.com/installed-capacity-market as "ICAP Market Resu
 - the monthly auctions: held before each month, selling that month and the rest of the capability period;
 - the spot market auction: the month's final, demand-curve-priced auction.
 Localities: NYCA, G-J Locality (Lower Hudson Valley, zones G-J), NYC (zone J), LI (zone K). External areas
-(HQ, IESO, NE, PJM) are not written. Prices are $/kW-month (`clearing_price`, 'USD/kW-month') and converted to
-`clearing_price_usd_mw_day` (x 1000 x months / days of the delivery period). `cleared_mw` is "Awarded (MW)";
-for the spot auction, Awarded Deficiency + Awarded Excess. The pages give the results' "Posted Date" (valid_from)
-but not the auction's bidding dates, so `auction_date` is not written.
+(HQ, IESO, NE, PJM) are not written. NYISO prices in $/kW-month: `clearing_price_native` ('USD/kW-month') is
+the published price and `clearing_price` ('USD/MW-day') its conversion by capacity_common (x 1000 / 30.4167,
+noted in quote_loc). `cleared_mw` is "Awarded (MW)"; for the spot auction, Awarded Deficiency + Awarded Excess.
+Series: 'capacity:nyiso:<nyca|g-j|nyc|li>:' + 'summer-2026-strip' | '2026-07-monthly-2026-06' (July capacity
+from the June monthly auction) | '2026-10-spot'. The pages give the results' "Posted Date" (valid_from) but not
+the auction's bidding dates, so `auction_date` is not written. A site's `capacity_zone` is its NYISO load zone
+(A-K, capacity_zones); `series_zone` maps it to the locality its capacity is priced in.
 
 Pages (raw first: every page is stored before parsing; a GET with display=Display returns the same summary as
 the site's form POST): the season list (JSON at /ucap/rest/seasons/public), then for each capability period
@@ -63,13 +66,12 @@ SOURCE_NAME = "NYISO"
 HOST = "icappublic.nyiso.com"
 BASE = f"https://{HOST}/ucap"
 SEASONS_URL = f"{BASE}/rest/seasons/public"
-MARKET_PAGE = "https://www.nyiso.com/installed-capacity-market"
 TERMS_URL = "https://www.nyiso.com/legal-notice"
 FIRST_SEASON_START = date(2021, 5, 1)  # Summer 2021: five capability years of history
 LOOKAHEAD_DAYS = 62  # the next period's strip auction posts about a month before it starts
+EVENT_WINDOW_DAYS = 45  # announce auctions posted since about the last monthly check, not the backfill
 CRON_UTC = "17 11 2 * *"
-PAGES = {"strip": "auc_view_strip_detail.do", "monthly": "auc_view_monthly_detail.do",
-         "spot": "auc_view_spot_detail.do"}
+PAGES = {kind: f"auc_view_{kind}_detail.do" for kind in ("strip", "monthly", "spot")}
 # page label -> zone code (series zone = zone_slug(code)): NYCA, Lower Hudson Valley G-J, New York City, Long Island
 LOCALITIES = {"NYCA": "NYCA", "G-J Locality": "G-J", "NYC": "NYC", "LI": "LI"}
 # NYISO ICAP Manual localities: NYC = load zone J, LI = zone K, G-J Locality = zones G-J; the rest is NYCA.
@@ -108,7 +110,7 @@ class Season:
         out, day = [], self.start
         while day <= self.end:
             out.append(day)
-            day = (month_end(day.year, day.month) + timedelta(days=1))
+            day = month_end(day.year, day.month) + timedelta(days=1)
         return out
 
 
@@ -185,7 +187,7 @@ class PageResults:
     season: str
     first_month: date  # the auction month (strip: the period's first month)
     posted: date
-    columns: list[date]  # delivery months (strip: the first month only; see `results`)
+    columns: list[date]  # priced months (strip and spot: one column; `auctions` gives the delivery dates)
     values: dict[str, list[dict[str, Decimal]]]  # locality -> per column {'price','awarded'[,'excess']}
 
 
@@ -334,7 +336,7 @@ def load_document(doc: DocumentRow, kind: str, season: Season, stats: RunStats, 
                         zone_slug(zone.zone), f"{title}: {zone.zone} ${native:,.2f}/kW-month (${price:,.2f}/MW-day)",
                         auction.published, doc.url, doc.id))
         announce(conn, stats, market="nyiso", source_name=SOURCE_NAME, headlines=headlines,
-                 series_zone=series_zone, today=today)
+                 series_zone=series_zone, today=today, window_days=EVENT_WINDOW_DAYS)
     return len(found)
 
 

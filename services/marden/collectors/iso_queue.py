@@ -1,5 +1,6 @@
-"""Shared model for ISO/RTO interconnection queue collectors (pjm_queue, miso_queue, nyiso_queue,
-isone_queue; other queue collectors can reuse it).
+"""Shared model for interconnection queue collectors (ISO/RTOs: pjm_queue, miso_queue, nyiso_queue,
+isone_queue ...; non-RTO transmission providers: bpa_queue, epe_queue; the LBNL compilation:
+lbnl_queued_up, tag R via `QueueStore.tag`).
 
 - Every queue entry is subject_type 'queue_project', subject_id '<iso>:<queue id>', with an identity
   row in `queue_project` (db/migrations/20261021140000_queue_project.sql).
@@ -42,8 +43,13 @@ FIELDS = (
     "name", "iso", "developer", "transmission_owner", "county", "state", "poi", "fuel", "project_type",
     "mw_requested", "status", "status_class", "queue_date", "proposed_cod", "actual_cod", "withdrawn_date",
     "study_phase", "cycle", "zone", "end_use",
+    # non-RTO transmission providers and compilations (bpa_queue, lbnl_queued_up): the EIA-930 balancing
+    # authority, interconnection service (NRIS/ERIS), IA date, MW per resource type of a hybrid, and the
+    # operator's own entry this row restates ('<iso>:<queue id>', a cross-check link).
+    "balancing_authority", "service", "ia_date", "mw_by_type", "operator_entry",
 )
-UNITS = {"mw_requested": "MW", "queue_date": "date", "actual_cod": "date", "withdrawn_date": "date"}
+UNITS = {"mw_requested": "MW", "queue_date": "date", "actual_cod": "date", "withdrawn_date": "date",
+         "ia_date": "date"}
 EVENT_FIELDS = ("status", "proposed_cod")
 BLANK = frozenset({"", "n/a", "na", "none", "null", "-", "--", "tbd", "not specified", "unknown"})
 STATUS_CLASSES = ("withdrawn", "retired", "in_service", "under_construction", "suspended", "active")
@@ -170,6 +176,8 @@ class QueueStore:
     prior: dict[tuple[str, str], tuple[Any, date]] = field(default_factory=dict)
     loads: dict[tuple[str, str], list[dict[str, Any]]] = field(default_factory=dict)
     identities: dict[str, tuple[str, str | None, str | None, str | None]] = field(default_factory=dict)
+    tag: str = "F"  # facts and events: F for operator publications, R for compilations (lbnl_queued_up)
+    iso_label: str | None = None  # the `iso` fact on every entry; None = ISO name from `iso`, '' = none
 
     def __post_init__(self) -> None:
         checks.not_future(self.report_date, "report_date")
@@ -199,8 +207,9 @@ class QueueStore:
         day = candidate if candidate is not None and candidate <= self.report_date else self.report_date
         return max(day, prior_day) if prior_day is not None else day  # a new value never sorts below the old
 
-    def _put(self, subject_type: str, subject_id: str, key: str, fld: str, value: Any, *, tag: str = "F",
+    def _put(self, subject_type: str, subject_id: str, key: str, fld: str, value: Any, *, tag: str | None = None,
              day: date | None, source_url: str, document_id: int | None) -> bool:
+        tag = tag or self.tag
         self.stats.facts_seen += 1  # every published value checked, written or not
         old = self.prior.get((key, fld))
         if old is not None and canonical_json(old[0]) == canonical_json(value):
@@ -219,7 +228,10 @@ class QueueStore:
 
     def write(self, entry: QueueEntry, *, source_url: str, document_id: int | None) -> None:
         sid = f"{self.iso}:{entry.queue_id}"
-        values = {"iso": self.iso.upper() if self.iso != "isone" else "ISO-NE", **entry.values}
+        label = self.iso_label
+        if label is None:
+            label = "ISO-NE" if self.iso == "isone" else self.iso.upper()
+        values = {**({"iso": label} if label else {}), **entry.values}
         self.counts["entries"] += 1
         self.counts[f"status_class:{values.get('status_class') or 'n/d'}"] += 1
         self.identities[sid] = (entry.queue_id, values.get("name"), values.get("state"), values.get("county"))
@@ -262,7 +274,7 @@ class QueueStore:
             for kind, ls in links.items():
                 for link in ls:
                     res = self.events.add(
-                        kind, link["id"], day, "interconnection", title, tag="F", source_name=self.source_name,
+                        kind, link["id"], day, "interconnection", title, tag=self.tag, source_name=self.source_name,
                         source_url=source_url, document_id=document_id, status="published",
                     )
                     self.counts["events_new"] += int(res.created)

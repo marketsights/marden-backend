@@ -3,7 +3,8 @@
 `dataset_candidates` reads four of its tab-separated tables (SUBMISSION, REGISTRANT,
 FUND_REPORTED_HOLDING, IDENTIFIERS; https://www.sec.gov/files/nport_readme.pdf) and returns the
 accessions whose positions carry a watched identifier. The tables are streamed line by line, so the
-1.6 GB of a quarter's text never sits in memory.
+1.6 GB of a quarter's text never sits in memory. Every filing's non-USD exchange rates are tallied
+as well (sec_nport_fx), which settles the rate direction for the quarter's report dates.
 """
 
 from __future__ import annotations
@@ -13,8 +14,10 @@ import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 from marden.collectors.sec_index_parse import normalize_cik
+from marden.collectors.sec_nport_fx import FxVotes, parse_rate
 from marden.collectors.sec_nport_parse import NPORT_FORMS, NportParseError, dera_date, id_keys
 
 
@@ -52,10 +55,11 @@ def _columns(rows: Iterator[list[str]], name: str, wanted: tuple[str, ...]) -> l
 
 
 def dataset_candidates(
-    zf: zipfile.ZipFile, keys: set[str], periods: set[date] | None = None
+    zf: zipfile.ZipFile, keys: set[str], periods: set[date] | None = None, fx: FxVotes | None = None
 ) -> tuple[list[DatasetCandidate], DatasetStats]:
     """Accessions of NPORT-P(/A) filings with a position whose CUSIP, ISIN or other identifier is a
-    watched key (optionally only those reporting as of one of `periods`), oldest filing first."""
+    watched key (optionally only those reporting as of one of `periods`), oldest filing first. With
+    `fx`, every filing's (currency, exchange rate) pairs are added to it."""
     stats = DatasetStats()
     rows = _tsv(zf, "IDENTIFIERS.tsv")
     hid, isin, other = _columns(rows, "IDENTIFIERS", ("HOLDING_ID", "IDENTIFIER_ISIN", "OTHER_IDENTIFIER"))
@@ -65,12 +69,16 @@ def dataset_candidates(
         if len(r) > max(hid, isin, other) and (hit := id_keys(r[isin], r[other]) & keys):
             by_holding.setdefault(r[hid], set()).update(hit)
     rows = _tsv(zf, "FUND_REPORTED_HOLDING.tsv")
-    acc, hid, cusip = _columns(rows, "FUND_REPORTED_HOLDING", ("ACCESSION_NUMBER", "HOLDING_ID", "ISSUER_CUSIP"))
+    acc, hid, cusip, cur, rate = _columns(rows, "FUND_REPORTED_HOLDING", (
+        "ACCESSION_NUMBER", "HOLDING_ID", "ISSUER_CUSIP", "CURRENCY_CODE", "EXCHANGE_RATE"))
     matched: dict[str, set[str]] = {}
+    rates: dict[str, set[tuple[str, Decimal]]] = {}
     for r in rows:
         stats.holdings_rows += 1
-        if len(r) <= max(acc, hid, cusip):
+        if len(r) <= max(acc, hid, cusip, cur, rate):
             continue
+        if fx is not None and r[rate] and r[cur] not in ("USD", "") and (value := parse_rate(r[rate])):
+            rates.setdefault(r[acc], set()).add((r[cur], value))
         hit = (id_keys(r[cusip]) & keys) | by_holding.get(r[hid], set())
         if hit:
             stats.matched_positions += 1
@@ -79,8 +87,12 @@ def dataset_candidates(
     rows = _tsv(zf, "SUBMISSION.tsv")
     acc, filed, form, rep = _columns(rows, "SUBMISSION", ("ACCESSION_NUMBER", "FILING_DATE", "SUB_TYPE", "REPORT_DATE"))
     for r in rows:
-        if len(r) > max(acc, filed, form, rep) and r[acc] in matched:
+        if len(r) <= max(acc, filed, form, rep):
+            continue
+        if r[acc] in matched:
             subs[r[acc]] = (r[form].strip().upper(), dera_date(r[filed]), dera_date(r[rep]))
+        if fx is not None and r[acc] in rates:
+            fx.add(r[acc], dera_date(r[rep]), rates[r[acc]])
     ciks: dict[str, str] = {}
     rows = _tsv(zf, "REGISTRANT.tsv")
     acc, cik = _columns(rows, "REGISTRANT", ("ACCESSION_NUMBER", "CIK"))

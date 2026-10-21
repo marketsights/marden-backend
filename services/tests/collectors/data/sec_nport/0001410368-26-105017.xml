@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?><edgarSubmission xmlns="http://www.sec.gov/edgar/nport" xmlns:com="http://www.sec.gov/edgar/common" xmlns:ncom="http://www.sec.gov/edgar/nportcommon" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sec.gov/edgar/nport eis_NPORT_Filer.xsd">
+  <headerData>
+    <submissionType>NPORT-P</submissionType>
+    <isConfidential>false</isConfidential>
+    <filerInfo>
+
+      <filer>
+        <issuerCredentials>
+          <cik>0000809593</cik>
+          <ccc>XXXXXXXX</ccc>
+        </issuerCredentials>
+      </filer>
+
+
+      <seriesClassInfo>
+        <seriesId>S000052009</seriesId>
+        <classId>C000163584</classId>
+        <classId>C000163585</classId>
+        <classId>C000163586</classId>
+        <classId>C000163587</classId>
+        <classId>C000163588</classId>
+      </seriesClassInfo>
+
+
+    </filerInfo>
+  </headerData>
+  <formData>
+    <genInfo>
+      <regName>AMERICAN BEACON FUNDS</regName>
+      <regFileNumber>811-04984</regFileNumber>
+      <regCik>0000809593</regCik>
+      <regLei>549300EXCES9V5RWB620</regLei>
+      <regStreet1>220 EAST LAS COLINAS BOULEVARD</regStreet1>
+      <regStreet2>SUITE 1200</regStreet2>
+      <regCity>IRVING</regCity>
+      <regStateConditional regCountry="US" regState="US-TX"/>
+      <regZipOrPostalCode>75039</regZipOrPostalCode>
+      <regPhone>817-391-6100</regPhone>
+      <seriesName>American Beacon DoubleLine Floating Rate Fund</seriesName>
+      <seriesId>S000052009</seriesId>
+      <seriesLei>549300QYOTL07RDZ7578</seriesLei>
+      <repPdEnd>2026-08-31</repPdEnd>
+      <repPdDate>2026-08-31</repPdDate>
+      <isFinalFiling>N</isFinalFiling>
+    </genInfo>
+    <fundInfo>
+      <totAssets>125728934.17</totAssets>
+      <totLiabs>6166320.54</totLiabs>
+      <netAssets>119562613.63</netAssets>
+      <assetsAttrMiscSec>0.00000000</assetsAttrMiscSec>
+      <assetsInvested>0.00000000</assetsInvested>
+      <amtPayOneYrBanksBorr>0.00000000</amtPayOneYrBanksBorr>
+      <amtPayOneYrCtrldComp>0.00000000</amtPayOneYrCtrldComp>
+      <amtPayOneYrOthAffil>0.00000000</amtPayOneYrOthAffil>
+      <amtPayOneYrOther>0.00000000</amtPayOneYrOther>
+      <amtPayAftOneYrBanksBorr>0.00000000</amtPayAftOneYrBanksBorr>
+      <amtPayAftOneYrCtrldComp>0.00000000</amtPayAftOneYrCtrldComp>
+      <amtPayAftOneYrOthAffil>0.00000000</amtPayAftOneYrOthAffil>
+      <amtPayAftOneYrOther>0.00000000</amtPayAftOneYrOther>
+      <delayDeliv>5019810.35000000</delayDeliv>
+      <standByCommit>0.00000000</standByCommit>
+      <liquidPref>0.00000000</liquidPref>
+      <cshNotRptdInCorD>0.00000000</cshNotRptdInCorD>
+      <curMetrics>
+        <curMetric>
+          <curCd>USD</curCd>
+          <intrstRtRiskdv01 period10Yr="-300.13000000" period1Yr="-554.16000000" period30Yr="-13.61000000" period3Mon="-703.01000000" period5Yr="-1536.79000000"/>
+          <intrstRtRiskdv100 period10Yr="-36939.01000000" period1Yr="-60420.96000000" period30Yr="-941.53000000" period3Mon="-70554.40000000" period5Yr="-173502.35000000"/>
+        </curMetric>
+      </curMetrics>
+      <creditSprdRiskInvstGrade period10Yr="-307.92000000" period1Yr="-155.20000000" period30Yr="0.00000000" period3Mon="-5.18000000" period5Yr="-1314.55000000"/>
+      <creditSprdRiskNonInvstGrade period10Yr="-4181.55000000" period1Yr="-6754.48000000" period30Yr="-2.78000000" period3Mon="-189.60000000" period5Yr="-31063.81000000"/>
+      <isNonCashCollateral>N</isNonCashCollateral>
+      <returnInfo>
+        <monthlyTotReturns>
+          <monthlyTotReturn classId="C000163584" rtn1="-0.13000000" rtn2="0.84000000" rtn3="0.89000000"/>
+          <monthlyTotReturn classId="C000163585" rtn1="-0.19000000" rtn2="0.78000000" rtn3="0.82000000"/>
+          <monthlyTotReturn classId="C000163586" rtn1="-0.13000000" rtn2="0.84000000" rtn3="1.01000000"/>
+          <monthlyTotReturn classId="C000163587" rtn1="-0.13000000" rtn2="0.84000000" rtn3="0.89000000"/>
+          <monthlyTotReturn classId="C000163588" rtn1="-0.13000000" rtn2="0.84000000" rtn3="0.89000000"/>
+        </monthlyTotReturns>
+        <othMon1 netRealizedGain="-157286.57000000" netUnrealizedAppr="-562202.89000000"/>
+        <othMon2 netRealizedGain="9833.32000000" netUnrealizedAppr="340580.94000000"/>
+        <othMon3 netRealizedGain="-18544.28000000" netUnrealizedAppr="505711.10000000"/>
+      </returnInfo>
+      <mon1Flow redemption="2960535.72000000" reinvestment="470224.32000000" sales="3815999.61000000"/>
+      <mon2Flow redemption="5913978.75000000" reinvestment="429002.64000000" sales="1167848.27000000"/>
+      <mon3Flow redemption="2415655.07000000" reinvestment="457382.30000000" sales="743159.51000000"/>
+
+
+
+    </fundInfo>
+    <invstOrSecs>
+      <invstOrSec>
+        <name>ABG Intermediate Holdings 2 LLC</name>
+        <lei>54930020NXD0RJB64985</lei>
+        <title>ABG Intermediate Holdings 2 LLC</title>
+        <cusip>00076VBL3</cusip>
+        <identifiers>
+          <isin value="US00076VBL36"/>
+        </identifiers>
+        <balance>68774.99000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>68935.24000000</valUSD>
+        <pctVal>0.057656183573</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>LON</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2028-12-21</maturityDt>
+          <couponKind>Floating</couponKind>
+          <annualizedRt>5.93600000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>ADI GLOBAL DISTRIBUTION</name>
+        <lei>254900GB1EDVMKIC5R79</lei>
+        <title>ADI Global Distribution Funding LLC</title>
+        <cusip>00093AAA3</cusip>
+        <identifiers>
+          <isin value="US00093AAA34"/>
+        </identifiers>
+        <balance>40000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>41320.78000000</valUSD>
+        <pctVal>0.034559950427</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2034-07-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>7.12500000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>ADI Global Distribution Funding LLC</name>
+        <lei>254900GB1EDVMKIC5R79</lei>
+        <title>ADI Global Distribution Funding LLC</title>
+        <cusip>00104SAB9</cusip>
+        <identifiers>
+          <isin value="US00104SAB97"/>
+        </identifiers>
+        <balance>460000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>460575.00000000</valUSD>
+        <pctVal>0.385216570645</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>LON</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2033-07-01</maturityDt>
+          <couponKind>Floating</couponKind>
+          <annualizedRt>6.43600000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>AI AQUA MERGER SUB INC</name>
+        <lei>5493005QMH1D47U26R45</lei>
+        <title>AI Aqua Merger Sub, Inc.</title>
+        <cusip>00132UAS3</cusip>
+        <identifiers>
+          <isin value="US00132UAS33"/>
+        </identifiers>
+        <balance>695000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>697217.05000000</valUSD>
+        <pctVal>0.583139686254</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>LON</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2033-07-05</maturityDt>
+          <couponKind>Floating</couponKind>
+          <annualizedRt>6.20600000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>APLD COMPUTECO LLC</name>
+        <lei>N/A</lei>
+        <title>APLD ComputeCo LLC</title>
+        <cusip>00202DAA5</cusip>
+        <identifiers>
+          <isin value="US00202DAA54"/>
+        </identifiers>
+        <balance>45000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>47464.50000000</valUSD>
+        <pctVal>0.039698446327</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2030-12-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>9.25000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>CIPHER COMPUTE LLC</name>
+        <lei>N/A</lei>
+        <title>Cipher Compute LLC</title>
+        <cusip>17253NAA5</cusip>
+        <identifiers>
+          <isin value="US17253NAA54"/>
+        </identifiers>
+        <balance>40000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>40495.74000000</valUSD>
+        <pctVal>0.033869901945</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2030-11-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>7.12500000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>KAMAN CORPORATION</name>
+        <lei>5493003YK076OLTEQF95</lei>
+        <title>Kaman Corp.</title>
+        <cusip>48354VAP7</cusip>
+        <identifiers>
+          <other otherDesc="LoanX ID" value="LX292249"/>
+        </identifiers>
+        <balance>61628.59000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>61763.56000000</valUSD>
+        <pctVal>0.051657920586</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>LON</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2032-02-26</maturityDt>
+          <couponKind>None</couponKind>
+          <annualizedRt>0.00000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>STINGRAY COMPUTE</name>
+        <lei>N/A</lei>
+        <title>Stingray Compute LLC</title>
+        <cusip>86083AAA4</cusip>
+        <identifiers>
+          <isin value="US86083AAA43"/>
+        </identifiers>
+        <balance>16000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>15579.52000000</valUSD>
+        <pctVal>0.013030427762</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2031-06-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>6.00000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>ALTICE FRANCE LUXCO 3 SHARES</name>
+        <lei>N/A</lei>
+        <title>Altice France Lux 3/Altice Holdings 1</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <other otherDesc="Internal Identifier" value="990ACJES0"/>
+        </identifiers>
+        <balance>5056.00000000</balance>
+        <units>NS</units>
+        <currencyConditional curCd="EUR" exchangeRt="0.86088200"/>
+        <valUSD>95436.91000000</valUSD>
+        <pctVal>0.079821699361</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>3</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+    </invstOrSecs>
+    <signature>
+      <ncom:dateSigned>2026-09-28</ncom:dateSigned>
+      <ncom:nameOfApplicant>AMERICAN BEACON FUNDS</ncom:nameOfApplicant>
+      <ncom:signature>Aaron Cooper</ncom:signature>
+      <ncom:signerName>Aaron Cooper</ncom:signerName>
+      <ncom:title>Treasurer</ncom:title>
+    </signature>
+  </formData>
+</edgarSubmission>

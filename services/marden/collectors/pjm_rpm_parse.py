@@ -24,8 +24,8 @@ from decimal import Decimal
 from typing import Any
 from urllib.parse import urljoin
 
-import pymupdf
 import openpyxl
+import pymupdf
 from openpyxl.utils import get_column_letter
 
 from marden.collectors.capacity_common import MW, USD_MW_DAY, Value, decimal, period_key
@@ -167,7 +167,8 @@ def parse_results(data: bytes, listed: Listed, fname: str) -> Results:
     _resource(out, _sheet(wb, listed.sheet_prefix, "resourceclearingresults"), listed, fname)
     _load(out, _sheet(wb, listed.sheet_prefix, "loadpricingresults"), fname)
     if "RTO" not in out.ldas or len(out.zones) < 15:
-        raise ParseError(f"{fname}: expected RTO and the transmission zones, got {sorted(out.ldas)} / {sorted(out.zones)}")
+        raise ParseError(f"{fname}: expected RTO and the transmission zones, got {sorted(out.ldas)} / "
+                         f"{sorted(out.zones)}")
     return out
 
 
@@ -225,7 +226,8 @@ def _load(out: Results, ws: Any, fname: str) -> None:
         vals["zonal_ucap_obligation_mw"] = Value(decimal(rows[i][oblig], f"{fname} {zone} obligation"), MW,
                                                  _loc(fname, ws, i, oblig, f"{hdr[oblig]}, {zone}"))
         if zone in out.ldas:  # PJM leaves the LDA columns blank for some modeled LDAs (DOM in 2025/2026)
-            vals["lda"] = Value(zone, None, f"{fname}: {zone} is a modeled LDA in this auction's Resource Clearing Prices")
+            vals["lda"] = Value(zone, None,
+                                f"{fname}: {zone} is a modeled LDA in this auction's Resource Clearing Prices")
         else:
             vals["lda"] = Value(path[-1] if path else "RTO", None,
                                 f"{fname} '{ws.title}'!B{i + 1}:D{i + 1} (LDA1-LDA3 of {zone}; none listed = RTO)")
@@ -254,6 +256,8 @@ def _day(text: str) -> date:
 
 
 def report_dates(data: bytes, fname: str) -> ReportDates:
+    if not data.lstrip()[:5] == b"%PDF-":
+        raise ParseError(f"{fname}: not a PDF (starts {data[:40]!r})")
     try:
         doc = pymupdf.open(stream=data, filetype="pdf")
     except Exception as exc:  # pymupdf.FileDataError and friends: not a PDF

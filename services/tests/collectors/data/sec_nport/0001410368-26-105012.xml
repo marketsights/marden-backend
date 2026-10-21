@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?><edgarSubmission xmlns="http://www.sec.gov/edgar/nport" xmlns:com="http://www.sec.gov/edgar/common" xmlns:ncom="http://www.sec.gov/edgar/nportcommon" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sec.gov/edgar/nport eis_NPORT_Filer.xsd">
+  <headerData>
+    <submissionType>NPORT-P</submissionType>
+    <isConfidential>false</isConfidential>
+    <filerInfo>
+
+      <filer>
+        <issuerCredentials>
+          <cik>0000809593</cik>
+          <ccc>XXXXXXXX</ccc>
+        </issuerCredentials>
+      </filer>
+
+
+      <seriesClassInfo>
+        <seriesId>S000097955</seriesId>
+        <classId>C000267489</classId>
+        <classId>C000267490</classId>
+        <classId>C000269735</classId>
+      </seriesClassInfo>
+
+
+    </filerInfo>
+  </headerData>
+  <formData>
+    <genInfo>
+      <regName>AMERICAN BEACON FUNDS</regName>
+      <regFileNumber>811-04984</regFileNumber>
+      <regCik>0000809593</regCik>
+      <regLei>549300EXCES9V5RWB620</regLei>
+      <regStreet1>220 EAST LAS COLINAS BOULEVARD</regStreet1>
+      <regStreet2>SUITE 1200</regStreet2>
+      <regCity>IRVING</regCity>
+      <regStateConditional regCountry="US" regState="US-TX"/>
+      <regZipOrPostalCode>75039</regZipOrPostalCode>
+      <regPhone>817-391-6100</regPhone>
+      <seriesName>American Beacon DoubleLine Select Income Fund</seriesName>
+      <seriesId>S000097955</seriesId>
+      <seriesLei>549300CYGMJO6CGRJP72</seriesLei>
+      <repPdEnd>2026-08-31</repPdEnd>
+      <repPdDate>2026-08-31</repPdDate>
+      <isFinalFiling>N</isFinalFiling>
+    </genInfo>
+    <fundInfo>
+      <totAssets>368698114.83</totAssets>
+      <totLiabs>123574.20</totLiabs>
+      <netAssets>368574540.63</netAssets>
+      <assetsAttrMiscSec>0.00000000</assetsAttrMiscSec>
+      <assetsInvested>0.00000000</assetsInvested>
+      <amtPayOneYrBanksBorr>0.00000000</amtPayOneYrBanksBorr>
+      <amtPayOneYrCtrldComp>0.00000000</amtPayOneYrCtrldComp>
+      <amtPayOneYrOthAffil>0.00000000</amtPayOneYrOthAffil>
+      <amtPayOneYrOther>0.00000000</amtPayOneYrOther>
+      <amtPayAftOneYrBanksBorr>0.00000000</amtPayAftOneYrBanksBorr>
+      <amtPayAftOneYrCtrldComp>0.00000000</amtPayAftOneYrCtrldComp>
+      <amtPayAftOneYrOthAffil>0.00000000</amtPayAftOneYrOthAffil>
+      <amtPayAftOneYrOther>0.00000000</amtPayAftOneYrOther>
+      <delayDeliv>0.00000000</delayDeliv>
+      <standByCommit>0.00000000</standByCommit>
+      <liquidPref>0.00000000</liquidPref>
+      <cshNotRptdInCorD>0.00000000</cshNotRptdInCorD>
+      <curMetrics>
+        <curMetric>
+          <curCd>USD</curCd>
+          <intrstRtRiskdv01 period10Yr="-61896.98000000" period1Yr="-21177.57000000" period30Yr="-29090.88000000" period3Mon="-539.69000000" period5Yr="-81536.70000000"/>
+          <intrstRtRiskdv100 period10Yr="-6003673.81000000" period1Yr="-2104689.47000000" period30Yr="-2727459.35000000" period3Mon="-53933.28000000" period5Yr="-8016624.81000000"/>
+        </curMetric>
+      </curMetrics>
+      <creditSprdRiskInvstGrade period10Yr="-45741.28000000" period1Yr="-8825.25000000" period30Yr="-20000.28000000" period3Mon="-235.13000000" period5Yr="-43729.76000000"/>
+      <creditSprdRiskNonInvstGrade period10Yr="-14402.19000000" period1Yr="-2754.50000000" period30Yr="-9059.84000000" period3Mon="-94.42000000" period5Yr="-8016.49000000"/>
+      <isNonCashCollateral>N</isNonCashCollateral>
+      <returnInfo>
+        <monthlyTotReturns>
+          <monthlyTotReturn classId="C000267489" rtn1="0.18000000" rtn2="-0.88000000" rtn3="0.33000000"/>
+          <monthlyTotReturn classId="C000267490" rtn1="0.20000000" rtn2="-0.86000000" rtn3="0.35000000"/>
+          <monthlyTotReturn classId="C000269735" rtn1="0.20000000" rtn2="-0.86000000" rtn3="0.35000000"/>
+        </monthlyTotReturns>
+        <othMon1 netRealizedGain="3.36000000" netUnrealizedAppr="-740992.94000000"/>
+        <othMon2 netRealizedGain="-1496.89000000" netUnrealizedAppr="-4762784.02000000"/>
+        <othMon3 netRealizedGain="425152.22000000" netUnrealizedAppr="-458719.17000000"/>
+      </returnInfo>
+      <mon1Flow redemption="4095124.61000000" reinvestment="324973.86000000" sales="8659178.44000000"/>
+      <mon2Flow redemption="3087219.27000000" reinvestment="352924.53000000" sales="2502006.28000000"/>
+      <mon3Flow redemption="4350272.44000000" reinvestment="384551.21000000" sales="12430365.19000000"/>
+
+
+
+    </fundInfo>
+    <invstOrSecs>
+      <invstOrSec>
+        <name>Apollo Aviation Securitization Equity Trust</name>
+        <lei>N/A</lei>
+        <title>AASET MT-1 Ltd.</title>
+        <cusip>00039NAB0</cusip>
+        <identifiers>
+          <isin value="US00039NAB01"/>
+        </identifiers>
+        <balance>4568158.90000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>4466736.64000000</valUSD>
+        <pctVal>1.211895057202</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>ABS-O</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2050-02-16</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>6.01000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Altde Trust</name>
+        <lei>N/A</lei>
+        <title>ALTDE Trust</title>
+        <cusip>00166NAB5</cusip>
+        <identifiers>
+          <isin value="US00166NAB55"/>
+        </identifiers>
+        <balance>3264888.76000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>3238406.59000000</valUSD>
+        <pctVal>0.878630028125</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>ABS-O</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2050-08-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>6.53400000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>AT&amp;T INC</name>
+        <lei>549300Z40J86GGSTL398</lei>
+        <title>AT&amp;T, Inc.</title>
+        <cusip>00206RBH4</cusip>
+        <identifiers>
+          <isin value="US00206RBH49"/>
+        </identifiers>
+        <balance>11015000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>8702860.41000000</valUSD>
+        <pctVal>2.361221259375</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2042-12-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>4.30000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Apollo Aviation Securitization Equity Trust</name>
+        <lei>N/A</lei>
+        <title>AASET Trust</title>
+        <cusip>00255JAC4</cusip>
+        <identifiers>
+          <isin value="US00255JAC45"/>
+        </identifiers>
+        <balance>5045012.62000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>5058991.85000000</valUSD>
+        <pctVal>1.372583098483</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>ABS-O</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2049-05-16</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>6.90000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Affirm Master Trust</name>
+        <lei>N/A</lei>
+        <title>Affirm Master Trust</title>
+        <cusip>00833BBA5</cusip>
+        <identifiers>
+          <isin value="US00833BBA52"/>
+        </identifiers>
+        <balance>5000000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>4987834.50000000</valUSD>
+        <pctVal>1.353277003743</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>ABS-O</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2034-08-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>4.78000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>ALLO Issuer, LLC</name>
+        <lei>N/A</lei>
+        <title>ALLO Issuer LLC</title>
+        <cusip>01983KAW4</cusip>
+        <identifiers>
+          <isin value="US01983KAW45"/>
+        </identifiers>
+        <balance>2250000.00000000</balance>
+        <units>PA</units>
+        <curCd>USD</curCd>
+        <valUSD>2248412.85000000</valUSD>
+        <pctVal>0.610029343360</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>ABS-O</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2056-06-20</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>6.04600000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+    </invstOrSecs>
+    <explntrNotes>
+      <explntrNote note="Monthly returns presented in Item B.5(a) have been calculated without deducting any applicable sales loads or redemption fees." noteItem="B.5.a"/>
+    </explntrNotes>
+    <signature>
+      <ncom:dateSigned>2026-09-15</ncom:dateSigned>
+      <ncom:nameOfApplicant>AMERICAN BEACON FUNDS</ncom:nameOfApplicant>
+      <ncom:signature>Aaron Cooper</ncom:signature>
+      <ncom:signerName>Aaron Cooper</ncom:signerName>
+      <ncom:title>Treasurer</ncom:title>
+    </signature>
+  </formData>
+</edgarSubmission>

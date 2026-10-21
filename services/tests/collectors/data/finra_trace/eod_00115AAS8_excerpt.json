@@ -1,0 +1,160 @@
+{
+"cusip": "00115AAS8",
+"eod": [
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-02",
+"lastSaleYield": 4.92,
+"productType": "CA",
+"lastSalePrice": 103.326
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-06",
+"lastSaleYield": 4.9,
+"productType": "CA",
+"lastSalePrice": 103.408
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-07",
+"lastSaleYield": 4.89,
+"productType": "CA",
+"lastSalePrice": 103.538357
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-12",
+"lastSaleYield": 4.92,
+"productType": "CA",
+"lastSalePrice": 103.268
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-13",
+"lastSaleYield": 4.91,
+"productType": "CA",
+"lastSalePrice": 103.341
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-14",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-16",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-20",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-21",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-22",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-23",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-26",
+"lastSaleYield": 4.93,
+"productType": "CA",
+"lastSalePrice": 103.221
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-27",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-28",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-01-30",
+"lastSaleYield": 4.97,
+"productType": "CA",
+"lastSalePrice": 102.939
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-02-02",
+"lastSaleYield": null,
+"productType": "CA",
+"lastSalePrice": 0
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-02-03",
+"lastSaleYield": 4.98,
+"productType": "CA",
+"lastSalePrice": 102.805
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-02-04",
+"lastSaleYield": 4.99,
+"productType": "CA",
+"lastSalePrice": 102.724
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-02-05",
+"lastSaleYield": 4.91,
+"productType": "CA",
+"lastSalePrice": 103.32377
+},
+{
+"cusip": "00115AAS8",
+"tradeDate": "2026-02-10",
+"lastSaleYield": 4.87,
+"productType": "CA",
+"lastSalePrice": 103.651
+}
+],
+"sec": [
+{
+"cusip": "00115AAS8",
+"issuerName": "AEP TRANSMISSION CO LLC",
+"couponRate": "5.3750000000000000000",
+"maturityDate": "2035-06-15",
+"lastTradeDate": "2026-10-19",
+"lastSalePrice": "96.974000",
+"lastSaleYield": "5.823943",
+"is144A": "N",
+"isConvertible": "N",
+"moodysRating": "A2",
+"standardAndPoorsRating": "BBB+"
+}
+]
+}

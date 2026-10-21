@@ -68,6 +68,8 @@ class Section:
 
 
 def pdf_pages(data: bytes, what: str) -> tuple[list[str], dict[str, Any]]:
+    if not data.lstrip()[:5] == b"%PDF-":
+        raise ParseError(f"{what}: not a PDF (starts {data[:40]!r})")
     try:
         doc = pymupdf.open(stream=data, filetype="pdf")
     except Exception as exc:  # pymupdf.FileDataError and friends: not a PDF
@@ -102,6 +104,16 @@ def prices_in(text: str) -> tuple[dict[str, tuple[Decimal, str]], tuple[Decimal,
                 raise ParseError(f"zone {code} has two payment rates ({zones[code][0]}, {rate})")
             zones[code] = (rate, sentence.strip())
     return zones, system
+
+
+_NEW_DESIGN = re.compile(r"\b(?:Prompt|Seasonal) (?:Capacity )?Auction\b[^.]{0,80}\bResults?\b", re.I)
+
+
+def unknown_sections(data: bytes) -> list[int]:
+    """Pages of the results report that look like results of an auction design this parser does not read
+    (ISO-NE's planned prompt / seasonal capacity auction)."""
+    pages, _ = pdf_pages(data, "FCA results report")
+    return [i + 1 for i, text in enumerate(pages) if _NEW_DESIGN.search(text) and not _HEADING.search(text)]
 
 
 def parse_report(data: bytes, *, first_fca: int = 1) -> dict[int, Section]:
@@ -229,7 +241,7 @@ def release_date(data: bytes, what: str) -> tuple[date, str]:
     """The date line of an ISO-NE press release: 'Holyoke, MA—February 9, 2024—...'."""
     pages, _ = pdf_pages(data, what)
     first = pages[0] if pages else ""
-    m = re.search(rf"Holyoke, MA\s*[—–-]+\s*{_DATE}", first) or re.search(_DATE, first[:2000])
+    m = re.search(rf"Holyoke, MA\s*[\u2014\u2013-]+\s*{_DATE}", first) or re.search(_DATE, first[:2000])
     if not m:
         raise ParseError(f"{what}: no release date on the first page")
     return _day(m[1]), f"{what}: \"{m[0]}\""

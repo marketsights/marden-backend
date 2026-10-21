@@ -1016,6 +1016,25 @@ ALTER SEQUENCE public.fact_id_seq OWNED BY public.fact.id;
 
 
 --
+-- Name: grid_region; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.grid_region (
+    id text NOT NULL,
+    kind text NOT NULL,
+    name text NOT NULL,
+    country text,
+    parent_id text,
+    geom public.geometry(MultiPolygon,4326),
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT grid_region_check CHECK ((parent_id IS DISTINCT FROM id)),
+    CONSTRAINT grid_region_kind_check CHECK ((kind = ANY (ARRAY['interconnection'::text, 'iso_rto'::text, 'balancing_authority'::text, 'utility'::text, 'tso'::text, 'reliability_region'::text])))
+);
+
+
+--
 -- Name: holding; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1865,6 +1884,14 @@ ALTER TABLE ONLY public.fact
 
 
 --
+-- Name: grid_region grid_region_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_region
+    ADD CONSTRAINT grid_region_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: holding holding_fund_entity_id_accession_line_key_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2251,6 +2278,27 @@ CREATE INDEX fact_subject_pub ON public.fact USING btree (subject_type, subject_
 
 
 --
+-- Name: grid_region_geom; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX grid_region_geom ON public.grid_region USING gist (geom);
+
+
+--
+-- Name: grid_region_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX grid_region_kind ON public.grid_region USING btree (kind);
+
+
+--
+-- Name: grid_region_parent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX grid_region_parent ON public.grid_region USING btree (parent_id);
+
+
+--
 -- Name: holding_cusip; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2571,6 +2619,14 @@ ALTER TABLE ONLY public.fact
 
 
 --
+-- Name: grid_region grid_region_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_region
+    ADD CONSTRAINT grid_region_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.grid_region(id) ON DELETE SET NULL;
+
+
+--
 -- Name: holding holding_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2832,4 +2888,5 @@ ALTER TABLE ONLY public.watchlist_item
 INSERT INTO public.schema_migrations (version) VALUES
     ('20261021100000'),
     ('20261021100100'),
-    ('20261021140000');
+    ('20261021140000'),
+    ('20261021150000');

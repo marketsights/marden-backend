@@ -1,0 +1,12 @@
+{
+ "url": "https://services-dynarep.ddwa.finra.org/public/reporting/v2/template/template-e07aeeca-d6b8-4356-bd2a-0ca58e1e5bea/composite",
+ "status": 404,
+ "headers": {
+  "content-type": "text/html; charset=iso-8859-1",
+  "server": "cloudflare",
+  "cf-cache-status": "DYNAMIC",
+  "cf-ray": "a4e0ab3d0bdc3950-IAD",
+  "date": "Wed, 21 Oct 2026 13:39:32 GMT"
+ },
+ "captured": "2026-10-21T13:39:32Z"
+}

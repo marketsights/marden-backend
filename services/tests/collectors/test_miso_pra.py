@@ -49,9 +49,9 @@ def test_parses_the_2025_corrected_posting():
     assert "slide header" in r.published_loc
     by_season = {t.season: t for t in r.tables}
     assert set(by_season["summer"].acp.values()) == {Decimal("666.50")}
-    fall = by_season["fall"].acp
+    fall = by_season["fall"].acp  # the ERZ cell "83.24 - 91.60" is not a zone and is ignored
     assert [fall[f"Z{n}"] for n in (1, 7, 8, 9, 10)] == [Decimal("91.60"), Decimal("91.60"), Decimal("74.09"),
-                                                          Decimal("74.09"), Decimal("74.10")]  # ERZ "83.24 - 91.60" ignored
+                                                          Decimal("74.09"), Decimal("74.10")]
     assert by_season["summer"].committed["Z9"] == Decimal("20221.6")
     assert by_season["spring"].acp["Z5"] == Decimal("69.88")
 

@@ -1,0 +1,21 @@
+Description:           Daily Index of EDGAR Dissemination Feed by Form Type
+Last Data Received:    Oct 15, 2026
+Comments:              webmaster@sec.gov
+Anonymous FTP:         ftp://ftp.sec.gov/edgar/
+ 
+ 
+ 
+ 
+Form Type   Company Name                                                  CIK
+      Date Filed  File Name
+---------------------------------------------------------------------------------------------------------------------------------------------
+10-Q             ALPHA DIGITAL VOLTZ INC.                                      1985554     20261015    edgar/data/1985554/0001683168-26-007862.txt                                                
+10-Q             Alphega Innovations Corp                                      2038564     20261015    edgar/data/2038564/0002038564-26-000014.txt                                                
+10-Q             BIOMERICA INC                                                 73290       20261015    edgar/data/73290/0001493152-26-047271.txt                                                
+10-Q             CANNABIS SUISSE CORP.                                         1680132     20261015    edgar/data/1680132/0001680132-26-000012.txt                                                
+10-Q             Dankon Corp                                                   2065287     20261015    edgar/data/2065287/0002065287-26-000017.txt                                                
+10-Q             East West Ave Acquisition Corp.                               2100704     20261015    edgar/data/2100704/0001493152-26-047282.txt                                                
+NPORT-P          AMERICAN BEACON FUNDS                                         809593      20261015    edgar/data/809593/0001410368-26-105012.txt                                                
+NPORT-P          AMERICAN BEACON FUNDS                                         809593      20261015    edgar/data/809593/0001410368-26-105013.txt                                                
+NPORT-P          AMERICAN BEACON FUNDS                                         809593      20261015    edgar/data/809593/0001410368-26-105017.txt                                                
+NPORT-P          TAIWAN FUND INC                                               804123      20261015    edgar/data/804123/0001410368-26-104912.txt                                                

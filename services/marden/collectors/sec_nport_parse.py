@@ -4,7 +4,8 @@
   decide whether a filing holds a watched instrument before it is parsed or stored.
 - `parse_nport`: an N-PORT `primary_doc.xml` -> header (registrant, series, report date, net
   assets) and the positions (Item C: identifiers, balance, units, currency, value, level, ...).
-- `mark_price`: 100 x value / balance in percent of par, for units PA only (price-sources.md §5).
+- `mark_price`: 100 x value / balance in percent of par, for units PA only (price-sources.md §5);
+  non-USD positions in their own currency once the rate's direction is known (sec_nport_fx).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from decimal import Decimal, InvalidOperation
 from lxml import etree
 
 from marden.collectors.sec_index_parse import IndexLine, filing_folder, normalize_cik, quarter
+from marden.collectors.sec_nport_fx import PER_USD, USD_PER
 from marden.seed.instruments_nport import fund_mark_price
 from marden.seed.instruments_parse import PLACEHOLDER_CUSIPS, cusip_valid, isin_valid
 
@@ -297,16 +299,17 @@ def _series_id(text: str | None) -> str | None:
     return text if re.fullmatch(r"S\d{9}", text) else None
 
 
-def mark_price(p: Position) -> Decimal | None:
+def mark_price(p: Position, fx: str | None = None) -> Decimal | None:
     """Percent of par, 4 decimals: 100 x value / balance for a long par-amount (PA) position. A
-    non-USD position is valued in its own currency first (valUSD x exchangeRt, which N-PORT gives
-    as units of the currency per US dollar). None when that is not possible: no par units, no
-    balance, a negative value (short) or a foreign currency without its exchange rate."""
+    non-USD position is valued in its own currency first, which needs the direction of its exchange
+    rate (`fx`, see sec_nport_fx): valUSD x rate for currency per dollar, valUSD / rate for dollars
+    per currency. None when no price can be read: other units, no balance, a negative value (short),
+    no currency, or a foreign currency whose rate direction is not verified."""
     if p.units != PAR_UNITS or p.balance is None or p.balance <= 0 or p.val_usd is None or p.val_usd < 0:
         return None
-    value = p.val_usd
-    if p.cur_cd and p.cur_cd != "USD":
-        if p.exchange_rt is None or p.exchange_rt <= 0:
-            return None
-        value = p.val_usd * p.exchange_rt
+    if p.cur_cd == "USD":
+        return fund_mark_price(p.val_usd, p.balance)
+    if not p.cur_cd or p.exchange_rt is None or p.exchange_rt <= 0 or fx not in (PER_USD, USD_PER):
+        return None
+    value = p.val_usd * p.exchange_rt if fx == PER_USD else p.val_usd / p.exchange_rt
     return fund_mark_price(value, p.balance)

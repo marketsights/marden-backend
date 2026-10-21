@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?><edgarSubmission xmlns="http://www.sec.gov/edgar/nport" xmlns:com="http://www.sec.gov/edgar/common" xmlns:ncom="http://www.sec.gov/edgar/nportcommon" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sec.gov/edgar/nport eis_NPORT_Filer.xsd">
+  <headerData>
+    <submissionType>NPORT-P</submissionType>
+    <isConfidential>false</isConfidential>
+    <filerInfo>
+
+      <filer>
+        <issuerCredentials>
+          <cik>0000809593</cik>
+          <ccc>XXXXXXXX</ccc>
+        </issuerCredentials>
+      </filer>
+
+
+      <seriesClassInfo>
+        <seriesId>S000088560</seriesId>
+        <classId>C000254860</classId>
+        <classId>C000254861</classId>
+        <classId>C000254862</classId>
+      </seriesClassInfo>
+
+
+    </filerInfo>
+  </headerData>
+  <formData>
+    <genInfo>
+      <regName>AMERICAN BEACON FUNDS</regName>
+      <regFileNumber>811-04984</regFileNumber>
+      <regCik>0000809593</regCik>
+      <regLei>549300EXCES9V5RWB620</regLei>
+      <regStreet1>220 EAST LAS COLINAS BOULEVARD</regStreet1>
+      <regStreet2>SUITE 1200</regStreet2>
+      <regCity>IRVING</regCity>
+      <regStateConditional regCountry="US" regState="US-TX"/>
+      <regZipOrPostalCode>75039</regZipOrPostalCode>
+      <regPhone>817-391-6100</regPhone>
+      <seriesName>American Beacon Ninety One Global Franchise Fund</seriesName>
+      <seriesId>S000088560</seriesId>
+      <seriesLei>529900H413TZGLCXTJ47</seriesLei>
+      <repPdEnd>2026-08-31</repPdEnd>
+      <repPdDate>2026-08-31</repPdDate>
+      <isFinalFiling>N</isFinalFiling>
+    </genInfo>
+    <fundInfo>
+      <totAssets>328602476.37</totAssets>
+      <totLiabs>392648.81</totLiabs>
+      <netAssets>328209827.56</netAssets>
+      <assetsAttrMiscSec>0.00000000</assetsAttrMiscSec>
+      <assetsInvested>0.00000000</assetsInvested>
+      <amtPayOneYrBanksBorr>0.00000000</amtPayOneYrBanksBorr>
+      <amtPayOneYrCtrldComp>0.00000000</amtPayOneYrCtrldComp>
+      <amtPayOneYrOthAffil>0.00000000</amtPayOneYrOthAffil>
+      <amtPayOneYrOther>0.00000000</amtPayOneYrOther>
+      <amtPayAftOneYrBanksBorr>0.00000000</amtPayAftOneYrBanksBorr>
+      <amtPayAftOneYrCtrldComp>0.00000000</amtPayAftOneYrCtrldComp>
+      <amtPayAftOneYrOthAffil>0.00000000</amtPayAftOneYrOthAffil>
+      <amtPayAftOneYrOther>0.00000000</amtPayAftOneYrOther>
+      <delayDeliv>0.00000000</delayDeliv>
+      <standByCommit>0.00000000</standByCommit>
+      <liquidPref>0.00000000</liquidPref>
+      <cshNotRptdInCorD>9760.38000000</cshNotRptdInCorD>
+      <borrowers>
+        <borrower aggrVal="563270.54000000" lei="ZBUT11V806EZRVTWT807" name="J.P. Morgan Securities LLC"/>
+        <borrower aggrVal="4100164.60000000" lei="BFM8T61CT2L1QCEMIK50" name="UBS AG"/>
+      </borrowers>
+      <aggregateCondition isNonCashCollateral="Y">
+        <aggregateInfos>
+          <aggregateInfo amt="5198135.85000000" collatrl="4820611.92000000">
+            <invstCat>UST</invstCat>
+          </aggregateInfo>
+        </aggregateInfos>
+      </aggregateCondition>
+      <returnInfo>
+        <monthlyTotReturns>
+          <monthlyTotReturn classId="C000254860" rtn1="0.16000000" rtn2="4.41000000" rtn3="2.47000000"/>
+          <monthlyTotReturn classId="C000254861" rtn1="0.21000000" rtn2="4.38000000" rtn3="2.46000000"/>
+          <monthlyTotReturn classId="C000254862" rtn1="0.21000000" rtn2="4.39000000" rtn3="2.46000000"/>
+        </monthlyTotReturns>
+        <monthlyReturnCats>
+          <equityContracts>
+            <mon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <mon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            <warrantCategory>
+              <instrMon1 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon2 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+              <instrMon3 netRealizedGain="0.00000000" netUnrealizedAppr="0.00000000"/>
+            </warrantCategory>
+          </equityContracts>
+        </monthlyReturnCats>
+        <othMon1 netRealizedGain="12747347.20000000" netUnrealizedAppr="-12663877.48000000"/>
+        <othMon2 netRealizedGain="5637430.43000000" netUnrealizedAppr="8491648.09000000"/>
+        <othMon3 netRealizedGain="4956152.50000000" netUnrealizedAppr="4346732.08000000"/>
+      </returnInfo>
+      <mon1Flow redemption="45042914.23000000" reinvestment="0.00000000" sales="854590.83000000"/>
+      <mon2Flow redemption="31856544.42000000" reinvestment="0.00000000" sales="909755.83000000"/>
+      <mon3Flow redemption="23642765.60000000" reinvestment="0.00000000" sales="857079.96000000"/>
+
+
+    </fundInfo>
+    <invstOrSecs>
+      <invstOrSec>
+        <name>Align Technology Inc</name>
+        <lei>549300N5YSE0U3LCP840</lei>
+        <title>Align Technology, Inc.</title>
+        <cusip>016255101</cusip>
+        <identifiers>
+          <isin value="US0162551016"/>
+        </identifiers>
+        <balance>31723.00000000</balance>
+        <units>NS</units>
+        <curCd>USD</curCd>
+        <valUSD>5069018.17000000</valUSD>
+        <pctVal>1.544444359781</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Alphabet Inc</name>
+        <lei>5493006MHB84DD0ZWV18</lei>
+        <title>Alphabet, Inc.</title>
+        <cusip>02079K305</cusip>
+        <identifiers>
+          <isin value="US02079K3059"/>
+        </identifiers>
+        <balance>44478.00000000</balance>
+        <units>NS</units>
+        <curCd>USD</curCd>
+        <valUSD>15093609.30000000</valUSD>
+        <pctVal>4.598768236834</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Autodesk Inc</name>
+        <lei>FRKKVKAIQEF3FCSTPG55</lei>
+        <title>Autodesk, Inc.</title>
+        <cusip>052769106</cusip>
+        <identifiers>
+          <isin value="US0527691069"/>
+        </identifiers>
+        <balance>42173.00000000</balance>
+        <units>NS</units>
+        <curCd>USD</curCd>
+        <valUSD>10902985.69000000</valUSD>
+        <pctVal>3.321955887505</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Automatic Data Processing Inc</name>
+        <lei>HGBOLILQXWER4SAL2I23</lei>
+        <title>Automatic Data Processing, Inc.</title>
+        <cusip>053015103</cusip>
+        <identifiers>
+          <isin value="US0530151036"/>
+        </identifiers>
+        <balance>28904.00000000</balance>
+        <units>NS</units>
+        <curCd>USD</curCd>
+        <valUSD>8271168.64000000</valUSD>
+        <pctVal>2.520085611540</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>St James's Place PLC</name>
+        <lei>213800M993ICXOMBCP87</lei>
+        <title>St. James's Place PLC</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="GB0007669376"/>
+        </identifiers>
+        <balance>177803.00000000</balance>
+        <units>NS</units>
+        <currencyConditional curCd="GBP" exchangeRt="0.73800700"/>
+        <valUSD>2857349.02000000</valUSD>
+        <pctVal>0.870586064177</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>GB</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>Booking Holdings Inc</name>
+        <lei>FXM8FAOHMYDIPD38UZ17</lei>
+        <title>Booking Holdings, Inc.</title>
+        <cusip>09857L108</cusip>
+        <identifiers>
+          <isin value="US09857L1089"/>
+        </identifiers>
+        <balance>83155.00000000</balance>
+        <units>NS</units>
+        <curCd>USD</curCd>
+        <valUSD>16555328.95000000</valUSD>
+        <pctVal>5.044129565856</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>EC</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>1</fairValLevel>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+    </invstOrSecs>
+    <explntrNotes>
+      <explntrNote note="Monthly returns presented in Item B.5(a) have been calculated without deducting any applicable sales loads or redemption fees." noteItem="B.5.a"/>
+    </explntrNotes>
+    <signature>
+      <ncom:dateSigned>2026-09-15</ncom:dateSigned>
+      <ncom:nameOfApplicant>AMERICAN BEACON FUNDS</ncom:nameOfApplicant>
+      <ncom:signature>Aaron Cooper</ncom:signature>
+      <ncom:signerName>Aaron Cooper</ncom:signerName>
+      <ncom:title>Treasurer</ncom:title>
+    </signature>
+  </formData>
+</edgarSubmission>

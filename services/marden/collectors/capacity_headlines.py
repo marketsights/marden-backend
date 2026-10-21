@@ -9,8 +9,9 @@ NYISO load zone (A-K). These collectors therefore announce their own headline pe
 - `announce`: for each V1 site whose `capacity_market` is the market and whose `capacity_zone` (its own, or an
   approved linked campus's) maps to a zone with a headline, one published event of kind 'capacity_auction'
   (tag F, the results document as source). Only auctions new to Marden (facts created by this load) and
-  published in the last EVENT_WINDOW_DAYS are announced, so backfilled history raises no events and a rerun
-  writes nothing (the event dedupe key covers site, date, kind, title and source).
+  published within the window (EVENT_WINDOW_DAYS for the annual MISO PRA; about one monthly check for NYISO)
+  are announced, so backfilled history raises no events and a rerun writes nothing (the event dedupe key
+  covers site, date, kind, title and source).
 """
 
 from __future__ import annotations
@@ -59,11 +60,12 @@ def linked_v1_sites(conn: Conn, market: str) -> list[tuple[str, str]]:
 
 def announce(
     conn: Conn, stats: RunStats, *, market: str, source_name: str, headlines: list[Headline],
-    series_zone: Callable[[str], str | None], today: date,
+    series_zone: Callable[[str], str | None], today: date, window_days: int = EVENT_WINDOW_DAYS,
 ) -> int:
     """Events for `headlines` on linked V1 sites; `series_zone` maps a site's capacity_zone value to the series
-    zone slug it is priced in (NYISO 'A' -> 'nyca'). Returns the number of new events."""
-    cutoff = today - timedelta(days=EVENT_WINDOW_DAYS)
+    zone slug it is priced in (NYISO 'A' -> 'nyca'). Headlines published more than `window_days` before `today`
+    are history and raise no event. Returns the number of new events."""
+    cutoff = today - timedelta(days=window_days)
     by_zone: dict[str, list[Headline]] = {}
     for h in headlines:
         if h.published >= cutoff:

@@ -3,7 +3,7 @@
 The archive ships us-atlas 3.0.1 (`aiwc/q3x/geo/us-atlas-3.0.1/counties-10m.json`, ISC licence,
 US Census Bureau cartographic boundaries). The loader decodes that TopoJSON (quantized,
 delta-encoded arcs) and finds the county that contains a campus point with an even-odd ray test.
-The result is a Marden derivation (tag M, ``COUNTY_METHOD``). Nothing in the file is executed.
+The result is a Marden derivation (tag M, source ``US_ATLAS``). Nothing in the file is executed.
 """
 
 from __future__ import annotations
@@ -13,7 +13,8 @@ from dataclasses import dataclass
 from typing import Any
 
 COUNTIES = "aiwc/q3x/geo/us-atlas-3.0.1/counties-10m.json"
-COUNTY_METHOD = "us-atlas-3.0.1-counties-10m-point-in-polygon"
+US_ATLAS = "us-atlas (US Census Bureau boundaries)"
+US_ATLAS_URL = "https://github.com/topojson/us-atlas"
 
 US_STATES = {
     "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",

@@ -1,0 +1,20 @@
+Last modified: November 9, 2023
+The use of the FINRA.ORG site, including all of its content (“FINRA Website”), is conditioned upon the acceptance by you (“End User”), without modification, of these terms of use ("Terms of Use"). Financial Industry Regulatory Authority, Inc. (“FINRA”) reserves any rights, privileges, or immunities not expressly granted under these Terms of Use. 
+Permitted Uses
+Subject to Restrictions, below, and any other restrictions in these Terms of Use, the content and material provided through the FINRA Website shall be used ONLY for your own non-commercial personal or professional use.
+Restrictions
+In no case may you:
+a. decompile, reverse engineer, disassemble, modify, distribute, or create derivative works or improvements from the FINRA Website or any portion thereof, or attempt to discover any source code, protocols, or other trade secrets in the FINRA Website;
+b. obtain or attempt to obtain unauthorized access to FINRA’s Website or network;
+c. use the FINRA Website in violation of applicable laws or regulations;
+d. develop or create a database of data using the FINRA Website, except as expressly permitted by any other terms of use on the FINRA Website;
+e. use any process to monitor or copy the FINRA Website in bulk, or use any data mining, scraping or harvesting tools (including robots), or any similar data-gathering or extraction tools;
+f. use any device, software, or routine to bypass any software or hardware that limits the volume or frequency of requests for the FINRA Website;
+g. attempt to interfere with the proper working of the FINRA Website, including taking any action that imposes an unreasonable or disproportionately large load on the FINRA Website (including by making voluminous, excessive, or repetitive requests for data) or introduce a virus or other malware to the FINRA Website;
+h. alter or modify the content of the FINRA Website; 
+i. create derivative works or improvements from the FINRA Website;
+j. use the FINRA Website in any unlawful, fraudulent, misleading, obscene, harmful, threatening, harassing, defamatory, or hateful manner, that invades the privacy of any third party, for any unlawful purpose, or in any manner inconsistent with these Terms of Use;
+k. use the FINRA Website or Licensed Marks in a manner that infringes, violates, or misappropriates FINRA’s, its affiliates’, or a third party’s intellectual property rights;
+l. use the FINRA Website in any manner that disparages FINRA or is otherwise threatening, vulgar, or inappropriate as FINRA determines, in its sole discretion; 
+m. use any portion of the FINRA Website in the development of any software program or in conjunction with any machine learning, neural network, deep learning, predictive analytics or other artificial intelligence computer or software program, including, without limitation, by using any portion of the FINRA Website in conjunction with a model, algorithm, or process that is designed to predict trades for or within an individual portfolio, fund, or other investment vehicle;
+FINRA Data provides non-commercial use of data, specifically the ability to save data views and create and manage a Bond Watchlist.

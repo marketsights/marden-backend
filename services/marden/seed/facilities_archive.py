@@ -49,9 +49,19 @@ def docket_key(agency: str, number: str) -> str:
 
 @dataclass
 class Archive:
+    """The archive files, read once. `cases` / `campus_keys` / `exhibit_limit` cut a slice of the
+    real archive (tests): only those cases' campuses, plants, dockets and events, plus the named
+    dcmap keys; None loads everything."""
+
     conn: Conn
+    cases: frozenset[str] | None = None
+    campus_keys: frozenset[str] = frozenset()
+    exhibit_limit: int | None = None
     sources: dict[str, Src] = field(default_factory=dict)
     data: dict[str, Any] = field(default_factory=dict)
+
+    def in_scope(self, case: str | None) -> bool:
+        return self.cases is None or case in self.cases
 
     def read(self, relpath: str, *, as_of_value: Any = None) -> Any:
         """Store the file raw, record its document, parse it (once per run)."""
@@ -98,7 +108,17 @@ class Archive:
     # ------------------------------------------------------------ campuses
     @cached_property
     def dcmap_rows(self) -> list[dict[str, Any]]:
-        return self.data[DCMAP]["rows"]
+        rows = self.data[DCMAP]["rows"]
+        if self.cases is None:
+            return rows
+        return [r for r in rows if (r.get("cov") and r.get("case") in self.cases) or r["key"] in self.campus_keys]
+
+    @cached_property
+    def epoch_names(self) -> list[str]:
+        """Epoch data centers to load (all of them, so unmatched names are reported, unless scoped)."""
+        if self.cases is None:
+            return sorted(set(self.epoch_rows) | set(self.map_dcs))
+        return sorted(self.campus_of_epoch)
 
     @cached_property
     def campus_of_key(self) -> dict[str, str]:
@@ -151,7 +171,11 @@ class Archive:
 
     @cached_property
     def projects(self) -> dict[str, dict[str, Any]]:
-        return {p["id"]: p for p in self.data[POWER]["projects"]}
+        projects = {p["id"]: p for p in self.data[POWER]["projects"]}
+        if self.cases is None:
+            return projects
+        linked = {p["id"] for r in self.dcmap_rows if r.get("cov") for p in r.get("pw") or []}
+        return {k: v for k, v in projects.items() if self.pw2c.get(k) in self.cases or k in linked}
 
     @cached_property
     def pw2c(self) -> dict[str, str]:
@@ -159,7 +183,7 @@ class Archive:
 
     @cached_property
     def inventory(self) -> list[dict[str, Any]]:
-        return self.data[INVENTORY]["rows"]
+        return [r for r in self.data[INVENTORY]["rows"] if self.in_scope(r["case_id"])]
 
     @cached_property
     def inventory_by_key(self) -> dict[str, list[dict[str, Any]]]:

@@ -10,10 +10,12 @@ A model over facts Marden already holds (tag M, producer 'model:capacity_zones',
   published `load_zones`); a state split across capacity zones is left unassigned;
 - MISO: the Local Resource Zone, NYISO: the load zone A-K, only where the facts name it ("MISO (Zone 9)");
 - ERCOT, SPP, CAISO and non-RTO areas have no capacity auction: capacity_market 'none' and the reason, no
-  capacity_zone. Text naming several markets (multi-site portfolios) is left unassigned, as is a subject
-  with no grid fact; both are listed in the run meta, nothing is guessed.
+  capacity_zone. A market field naming several markets marks a multi-site portfolio, and then decides over
+  the single boundary point grid_join placed: 'none' when every market named runs no capacity auction, else
+  unassigned. A subject with no grid fact is unassigned too; both are listed in the run meta, nothing is guessed.
 source_name / source_url / quote are those of the fact the market was read from; valid_from is the newest
-of the inputs. `python -m marden model capacity_zones`; the capacity collectors run it after each load.
+of the inputs. Like grid_join it is queued as a collect task: `python -m marden collect capacity_zones`; the
+capacity collectors also run it after each load.
 """
 
 from __future__ import annotations
@@ -106,7 +108,7 @@ class Assignment:
     reason: str | None = None  # why 'none', or why the subject is unassigned / has no zone
     basis: Basis | None = None
     zone_loc: str | None = None
-    extra_from: list[date] = field(default_factory=list)  # other inputs' dates (ISO-NE zone definitions)
+    extra_from: list[date] = field(default_factory=list)  # every input's date: the subject's grid facts, ISO-NE zones
 
 
 def markets_in(text: str) -> set[str]:
@@ -128,7 +130,8 @@ def pjm_zone(texts: list[str], known: set[str]) -> tuple[str | None, str | None]
             if re.search(pattern, text.lower()) and zone not in zones:
                 zones.append(zone)
     if len(zones) != 1:
-        return None, ("utility text names no PJM zone" if not zones else f"utility text names several PJM zones {zones}")
+        why = f"utility text names several PJM zones {zones}" if zones else "utility text names no PJM zone"
+        return None, why
     if zones[0] not in known:
         return None, f"PJM zone {zones[0]} is not in PJM's latest auction results"
     return zones[0], f"PJM transmission zone {zones[0]} from the utility name"
@@ -184,6 +187,15 @@ def _basis(row: Row) -> Basis:
 def classify(facts: dict[str, Row], state: str | None, ctx: dict[str, Any]) -> Assignment:
     market_rows = [facts[f] for f in MARKET_FIELDS if f in facts and _text(facts[f]["value"]).strip()]
     util_rows = [facts[f] for f in UTILITY_FIELDS if f in facts and _text(facts[f]["value"]).strip()]
+    inputs = [r["valid_from"] for r in market_rows + util_rows]  # a changed input makes the new answer current
+    portfolio = next((r for r in market_rows if len(markets_in(_text(r["value"]))) > 1), None)
+    if portfolio is not None:  # a multi-site subject: one boundary point (grid_join `iso`) does not speak for it
+        named = set().union(*(markets_in(_text(r["value"])) for r in market_rows))
+        if named <= set(NO_AUCTION):
+            reason = " ".join(["Every site named is outside the capacity markets:",
+                               *(NO_AUCTION[m] for m in sorted(named))])
+            return Assignment(market="none", reason=reason, basis=_basis(portfolio), extra_from=inputs)
+        return Assignment(reason=f"facts name several markets {sorted(named)}", basis=_basis(portfolio))
     basis, found = None, set()
     for row in market_rows:  # the first field that names a market decides
         found = markets_in(_text(row["value"]))
@@ -202,10 +214,10 @@ def classify(facts: dict[str, Row], state: str | None, ctx: dict[str, Any]) -> A
         return Assignment(reason=f"facts name several markets {sorted(found)}", basis=basis)
     market = found.pop()
     if market in NO_AUCTION:
-        return Assignment(market="none", reason=NO_AUCTION[market], basis=basis)
+        return Assignment(market="none", reason=NO_AUCTION[market], basis=basis, extra_from=inputs)
     texts = [basis.text]
     texts += [t for r in market_rows + util_rows if (t := _basis(r).text) not in texts]
-    out = Assignment(market=market, basis=basis)
+    out = Assignment(market=market, basis=basis, extra_from=inputs)
     if market == "pjm":
         out.zone, out.zone_loc = pjm_zone(texts, ctx["pjm_zones"])
     elif market == "miso":
@@ -305,12 +317,12 @@ def run() -> dict[str, Any]:
 
 
 @app.periodic(cron=CRON_UTC, periodic_id="weekly_mon_0941_utc")
-@app.task(name="models.capacity_zones", queue="models", queueing_lock="models.capacity_zones",
-          lock="models.capacity_zones")
+@app.task(name="collect.capacity_zones", queue="collect", queueing_lock="collect.capacity_zones",
+          lock="collect.capacity_zones")
 def assign_task(timestamp: int | None = None) -> dict[str, Any]:
     return run()
 
 
-@cli.action("model", SOURCE_ID, help="Capacity market and zone of every site, campus and plant (+ auction events)")
+@cli.action("collect", SOURCE_ID, help="Capacity market and zone of every site, campus and plant (+ auction events)")
 def assign_cli(args: argparse.Namespace) -> int:
     return print_stats(run())

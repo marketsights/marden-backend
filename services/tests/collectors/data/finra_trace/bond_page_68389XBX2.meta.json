@@ -1,0 +1,12 @@
+{
+ "url": "https://www.finra.org/finra-data/fixed-income/bond?cusip=68389XBX2&bondType=CORP",
+ "status": 200,
+ "headers": {
+  "content-type": "text/html; charset=UTF-8",
+  "server": "cloudflare",
+  "cf-cache-status": "DYNAMIC",
+  "cf-ray": "a4e0ab22f95681f9-IAD",
+  "date": "Wed, 21 Oct 2026 13:39:27 GMT"
+ },
+ "captured": "2026-10-21T13:39:28Z"
+}

@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /customerportal/
+Allow: /
+
+Sitemap: https://www.bpa.gov/sitemap.xml

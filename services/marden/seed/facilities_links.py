@@ -25,7 +25,7 @@ def propose_links(conn: Conn, sink: FactSink, arc: Archive, existing_sites: set[
             pairs.append((row["case"], row["key"], "dcmap.case", False))
     keys = {r["key"] for r in arc.dcmap_rows}
     for case, key in NAME_LINKS.items():
-        if key in keys:
+        if key in keys and arc.in_scope(case):
             pairs.append((case, key, "name match (dictionary 3.5)", True))
     stats: dict[str, Any] = {"proposed": 0, "reviews": 0, "skipped": []}
     src = arc.sources[DCMAP]

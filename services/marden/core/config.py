@@ -49,6 +49,11 @@ class Settings:
     fred_api_key: str | None = field(default=None, repr=False)
     finra_client_id: str | None = field(default=None, repr=False)
     finra_client_secret: str | None = field(default=None, repr=False)
+    # ERCOT Public API (api.ercot.com): subscription key plus the API Explorer account that signs in for an
+    # ID token. All three are needed; without them the ERCOT API collectors record "needs key" and stop.
+    ercot_api_key: str | None = field(default=None, repr=False)
+    ercot_api_username: str | None = field(default=None, repr=False)
+    ercot_api_password: str | None = field(default=None, repr=False)
     seed_dir: Path | None = None
     # Serve and use values from sources flagged 'unlicensed-commercial' in marden.core.licensing.
     show_unlicensed_prices: bool = True
@@ -73,6 +78,9 @@ class Settings:
             fred_api_key=_env("FRED_API_KEY"),
             finra_client_id=_env("FINRA_CLIENT_ID"),
             finra_client_secret=_env("FINRA_CLIENT_SECRET"),
+            ercot_api_key=_env("ERCOT_API_KEY"),
+            ercot_api_username=_env("ERCOT_API_USERNAME"),
+            ercot_api_password=_env("ERCOT_API_PASSWORD"),
             seed_dir=Path(seed_dir).expanduser() if seed_dir else None,
             show_unlicensed_prices=_BOOLS[show_unlicensed.lower()] if show_unlicensed else True,
         )
@@ -96,6 +104,9 @@ class Settings:
 
     def has_finra(self) -> bool:
         return self.finra_client_id is not None and self.finra_client_secret is not None
+
+    def has_ercot_api(self) -> bool:
+        return all((self.ercot_api_key, self.ercot_api_username, self.ercot_api_password))
 
     def has_seed_dir(self) -> bool:
         return self.seed_dir is not None and self.seed_dir.is_dir()

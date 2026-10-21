@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?><edgarSubmission xmlns="http://www.sec.gov/edgar/nport" xmlns:com="http://www.sec.gov/edgar/common" xmlns:ncom="http://www.sec.gov/edgar/nportcommon" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sec.gov/edgar/nport eis_NPORT_Filer.xsd">
+  <headerData>
+    <submissionType>NPORT-P</submissionType>
+    <isConfidential>false</isConfidential>
+    <filerInfo>
+
+      <filer>
+        <issuerCredentials>
+          <cik>0001100663</cik>
+          <ccc>XXXXXXXX</ccc>
+        </issuerCredentials>
+      </filer>
+
+
+      <seriesClassInfo>
+        <seriesId>S000051261</seriesId>
+        <classId>C000161648</classId>
+      </seriesClassInfo>
+
+
+    </filerInfo>
+  </headerData>
+  <formData>
+    <genInfo>
+      <regName>iShares Trust</regName>
+      <regFileNumber>811-09729</regFileNumber>
+      <regCik>0001100663</regCik>
+      <regLei>5493000860OXIC4B5K91</regLei>
+      <regStreet1>400 Howard Street</regStreet1>
+      <regCity>San Francisco</regCity>
+      <regStateConditional regCountry="US" regState="US-CA"/>
+      <regZipOrPostalCode>94105</regZipOrPostalCode>
+      <regPhone>800-474-2737</regPhone>
+      <seriesName>iShares Core International Aggregate Bond ETF</seriesName>
+      <seriesId>S000051261</seriesId>
+      <seriesLei>549300FPQU8XYG8LAX15</seriesLei>
+      <repPdEnd>2026-10-31</repPdEnd>
+      <repPdDate>2026-07-31</repPdDate>
+      <isFinalFiling>N</isFinalFiling>
+    </genInfo>
+    <fundInfo>
+      <totAssets>11415900093.77</totAssets>
+      <totLiabs>204056397.81</totLiabs>
+      <netAssets>11211843695.96</netAssets>
+      <assetsAttrMiscSec>0.00000000</assetsAttrMiscSec>
+      <assetsInvested>0.00000000</assetsInvested>
+      <amtPayOneYrBanksBorr>0.00000000</amtPayOneYrBanksBorr>
+      <amtPayOneYrCtrldComp>0.00000000</amtPayOneYrCtrldComp>
+      <amtPayOneYrOthAffil>0.00000000</amtPayOneYrOthAffil>
+      <amtPayOneYrOther>0.00000000</amtPayOneYrOther>
+      <amtPayAftOneYrBanksBorr>0.00000000</amtPayAftOneYrBanksBorr>
+      <amtPayAftOneYrCtrldComp>0.00000000</amtPayAftOneYrCtrldComp>
+      <amtPayAftOneYrOthAffil>0.00000000</amtPayAftOneYrOthAffil>
+      <amtPayAftOneYrOther>0.00000000</amtPayAftOneYrOther>
+      <delayDeliv>736105.00000000</delayDeliv>
+      <standByCommit>0.00000000</standByCommit>
+      <liquidPref>0.00000000</liquidPref>
+      <cshNotRptdInCorD>131152765.33000000</cshNotRptdInCorD>
+      <curMetrics>
+        <curMetric>
+          <curCd>AUD</curCd>
+          <intrstRtRiskdv01 period10Yr="56100.96000000" period1Yr="12354.63000000" period30Yr="7728.36000000" period3Mon="-2842.37000000" period5Yr="99069.32000000"/>
+          <intrstRtRiskdv100 period10Yr="5613176.98000000" period1Yr="1236341.83000000" period30Yr="779334.76000000" period3Mon="-289284.04000000" period5Yr="9908459.87000000"/>
+        </curMetric>
+        <curMetric>
+          <curCd>CAD</curCd>
+          <intrstRtRiskdv01 period10Yr="104463.75000000" period1Yr="19980.18000000" period30Yr="142348.15000000" period3Mon="-4965.45000000" period5Yr="153511.88000000"/>
+          <intrstRtRiskdv100 period10Yr="10471320.80000000" period1Yr="2013094.49000000" period30Yr="13815582.76000000" period3Mon="-505186.79000000" period5Yr="15441175.04000000"/>
+        </curMetric>
+        <curMetric>
+          <curCd>CHF</curCd>
+          <intrstRtRiskdv01 period10Yr="32308.95000000" period1Yr="2381.64000000" period30Yr="24330.11000000" period3Mon="-995.03000000" period5Yr="33625.79000000"/>
+          <intrstRtRiskdv100 period10Yr="3236628.29000000" period1Yr="238263.24000000" period30Yr="2456103.07000000" period3Mon="-101198.17000000" period5Yr="3370316.53000000"/>
+        </curMetric>
+        <curMetric>
+          <curCd>CNY</curCd>
+          <intrstRtRiskdv01 period10Yr="207096.84000000" period1Yr="82167.69000000" period30Yr="292810.47000000" period3Mon="-18087.39000000" period5Yr="639014.93000000"/>
+          <intrstRtRiskdv100 period10Yr="20710560.87000000" period1Yr="7985142.11000000" period30Yr="22140700.98000000" period3Mon="-1712292.77000000" period5Yr="63942881.58000000"/>
+        </curMetric>
+        <curMetric>
+          <curCd>EUR</curCd>
+          <intrstRtRiskdv01 period10Yr="925195.94000000" period1Yr="190227.88000000" period30Yr="621764.58000000" period3Mon="-43323.84000000" period5Yr="1346367.62000000"/>
+          <intrstRtRiskdv100 period10Yr="91200019.74000000" period1Yr="18952949.84000000" period30Yr="71745944.82000000" period3Mon="-4413702.39000000" period5Yr="134005932.97000000"/>
+        </curMetric>
+        <curMetric>
+          <curCd>GBP</curCd>
+          <intrstRtRiskdv01 period10Yr="207144.11000000" period1Yr="31489.89000000" period30Yr="179894.63000000" period3Mon="-7319.41000000" period5Yr="198073.98000000"/>
+          <intrstRtRiskdv100 period10Yr="20770029.02000000" period1Yr="3151032.89000000" period30Yr="18265164.47000000" period3Mon="-744824.53000000" period5Yr="19782734.12000000"/>
+        </curMetric>
+        <curMetric>
+          <curCd>JPY</curCd>
+          <intrstRtRiskdv01 period10Yr="307384.32000000" period1Yr="41486.41000000" period30Yr="281645.99000000" period3Mon="-10780.55000000" period5Yr="286803.31000000"/>
+          <intrstRtRiskdv100 period10Yr="30768005.97000000" period1Yr="4153540.04000000" period30Yr="26443567.42000000" period3Mon="-1096033.28000000" period5Yr="28667992.05000000"/>
+        </curMetric>
+        <curMetric>
+          <curCd>KRW</curCd>
+          <intrstRtRiskdv01 period10Yr="37404.01000000" period1Yr="8081.62000000" period30Yr="99320.37000000" period3Mon="-2680.38000000" period5Yr="40614.38000000"/>
+          <intrstRtRiskdv100 period10Yr="3747137.70000000" period1Yr="808352.13000000" period30Yr="9367338.20000000" period3Mon="-270072.45000000" period5Yr="4063930.58000000"/>
+        </curMetric>
+      </curMetrics>
+      <creditSprdRiskInvstGrade period10Yr="1010543.01000000" period1Yr="164538.30000000" period30Yr="819845.24000000" period3Mon="498.95000000" period5Yr="1401052.32000000"/>
+      <creditSprdRiskNonInvstGrade period10Yr="77332.05000000" period1Yr="25034.87000000" period30Yr="7044.89000000" period3Mon="-3.46000000" period5Yr="316377.25000000"/>
+      <isNonCashCollateral>N</isNonCashCollateral>
+      <returnInfo>
+        <monthlyTotReturns>
+          <monthlyTotReturn classId="C000161648" rtn1="0.89000000" rtn2="0.51000000" rtn3="-0.89000000"/>
+        </monthlyTotReturns>
+        <monthlyReturnCats>
+          <foreignExchgContracts>
+            <mon1 netRealizedGain="-204853435.89000000" netUnrealizedAppr="286321659.40000000"/>
+            <mon2 netRealizedGain="70264932.19000000" netUnrealizedAppr="148618629.10000000"/>
+            <mon3 netRealizedGain="210873207.49000000" netUnrealizedAppr="-321041279.65000000"/>
+            <forwardCategory>
+              <instrMon1 netRealizedGain="-204853435.89000000" netUnrealizedAppr="286321659.40000000"/>
+              <instrMon2 netRealizedGain="70264932.19000000" netUnrealizedAppr="148618629.10000000"/>
+              <instrMon3 netRealizedGain="210873207.49000000" netUnrealizedAppr="-321041279.65000000"/>
+            </forwardCategory>
+          </foreignExchgContracts>
+        </monthlyReturnCats>
+        <othMon1 netRealizedGain="3088671.27000000" netUnrealizedAppr="6012140.08000000"/>
+        <othMon2 netRealizedGain="17293720.66000000" netUnrealizedAppr="-208286235.29000000"/>
+        <othMon3 netRealizedGain="-6893053.84000000" netUnrealizedAppr="-6152079.06000000"/>
+      </returnInfo>
+      <mon1Flow redemption="0.00000000" reinvestment="0.00000000" sales="289296299.60000000"/>
+      <mon2Flow redemption="2788418961.55000000" reinvestment="0.00000000" sales="0.00000000"/>
+      <mon3Flow redemption="0.00000000" reinvestment="0.00000000" sales="657322722.35000000"/>
+
+
+      <varInfo>
+
+        <fundsDesignatedInfo>
+          <nameDesignatedIndex>Bloomberg Global Aggregate ex USD 10% Issuer Capped (Hedged) Index</nameDesignatedIndex>
+          <indexIdentifier>B10CTRUH</indexIdentifier>
+
+        </fundsDesignatedInfo>
+
+      </varInfo>
+    </fundInfo>
+    <invstOrSecs>
+      <invstOrSec>
+        <name>AT&amp;T INC</name>
+        <lei>549300Z40J86GGSTL398</lei>
+        <title>AT&amp;T Inc</title>
+        <cusip>00206RAU6</cusip>
+        <identifiers>
+          <isin value="XS0426513387"/>
+        </identifiers>
+        <balance>350000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="GBP" exchangeRt="0.74197700"/>
+        <valUSD>481006.61000000</valUSD>
+        <pctVal>0.004290165141</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2040-04-30</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>7.00000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>AT&amp;T INC</name>
+        <lei>549300Z40J86GGSTL398</lei>
+        <title>AT&amp;T Inc</title>
+        <cusip>00206RDY5</cusip>
+        <identifiers>
+          <isin value="CA00206RDY59"/>
+        </identifiers>
+        <balance>150000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="CAD" exchangeRt="1.40185000"/>
+        <valUSD>97271.36000000</valUSD>
+        <pctVal>0.000867576846</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2047-05-25</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>4.85000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>AT&amp;T INC</name>
+        <lei>549300Z40J86GGSTL398</lei>
+        <title>AT&amp;T Inc</title>
+        <cusip>00206RGC0</cusip>
+        <identifiers>
+          <isin value="CA00206RGC03"/>
+        </identifiers>
+        <balance>150000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="CAD" exchangeRt="1.40185000"/>
+        <valUSD>100004.42000000</valUSD>
+        <pctVal>0.000891953390</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>US</invCountry>
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2048-11-25</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>5.10000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>DIGITAL DUTCH FINCO BV</name>
+        <lei>549300ONZ5IS6B6IMJ70</lei>
+        <title>Digital Dutch Finco BV</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="XS2232115423"/>
+        </identifiers>
+        <balance>200000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="EUR" exchangeRt="0.86719000"/>
+        <valUSD>196564.49000000</valUSD>
+        <pctVal>0.001753186142</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerConditional desc="REIT" issuerCat="OTHER"/>
+        <invCountry>NL</invCountry>
+
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2032-01-15</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>1.00000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+      <invstOrSec>
+        <name>GLOBAL SWITCH HOLDINGS L</name>
+        <lei>635400NTV7KC9RQ3ZL20</lei>
+        <title>Global Switch Holdings Ltd</title>
+        <cusip>000000000</cusip>
+        <identifiers>
+          <isin value="XS1623616783"/>
+        </identifiers>
+        <balance>610000.00000000</balance>
+        <units>PA</units>
+        <currencyConditional curCd="EUR" exchangeRt="0.86719000"/>
+        <valUSD>697579.01000000</valUSD>
+        <pctVal>0.006221804628</pctVal>
+        <payoffProfile>Long</payoffProfile>
+        <assetCat>DBT</assetCat>
+        <issuerCat>CORP</issuerCat>
+        <invCountry>VG</invCountry>
+
+        <isRestrictedSec>N</isRestrictedSec>
+
+        <fairValLevel>2</fairValLevel>
+        <debtSec>
+          <maturityDt>2027-05-31</maturityDt>
+          <couponKind>Fixed</couponKind>
+          <annualizedRt>2.25000000</annualizedRt>
+          <isDefault>N</isDefault>
+          <areIntrstPmntsInArrs>N</areIntrstPmntsInArrs>
+          <isPaidKind>N</isPaidKind>
+        </debtSec>
+        <securityLending>
+          <isCashCollateral>N</isCashCollateral>
+          <isNonCashCollateral>N</isNonCashCollateral>
+          <isLoanByFund>N</isLoanByFund>
+        </securityLending>
+      </invstOrSec>
+    </invstOrSecs>
+    <explntrNotes>
+
+
+
+      <explntrNote note="Monthly returns presented in Item B.5(a) have been calculated without deducting any applicable sales loads or redemption fees." noteItem="B.5.a"/>
+
+
+    </explntrNotes>
+    <signature>
+      <ncom:dateSigned>2026-09-22</ncom:dateSigned>
+      <ncom:nameOfApplicant>iShares Trust</ncom:nameOfApplicant>
+      <ncom:signature>Chuck Pulsfort</ncom:signature>
+      <ncom:signerName>Chuck Pulsfort</ncom:signerName>
+      <ncom:title>Assistant Treasurer</ncom:title>
+    </signature>
+  </formData>
+  <documents>XXXX</documents>
+</edgarSubmission>

@@ -27,41 +27,53 @@ def _kind(url: str | None) -> str:
     return "docket" if tag_for_url(url) == "F" else "news"
 
 
-def write_power_events(events: EventSink, arc: Archive, links: PowerLinks,
-                       existing_sites: set[str]) -> dict[str, Any]:
-    src = arc.sources[POWER]
-    power = arc.data[POWER]
-    by_docket: dict[str, set[str]] = defaultdict(set)  # docket number -> project ids carrying it
+def _by_docket(arc: Archive) -> dict[str, set[str]]:
+    """Docket number -> the project ids whose `dk` refs carry it."""
+    out: dict[str, set[str]] = defaultdict(set)
     for pid, p in arc.projects.items():
         for d in p.get("dk") or []:
             if d.get("no"):
-                by_docket[d["no"].strip()].add(pid)
-    stats: dict[str, Any] = {"ev": 0, "dk": 0, "feed": 0, "lf": 0, "skipped": defaultdict(int)}
+                out[d["no"].strip()].add(pid)
+    return out
 
-    def subjects(pids: set[str]) -> list[tuple[str, str]]:
-        out: list[tuple[str, str]] = []
-        for pid in sorted(pids):
-            for s in links.subjects(pid, arc):
-                if s not in out:
-                    out.append(s)
-        return out
 
-    def case_sites(agency: str | None, number: str | None) -> list[tuple[str, str]]:
-        if not (agency and number):
-            return []
-        rows = arc.inventory_by_key.get(docket_key(agency, number), [])
-        return [("site", s) for r in rows if (s := arc.site_slugs.get(r["case_id"])) in existing_sites]
+def _subjects(arc: Archive, links: PowerLinks, pids: set[str]) -> list[tuple[str, str]]:
+    out: list[tuple[str, str]] = []
+    for pid in sorted(pids):
+        for s in links.subjects(pid, arc):
+            if s not in out:
+                out.append(s)
+    return out
 
-    for pid, p in sorted(arc.projects.items()):
+
+def _case_sites(arc: Archive, existing_sites: set[str], agency: str | None,
+                number: str | None) -> list[tuple[str, str]]:
+    if not (agency and number):
+        return []
+    rows = arc.inventory_by_key.get(docket_key(agency, number.strip()), [])
+    return [("site", s) for r in rows if (s := arc.site_slugs.get(r["case_id"])) in existing_sites]
+
+
+def new_stats() -> dict[str, Any]:
+    return {"ev": 0, "dk": 0, "feed": 0, "lf": 0, "skipped": defaultdict(int)}
+
+
+def write_project_events(events: EventSink, arc: Archive, links: PowerLinks, pids: list[str],
+                         stats: dict[str, Any]) -> None:
+    """Each project's evidence (`ev`) and dated docket actions (`dk`) on its subjects."""
+    src = arc.sources[POWER]
+    for pid in pids:
+        p = arc.projects[pid]
         subs = links.subjects(pid, arc)
         if not subs:
             n = len(p.get("ev") or []) + sum(1 for d in p.get("dk") or [] if d.get("ld"))
             stats["skipped"]["project not linked to a plant, campus or site"] += n
             continue
         for e in p.get("ev") or []:
+            title = e.get("q") or e.get("w")  # headline, else who / what (e.g. 'Coweta Planning Commission: Rezoning')
             for st, sid in subs:
-                events.add(st, sid, e.get("d"), _kind(e.get("u")), e.get("q"), src=src, url=e.get("u"),
-                           material_rule=material_text(e.get("q")), source="power.ev")
+                events.add(st, sid, e.get("d"), _kind(e.get("u")), title, src=src, url=e.get("u"),
+                           material_rule=material_text(title), source="power.ev")
             stats["ev"] += 1
         for d in p.get("dk") or []:
             if not d.get("ld"):
@@ -71,9 +83,16 @@ def write_power_events(events: EventSink, arc: Archive, links: PowerLinks,
                 events.add(st, sid, d["ld"], "docket", title, src=src, url=d.get("u"),
                            material_rule=material_text(d.get("la")), source="power.dk")
             stats["dk"] += 1
-    for f in power.get("feed") or []:
+
+
+def write_feed_events(events: EventSink, arc: Archive, links: PowerLinks, existing_sites: set[str],
+                      feed: list[dict[str, Any]], stats: dict[str, Any]) -> None:
+    """power.json feed items on the project (`p`), the projects carrying the docket, or the sites
+    of the inventory cases watching it."""
+    src, by_docket = arc.sources[POWER], _by_docket(arc)
+    for f in feed:
         pids = {f["p"]} if f.get("p") else set(by_docket.get((f.get("no") or "").strip(), set()))
-        subs = subjects(pids) or case_sites(f.get("a"), f.get("no"))
+        subs = _subjects(arc, links, pids) or _case_sites(arc, existing_sites, f.get("a"), f.get("no"))
         if not subs:
             stats["skipped"][f"feed {f.get('k')}: no project, docket or case link"] += 1
             continue
@@ -84,10 +103,16 @@ def write_power_events(events: EventSink, arc: Archive, links: PowerLinks,
             events.add(st, sid, f.get("d"), kind, f.get("t"), src=src, url=f.get("u"), material_rule=rule,
                        source="power.feed")
         stats["feed"] += 1
-    for d in power.get("dockets") or []:
+
+
+def write_docket_filings(events: EventSink, arc: Archive, links: PowerLinks, existing_sites: set[str],
+                         stats: dict[str, Any]) -> None:
+    """Each power.json docket's last filings (`lf`) on the subjects linked to that docket."""
+    src, by_docket = arc.sources[POWER], _by_docket(arc)
+    for d in arc.data[POWER].get("dockets") or []:
         no = (d.get("no") or "").strip()
-        subs = subjects(set(by_docket.get(no, set()))) + [s for s in case_sites(d.get("a"), no)]
-        subs = list(dict.fromkeys(subs))
+        subs = list(dict.fromkeys(_subjects(arc, links, set(by_docket.get(no, set())))
+                                  + _case_sites(arc, existing_sites, d.get("a"), no)))
         if not subs:
             stats["skipped"]["dockets.lf: docket not linked to a plant, campus or site"] += len(d.get("lf") or [])
             continue
@@ -96,5 +121,3 @@ def write_power_events(events: EventSink, arc: Archive, links: PowerLinks,
                 events.add(st, sid, item.get("d"), "docket", item.get("t"), src=src, url=item.get("u"),
                            material_rule=material_text(item.get("t")), source="power.dockets.lf")
             stats["lf"] += 1
-    stats["skipped"] = dict(stats["skipped"])
-    return stats

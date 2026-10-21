@@ -8,7 +8,8 @@
   `entity.cik` and no registrant entity is created for it: every entity with a CIK is polled by
   `sec_index` every 10 minutes, and a fund complex files hundreds of series under one CIK.
 - `write_filing`: per matched position a `holding` row (line_key shared with the holdings seed
-  loader, so the same filed line is one row), its attribute facts on subject 'holding' and a
+  loader, so the same filed line is one row), its attribute facts on subject 'holding' (public_date,
+  units, cur_cd, exchange_rt, fx_convention, fair_value_level, asset_cat, unfunded_commitment) and a
   `fund_mark` price; the series' net assets as entity fact `net_assets_usd`.
 Everything is tag F (filed); reruns write nothing new (dedupe keys and the holding unique key).
 """
@@ -21,6 +22,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
+from marden.collectors.sec_nport_fx import FxVotes
 from marden.collectors.sec_nport_parse import NportHeader, Position, id_keys, mark_price
 from marden.core.db import Conn
 from marden.core.documents import DocumentRow
@@ -148,6 +150,7 @@ class Match:
 class FilingWrite:
     holdings_new: int = 0
     holdings_seen: int = 0
+    holdings_linked: int = 0
     facts_new: int = 0
     prices_new: int = 0
     marks: int = 0
@@ -163,9 +166,13 @@ def matches(positions: Iterable[Position], watched: Watched) -> list[Match]:
     return out
 
 
-def accession_written(conn: Conn, accession: str) -> bool:
+def filing_written(conn: Conn, source_id: str, url: str) -> bool:
+    """This collector stored the filing and wrote from it (its holding facts carry the document id).
+    Holdings alone do not tell: the holdings seed loader writes lines of the same accessions."""
     row = conn.execute(
-        "SELECT 1 FROM holding WHERE accession = %s AND filing_type = %s LIMIT 1", (accession, FILING_TYPE)
+        """SELECT 1 FROM document d WHERE d.source_id = %s AND d.url = %s
+             AND EXISTS (SELECT 1 FROM fact f WHERE f.document_id = d.id) LIMIT 1""",
+        (source_id, url),
     ).fetchone()
     return row is not None
 
@@ -190,10 +197,10 @@ def unfunded(p: Position) -> bool:
     return bool(_UNFUNDED.search(f"{p.title} {p.name}"))
 
 
-def _holding_facts(p: Position, filing_date: date) -> dict[str, Any]:
+def _holding_facts(p: Position, filing_date: date, fx: str | None) -> dict[str, Any]:
     out: dict[str, Any] = {"public_date": filing_date.isoformat()}
     for name, value in (("units", p.units), ("cur_cd", p.cur_cd), ("exchange_rt", p.exchange_rt),
-                        ("fair_value_level", p.fair_value_level), ("asset_cat", p.asset_cat)):
+                        ("fx_convention", fx), ("fair_value_level", p.fair_value_level), ("asset_cat", p.asset_cat)):
         if value is not None:
             out[name] = value
     if unfunded(p):
@@ -202,9 +209,11 @@ def _holding_facts(p: Position, filing_date: date) -> dict[str, Any]:
 
 
 def write_filing(
-    conn: Conn, doc: DocumentRow, h: NportHeader, found: list[Match], *, filing_date: date, producer: str
+    conn: Conn, doc: DocumentRow, h: NportHeader, found: list[Match], *, filing_date: date, producer: str,
+    fx: FxVotes,
 ) -> FilingWrite:
-    """Holdings, holding facts, per-position marks and the fund's net assets for one filing."""
+    """Holdings, holding facts, per-position marks and the fund's net assets for one filing. A non-USD
+    position is marked only when `fx` settles its exchange rate's direction."""
     out = FilingWrite()
     facts, prices, holdings = FactWriter(conn), PriceWriter(conn), HoldingWriter(conn)
     fund_id = ensure_fund(conn, h)
@@ -216,7 +225,8 @@ def write_filing(
     accession = str(doc.external_id)
     for m in found:
         p = m.position
-        price = None if unfunded(p) else mark_price(p)
+        conv = fx.convention(p.cur_cd, p.exchange_rt, h.period) if p.cur_cd not in (None, "USD") else None
+        price = None if unfunded(p) else mark_price(p, conv)
         res = holdings.add(
             fund_id, accession, nport_line_key(line_code(p), p.units, p.balance, p.val_usd), period_end=h.period,
             filing_type=FILING_TYPE, filing_url=doc.url, filed_at=filing_date, instrument_id=m.instrument_ids[0],
@@ -226,7 +236,9 @@ def write_filing(
         )
         out.holdings_seen += 1
         out.holdings_new += int(res.created)
-        for name, value in _holding_facts(p, filing_date).items():
+        if not res.created:  # a line another loader wrote first: link it if it was left unlinked
+            out.holdings_linked += int(holdings.link_instrument(res.id, m.instrument_ids[0]))
+        for name, value in _holding_facts(p, filing_date, conv).items():
             out.facts_new += facts.add("holding", str(res.id), name, value, **common).created
         if price is None:
             out.no_mark += 1
