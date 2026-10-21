@@ -1,5 +1,6 @@
 """El Paso Electric generator interconnection queue -> queue_project facts (tag F, source El Paso Electric).
-Blocked by EPE's site terms until EPE gives written consent; see TERMS_NOTE. See iso_queue for the model.
+Collected under the business owner's decision (2026-10-21) despite EPE's noncommercial terms; licence-flagged
+in marden.core.licensing (unlicensed-commercial). See TERMS_NOTE and iso_queue for the model.
 
 EPE (EIA-930 BA EPE; west Texas and southern New Mexico, outside ERCOT and any RTO, the utility territory of
 Project Jupiter in Doña Ana County and Meta El Paso) posts its active queue as a PDF printed from Excel,
@@ -14,7 +15,7 @@ DATE, MAX MW, LOCATION (County, State), LOCATION (Interconnection Point), TYPE O
 FACILITY, AVAILABLE STUDIES, STATUS, COMMENTS (comments are rotated text and not read). The as-of is the
 PDF's modification date. Queue numbers are normalized to hyphens ('LG 22-3-6' -> 'LG-22-3-6').
 
-Cadence: EPE re-posts the PDF irregularly (last 2026-07-07); checked monthly (6th) once unblocked.
+Cadence: EPE re-posts the PDF irregularly (last 2026-07-07); checked monthly (6th).
 `python -m marden collect epe_queue`.
 """
 
@@ -50,18 +51,14 @@ TERMS_NOTE = (
     "trademark and other proprietary notices. For commercial use of any portion of the contents you must secure "
     "the written consent from the appropriate content provider.\" and \"Your use of the Site is at the sole "
     "discretion of EPE, which may deny you further use of the Site at any time\". No clause on automated access; "
-    "www.epelectric.com/robots.txt answers 404. Marden's use is commercial, so the source is blocked until EPE "
-    "consents in writing (interconnections@epelectric.com is the queue contact on the page). The same queue on "
+    "www.epelectric.com/robots.txt answers 404. Marden's use is commercial; no written consent yet "
+    "(interconnections@epelectric.com is the queue contact on the page). The same queue on "
     "EPE's OATI OASIS cannot be listed without the browser client's signed calls (source oati_oasis); LBNL "
-    "Queued Up carries EPE's queue as of each year-end (tag R)."
+    "Queued Up carries EPE's queue as of each year-end (tag R). Decision 2026-10-21: the business owner chose to "
+    "collect this source anyway, as for SPP and FINRA TRACE; it is flagged unlicensed-commercial in "
+    "marden.core.licensing so it can be hidden or replaced once EPE consents."
 )
-BLOCKED_REASON = (
-    "EPE's Terms of Use limit site content to \"personal, noncommercial use\" and require \"written consent\" "
-    "for \"commercial use of any portion of the contents\". Unblock once EPE consents in writing (or the business "
-    "owner records a decision to collect, as for FINRA TRACE); the parser is tested and ready."
-)
-SOURCE = declare_source(SOURCE_ID, SOURCE_NAME, "portal", f"https://{HOST}", 31 * 24 * 60, TERMS_NOTE,
-                        blocked=True, blocked_reason=BLOCKED_REASON)
+SOURCE = declare_source(SOURCE_ID, SOURCE_NAME, "portal", f"https://{HOST}", 31 * 24 * 60, TERMS_NOTE)
 http.set_rate_limit(HOST, 0.5)
 
 _LINK = re.compile(r'href="([^"]*epe-interconnection-queue_active\.pdf[^"]*)"', re.I)
@@ -202,6 +199,6 @@ def collect_task(timestamp: int | None = None) -> dict[str, Any]:
     return run()
 
 
-@cli.action("collect", "epe_queue", help="El Paso Electric GI queue PDF (blocked: EPE terms need written consent)")
+@cli.action("collect", "epe_queue", help="El Paso Electric GI queue PDF (unlicensed-commercial; see licensing)")
 def collect_cli(args: argparse.Namespace) -> int:
     return print_stats(run())

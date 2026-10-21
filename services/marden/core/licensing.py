@@ -88,6 +88,16 @@ SOURCE_LICENCE: dict[str, dict[str, str]] = {
             "no such authorization. Licensed route: written authorization from SPP (communication@spp.org)."
         ),
     },
+    "El Paso Electric": {
+        "status": "unlicensed-commercial",
+        "note": (
+            "EPE generator interconnection queue PDF (www.epelectric.com). https://www.epelectric.com/company/"
+            "terms-of-use: \"The content of the Site is for your personal, noncommercial use ... For commercial use "
+            "of any portion of the contents you must secure the written consent from the appropriate content "
+            "provider.\" Marden has no such consent; collected by the business owner's decision (2026-10-21). "
+            "Licensed route: written consent from EPE (interconnections@epelectric.com)."
+        ),
+    },
     "CAISO": {
         "status": "public",
         "note": (

@@ -1,5 +1,5 @@
 """epe_queue: the El Paso Electric active queue PDF (real, gzipped for the repo), the link on EPE's page, the
-terms that block it, a load (as it will run once unblocked), the schedule and the blocked live run (network)."""
+terms and the licence flag, a load and rerun, the schedule and a live run (network)."""
 
 from __future__ import annotations
 
@@ -50,14 +50,18 @@ def test_refuses_other_files():
         epe.parse_pdf(b"<html></html>")
 
 
-def test_terms_block_the_source():
+def test_terms_are_recorded_and_the_source_is_licence_flagged():
+    from marden.core.licensing import SOURCE_LICENCE
+
     terms = (DATA / "terms_of_use_excerpt.txt").read_text()
     quote = "For commercial use of any portion of the contents you must secure the written consent"
     assert quote in terms and quote in epe.TERMS_NOTE
-    assert epe.SOURCE.blocked and "written consent" in epe.SOURCE.blocked_reason
+    assert not epe.SOURCE.blocked  # the business owner's decision (2026-10-21), recorded in TERMS_NOTE
+    assert "business owner" in epe.TERMS_NOTE
+    assert SOURCE_LICENCE[epe.SOURCE_NAME]["status"] == "unlicensed-commercial"
 
 
-def test_load_once_unblocked_and_rerun(committed):
+def test_load_and_rerun(committed):
     sources.upsert_spec(epe.SOURCE)
     doc = documents.record_document(epe.SOURCE_ID, "https://www.epelectric.com/x/epe-interconnection-queue_active.pdf",
                                     _pdf(), content_type="application/pdf")
@@ -81,7 +85,8 @@ def test_schedule_and_cli():
 
 
 @pytest.mark.network
-def test_live_run_is_refused_while_blocked(committed):
+def test_live_run(committed):
+    sources.upsert_spec(epe.SOURCE)
     out = epe.run()
-    assert not out["ok"] and "SourceBlocked" in out["error"]
-    assert committed.execute("SELECT count(*) AS n FROM document WHERE source_id = 'epe_queue'").fetchone()["n"] == 0
+    assert out["ok"], out.get("error")
+    assert committed.execute("SELECT count(*) AS n FROM document WHERE source_id = 'epe_queue'").fetchone()["n"] >= 2
