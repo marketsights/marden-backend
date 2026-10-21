@@ -30,7 +30,7 @@ from typing import Any
 from dateutil import tz
 
 from marden import cli
-from marden.collectors.market_http import MarketFetcher
+from marden.collectors.market_http import Challenged, MarketFetcher
 from marden.collectors.market_watch import watched_tickers, yahoo_symbol
 from marden.collectors.rates_common import ParseError, RunStats, collect, due_et, print_stats, today_et
 from marden.core import db, http, licensing
@@ -301,11 +301,10 @@ def collect_ticker(ticker: str, today: date, fetcher: MarketFetcher, stats: RunS
             if any(day not in known for day, _, _ in chart.splits):
                 range_ = BACKFILL_RANGE  # a split restates history: re-learn the whole window
                 chart, doc_id = _fetch_chart(ticker, range_, fetcher, stats)
-    except SymbolNotFound:
-        stats.extra.setdefault("not_found", []).append(ticker)
-        return
-    except FetchError as exc:
-        if exc.status != 404 or type(exc) is not FetchError:
+    except Challenged:
+        raise  # bot protection or rate limiting: the whole run stops
+    except (SymbolNotFound, FetchError) as exc:
+        if isinstance(exc, FetchError) and exc.status != 404:
             raise
         stats.extra.setdefault("not_found", []).append(ticker)
         return
@@ -324,7 +323,8 @@ def run(
 ) -> dict[str, Any]:
     """One collection run over the watched tickers (or `tickers`). Returns the run stats."""
     today = today or today_et()
-    fetcher = fetcher or MarketFetcher()
+    own = fetcher is None
+    market = fetcher or MarketFetcher()
 
     def body(stats: RunStats) -> None:
         if tickers:
@@ -333,12 +333,18 @@ def run(
             with db.transaction() as conn:
                 names = watched_tickers(conn)
         stats.extra["watched"] = len(names)
-        for ticker in names:
-            collect_ticker(ticker, today, fetcher, stats, backfill=backfill)
-        stats.extra["with_data"] = len(stats.extra.get("tickers", {}))
-        stats.extra["requests"] = fetcher.requests
+        try:
+            for ticker in names:
+                collect_ticker(ticker, today, market, stats, backfill=backfill)
+        finally:
+            stats.extra["with_data"] = len(stats.extra.get("tickers", {}))
+            stats.extra["requests"] = market.requests
 
-    return collect(SOURCE, body)
+    try:
+        return collect(SOURCE, body)
+    finally:
+        if own:
+            market.close()
 
 
 # ---------------------------------------------------------------- schedule and CLI
