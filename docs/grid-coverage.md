@@ -19,14 +19,14 @@ automated request; not bypassed, each run records it) · **V2** (region register
 | --- | --- | --- | --- | --- |
 | US interconnections (3) | 3 boundaries | — | — | — |
 | US ISO/RTO queues (7) | 5: PJM, NYISO, ISO-NE, SPP, CAISO (+ ERCOT large-load aggregates, `ercot`) | 1: ERCOT GIS | 1 unreachable: MISO (Cloudflare challenge) | — |
-| US BAs outside the ISO/RTOs (52 active in EIA-930) | 2 operator queues (BPAT; EPE, licence-flagged). LBNL Queued Up (tag R, generation only, as of 2025-12-31) also covers 37 others: the 19 below whose operator source is blocked or unreachable, and 18 with no operator collector yet | — | 18 operator sources: 18 BAs unreachable, their queue is only on OATI OASIS (document lists need the browser client's signed calls) | 14 with no source at all (7 generation-only BAs, 7 small load-serving BAs) |
+| US BAs outside the ISO/RTOs (52 active in EIA-930) | 2 operator queues (BPAT; EPE, licence-flagged). LBNL Queued Up (tag R, generation only, as of 2025-12-31) also covers 37 others: EPE, the 18 below whose operator source is unreachable, and 18 with no operator collector yet | — | 18 operator sources: 18 BAs unreachable, their queue is only on OATI OASIS (document lists need the browser client's signed calls) | 14 with no source at all (7 generation-only BAs, 7 small load-serving BAs) |
 | Canada (8 operators, Québec interconnection) | — | — | — | 8 |
 | Europe (42 TSOs, 4 synchronous areas) | — | — | — | 42 |
 
 Every transmission provider serving a V1 site or its linked campuses has a row with a status: ERCOT, MISO, NYISO
 and SPP (2.2), and TVA, EPE, Southern (SOCO; Core Scientific Dalton) and Duke (DUK; Core Scientific Marble) (2.3).
 Of these, only MISO (Hyperion, River Bend, Lighthouse, The Barn, Polaris Forge) and the four non-RTO providers have
-no current operator queue data; TVA, EPE, SOCO and DUK have LBNL's year-end-2025 snapshot.
+no current operator queue data; EPE has its current operator queue (`epe_queue`); TVA, SOCO and DUK have LBNL's year-end-2025 snapshot.
 
 Queue collectors in this workflow add or fill their own rows: section 2.2 has one row per US ISO/RTO with the
 official queue page; the collector, cadence and status cells are left for the collector that reads it.
