@@ -112,7 +112,7 @@ describe('payers', () => {
 
   it('exports one payer’s sites, sourced from the sites document when it is built', async () => {
     const before = await sheet('/api/export/payer.xlsx?slug=pay-oracle');
-    expect(before.rows.map((r) => [r.slug, r.gw, r.debtB])).toEqual([['pay-a', '1.2 GW', 18], ['pay-b', 'n/d', 0]]);
+    expect(before.rows.map((r) => [r.slug, r.gw, r.debtB])).toEqual([['pay-a', '1.2 GW', 18], ['pay-b', 'n/d', 'n/d']]);
     await putReadModel(db, { view: 'sites', key: 'all', asOf: AS_OF }, [site('pay-a', 18, '1.2 GW', 6), site('pay-b', null, null, null)]);
     const after = await sheet('/api/export/payer.xlsx?slug=pay-oracle');
     expect(after.rows.map((r) => [r.slug, r.tenant, r.gw, r.debtB, r.cushionMonths])).toEqual([

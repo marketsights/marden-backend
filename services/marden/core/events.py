@@ -155,13 +155,19 @@ def validate(payload: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def emit(payload: dict[str, Any], org_id: str | None = None, *, conn: Conn | None = None) -> int:
-    """Validate and store a StreamEvent; NOTIFY fires when the transaction commits. Returns the id."""
+def emit(
+    payload: dict[str, Any], org_id: str | None = None, *, user_id: str | None = None, conn: Conn | None = None
+) -> int:
+    """Validate and store a StreamEvent; NOTIFY fires when the transaction commits. Returns the id.
+
+    `org_id` scopes the event to one firm (None = everyone); `user_id` to one member of it (their alert)."""
+    if user_id is not None and org_id is None:
+        raise InvalidStreamEvent("a user-scoped stream event needs its org_id")
     normalized = validate(payload)
     with db.transaction(conn) as c:
         row = c.execute(
-            "INSERT INTO stream_event (org_id, payload) VALUES (%s, %s) RETURNING id",
-            (org_id, jsonb(normalized)),
+            "INSERT INTO stream_event (org_id, user_id, payload) VALUES (%s, %s, %s) RETURNING id",
+            (org_id, user_id, jsonb(normalized)),
         ).fetchone()
     assert row is not None
     return row["id"]

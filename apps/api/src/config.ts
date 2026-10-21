@@ -23,7 +23,14 @@ export interface AppConfig {
   heartbeatMs: number;
   recheckMs: number;
   logLevel: string | false;
-  trustProxy: boolean;
+  /**
+   * Which X-Forwarded-For entry is the client (rate-limit key, logs): false = the socket peer, a number
+   * n = n proxy hops are trusted (Railway: 1, its edge appends the client address), true = every hop
+   * (the left-most entry, which a client can set itself).
+   */
+  trustProxy: boolean | number;
+  /** How long SIGTERM waits for in-flight requests before the process exits anyway (ms). */
+  shutdownTimeoutMs: number;
   host: string;
   port: number;
 }
@@ -44,10 +51,18 @@ const envSchema = z.object({
   STREAM_HEARTBEAT_MS: z.coerce.number().int().positive().default(25_000),
   STREAM_RECHECK_MS: z.coerce.number().int().positive().default(600_000),
   LOG_LEVEL: z.string().default('info'),
-  TRUST_PROXY: z.enum(['true', 'false']).default('false'),
+  TRUST_PROXY: z.string().regex(/^(true|false|[0-9]{1,2})$/, 'must be true, false or a hop count').default('false'),
+  SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(20_000),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(4000),
 });
+
+function parseTrustProxy(v: string): boolean | number {
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  const hops = Number(v);
+  return hops === 0 ? false : hops;
+}
 
 const blank = (v: string | undefined): string | null => (v && v.trim() !== '' ? v.trim() : null);
 
@@ -119,7 +134,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     heartbeatMs: e.STREAM_HEARTBEAT_MS,
     recheckMs: e.STREAM_RECHECK_MS,
     logLevel: e.LOG_LEVEL === 'silent' ? false : e.LOG_LEVEL,
-    trustProxy: e.TRUST_PROXY === 'true',
+    trustProxy: parseTrustProxy(e.TRUST_PROXY),
+    shutdownTimeoutMs: e.SHUTDOWN_TIMEOUT_MS,
     host: e.HOST,
     port: e.PORT,
   };

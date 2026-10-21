@@ -17,7 +17,7 @@ import procrastinate
 
 from marden.core.config import get_settings
 
-QUEUES = ("default", "collect", "extract", "models", "readmodels")
+QUEUES = ("default", "collect", "extract", "models", "readmodels", "alerts")
 
 
 def make_connector() -> procrastinate.PsycopgConnector:

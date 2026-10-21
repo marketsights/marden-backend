@@ -40,7 +40,9 @@ export const LATEST_ROWS_SQL = `
   ORDER BY key DESC, as_of DESC`;
 
 export function createDb(connectionString: string, max = 10): Db {
-  const pool = new pg.Pool({ connectionString, max, application_name: 'marden-api' });
+  // A checkout waits at most 15 s for a connection (Neon wakes a suspended compute in a few seconds),
+  // so a database outage turns into errors and a failing /healthz instead of requests that hang.
+  const pool = new pg.Pool({ connectionString, max, application_name: 'marden-api', connectionTimeoutMillis: 15_000 });
   pool.on('error', () => {
     // Idle client errors (server restart) are retried by the pool on the next checkout.
   });

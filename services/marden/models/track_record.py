@@ -108,9 +108,9 @@ def assess(case: tc.Case, market: tc.Market, sites: list[str], states: dict[date
         outcome = "early" if lead > 0 else ("same day" if lead == 0 else "late")
     evidence: list[dict[str, Any]] = []
     if move is not None:
-        evidence.append({"date": move.day.isoformat(), "kind": "market",
+        evidence.append({**move.doc(), "kind": "market", "obsKind": move.kind,
                          "text": f"{move.instrument_id}: {move.kind} {move.price} ({move.source}); rule {move.rule}, "
-                                 f"baseline {move.baseline_price} ({move.baseline_basis})", **move.doc()})
+                                 f"baseline {move.baseline_price} ({move.baseline_basis})"})
     evidence += [{"kind": f.signal, "text": f.detail, **f.doc()} for f in sorted(first.values(), key=lambda f: f.day)]
     days = sorted(states)
     base = states[days[0]] if days else None
@@ -159,7 +159,9 @@ def summary(cases: list[dict[str, Any]], controls: list[dict[str, Any]]) -> dict
         "medianLeadDays": statistics.median(leads) if leads else None,
         "creditDriven": {"repricings": len(credit), "flaggedFirst": sum(c["outcome"] == "early" for c in credit),
                          "medianLeadDays": statistics.median(credit_leads) if credit_leads else None},
-        "controls": len(controls), "falseAlarms": sum(c["flagged"] is not None for c in controls),
+        "controls": sum(c["graded"] for c in controls),
+        "falseAlarms": sum(c["graded"] and c["flagged"] is not None for c in controls),
+        "ungradedFlags": sum(not c["graded"] and c["flagged"] is not None for c in controls),
     }
 
 
@@ -167,7 +169,8 @@ def assemble(day: date, p: dict[str, Any], markets: dict[str, tc.Market], states
              scan_meta: dict[str, Any]) -> dict[str, Any]:
     docs = [assess(c, markets[c.key], p["sites"][c.key], states) for c in p["cases"]]
     cases = [d for d in docs if d["outcome"] != "control"]
-    controls = [{k: d[k] for k in ("key", "name", "instrumentIds", "flagged", "signals", "sites", "missing")}
+    controls = [{**{k: d[k] for k in ("key", "name", "instrumentIds", "flagged", "signals", "sites", "missing")},
+                 "graded": markets[d["key"]].graded}  # a market price was observed and did not move
                 for d in docs if d["outcome"] == "control"]
     calls = [{"name": c["name"], "flagged": c["flagged"], "moved": c["moved"], "leadDays": c["leadDays"]}
              for c in cases if c["outcome"] == "early"]

@@ -35,8 +35,9 @@ API should return 404 (not 503) for collateral on non-GPU instruments.
 | marden-web-mockup-fidelity | wf_32d85200-a86 | element-by-element audit of every built screen/tab vs its mockup with real data; fix; verify; critic |
 | marden-saas-live | wf_49c2d294-54c | Railway/Neon/R2 deploy setup, alert engine + email, Claude extraction workers; review; end-to-end integration |
 | marden-readiness-a | wf_2ca3d0cf-311 | org roles Marden-owned (no Clerk roles; admins can't change owners); resolve the 7 grid-region review items |
-| (agent) live updates | — | stream events patch the affected UI in place (patchOn), every screen checked in Chromium |
+| marden-data-gaps | wf_5fca7cc9-15c | power-plant locations/county/EIA match (all 74 had none), plant air permits from state records, dc lastChange ordering bug, favicon |
 Shared local dev servers: API :4000 (dev auth), web :3000. FRED was in maintenance at 18:14 UTC; retry scheduled 20:16 UTC (ICE BofA OAS needed by the tier curves).
+Done: live updates (patchOn/mergeOn, structural sharing; e2e/live-updates.mjs; 23/23 screens load real data or an honest not-built state).
 Done: per-product access + ERCOT prices/load zones + ERCOT GIS from MIS (wf_5a24c3b6-9b2, reviewed). Decided: trial orgs get no product until staff grant it; one shared permission list is fine until a second product ships.
 Done since the table below: price pulls reviewed and fixed (commit 454271d); FRED ICE series unblocked (7ef0e37). Open: clean Yahoo duplicates and the 107 intraday TRACE rows in the main DB after the price model run; rotate the Neon app_rw password (it was printed into a local agent log).
 

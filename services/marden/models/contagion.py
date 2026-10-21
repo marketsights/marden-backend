@@ -171,10 +171,8 @@ def contagion(conn: Conn, day: date, company: str, pay_pct: float, severity: str
         if inst is None:
             continue
         now = repriced[iid]["now"] if iid in repriced else inst.price
-        if now is None:
+        if now is None:  # listed as missing, not as a row (a row carries both prices)
             missing.append(f"instrument {iid}: price model output on or before {day}")
-            rows.append({"instrumentId": iid, "name": inst.name, "priceNow": None, "priceAfter": None,
-                         "holders": inst.holders_text()})
             continue
         afters = [repriced[iid]["after"]] if iid in repriced else []
         if iid in share:
@@ -184,9 +182,8 @@ def contagion(conn: Conn, day: date, company: str, pay_pct: float, severity: str
             afters.append(cut_after)
         rows.append({"instrumentId": iid, "name": inst.name, "priceNow": round(now, 3),
                      "priceAfter": round(min(afters), 3), "holders": inst.holders_text()})
-    rows = [r for r in rows if r["priceNow"] is None or abs(r["priceAfter"] - r["priceNow"]) >= 0.001]
-    rows.sort(key=lambda r: ((r["priceAfter"] - r["priceNow"]) if r["priceNow"] is not None else 0.0,
-                             r["instrumentId"]))
+    rows = [r for r in rows if abs(r["priceAfter"] - r["priceNow"]) >= 0.001]
+    rows.sort(key=lambda r: (r["priceAfter"] - r["priceNow"], r["instrumentId"]))
     total = sum(c["lossB"] for h in hops for c in h["companies"])
     return {
         "hops": hops,

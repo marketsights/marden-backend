@@ -151,7 +151,10 @@ def earlier_calls(conn: Conn, out: Row, week: str) -> list[Doc]:
     if isinstance(body.get("earlierCalls"), list):
         return items_of(body["earlierCalls"], earlier_call)
     backtest = latest_output_any(conn, BACKTEST, "all")
-    cases = backtest["output"].get("cases") if backtest is not None and isinstance(backtest["output"], dict) else None
+    body = backtest["output"] if backtest is not None and isinstance(backtest["output"], dict) else {}
+    # The backtest's own earlierCalls are the calls Marden made first (lead > 0); its cases also hold late
+    # calls and misses, which are not earlier calls.
+    cases = body.get("earlierCalls") if isinstance(body.get("earlierCalls"), list) else body.get("cases")
     calls = [c for c in items_of(cases, earlier_call) if c["flagged"] < week]
     return sorted(calls, key=lambda c: c["flagged"], reverse=True)
 

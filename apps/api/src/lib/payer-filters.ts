@@ -72,7 +72,8 @@ const likeKpi = <T>(value: T | null, kpi: Sourced<unknown>): Sourced<T> => ({ ..
 /**
  * The Payer page's sites table: one row per site the payer is on. GW, cushion, debt, tenant and
  * status come from the site's own row in the `sites` document (Sourced, n/d kept as n/d); when that
- * document is missing the payer document's values are used, sourced like its KPI totals.
+ * document is missing the payer document's values are used, sourced like its KPI totals. That
+ * document writes 0 and "n/d" where nothing is disclosed: both are exported as n/d, never 0.
  */
 export function payerSiteRows(payer: Payer, sites: SiteSummary[] | null): Record<string, unknown>[] {
   const bySlug = new Map((sites ?? []).map((s) => [s.slug, s]));
@@ -83,11 +84,11 @@ export function payerSiteRows(payer: Payer, sites: SiteSummary[] | null): Record
       site: s.name,
       tenant: site?.tenant ?? null,
       endUser: site?.endUser ?? null,
-      gw: site?.gw ?? likeKpi(s.gw, payer.kpis.gwLeased),
+      gw: site?.gw ?? likeKpi(s.gw && s.gw !== 'n/d' ? s.gw : null, payer.kpis.gwLeased),
       rentStartP50: site?.rentStartP50 ?? s.rentStartP50,
       outsideDate: s.outsideDate,
       cushionMonths: site ? site.cushionMonths : s.cushionMonths,
-      debtB: site?.debtB ?? likeKpi(s.debtB, payer.kpis.siteDebtB),
+      debtB: site?.debtB ?? likeKpi(s.debtB ? s.debtB : null, payer.kpis.siteDebtB),
       status: site?.status ?? s.status,
     };
   });

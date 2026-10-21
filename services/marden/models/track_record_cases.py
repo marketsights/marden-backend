@@ -165,6 +165,11 @@ class Market:
     observed: dict[str, int] = field(default_factory=dict)
     missing: list[str] = field(default_factory=list)
 
+    @property
+    def graded(self) -> bool:
+        """A market price was observed in the window (so 'no move' is a finding, not a gap)."""
+        return any(self.observed.values())
+
 
 def _r(value: float | None, digits: int) -> float | None:
     return None if value is None else round(float(value), digits)
