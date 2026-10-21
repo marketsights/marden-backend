@@ -56,11 +56,17 @@ def seed_tenants(arc: Archive, reg: Registry) -> None:
             reg.tenant[t["id"]] = eid
 
 
+def _operator_kind(role: str | None) -> str:
+    return next((k for word, k in _OPERATOR_KIND if (role or "").startswith(word)), "company")
+
+
 def seed_operators(arc: Archive, reg: Registry) -> None:
+    """GPU operators: aiwc/gpu/operators.json (name, ticker, CIK) and the aiwcredit.gpu.ops profiles."""
     for op in arc.data["aiwc/gpu/operators.json"]["operators"]:
-        role = op.get("role") or ""
-        kind = next((k for word, k in _OPERATOR_KIND if role.startswith(word)), "company")
-        reg.resolve(op["name"], kind, ticker=op.get("ticker"), cik=op.get("cik"))
+        reg.resolve(op["name"], _operator_kind(op.get("role")), ticker=op.get("ticker"), cik=op.get("cik"))
+    for op in arc.data["aiwcredit.json"]["gpu"].get("ops") or []:
+        reg.resolve(op.get("full") or op.get("n"), _operator_kind(op.get("role_full") or op.get("role")),
+                    ticker=op.get("tk"), aliases=[op["n"]] if op.get("n") else ())
 
 
 def _group_name(code: str, arc: Archive, issuers: Counter[str]) -> tuple[str, Any, str | None, bool]:

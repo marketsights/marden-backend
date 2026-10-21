@@ -97,7 +97,8 @@ def _site_power(sink: FactSink, slug: str, proj: dict[str, Any], src: Src) -> No
     url = pick_url(it.get("src"))
     for fld, key in (("critical_it_mw", "value"), ("gross_mw", "gross_utility_mw"), ("delivered_mw", "delivered_mw")):
         sink.add("site", slug, fld, number(it.get(key)), src=src, url=url, unit="MW")
-    sink.add("site", slug, "it_mw_estimate", number(it.get("est_it_mw")), src=src, url=url, unit="MW", tag="M")
+    sink.add("site", slug, "it_mw_estimate", number(it.get("est_it_mw")), src=src,
+             url=pick_url(it.get("src"), tag="R"), unit="MW", tag="M")
     sp = proj.get("site_power") or {}
     url = pick_url(sp.get("src"))
     for fld, key in (("power_iso", "iso"), ("power_utility", "utility"), ("power_supply", "supply"),
@@ -108,7 +109,7 @@ def _site_power(sink: FactSink, slug: str, proj: dict[str, Any], src: Src) -> No
                                                         sp.get("contract")), src=src, url=url, tag="M", rule=True)
     pays = proj.get("who_pays") or {}
     basis = pays.get("basis")
-    sink.add("site", slug, "power_payer", pays.get("payer"), src=src, url=pick_url(proj.get("src")),
+    sink.add("site", slug, "power_payer", pays.get("payer"), src=src,  # who_pays cites no URL of its own
              tag="M" if judged(basis, pays.get("payer")) else None, basis=basis)
 
 

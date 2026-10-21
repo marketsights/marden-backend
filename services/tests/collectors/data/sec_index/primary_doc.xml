@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?><edgarSubmission xmlns="http://www.sec.gov/edgar/schedule13D" xmlns:com="http://www.sec.gov/edgar/common">
+  <schemaVersion>X0202</schemaVersion>
+<headerData>
+    <submissionType>SCHEDULE 13D</submissionType>
+    <filerInfo>
+      <filer>
+        <filerCredentials>
+          <!-- Field: Pseudo-Tag; ID: Name; Data: Abduvakhitova Irodakhon -->
+          <cik>0002160471</cik>
+          <ccc>XXXXXXXX</ccc>
+        </filerCredentials>
+      </filer>
+      <liveTestFlag>LIVE</liveTestFlag>
+
+
+    </filerInfo>
+  </headerData>
+  <formData>
+    <coverPageHeader>
+      <securitiesClassTitle>Common Stock</securitiesClassTitle>
+      <dateOfEvent>10/13/2026</dateOfEvent>
+      <previouslyFiledFlag>false</previouslyFiledFlag>
+      <issuerInfo>
+        <issuerCIK>0001999261</issuerCIK>
+        <issuerCusips>
+          <issuerCusipNumber>85254A101</issuerCusipNumber>
+        </issuerCusips>
+        <issuerName>TEG OVERSEAS</issuerName>
+        <address>
+          <com:street1>64/2 Mahtumquli Street</com:street1>
+          <com:street2>Yashnobod District</com:street2>
+          <com:city>Tashkent</com:city>
+          <com:stateOrCountry>2K</com:stateOrCountry>
+          <com:zipCode>100000</com:zipCode>
+        </address>
+      </issuerInfo>
+      <authorizedPersons>
+        <notificationInfo>
+          <personName>Irodakhon Abduvakhitova</personName>
+          <personPhoneNum>998 97 746 88 80</personPhoneNum>
+          <personAddress>
+            <com:street1>13 Eshon Bobokhon Street,</com:street1>
+            <com:street2>Shaykhantakhur District,</com:street2>
+            <com:city>Tashkent</com:city>
+            <com:stateOrCountry>2K</com:stateOrCountry>
+            <com:zipCode>100169</com:zipCode>
+          </personAddress>
+        </notificationInfo>
+      </authorizedPersons>
+    </coverPageHeader>
+    <reportingPersons>
+      <reportingPersonInfo>
+        <reportingPersonCIK>0002160471</reportingPersonCIK>
+        <reportingPersonNoCIK>N</reportingPersonNoCIK>
+        <reportingPersonName>Irodakhon Abduvakhitova</reportingPersonName>
+        <fundType>OO</fundType>
+        <legalProceedings>N</legalProceedings>
+        <citizenshipOrOrganization>2K</citizenshipOrOrganization>
+        <soleVotingPower>58591499.00</soleVotingPower>
+        <sharedVotingPower>0.00</sharedVotingPower>
+        <soleDispositivePower>58591499.00</soleDispositivePower>
+        <sharedDispositivePower>0.00</sharedDispositivePower>
+        <aggregateAmountOwned>58591499.00</aggregateAmountOwned>
+        <isAggregateExcludeShares>N</isAggregateExcludeShares>
+        <percentOfClass>31.14</percentOfClass>
+        <typeOfReportingPerson>IN</typeOfReportingPerson>
+      </reportingPersonInfo>
+    </reportingPersons>
+    <items1To7>
+      <item1>
+        <securityTitle>Common Stock</securityTitle>
+        <issuerName>TEG OVERSEAS</issuerName>
+        <issuerPrincipalAddress>
+          <com:street1>64/2 Mahtumquli Street</com:street1>
+          <com:street2>Yashnobod District</com:street2>
+          <com:city>Tashkent</com:city>
+          <com:stateOrCountry>2K</com:stateOrCountry>
+          <com:zipCode>100000</com:zipCode>
+        </issuerPrincipalAddress>
+      </item1>
+      <item2>
+        <filingPersonName>Irodakhon Abduvakhitova (the "Reporting Person").</filingPersonName>
+        <principalBusinessAddress>13 Eshon Bobokhon Street, Shaykhantakhur District, Tashkent 100169 Uzbekistan</principalBusinessAddress>
+        <principalJob>The Reporting Person is a director and principal shareholder of the Issuer, and was a principal shareholder of TEG SPV, LLC, a Uzbekistan limited liability company prior to the Share Exchange Transaction (as defined below).</principalJob>
+        <hasBeenConvicted>During the last five years, the Reporting Person has not been convicted in any criminal proceedings (excluding traffic violations or similar misdemeanors).</hasBeenConvicted>
+        <convictionDescription>During the last five years, the Reporting Person has not been a party to a civil proceeding before a judicial or administrative body of competent jurisdiction that resulted in such person being subject to a judgment, decree or final order enjoining future violations of, or prohibiting or mandating activities subject to, federal or state securities laws or finding any violation with respect to such laws.</convictionDescription>
+        <citizenship>The Reporting Person is a citizen of Uzbekistan.</citizenship>
+      </item2>
+      <item3>
+        <fundsSource>To the extent required by Item 3, the information contained in Item 4 is incorporated herein by reference.</fundsSource>
+      </item3>
+      <item4>
+        <transactionPurpose>On October 6, 2026, the Reporting Person, entered into a Share Exchange Agreement with the Issuer, Tourism and Entertainment Group LLC, a limited liability company organized under the laws of the Republic of Uzbekistan and in which Mr. Artikkhodjaev holds over 99% ownership interest ("TEG LLC" and together with the Reporting Person, the "Sellers"), TEG SPV, LLC, a limited liability company organized under the laws of the Republic of Uzbekistan ("TEG SPV"). Pursuant to the agreement, the Issuer agreed to acquire 99.99999012% of the membership interests in TEG SPV from the Sellers in exchange for an aggregate of 183,098,434 shares of the Issuer common stock (the "Exchange Shares"), 124,506,935 of which Exchange Shares were to be issued to TEG LLC; and 58,591,499 of which Exchange Shares were to be issued to the Reporting Person (the "Share Exchange Transaction"). The Share Exchange Transaction closed on October 13, 2026.
+
+Except as otherwise described in this Schedule 13D, the Reporting Person currently has no plans or proposals that relate to or would result in: (a) the acquisition by any person of additional securities of the Issuer, or the disposition of securities of the Issuer; (b) an extraordinary corporate transaction, such as a merger, reorganization or liquidation, involving the Issuer or any of its subsidiaries; (c) a sale or transfer of a material amount of assets of the Issuer or any of its subsidiaries; (d) any change in the present Board of Directors or management of the Issuer, including any plans or proposals to change the number or term of directors or to fill any existing vacancies on the Board except as may be required for the Issuer to comply with exchange listing requirements with respect to the number of independent directors; (e) any material change in the present capitalization or dividend policy of the Issuer; (f) any other material change in the Issuer's business or corporate structure; (g) any changes in the Issuer's charter or by-laws or other actions which may impede the acquisition or control of the Issuer by any person; (h) causing a class of securities of the Issuer to be delisted from a national securities exchange or cease to be authorized to be quoted in an interdealer quotation system of a registered national securities association; (i) causing a class of equity securities of the Issuer to become eligible for termination of registration pursuant to Section 12(g)(4) of the Securities Exchange Act of 1934; or (j) any action similar to those enumerated above.</transactionPurpose>
+      </item4>
+      <item5>
+        <percentageOfClassSecurities>The information set forth in the facing pages of this Schedule 13D with respect to the beneficial ownership of the Reporting Person is incorporated by reference into this Item 5. The Reporting Person's aggregate percentage of beneficial ownership is approximately 31.14% of the Issuer's shares     of common stock issued and outstanding, based on 188,142,768 shares of common stock issued and outstanding as of October 13, 2026.</percentageOfClassSecurities>
+        <numberOfShares>The number of shares as to which there is sole power to vote or to direct the vote, shared power to vote or to direct the vote, sole power to dispose or to direct the disposition, or shared power to dispose or to direct the disposition are set forth on rows 7 through 11 and row 13 of the cover pages of this Schedule 13D and are incorporated herein by reference.</numberOfShares>
+        <transactionDesc>Except for the transactions described in Item 4 of this Schedule 13D, the Reporting Person has not engaged in any transaction during the past 60 days involving the shares of common stock of the Issuer.</transactionDesc>
+        <listOfShareholders>To the best knowledge of the Reporting Person, no one other than the Reporting Person is known to have the right to receive, or the power to direct the receipt of, dividends from, or proceeds from the sale of, the shares of common stock reported herein as beneficially owned by the Reporting Person.</listOfShareholders>
+        <date5PercentOwnership>Not applicable.</date5PercentOwnership>
+      </item5>
+      <item6>
+        <contractDescription>The information set forth in Item 4 of this Schedule 13D is incorporated herein by reference.
+
+Except as described in this Item 6 and otherwise described in this Schedule 13D, the Reporting Person has not entered into any contract, arrangement, understanding or relationship (legal or otherwise) with any person with respect to the shares of common stock of the Issuer.</contractDescription>
+      </item6>
+      <item7>
+        <filedExhibits>Exhibits
+
+Share Exchange Agreement, dated as of October 6, 2026, by and between the Reporting Person, Stagewise Strategies Corp., TEG SPV LLC and Tourism and Entertainment Group LLC. (Incorporated by reference to Exhibit 2.1 to the Issuer's Current Report on Form 8-K filed with the SEC on October 8, 2026)</filedExhibits>
+      </item7>
+    </items1To7>
+    <signatureInfo>
+      <signaturePerson>
+        <signatureReportingPerson>Irodakhon Abduvakhitova</signatureReportingPerson>
+        <signatureDetails>
+          <signature>/s/ Irodakhon Abduvakhitova</signature>
+          <title>Irodakhon Abduvakhitova, Individual</title>
+          <date>10/20/2026</date>
+        </signatureDetails>
+      </signaturePerson>
+    </signatureInfo>
+  </formData>
+</edgarSubmission>

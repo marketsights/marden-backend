@@ -193,5 +193,9 @@ def _install_defaults() -> None:
         _many(subject_type, ("payer", "payer_capacity"), _OBLIGATION_PAYER)
         _many(subject_type, ("obligation_company",), _OBLIGATION_COMPANIES)
 
+    # Rate series (UST par curve, SOFR, spread indexes): tier-curve yields sit on the Treasury curve.
+    # Only observations ('value'), not licence facts such as 'notice' or 'display_allowed'.
+    depends("series", "value", "curve", singleton)
+
 
 _install_defaults()

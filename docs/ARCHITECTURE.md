@@ -49,6 +49,7 @@ API ──SELECT doc FROM read_model──> app;  GET /api/stream LISTENs on mar
 ## The fact store
 
 - `subject_type` ∈ `site, campus, building, plant, unit, instrument, entity, obligation, holding`; `subject_id` is that table's primary key.
+- `series` holds time series that are not instruments (rate curves, rates, spread indexes): `subject_id` is the series id (`ust_par_10y`, `sofr`, `ice_bofa_us_hy_oas`), field `value`, one fact per observation date (`valid_from`); licence facts sit on the same subject (`notice`, `display_allowed`, `copyright_notice`).
 - `field` names are snake_case and stable (e.g. `facility_mw`, `outside_date`, `coupon`, `maturity`, `amount_usd`, `status`). A field's value is JSON (number, string, ISO date, object).
 - Status: `candidate` → `published` | `rejected`; superseding values are new rows, older rows stay.
 - Publishing rules (spec 22): structured filed data that passes validators publishes directly. Extracted facts publish only when the verifier agrees and the fact is not material; otherwise a `review_item` is opened. Material facts (change a chain status, cushion band or alert) always wait for a person.
@@ -77,7 +78,7 @@ Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `
 | `site_tab:<tab>` for `evidence`, `power`, `opposition`, `events`, `debt`, `lease`, `buildings` | `site.slug` | GET /api/sites/:slug/&lt;tab&gt; | site; `debt` also its instruments, `buildings` its campuses and buildings, `power` its campuses and their plants |
 | `project_file` | `site.slug` | GET /api/sites/:slug/project-file | site, its instruments |
 | `instruments` | `all` | GET /api/instruments (type); export `instruments` | instrument, linked holding |
-| `curve` | `all` | GET /api/curve | instrument |
+| `curve` | `all` | GET /api/curve | instrument, rate series observations |
 | `instrument_detail` | `instrument.id` | GET /api/instruments/:id, …/price-history?range=, …/holders (cut from the same doc); export `holders`; watchlist items | instrument (with its prices and events), linked holding |
 | `gpu_collateral` | `instrument.id` | GET /api/instruments/:id/collateral | instrument |
 | `payers` | `all` | GET /api/payers; export `payers` | site, instrument, entity, obligation, contract |

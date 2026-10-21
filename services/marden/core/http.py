@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import random
 import re
 import threading
@@ -20,6 +21,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
+from urllib.parse import quote, quote_plus
 
 import httpx
 
@@ -312,6 +314,15 @@ def default_fetcher() -> Fetcher:
         return _default
 
 
+def _mask(text: str, secrets: dict[str, str]) -> str:
+    """`text` with every secret value (raw and URL-encoded) replaced by ***."""
+    for value in secrets.values():
+        if value:
+            for form in {value, quote_plus(value), quote(value, safe="")}:
+                text = text.replace(form, "***")
+    return text
+
+
 def fetch_document(
     source_id: str,
     url: str,
@@ -324,12 +335,16 @@ def fetch_document(
     extract_state: str = "none",
     fetcher: Fetcher | None = None,
     conn: Conn | None = None,
+    secret_params: dict[str, str] | None = None,
 ) -> DocumentRow:
     """Fetch a URL for a source, store the raw bytes, insert `document` (idempotent).
 
     Returns the new row (was_new=True) or the existing row for identical bytes or a 304
     (was_new=False). Raises SourceBlocked/UnknownSource before any request if the source
     is blocked or undeclared in the DB.
+
+    `secret_params` (an API key passed as a query parameter) are sent with the request but never
+    stored or shown: the document keeps `url`, and their values are masked in errors and meta.
     """
     sources.require_collectable(source_id, conn=conn)
     fetcher = fetcher or default_fetcher()
@@ -342,7 +357,15 @@ def fetch_document(
 
     # The document table is the conditional-GET cache here (it survives restarts), so the
     # Fetcher's in-memory cache is bypassed: a 304 can only answer validators of `prior`.
-    resp = fetcher.get(url, validators=validators, use_cache=False)
+    if secret_params:
+        logging.getLogger("httpx").setLevel(logging.WARNING)  # httpx logs full request URLs at INFO
+    try:
+        resp = fetcher.get(url, params=secret_params, validators=validators, use_cache=False)
+    except FetchError as exc:
+        if not secret_params:
+            raise
+        reason = str(exc).rsplit(f" ({exc.url}, status=", 1)[0]
+        raise FetchError(url, exc.status, _mask(reason, secret_params)) from None
     if resp.not_modified:
         if prior is None:
             raise FetchError(url, 304, "304 Not Modified to an unconditional request")
@@ -353,7 +376,10 @@ def fetch_document(
         http_meta["etag"] = resp.etag
     if resp.last_modified:
         http_meta["last_modified"] = resp.last_modified
-    if resp.final_url != url:
+    if secret_params:
+        if resp.final_url != resp.url:
+            http_meta["final_url"] = _mask(resp.final_url, secret_params)
+    elif resp.final_url != url:
         http_meta["final_url"] = resp.final_url
     return documents.record_document(
         source_id,

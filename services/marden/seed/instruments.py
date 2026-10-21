@@ -78,6 +78,7 @@ LOADER = "instruments"
 PRODUCER = producer(LOADER)
 SITE_MAP = Path(__file__).with_name("site_map.json")
 LOAN_KINDS = frozenset({"construction_loan", "term_loan", "ddtl", "facility", "lease", "other"})
+FACT_CHUNK = 25
 
 
 @dataclass
@@ -213,11 +214,12 @@ def _seeded_prices(conn: Conn, ids: list[str]) -> tuple[dict[str, set[str]], dic
     return kinds, latest
 
 
-def _write_facts(conn: Conn, arc: Archive, idents: dict[str, Any], kinds: dict[str, str], status: dict[str, str],
-                 report: LoadReport) -> None:
+def _write_facts(conn: Conn, arc: Archive, chunk: list[str], idents: dict[str, Any], kinds: dict[str, str],
+                 status: dict[str, str], report: LoadReport) -> None:
     facts = FactWriter(conn)
-    seeded, latest = _seeded_prices(conn, list(arc.rows))
-    for iid, row in arc.rows.items():
+    seeded, latest = _seeded_prices(conn, chunk)
+    for iid in chunk:
+        row = arc.rows[iid]
         rows: list[F.FactRow] = F.terms_facts(iid, row, kinds[iid], AIDEBT)
         rating = F.rating_fact(row, AIDEBT)
         rows += [rating] if rating else []
@@ -249,31 +251,48 @@ def _write_facts(conn: Conn, arc: Archive, idents: dict[str, Any], kinds: dict[s
 
 
 def load(*, only: set[str] | None = None) -> LoadReport:
-    """Run the loader (``only``: restrict to these instrument ids, for tests)."""
+    """Run the loader (``only``: restrict to these instrument ids, for tests).
+
+    Identity rows and prices are written in one transaction; facts follow in chunks of FACT_CHUNK
+    instruments, each its own transaction, because every published fact re-marks the same read-model
+    rows dirty and one huge transaction makes those updates slow. Every write is idempotent, so a run
+    that stops part way is completed by running again.
+    """
     upsert_spec(get_spec(SEED_SOURCE_ID))
     report = LoadReport()
-    with heartbeat.run(SEED_SOURCE_ID) as hb, db.transaction() as conn:
-        arc = read_archive(conn, only=only)
-        trace_rows, bondq = read_blocked_in_memory()
-        blocked = P.classify_legacy_px(arc.rows, trace_rows, bondq)
-        del trace_rows, bondq  # recognised in memory; nothing from them is kept
-        idents, id_report = build_identifiers(arc.rows, arc.ids, research_notes(arc), arc.records, arc.bondq_list)
-        for iid, isin in id_report.bondq_uncorroborated:
-            report.skip("bondq_list ISIN not corroborated by an allowed identifier source", f"{iid} {isin}")
-        for key, iids in id_report.cusip_collisions.items():
-            report.skip("identifier shared by several instruments (kept on each)", f"{key}: {', '.join(iids)}")
-        kinds = _write_instruments(conn, arc, idents, report)
-        dealer_at_px, recomputed = _write_prices(conn, arc, idents, kinds, report)
-        status = {iid: s for iid, row in arc.rows.items()
-                  if (s := _legacy_status(iid, row, arc, blocked, dealer_at_px, recomputed))}
-        report.legacy_status = status
-        report.counts.update(f"legacy_px.{s}" for s in status.values())
-        _write_facts(conn, arc, idents, kinds, status, report)
+    with heartbeat.run(SEED_SOURCE_ID) as hb:
+        with db.transaction() as conn:
+            arc, idents, kinds, status = _identity_and_prices(conn, only, report)
+        ids = list(arc.rows)
+        for start in range(0, len(ids), FACT_CHUNK):
+            with db.transaction() as conn:
+                _write_facts(conn, arc, ids[start:start + FACT_CHUNK], idents, kinds, status, report)
         report.counts["documents"] = len(arc.docs)
         hb.seen(len(arc.rows))
         hb.new(report.counts["instrument.created"])
         hb.meta = {"loader": LOADER, "counts": dict(report.counts)}
     return report
+
+
+def _identity_and_prices(
+    conn: Conn, only: set[str] | None, report: LoadReport
+) -> tuple[Archive, dict[str, Any], dict[str, str], dict[str, str]]:
+    arc = read_archive(conn, only=only)
+    trace_rows, bondq = read_blocked_in_memory()
+    blocked = P.classify_legacy_px(arc.rows, trace_rows, bondq)
+    del trace_rows, bondq  # recognised in memory; nothing from them is kept
+    idents, id_report = build_identifiers(arc.rows, arc.ids, research_notes(arc), arc.records, arc.bondq_list)
+    for iid, isin in id_report.bondq_uncorroborated:
+        report.skip("bondq_list ISIN not corroborated by an allowed identifier source", f"{iid} {isin}")
+    for key, iids in id_report.cusip_collisions.items():
+        report.skip("identifier shared by several instruments (kept on each)", f"{key}: {', '.join(iids)}")
+    kinds = _write_instruments(conn, arc, idents, report)
+    dealer_at_px, recomputed = _write_prices(conn, arc, idents, kinds, report)
+    status = {iid: s for iid, row in arc.rows.items()
+              if (s := _legacy_status(iid, row, arc, blocked, dealer_at_px, recomputed))}
+    report.legacy_status = status
+    report.counts.update(f"legacy_px.{s}" for s in status.values())
+    return arc, idents, kinds, status
 
 
 def _configure(p: argparse.ArgumentParser) -> None:
@@ -288,7 +307,8 @@ def run_cli(args: argparse.Namespace) -> int:
     for key in sorted(report.counts):
         print(f"{key}: {report.counts[key]}")
     for reason in sorted(report.skipped):
-        print(f"skipped ({len(report.skipped[reason])}): {reason}")
+        items = report.skipped[reason]
+        print(f"skipped ({len(items)}): {reason}: {'; '.join(items[:6])}{' ...' if len(items) > 6 else ''}")
     if getattr(args, "write_docs", False):
         from marden.seed.instruments_docs import write_docs
 

@@ -1,0 +1,1 @@
+{ "refRates": [ { "effectiveDate": "2026-10-20", "type": "SOFR" ,"percentRate": 3.88 ,"percentPercentile1": 3.83 ,"percentPercentile25": 3.86 ,"percentPercentile75": 3.93 ,"percentPercentile99": 3.96 ,"volumeInBillions": 2925 ,"revisionIndicator": "" } ] }

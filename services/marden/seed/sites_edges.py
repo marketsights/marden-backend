@@ -77,6 +77,7 @@ class EdgeBuilder:
     slugs: dict[str, str]
     edges: dict[str, Edge] = field(default_factory=dict)
     skipped: list[str] = field(default_factory=list)
+    unsited: list[str] = field(default_factory=list)  # aichain edges kept without a financed site
 
     # ------------------------------------------------------------ parties on the project side
     def _role_entity(self, case: str, role: str) -> str | None:
@@ -125,6 +126,8 @@ class EdgeBuilder:
             url = pick_url(urls)
             link = links.get((sheet, cp))
             case = link["case"] if link and link["keyword"].lower() in (e.get("project") or "").lower() else None
+            if case is None:
+                self.unsited.append(f"{sheet}:{cp} {e['tenant']} ({role}): {e.get('project')}")
             src = self.arc.src(HTML, issuer.get("asOf"))
             detail = {"sheet": sheet, "cp": cp, "role": role, "project": e.get("project"), "mw": e.get("mw"),
                       "contract": e.get("contract"), "backstop": e.get("backstop"), "why": e.get("why"),

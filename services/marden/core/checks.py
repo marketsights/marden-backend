@@ -9,7 +9,8 @@ from typing import Any
 
 TAGS = frozenset({"F", "R", "M"})
 SUBJECT_TYPES = frozenset(
-    {"site", "campus", "building", "plant", "unit", "instrument", "entity", "contract", "obligation", "holding"}
+    {"site", "campus", "building", "plant", "unit", "instrument", "entity", "contract", "obligation", "holding",
+     "series"}  # series: time series that are not instruments (rate curves, indexes); subject_id = series id
 )
 SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
 PRODUCER = re.compile(r"^[a-z][a-z_]*:\S+$")

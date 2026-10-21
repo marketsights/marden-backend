@@ -83,8 +83,8 @@ from marden.seed.sites_edges import EdgeBuilder
 from marden.seed.sites_entities import Registry
 from marden.seed.sites_facts import PRODUCER, FactSink
 from marden.seed.sites_obligations import write_edges
-from marden.seed.sites_parties import seed_all
-from marden.seed.sites_rows import upsert_site, write_site_facts
+from marden.seed.sites_parties import seed_all, seed_chain
+from marden.seed.sites_rows import site_record, upsert_site, write_site_facts
 
 SITE_MAP = Path(__file__).with_name("site_map.json")
 
@@ -117,6 +117,10 @@ def load_into(conn: Conn, cases: list[str] | None = None) -> dict[str, Any]:
     arc.load_all(list(slugs))
     reg = Registry(conn, arc.tickers)
     chain = seed_all(arc, reg, list(slugs))
+    EdgeBuilder(arc, reg, chain, slugs).build()  # creates the credit-support parties; edges discarded
+    # Resolve the chain again now that every party exists, so a name that is only matched against
+    # existing entities resolves the same on the first run as on any rerun (idempotent).
+    chain = seed_chain(arc, reg, list(slugs))
     sink = FactSink(conn)
     links = 0
     for case, slug, in_v1 in sites:
@@ -131,6 +135,8 @@ def load_into(conn: Conn, cases: list[str] | None = None) -> dict[str, Any]:
         "sites": len(sites), "chain_links": links, "obligations": len(edges),
         "facts_seen": sink.seen, "facts_new": sink.created, "documents": len(arc.sources),
         "fields": sink.fields(), "skipped_parties": sorted(reg.skipped), "skipped_edges": builder.skipped,
+        "unsited_edges": builder.unsited, "sites_without_coordinates": sorted(
+            slugs[c] for c in slugs if site_record(arc, c)[0] is None),
         "tables": _table_counts(conn),
     }
 

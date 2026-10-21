@@ -86,7 +86,8 @@ def split_parties(name: str, role: str) -> list[str]:
     text = re.sub(r"^(noteholders|lenders) including\s+", "", text, flags=re.I)
     if role in ("Lender", "Arranger", "Equity investor", "Contractor"):
         text = re.sub(r"\s*\([^()]*\)", "", text)
-        parts = re.split(r",\s*(?:with\s+)?|\s+with\s+|\s+and\s+", text)
+        parts = re.split(r",(?!\s*(?:inc|llc|ltd|lp|l\.p|corp|co)\b)\s*(?:with\s+)?|\s+with\s+|\s+and\s+", text,
+                         flags=re.I)
     else:
         parts = [text]
         halves = re.split(r"\s+and\s+", text)
@@ -121,7 +122,9 @@ class Registry:
         self.grp: dict[str, str] = {}     # aidebt group code -> entity id
         self.tenant: dict[str, str] = {}  # aichain tenant id -> entity id
         self.skipped: set[str] = set()
-        for row in conn.execute("SELECT id, name, aliases, cik FROM entity").fetchall():
+        # Oldest first: when two stored entities normalize to the same name, the earlier one keeps
+        # the match on every rerun (so edges and links keep their ids).
+        for row in conn.execute("SELECT id, name, aliases, cik FROM entity ORDER BY created_at, id").fetchall():
             self._index(row["id"], row["name"], *row["aliases"], cik=row["cik"])
             self.names[row["id"]] = row["name"]
 
@@ -169,6 +172,8 @@ class Registry:
             known = None if is_placeholder(display_name(raw)) else self.lookup(raw)
             if known is None:
                 self.skipped.add(raw)
+            else:
+                self.skipped.discard(raw)
             return known
         disp = raw if exact else display_name(raw)
         key = norm(disp) or norm(raw)

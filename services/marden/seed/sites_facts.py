@@ -28,7 +28,7 @@ RULES_VERSION = "seed-sites-rules@2026-10-21"
 TAG_ORDER = {"F": 0, "R": 1, "M": 2}
 
 _ND = re.compile(
-    r"^\s*(n/?d|n/a|none|null|unknown|not disclosed|not public|not found|undisclosed|tbd|-+)\s*(\.|$|\()", re.I
+    r"^\s*(n/d|n/a|none|null|unknown|not disclosed|not public|not found|undisclosed|tbd|-+)\s*(\.|$|\()", re.I
 )
 _JUDGED = re.compile(r"\b(inferred|presumed|assumed|unverified)\b", re.I)
 
@@ -48,12 +48,12 @@ def public_urls(urls: Iterable[Any] | Any) -> list[str]:
     return out
 
 
-def pick_url(urls: Iterable[Any] | Any) -> str | None:
-    """The record's original public URL: the first filed one (sec.gov, state portals), else the first."""
+def pick_url(urls: Iterable[Any] | Any, *, tag: str | None = None) -> str | None:
+    """The record's original public URL: its lead citation (the first public URL it lists), or the
+    first URL with the given tag ('R' for a third-party estimate cited next to a filing)."""
     found = public_urls(urls)
-    for u in found:
-        if tag_for_url(u) == "F":
-            return u
+    if tag is not None:
+        found = [u for u in found if tag_for_url(u) == tag]
     return found[0] if found else None
 
 
