@@ -5,9 +5,11 @@ parties (each with its evidence and the entity it names); structure from the sit
 (size, drawn, seniority, pricing, maturity as filed; filed holder counts), the research tranches
 that are not instruments (sponsor equity, conduit bonds) and the security / guarantee / reserve /
 covenant terms as quoted; construction from the announced cost, the general contractor and the
-on-site plants' generating units. The derived signals (cost per MW vs peers, cost-to-complete and
-funding gaps, draws vs build pace, contractor stress) are Marden models (M v0): n/d until they run.
-No collector reads county recorders yet, so no mechanic's lien is listed.
+on-site plants' generating units; draws vs progress from the facilities' filed drawn / committed
+amounts and the research's percent complete. The derived signals (cost per MW vs peers,
+cost-to-complete and funding gaps, the draw-pace flag, contractor stress, whether equipment is late)
+are Marden models (M v0): n/d (null) until they run. No collector reads county recorders yet, so no
+mechanic's lien is listed.
 """
 
 from __future__ import annotations
@@ -175,7 +177,41 @@ def structure(conn: Conn, slug: str, instruments: list[Doc], ctx: Ctx) -> Doc:
     }
 
 
-def construction(ctx: Ctx) -> Doc:
+def draws_vs_progress(conn: Conn, slug: str, instruments: list[Doc]) -> list[Doc]:
+    """Money drawn vs physical progress over time (spec 26 'Draws and funding', 'Construction
+    progress'): at each date a filing reported a draw or commitment, or the research reported percent
+    complete, the share drawn (sum drawn / sum committed over the site's facilities that report both,
+    each as last reported by that date) and the share built (pct_complete / 100). A share nobody
+    reported by that date is null. The draw-pace flag itself is a Marden signal (M v0), n/d until it runs."""
+    history: dict[str, dict[str, list[Row]]] = {}
+    for inst in instruments:
+        rows = known_fact_rows(conn, "instrument", inst["id"], ["drawn_usd", "commitment_usd"])
+        if rows["drawn_usd"] and rows["commitment_usd"]:
+            history[inst["id"]] = rows
+    built = known_fact_rows(conn, "site", slug, ["pct_complete"])["pct_complete"]
+    dates = sorted({r["valid_from"] for rows in history.values() for r in rows["drawn_usd"] + rows["commitment_usd"]}
+                   | {r["valid_from"] for r in built})
+
+    def as_of(rows: list[Row], when) -> float | None:
+        known = [r for r in rows if r["valid_from"] <= when and isinstance(r["value"], int | float)]
+        return float(max(known, key=lambda r: r["valid_from"])["value"]) if known else None
+
+    out = []
+    for when in dates:
+        drawn = committed = 0.0
+        for rows in history.values():
+            d, c = as_of(rows["drawn_usd"], when), as_of(rows["commitment_usd"], when)
+            if d is not None and c:
+                drawn, committed = drawn + d, committed + c
+        pct = as_of(built, when)
+        point = {"date": when.isoformat(), "drawnShare": round(min(drawn / committed, 1.0), 3) if committed else None,
+                 "builtShare": round(min(max(pct / 100, 0.0), 1.0), 3) if pct is not None else None}
+        if point["drawnShare"] is not None or point["builtShare"] is not None:
+            out.append(point)
+    return out
+
+
+def construction(conn: Conn, slug: str, instruments: list[Doc], ctx: Ctx) -> Doc:
     announced = ctx.facts.get("total_project_cost_usd")
     contractors = ctx.facts.get("contractors")
     names = [str(c.get("name")) for c in contractors["value"] if isinstance(c, dict) and c.get("name")] \
@@ -183,12 +219,13 @@ def construction(ctx: Ctx) -> Doc:
     equipment = []
     for unit, _ in ctx.unit_rows:
         label = " ".join(str(x) for x in (unit.get("oem"), unit.get("model")) if x) or "Generating units"
+        # No delivery date or needing milestone is sourced for a unit yet, so whether it is late is n/d (null).
         equipment.append({"item": label, "oem": unit.get("oem") or "n/d", "units": unit.get("count"),
-                          "neededBy": None, "delivery": nd("F"), "late": False})
+                          "neededBy": None, "delivery": nd("F"), "late": None})
     return {
         "declaredCostB": nd("F"), "announcedCostB": _billions(announced, "R"),
         "costPerMwM": nd("M"), "peerCostPerMwM": nd("M"), "costToCompleteGapB": nd("M"), "fundingGapB": nd("M"),
-        "drawsVsProgress": [], "drawPaceFlag": None,
+        "drawsVsProgress": draws_vs_progress(conn, slug, instruments), "drawPaceFlag": None,
         "generalContractor": with_value(contractors, "; ".join(names)) if names else nd("F"),
         "liens": [], "contractorStress": nd("M"), "equipment": equipment,
     }
@@ -201,7 +238,8 @@ def project_file(conn: Conn, slug: str) -> Doc | None:
     ctx = project_context(conn, slug, instruments)
     items, completeness = checklist(ctx)
     return {"siteSlug": slug, "completeness": completeness, "checklist": items, "parties": parties(conn, ctx),
-            "structure": structure(conn, slug, instruments, ctx), "construction": construction(ctx)}
+            "structure": structure(conn, slug, instruments, ctx),
+            "construction": construction(conn, slug, instruments, ctx)}
 
 
 @builder("project_file", keys=site_slugs)

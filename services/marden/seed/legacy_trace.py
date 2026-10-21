@@ -17,7 +17,10 @@ Reads (each stored raw as a seed document first; MARDEN_SEED_DIR):
 - aidebt.json: instrument px values that copy a TRACE row (same date, price within the 2-decimal rounding).
 
 All copies of one print collapse to one observation per (CUSIP, trade date): the unrounded eod.json price
-wins and a copy matches it within half a unit of its rounding. Each observation is written for every
+wins and a copy matches it within half a unit of its rounding. The archive was refreshed at 10:55 ET on
+2026-10-20 (refresh_state.json), so a print dated that day is an intraday last sale, not an end-of-day
+price: it is written with obs_at = the refresh time (the print is at or before it), apart from the
+end-of-day rows (obs_at NULL) the collector writes for that date. Each observation is written for every
 instrument whose identifiers name the CUSIP (finra_trace_store.watched_universe); a CUSIP no identifier names
 is reported and not written. An aidebt px that copies TRACE is written as that same observation, so it adds
 no row. source_name 'FINRA TRACE (finra.org)', source_url the CUSIP's finra.org bond page. Security master
@@ -31,12 +34,13 @@ import json
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
 from marden import cli
 from marden.collectors.finra_trace_parse import (
+    ET,
     ParseError,
     Security,
     number,
@@ -70,6 +74,7 @@ class Obs:
     yield_pct: Decimal | None = None
     spread_bp: Decimal | None = None
     origins: set[str] = field(default_factory=set)
+    obs_at: datetime | None = None  # set for an intraday last sale (a print dated the refresh day)
 
 
 @dataclass
@@ -123,7 +128,8 @@ def _read_books() -> tuple[Book, dict[str, tuple[Security, date, str]]]:
     """Every TRACE print and security record in the archive, collapsed (module docstring)."""
     book = Book()
     secs: dict[str, tuple[Security, date, str]] = {}
-    refreshed = parse_date(load_json(REFRESH).get("when")) or SEED_AS_OF
+    refresh = load_json(REFRESH)
+    refreshed = parse_date(refresh.get("when")) or SEED_AS_OF
     for cusip, entry in sorted(load_json(EOD).items()):
         for row in parse_eod(entry.get("eod") or [], cusip):
             book.add(cusip, row.trade_date, row.price, relpath=EOD, origin="eod", tol=Decimal(0),
@@ -163,7 +169,21 @@ def _read_books() -> tuple[Book, dict[str, tuple[Security, date, str]]]:
             continue
         book.add(m.group(1), date.fromisoformat(rec["date"]), _dec(rec["px"], f"{case} px"), relpath=CASE_PX,
                  origin="case_px", tol=ROUNDED_3DP)
+    refreshed_at = refresh_time(refresh)
+    for obs in book.obs.values():
+        if refreshed_at is not None and obs.day == refreshed_at.astimezone(ET).date():
+            obs.obs_at = refreshed_at
+            book.outcome["intraday_at_refresh"] += 1
     return book, secs
+
+
+def refresh_time(refresh: dict[str, Any]) -> datetime | None:
+    """When the archive's last TRACE refresh ran (refresh_state.json: epoch 't', else ET wall clock 'when')."""
+    if isinstance(refresh.get("t"), int | float):
+        return datetime.fromtimestamp(refresh["t"], UTC).replace(microsecond=0)
+    if refresh.get("when"):
+        return datetime.fromisoformat(str(refresh["when"])).replace(tzinfo=ET).astimezone(UTC)
+    return None
 
 
 def _aidebt_copies(book: Book, universe: Universe, report: Report) -> list[tuple[str, Obs]]:
@@ -216,7 +236,7 @@ def load() -> Report:
                 for iid in iids:
                     for o in sorted(by_cusip[cusip], key=lambda x: x.day):
                         writer.trade(iid, cusip, o.day, o.price, yield_pct=o.yield_pct, spread_bp=o.spread_bp,
-                                     document_id=docs[o.relpath])
+                                     obs_at=o.obs_at, document_id=docs[o.relpath])
                     if cusip in secs and universe.facts_from(iid, cusip):
                         sec, asof, rel = secs[cusip]
                         writer.security_facts(iid, sec, valid_from=asof, document_id=docs[rel])
@@ -225,7 +245,7 @@ def load() -> Report:
             writer = TraceWriter(conn, producer=PRODUCER, counts=report.trace)
             for iid, o in copies:
                 writer.trade(iid, o.cusip, o.day, o.price, yield_pct=o.yield_pct, spread_bp=o.spread_bp,
-                             document_id=docs[o.relpath])
+                             obs_at=o.obs_at, document_id=docs[o.relpath])
         report.counts["aidebt_px.rows_added"] = report.trace.prices_new - before
         report.counts["observations"] = len(book.obs)
         report.counts["cusips_in_archive"] = len(by_cusip)

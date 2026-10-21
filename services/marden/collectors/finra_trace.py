@@ -134,7 +134,11 @@ def ran_ok_this_evening(now: datetime) -> bool:
 
 
 def _priced_cusips(conn: Any) -> set[str]:
-    rows = conn.execute("SELECT DISTINCT source_url FROM price_obs WHERE source_name = %s", (SOURCE_NAME,)).fetchall()
+    """CUSIPs this collector has already read a history for (archive rows from `seed legacy_trace` do not
+    count: they start in 2026, so the first collector run still asks for the page's five years)."""
+    rows = conn.execute(
+        """SELECT DISTINCT p.source_url FROM price_obs p JOIN document d ON d.id = p.document_id
+           WHERE p.source_name = %s AND d.source_id = %s""", (SOURCE_NAME, SOURCE_ID)).fetchall()
     return {r["source_url"].split("cusip=", 1)[1][:9] for r in rows if r["source_url"] and "cusip=" in r["source_url"]}
 
 

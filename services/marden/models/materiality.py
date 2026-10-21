@@ -11,7 +11,8 @@ change a chain status wait for a person). `event` is an `event` row or a dict wi
 (optionally `text`, `kind`). `before` / `after` describe the subject around the event, any key may be
 missing: `p50` ('YYYY-MM', the cushion model's projected completion), `cushion_months` (number) and
 `chain` (ChainLink[] from the status model). The text tests are the status model's
-(`marden.models.status_text`), so an event and a chain link are judged by the same words.
+(`marden.models.status_text`), so an event and a chain link are judged by the same words; a scheduled
+step (kind 'catalyst') has not happened, so only its before / after states are tested.
 """
 
 from __future__ import annotations
@@ -51,7 +52,7 @@ TENANT_NOTICE = re.compile(
 )
 LENDER_ACTION = re.compile(
     r"\b(?:waiver|forbearance|reservation of rights|draw stop|stop(?:ped)? (?:funding|draws)|cash sweep|amendment"
-    r"|accelerat\w*|enforc\w*)\b",
+    r"|accelerat\w*\b(?!\s+filers?\b)|enforc\w*)\b",  # a 'large accelerated filer' is an SEC filer status
     re.I,
 )
 # A lender action needs the debt in the same clause: a docket's 'request for waiver' is not one.
@@ -59,6 +60,9 @@ DEBT_CONTEXT = re.compile(r"\b(?:lenders?|loans?|credit (?:agreement|facility)|c
                           r"|indenture|DDTL|term loan|debt|facility|arrangers?|agent)\b", re.I)
 WITHDRAWN_STATUS = re.compile(r"^\s*(?:WITHDRAWN|CANCEL+ED|DEACTIVATED|TERMINATED)\b", re.I)
 QUEUE_KINDS = frozenset({"queue", "interconnection"})
+# A scheduled step ('CoreWeave Q3 10-Q: leverage covenant recomputed') has not happened: its text is not
+# tested (as in the status model's inputs); only the before / after states can make it material.
+SCHEDULED_KINDS = frozenset({"catalyst"})
 
 
 @dataclass
@@ -72,7 +76,8 @@ class Materiality:
 
     @property
     def severity(self) -> str:
-        return max((RULE_CODES[c][2] for c in self.codes if c in RULE_CODES), key=SEVERITY.get, default="none")
+        return max((RULE_CODES[c][2] for c in self.codes if c in RULE_CODES), key=lambda s: SEVERITY.get(s, 0),
+                   default="none")
 
     @property
     def alert_types(self) -> list[str]:
@@ -99,6 +104,8 @@ def _links(state: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
 def is_material(event: Any, before: dict[str, Any] | None = None, after: dict[str, Any] | None = None) -> Materiality:
     """Whether an event is material, with the rule codes (RULE_CODES) and one reason per code."""
     text, kind = _event_text(event)
+    if kind in SCHEDULED_KINDS:
+        text = ""
     codes: list[str] = []
     reasons: list[str] = []
 
@@ -109,7 +116,8 @@ def is_material(event: Any, before: dict[str, Any] | None = None, after: dict[st
 
     p0, p1 = _month((before or {}).get("p50")), _month((after or {}).get("p50"))
     if p0 is not None and p1 is not None and abs(p1 - p0) >= SLIP_MONTHS:
-        add("M1", f"projected completion moved {p1 - p0:+d} months ({before['p50']} -> {after['p50']})")
+        add("M1", f"projected completion moved {p1 - p0:+d} months "
+                  f"({(before or {}).get('p50')} -> {(after or {}).get('p50')})")
     stated = dates.stated_slip(text)
     if stated is not None and abs(stated) >= SLIP_MONTHS:
         add("M1", f"the event states a {stated}-month slip")

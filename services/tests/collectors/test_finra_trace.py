@@ -193,6 +193,67 @@ def test_a_refusal_stops_the_run_and_is_recorded(committed):
     assert committed.execute("SELECT count(*) AS n FROM price_obs").fetchone()["n"] == 0
 
 
+CHALLENGE = (Path(__file__).parent / "data" / "market_http" / "cloudflare_challenge.html").read_bytes()
+
+
+def test_a_cloudflare_challenge_on_the_page_stops_at_once(committed):
+    _instrument(committed, "EX-IREN-180", "46270CAE9")
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        headers = {"cf-mitigated": "challenge", "content-type": "text/html"}
+        return httpx.Response(403, content=CHALLENGE, headers=headers)
+
+    client = BondPageClient(ft.SOURCE_ID, client=httpx.Client(transport=httpx.MockTransport(handler)),
+                            user_agent=UA, sleep=lambda _s: None)
+    out = ft.run(flow=client, now=datetime(2026, 10, 21, 23, 0, tzinfo=UTC))
+    assert out["ok"] is False and out["refused"] is True and "cf-mitigated" in out["error"]
+    assert len(calls) == 1 and calls[0].headers["user-agent"] == UA  # no retry, no browser identity
+    doc = committed.execute("SELECT doc_type, meta FROM document WHERE source_id = 'finra_trace'").fetchone()
+    assert doc["doc_type"] == "refusal" and doc["meta"]["http"]["headers"]["cf-mitigated"] == "challenge"
+    assert "cf-mitigated" in committed.execute("SELECT last_error FROM source WHERE id = 'finra_trace'").fetchone()[
+        "last_error"]
+    assert committed.execute("SELECT count(*) AS n FROM price_obs").fetchone()["n"] == 0
+
+
+def test_a_429_on_a_data_request_stops_without_retry(committed):
+    _instrument(committed, "EX-IREN-180", "46270CAE9")
+    _instrument(committed, "EX-APLD-010", "00202DAA5")
+    replay = Replay(records={"46270CAE9": _json("eod_46270CAE9.json")})
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            replay.requests.append(request)
+            return httpx.Response(429, content=b"Too Many Requests", headers={"retry-after": "30"})
+        return replay(request)
+
+    client = BondPageClient(ft.SOURCE_ID, client=httpx.Client(transport=httpx.MockTransport(handler)),
+                            user_agent=UA, sleep=lambda _s: None)
+    out = ft.run(flow=client, now=datetime(2026, 10, 21, 23, 0, tzinfo=UTC))
+    assert out["ok"] is False and out["refused"] is True and "429" in out["error"]
+    assert [r.method for r in replay.requests] == ["GET", "GET", "POST"]  # the first bond's POST, then stop
+    assert committed.execute("SELECT count(*) AS n FROM price_obs").fetchone()["n"] == 0
+
+
+def test_archive_rows_do_not_stand_in_for_the_five_year_backfill(committed):
+    from marden.core import documents, sources
+    from marden.core.records import PriceWriter
+    from marden.seed.common import SEED_SOURCE_ID, seed_url
+
+    _instrument(committed, "EX-IREN-180", "46270CAE9")
+    sources.upsert_spec(sources.get_spec(SEED_SOURCE_ID))
+    seed_doc = documents.record_document(SEED_SOURCE_ID, seed_url("trace/eod.json"), b"{}",
+                                         content_type="application/json")
+    PriceWriter(committed).add("EX-IREN-180", "2026-10-15", "trade", 58, tag="F", source_name=ft.SOURCE_NAME,
+                               source_url=bond_page_url("46270CAE9"), document_id=seed_doc.id)
+    iren = _json("eod_46270CAE9.json")
+    replay = Replay(records={"46270CAE9": iren})
+    assert ft.run(flow=_client(replay), now=datetime(2026, 10, 16, 23, 0, tzinfo=UTC))["ok"]
+    hist = [json.loads(r.content) for r in replay.requests if r.method == "POST"][1]
+    assert hist["dateRangeFilters"][0]["startDate"].startswith("2021-10-17")  # the collector's own first read
+
+
 def test_page_flow_writes_trades_and_missing_facts_once(committed):
     _instrument(committed, "EX-IREN-180", "46270CAE9")
     iren = _json("eod_46270CAE9.json")

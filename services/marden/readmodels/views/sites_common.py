@@ -354,12 +354,33 @@ def material_events(conn: Conn, slug: str, events: Sequence[Row] | None = None) 
     return out
 
 
+def research_evidence(conn: Conn, slug: str) -> list[Doc]:
+    """The case research's dated evidence items (risk_evidence facts: headline, date, url), newest
+    first, each with its own tag and source; items dated after the build date are left out."""
+    out = []
+    for row in known_fact_rows(conn, "site", slug, ["risk_evidence"])["risk_evidence"]:
+        v = row["value"] if isinstance(row["value"], dict) else {}
+        when, text = v.get("date"), v.get("headline")
+        if isinstance(when, str) and isinstance(text, str) and text and when <= day().isoformat():
+            rec = fact_evidence(row, text, when)
+            rec["sourceUrl"] = v.get("url") or row.get("source_url") or ""
+            out.append(rec)
+    out.sort(key=lambda r: r["date"], reverse=True)
+    return out
+
+
 def last_evidence(conn: Conn, slug: str, events: Sequence[Row]) -> Doc | None:
-    """Completion's 'Last evidence': the latest material event, else the latest red/amber event, else
-    the latest record of any kind (None only for a site with no record at all)."""
+    """Completion's 'Last evidence' (spec 03: the latest material event): the latest material event,
+    else the latest red/amber event, else the case research's latest evidence item, else the latest
+    record of any kind (None only for a site with no record at all). Unjudged collector records
+    (agenda items, docket service lists) come last: they are records, not evidence of a move."""
     material = material_events(conn, slug, events)
     if material:
         return event_evidence(material[0][0])
     flagged = [e for e in events if severity(e) in ("red", "amber")]
-    records = flagged or [e for e in events if e["kind"] != "catalyst"]
+    if flagged:
+        return event_evidence(flagged[0])
+    if research := research_evidence(conn, slug):
+        return research[0]
+    records = [e for e in events if e["kind"] != "catalyst"]
     return event_evidence(records[0]) if records else None

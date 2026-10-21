@@ -196,6 +196,22 @@ def test_eia_history_is_reported_missing_until_two_reports_exist(real, committed
     assert [o["label"] for o in output["leaseOutcomes"]] == ["Finished before the outside date", "Finished after it"]
 
 
+def test_eia_planned_vs_a_later_report_is_a_power_slip_record(committed):
+    """Two EIA-860M reports of one generator (tiny case): a record once the later report is public."""
+    from marden.models.cushion_history import eia_records, month_float
+
+    with committed.transaction():
+        writer = FactWriter(committed)
+        for day, month in ((date(2026, 3, 31), "2027-01"), (date(2026, 6, 30), "2027-07")):
+            writer.add("eia_generator", "99999_T1", "planned_online", month, tag="F", source_name="EIA-860M",
+                       valid_from=day, producer="test:cushion", status="published")
+    assert eia_records(committed, date(2026, 7, 23)) == []  # the June report is public on Jul 24
+    (record,) = eia_records(committed, date(2026, 7, 24))
+    assert record.category == "power" and record.said_on == date(2026, 4, 24) and not record.done
+    planned = cd.month_index(2027, 1) + 0.5  # a month's midpoint
+    assert record.ratio == pytest.approx(6 / (planned - month_float(date(2026, 4, 24))))
+
+
 def test_command_and_tasks_are_registered():
     parser = cli.build_parser()
     args = parser.parse_args(["model", "cushion", "--as-of", "2026-10-14", "--site", "jupiter"])

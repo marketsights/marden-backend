@@ -13,7 +13,8 @@ https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}?range={2y|1mo}&interv
 - Facts on subject_type 'series', subject_id 'equity:<TICKER>', one per trading date (valid_from):
   open, high, low, close, adj_close (unit = trading currency), volume (shares); dividend (per share)
   and split ({numerator, denominator}) on their ex-dates. source_url is the ticker's Yahoo history page;
-  the exact response is the fact's document.
+  the exact response is the fact's document. A value `seed legacy_yahoo` already holds for the date is
+  not written again (write_chart).
 - A session that has not closed (the run is early, or the bar is still live) is not written.
 - Cadence: weekdays 18:20 ET, after the US close. `python -m marden collect yahoo_equity [--ticker T]`.
 """
@@ -37,6 +38,7 @@ from marden.core import db, http, licensing
 from marden.core.db import Conn
 from marden.core.facts import FactWriter
 from marden.core.http import FetchError, fetch_document
+from marden.core.jsonutil import canonical_json
 from marden.core.queue import app
 from marden.core.sources import declare_source
 
@@ -70,7 +72,8 @@ TERMS_NOTE = (
     "the Services\", and \"Unless otherwise expressly stated, you may not access or reuse the Services, or any "
     "portion thereof, for any commercial purpose.\" https://query1.finance.yahoo.com/robots.txt: "
     "\"User-agent: * / Disallow: /\". No Yahoo permission has been obtained. Access: declared User-Agent "
-    "\"Marden research cody@marden.ai\", 1 request/second plus jitter, one request per ticker per weekday after "
+    "\"Marden research cody@marden.ai\", 1 request/second plus jitter, one request per ticker per weekday (a second "
+    "after a new split) after "
     "18:00 ET; any challenge, login wall, 401/403 or repeated 429 is recorded here and the run stops (no "
     "evasion). Licensed replacement: an exchange or vendor equity feed with redistribution rights."
 )
@@ -229,14 +232,25 @@ def parse_chart(data: bytes, *, symbol: str | None = None, fetched_at: datetime 
 def write_chart(
     conn: Conn, ticker: str, chart: Chart, *, producer: str, document_id: int | None, stats: RunStats,
 ) -> int:
-    """Published series facts for every bar and corporate action in `chart`. Returns facts created."""
+    """Published series facts for every bar and corporate action in `chart`. Returns facts created.
+
+    One value per series, field and date across writers: a value another writer (the collector or the
+    `legacy_yahoo` archive loader) already holds is not written again; the archive never adds a value for
+    a date the collector holds; a changed value from the collector (a restatement) is written."""
     facts = FactWriter(conn)
     sid = series_id(ticker)
     url = page_url(chart.symbol or yahoo_symbol(ticker))
+    held = held_values(conn, sid)
     created = 0
 
     def add(field_name: str, value: Any, day: date, unit: str | None) -> None:
         nonlocal created
+        others = {p: vals for p, vals in held.get((field_name, day), {}).items() if p != producer}
+        if others and (canonical_json(value) in set().union(*others.values()) or
+                       (producer != PRODUCER and PRODUCER in others)):
+            stats.facts_seen += 1
+            stats.extra["held_by_other_writer"] = stats.extra.get("held_by_other_writer", 0) + 1
+            return
         res = facts.add("series", sid, field_name, value, tag="F", source_name=SOURCE_NAME, source_url=url,
                         valid_from=day, producer=producer, status="published", unit=unit, document_id=document_id)
         stats.facts_seen += 1
@@ -260,13 +274,26 @@ def write_chart(
     return created
 
 
+def held_values(conn: Conn, sid: str) -> dict[tuple[str, date], dict[str, set[str]]]:
+    """(field, date) -> producer -> canonical values of the published Yahoo Finance facts on a series."""
+    out: dict[tuple[str, date], dict[str, set[str]]] = {}
+    for r in conn.execute(
+        """SELECT field, valid_from, producer, value FROM fact WHERE subject_type = 'series' AND subject_id = %s
+           AND source_name = %s AND status = 'published'""", (sid, SOURCE_NAME),
+    ).fetchall():
+        by_producer = out.setdefault((r["field"], r["valid_from"]), {})
+        by_producer.setdefault(r["producer"], set()).add(canonical_json(r["value"]))
+    return out
+
+
 def latest_loaded(conn: Conn, ticker: str) -> date | None:
+    """The newest close held for the ticker (from either writer), or None until the collector has loaded it."""
     row = conn.execute(
-        """SELECT max(valid_from) AS d FROM fact WHERE subject_type = 'series' AND subject_id = %s
-           AND field = 'close' AND producer = %s AND status = 'published'""",
-        (series_id(ticker), PRODUCER),
+        """SELECT max(valid_from) AS d, bool_or(producer = %s) AS own FROM fact WHERE subject_type = 'series'
+           AND subject_id = %s AND field = 'close' AND source_name = %s AND status = 'published'""",
+        (PRODUCER, series_id(ticker), SOURCE_NAME),
     ).fetchone()
-    return row["d"] if row else None
+    return row["d"] if row and row["own"] else None
 
 
 def stored_splits(conn: Conn, ticker: str) -> set[date]:

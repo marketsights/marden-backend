@@ -21,6 +21,7 @@ from decimal import Decimal
 from typing import Any
 
 from marden.core.db import Conn, Row
+from marden.core.facts import sourced
 from marden.core.licensing import show_unlicensed_prices, unlicensed_source_names
 from marden.readmodels.context import build_date, is_backfill
 
@@ -66,20 +67,11 @@ def _licence_clause() -> tuple[str, list[str]]:
 
 # ---------------------------------------------------------------- facts
 def fact_sourced(row: Row | None, value: Any = None) -> dict[str, Any] | None:
-    """A fact row as Sourced<T>, optionally with a display value derived from the fact's value."""
-    if row is None:
-        return None
-    out: dict[str, Any] = {
-        "value": row["value"] if value is None else value,
-        "tag": row["tag"],
-        "asOf": iso(row["valid_from"]),
-    }
-    if row.get("source_url"):
-        out["sourceUrl"] = row["source_url"]
-    if row.get("source_name"):
-        out["sourceName"] = row["source_name"]
-    if row.get("method_version"):
-        out["methodVersion"] = row["method_version"]
+    """A fact row as Sourced<T> (marden.core.facts.sourced: tag, source, as-of, method version),
+    optionally with a display value derived from the fact's value."""
+    out = sourced(row)
+    if out is not None and value is not None:
+        out["value"] = value
     return out
 
 

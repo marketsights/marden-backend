@@ -19,12 +19,15 @@ only complete days (see ercot_prices_parse), so a gap stays a gap. Fields are no
 not rate-curve observations.
 
 Requests. Each run computes, per DAM point and RT type, the days from BACKFILL_DAYS ago through the latest
-operating day (DAM: tomorrow; RT: yesterday, Central) that have no `avg` fact yet, and asks for them in windows
-of at most one calendar month (PAGE_SIZE rows a page; further pages are followed). Every answer is stored raw
-(`http.fetch_document`); a window that ended more than SETTLED_DAYS ago and was stored before is parsed from
-storage and never asked for again (ERCOT's API terms: store reports rather than downloading them repeatedly).
-The first run backfills two years (about 475 requests at 0.4 a second, ~20 minutes); later runs ask only for
-new days (about 19 requests). MAX_REQUESTS caps one run; the rest follows on the next.
+operating day (DAM: tomorrow from DAM_EARLIEST_CT, else today; RT: yesterday, Central) that have no `avg`
+fact yet, and asks for them in windows of at most one calendar month (PAGE_SIZE rows a page; further pages are
+followed). Every answer is stored raw (`http.fetch_document`); a window that ended more than SETTLED_DAYS ago
+and was stored before is parsed from storage and never asked for again (ERCOT's API terms: store reports rather
+than downloading them repeatedly). The first run backfills two years (475 requests at 0.4 a second, ~24 minutes
+on 2026-10-21); later runs ask only for days not yet written (15 DAM requests at 14:07, 4 RT at 00:47), plus
+recent days ERCOT has not completed. ERCOT's API lacks one 15-minute interval on a few days (six between
+2024-10-21 and 2026-10-20, every point): those days get no RT statistics, their windows are stored once and
+then reread. MAX_REQUESTS caps one run; the rest follows on the next.
 
 Cadence: daily at 14:07 Central (DAM for the next day) and 00:47 Central (real time for the day just ended),
 each scheduled at both UTC hours with `due_et`. `python -m marden collect ercot_prices`.
@@ -35,7 +38,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -70,6 +73,7 @@ DAM_RUN_ET = (15, 7)  # 14:07 Central, after the DAM posts (~13:30 Central)
 RT_RUN_ET = (1, 47)  # 00:47 Central, the operating day just ended
 CRON_DAM_UTC = "7 19,20 * * *"
 CRON_RT_UTC = "47 5,6 * * *"
+DAM_EARLIEST_CT = time(12, 0)  # the DAM posts ~13:30 Central: no earlier ask for the next day
 TERMS_NOTE = (
     "Checked 2026-10-21. Prices come from the ERCOT Public API (api.ercot.com), products NP4-190-CD and "
     "NP6-905-CD, with a free account registered by a person: Terms of Use for the ERCOT API "
@@ -119,8 +123,10 @@ STREAMS = (*(Stream("dam", p, (p,)) for p in LOAD_ZONES + HUBS),
            *(Stream("rt", t, points) for t, points in RT_TYPES.items()))
 
 
-def today_ct() -> date:
-    return datetime.now(parse.CT).date()
+def dam_through(now: datetime) -> date:
+    """The last DAM delivery day worth asking for at `now`: tomorrow (Central) once the DAM can have posted."""
+    now = now.astimezone(parse.CT)
+    return now.date() + timedelta(days=1 if now.time() >= DAM_EARLIEST_CT else 0)
 
 
 def windows(days: list[date]) -> Iterator[tuple[date, date]]:
@@ -148,15 +154,16 @@ def written_days(since: date) -> dict[str, set[date]]:
 
 
 class Run:
-    def __init__(self, stats: RunStats, fetcher: Fetcher, today: date):
+    def __init__(self, stats: RunStats, fetcher: Fetcher, today: date, dam_end: date | None = None):
         self.stats, self.fetcher, self.today = stats, fetcher, today
+        self.dam_end = dam_end or today + timedelta(days=1)
         self.session: ercot_api.Session | None = None
         self.info: dict[str, Any] = {"requests": 0, "stored_reused": 0, "windows": 0, "days_written": {},
                                      "incomplete": [], "incomplete_count": 0, "capped": False}
         stats.extra["ercot_prices"] = self.info
 
     def missing(self, stream: Stream, have: dict[str, set[date]]) -> list[date]:
-        end = self.today + timedelta(days=1) if stream.market == "dam" else self.today - timedelta(days=1)
+        end = self.dam_end if stream.market == "dam" else self.today - timedelta(days=1)
         end = min(end, checks.latest_today())
         start = self.today - timedelta(days=BACKFILL_DAYS)
         span = [start + timedelta(days=i) for i in range((end - start).days + 1)]
@@ -242,9 +249,13 @@ class Run:
 def collect_all(stats: RunStats, fetcher: Fetcher, today: date | None = None) -> None:
     """Load zones first (one map request, no key needed), then prices; both are tried, the first error fails
     the run after the other step ran."""
+    def prices() -> None:
+        now = datetime.now(parse.CT)
+        Run(stats, fetcher, today or now.date(), None if today else dam_through(now)).prices()
+
     errors: list[Exception] = []
     for name, step in (("load_zones", lambda: ercot_load_zones.assign(stats, SOURCE_ID, fetcher)),
-                       ("prices", lambda: Run(stats, fetcher, today or today_ct()).prices())):
+                       ("prices", prices)):
         try:
             step()
         except (FetchError, ParseError, SourceBlocked) as exc:

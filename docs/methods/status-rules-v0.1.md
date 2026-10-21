@@ -71,6 +71,19 @@ Inputs are published facts and events, read through `marden.models.pit`:
 
 M1 and M2 are the 00-global codes; M3–M5 name the other three conditions of the same definition.
 
+A scheduled step (event kind `catalyst`, e.g. "CoreWeave Q3 10-Q: leverage covenant recomputed") has not happened, so its text is not tested; it is material only through the `before` / `after` states. An 8-K item caption ("Termination of a Material Definitive Agreement", usually paired with "Entry into …" in a refinancing) is not a contract cut; an SEC "large accelerated filer" is not a lender's acceleration.
+
+On the 9,048 published events in the local database (2026-10-21), 14 are material: 10 M4 (nine Jupiter force-majeure headlines, "Microsoft pulls out of UK Nscale data centre deal"), 4 M3 (the Green Chile lateral "rerouted after rejections", three STACK Danville gas units withdrawn from the PJM queue); none of the 8,107 docket items.
+
+## Runs on the local database (2026-10-21)
+
+| As of | Broken | Strained | Holding | Notes |
+| --- | --- | --- | --- | --- |
+| 2026-07-01 (backtest) | 0 | 0 | 29 | before S&P's cut of Oracle (2026-07-09); dossier notes not yet public |
+| 2026-09-01 (backtest) | 0 | 7 | 22 | T1 on the six Oracle-tenant sites; D1 Abilene, Lake Mariner |
+| 2026-09-30 (backtest) | 1 | 7 | 21 | Jupiter T2 after Oracle's force majeure notice (2026-09-24) |
+| 2026-10-21 (today) | 2 | 14 | 13 | Jupiter (T2), Southgate (D2, partnership ended); CoreWeave B+ (T1) on six sites; E1 OpenAI cash burn |
+
 ## Limits (v0.1)
 
 - Most signals are still statements, read by fixed text rules. Structured facts from the extraction agents (a `force_majeure_notice` or `rating` fact) should replace them; the rules then become field checks.

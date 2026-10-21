@@ -150,10 +150,21 @@ def test_site_detail_header_and_debt_exposed(sites):
     holders = copied_rows(
         "SELECT count(DISTINCT fund_entity_id) AS n FROM holding WHERE instrument_id = 'EX-JUPITER-190'")
     assert (holders[0]["n"] == 0) == exposed["holdersNote"].startswith("No N-PORT")
-    for model in ("price", "recovery"):
-        if not copied_rows("SELECT 1 FROM model_output WHERE model = %s AND subject_id = 'EX-JUPITER-190'", (model,)):
-            field = "mardenPrice" if model == "price" else "recovery"
-            assert exposed[field]["value"] is None and exposed[field]["tag"] == "M"
+    # One source: the site header shows the loan's Marden price and recovery exactly as its own page does
+    # (price / recovery model outputs, else the archive's recovery research fact with its own tag, else n/d M).
+    loan = build("instrument_detail", "EX-JUPITER-190")
+    assert exposed["mardenPrice"] == loan["mardenPrice"] and exposed["recovery"] == loan["recovery"]
+    if not copied_rows("SELECT 1 FROM model_output WHERE model = 'price' AND subject_id = 'EX-JUPITER-190'") \
+            and not copied_rows("SELECT 1 FROM price_obs WHERE instrument_id = 'EX-JUPITER-190' AND kind = 'marden'"):
+        assert exposed["mardenPrice"]["value"] is None and exposed["mardenPrice"]["tag"] == "M"
+    research = copied_rows("SELECT tag FROM fact_current WHERE subject_type = 'instrument' "
+                           "AND subject_id = 'EX-JUPITER-190' AND field LIKE 'recovery%%'")
+    if not copied_rows("SELECT 1 FROM model_output WHERE model IN ('price', 'recovery') "
+                       "AND subject_id = 'EX-JUPITER-190'"):
+        if research:
+            assert exposed["recovery"]["value"] and exposed["recovery"]["tag"] == research[0]["tag"]
+        else:
+            assert exposed["recovery"]["value"] is None and exposed["recovery"]["tag"] == "M"
     assert detail["trackingNames"] == copied_rows("SELECT tracking_names FROM site WHERE slug = 'jupiter'")[0][
         "tracking_names"]
     assert detail["tabCounts"] == {
@@ -244,6 +255,71 @@ def test_project_file_checklist_and_score(sites):
     assert pf["construction"]["liens"] == [] and pf["construction"]["costPerMwM"]["value"] is None
 
 
+def test_draws_vs_progress_follow_filed_draws_and_percent_complete(sites):
+    reported = copied_rows(
+        """SELECT DISTINCT i.site_slug FROM instrument i JOIN fact_current d ON d.subject_type = 'instrument'
+             AND d.subject_id = i.id AND d.field = 'drawn_usd'
+           JOIN fact_current c ON c.subject_type = 'instrument' AND c.subject_id = i.id AND c.field = 'commitment_usd'
+          WHERE i.site_slug IS NOT NULL
+         UNION SELECT subject_id FROM fact_current WHERE subject_type = 'site' AND field = 'pct_complete'""")
+    assert reported, "no site has filed draws or a percent complete"
+    for slug in [r["site_slug"] for r in reported]:
+        points = build("project_file", slug)["construction"]["drawsVsProgress"]
+        assert points and points == sorted(points, key=lambda p: p["date"]), slug
+        last = points[-1]
+        shares = copied_rows(
+            """SELECT sum((d.value #>> '{}')::numeric) AS drawn, sum((c.value #>> '{}')::numeric) AS committed
+                 FROM instrument i JOIN fact_current d ON d.subject_type = 'instrument' AND d.subject_id = i.id
+                  AND d.field = 'drawn_usd'
+                 JOIN fact_current c ON c.subject_type = 'instrument' AND c.subject_id = i.id
+                  AND c.field = 'commitment_usd'
+                WHERE i.site_slug = %s""", (slug,))[0]
+        if shares["committed"]:
+            assert last["drawnShare"] == round(min(float(shares["drawn"] / shares["committed"]), 1.0), 3), slug
+        else:
+            assert last["drawnShare"] is None
+        pct = copied_rows("SELECT value FROM fact_current WHERE subject_type = 'site' AND subject_id = %s "
+                          "AND field = 'pct_complete'", (slug,))
+        assert last["builtShare"] == (round(pct[0]["value"] / 100, 3) if pct else None), slug
+    # Signals nobody has computed yet stay n/d (null), never a placeholder 'false'.
+    pf = build("project_file", reported[0]["site_slug"])["construction"]
+    assert pf["drawPaceFlag"] is None and all(e["late"] is None for e in pf["equipment"])
+
+
+def test_last_evidence_prefers_judged_records_over_unjudged_ones(sites):
+    rows = {r["slug"]: r for r in build("completion")["rows"]}
+    checked = 0
+    for slug, row in rows.items():
+        judged = copied_rows(
+            """SELECT 1 FROM event WHERE subject_type = 'site' AND subject_id = %(s)s AND status = 'published'
+                 AND event_date <= %(d)s AND (material OR severity IN ('red', 'amber'))
+               UNION SELECT 1 FROM fact_current WHERE subject_type = 'site' AND subject_id = %(s)s
+                 AND field = 'materiality_note'""", {"s": slug, "d": business_today()})
+        research = copied_rows(
+            """SELECT value->>'date' AS d, value->>'headline' AS h FROM fact
+                WHERE subject_type = 'site' AND subject_id = %s AND field = 'risk_evidence' AND status = 'published'
+                  AND value->>'date' <= %s ORDER BY 1 DESC""", (slug, business_today().isoformat()))
+        if judged or not research:
+            continue
+        # No material or flagged event: the case research's latest dated item, not an agenda line.
+        assert row["lastEvidence"]["date"] == research[0]["d"], slug
+        assert row["lastEvidence"]["text"] in {r["h"] for r in research if r["d"] == research[0]["d"]}
+        checked += 1
+    assert checked, "no site without judged events to check"
+
+
+def test_lease_today_tone_follows_the_cushion(sites):
+    for slug in [s for s in NAMED if s in sites]:
+        lease = build("site_tab:lease", slug)
+        months = ((latest_output("cushion", slug) or {"output": {}})["output"].get("projection") or {}).get(
+            "cushionMonths")
+        value = months.get("value") if isinstance(months, dict) else None
+        if lease["today"]["value"] is None or value is None:
+            assert "todayTone" not in lease, slug
+        else:
+            assert lease["todayTone"] == ("red" if value < 0 else "amber" if value < 3 else "green"), slug
+
+
 def test_backfilled_snapshot_shows_only_what_was_known(sites):
     seed_day = copied_rows("SELECT min(learned_at)::date AS d FROM fact WHERE subject_type = 'site'")[0]["d"]
     past = seed_day - timedelta(days=1)
@@ -256,7 +332,12 @@ def test_backfilled_snapshot_shows_only_what_was_known(sites):
     today = build("site_detail", "jupiter")
     assert detail["gw"]["value"] == today["gw"]["value"] is not None  # known on `past`
     assert detail["debtB"]["value"] is None and detail["materialEvents"] == []  # learned on the seed day
-    assert detail["status"] is None or latest_output("status", "jupiter")["created_at"].date() <= past
+    # A model run for a past day reads only what was public that day (marden.models.pit): the snapshot shows
+    # the output dated on or before `past`, whenever it was computed, and n/d when there is none.
+    then = copied_rows("SELECT output FROM model_output WHERE model = 'status' AND subject_type = 'site' "
+                       "AND subject_id = 'jupiter' AND as_of <= %s ORDER BY as_of DESC, created_at DESC, id DESC "
+                       "LIMIT 1", (past,))
+    assert detail["status"] == (then[0]["output"]["status"] if then else None)
     stats = rebuild_all("site_detail", as_of=past)
     assert not stats.errors and stats.events == 0
     assert copied_rows("SELECT count(*) AS n FROM read_model WHERE view = 'site_detail' AND as_of = %s",

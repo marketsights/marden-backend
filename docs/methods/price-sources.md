@@ -1,5 +1,7 @@
 # Marden price-source plan
 
+> **Superseded in part (2026-10-21).** After this plan was written, the business owner decided that Marden collects finra.org TRACE, Börse Frankfurt and Yahoo Finance daily despite the terms below, and accepts the risk. Where this plan says **Blocked**, **Needs licence** or **Do not use** for those three, read [licensing.md](licensing.md): the rows are collected, carry the exact `source_name`s flagged `unlicensed-commercial`, and `MARDEN_SHOW_UNLICENSED_PRICES` is the switch that hides them. The terms quoted here and the licensed routes in §6 still stand.
+
 Written 2026-10-21. It builds on `public-corporates.md` and `abs-cmbs-loans-marks.md`, and I re-checked every source those notes marked "use now".
 - All requests sent the User-Agent `Marden research cody@marden.ai`. No credentials were used or stored. I made no requests to finra.org data endpoints, Deutsche Börse, or any site that blocks automated access.
 - Raw responses are in `/tmp/claude-0/-home-user/041c65f7-05f2-55e2-9ba6-73f6e02ba8df/scratchpad/pricing/verify_dl/`.

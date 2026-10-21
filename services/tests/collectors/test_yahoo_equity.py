@@ -119,6 +119,24 @@ def test_a_429_is_recorded_and_the_run_stops(committed):
     assert committed.execute("SELECT count(*) AS n FROM fact").fetchone()["n"] == 0
 
 
+def test_a_cloudflare_challenge_is_recorded_and_the_run_stops(committed):
+    challenge = (Path(__file__).parent / "data" / "market_http" / "cloudflare_challenge.html").read_bytes()
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        headers = {"cf-mitigated": "challenge", "content-type": "text/html"}
+        return httpx.Response(403, content=challenge, headers=headers)
+
+    out = Y.run(tickers=["AMD", "CRWV"], today=date(2026, 10, 21), fetcher=_fetcher(handler))
+    assert out["ok"] is False and out["error"].startswith("Challenged: stopped: HTTP 403")
+    assert calls == ["/v8/finance/chart/AMD"]  # no retry, no other ticker, no other identity
+    src = committed.execute("SELECT last_error, blocked FROM source WHERE id = 'yahoo_equity'").fetchone()
+    assert "403" in src["last_error"] and src["blocked"] is False
+    run = committed.execute("SELECT ok FROM source_run WHERE source_id = 'yahoo_equity'").fetchone()
+    assert run["ok"] is False and committed.execute("SELECT count(*) AS n FROM fact").fetchone()["n"] == 0
+
+
 def test_an_unknown_ticker_is_skipped_not_fatal(committed):
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/ORCL"):

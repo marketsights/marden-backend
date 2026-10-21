@@ -238,12 +238,18 @@ def lease_tab(conn: Conn, slug: str) -> Doc | None:
         _term("guarantee", "Parent guarantee", _text(facts.get("lease_guarantee")), "lease or guaranty"),
     ]
     today = output_field(cushion, "leasePosition")
-    return {
+    doc: Doc = {
         "title": f"{tenant}'s lease" if tenant else "Lease",
         "terms": terms,
         "outcomes": [o for o in (output_field(cushion, "leaseOutcomes") or []) if isinstance(o, dict)],
         "today": msourced(cushion, today) if today is not None else nd("M"),
     }
+    # Today's position is colored like the cushion chip (spec 03 bands: < 0 red, 0-3 amber), only when
+    # the model gives both a position and a cushion.
+    months = output_field(cushion, "projection", "cushionMonths", "value")
+    if today is not None and isinstance(months, int | float):
+        doc["todayTone"] = "red" if months < 0 else "amber" if months < 3 else "green"
+    return doc
 
 
 @builder("site_tab:lease", keys=site_slugs)

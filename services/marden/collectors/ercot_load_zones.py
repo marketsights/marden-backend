@@ -10,12 +10,15 @@ and `:rt`) sit side by side for the stress model.
 - Location: the subject's point; a plant without one takes the point of the single campus it serves
   (plant_serves: on-site generation); else the polygon (us_county) of the one Texas county the row names.
 - Zone: what ERCOT's Load Zone Map shows there (ercot_zone_map: within 2 km of the point, or over the county
-  grown by 2 km). Several zones there, gray, or no location leave the subject unassigned; the run meta lists
-  each with the reason and nothing is guessed.
+  grown by 2 km). Several zones there, only gray, or no location leave the subject unassigned; the run meta
+  lists each with the reason and nothing is guessed. Gray next to one zone is set aside (0.2): the subject is in
+  ERCOT by its facts (Stingray: Andrews County is all LZ_WEST, the 2 km margin reaches Gaines County and New
+  Mexico).
 Facts: field `ercot_load_zone` = 'LZ_WEST' etc. (the price series' point), tag M, producer
 'model:ercot_load_zones', METHOD_VERSION, source ERCOT with the map URL and its stored document, quote_loc the
 pixel evidence; valid_from = the later of the map's posting date and the market fact's date, so reruns write
-nothing new.
+nothing new. A current zone fact that a run no longer supports (the subject left ERCOT by its facts, or became
+unassigned) is listed under `stale` in the run meta for a person; it is not overwritten.
 """
 
 from __future__ import annotations
@@ -36,7 +39,7 @@ from marden.core.http import Fetcher
 
 FIELD = "ercot_load_zone"
 PRODUCER = "model:ercot_load_zones"
-METHOD_VERSION = "ercot_load_zone_map-0.1"
+METHOD_VERSION = "ercot_load_zone_map-0.2"  # 0.2: gray beside one zone is set aside for subjects in ERCOT
 SUBJECT_TABLES = (("site", "site", "slug"), ("campus", "campus", "id"), ("plant", "power_plant", "id"))
 _COUNTY = re.compile(r"^\s*([A-Za-z][A-Za-z .'-]*?)(?:\s+county)?\s*$", re.I)
 
@@ -145,7 +148,7 @@ def assign(stats: RunStats, source_id: str, fetcher: Fetcher) -> None:
             if reading is None:
                 out["unassigned"][key] = where
                 continue
-            zone, why = reading.zone()
+            zone, why = reading.zone(in_ercot=True)
             if zone is None:
                 out["unassigned"][key] = f"{why} ({where})"
                 continue
@@ -166,13 +169,27 @@ def assign(stats: RunStats, source_id: str, fetcher: Fetcher) -> None:
             if res.created:
                 stats.new_by_series[FIELD] = stats.new_by_series.get(FIELD, 0) + 1
             out["assigned"][key] = zone
+        out["stale"] = _stale(conn, out["assigned"])
+
+
+def _stale(conn: Conn, assigned: dict[str, str]) -> dict[str, str]:
+    """Current zone facts of ours that this run did not reproduce: {subject: 'LZ_X (now: ...)'}."""
+    rows = conn.execute("SELECT subject_type, subject_id, value FROM fact_current WHERE field = %s AND producer = %s",
+                        (FIELD, PRODUCER)).fetchall()
+    out = {}
+    for r in rows:
+        key = f"{r['subject_type']}:{r['subject_id']}"
+        if assigned.get(key) != r["value"]:
+            out[key] = f"{r['value']} (now: {assigned.get(key, 'not assigned')})"
+    return out
 
 
 def _read(conn: Conn, img: Any, s: Subject) -> tuple[zmap.Reading | None, str]:
     if s.x is not None and s.y is not None:
-        return zmap.at_point(img, s.x, s.y), f"point of {s.located_by}"
+        return zmap.at_point(img, s.x, s.y, in_ercot=True), f"point of {s.located_by}"
     if s.stype == "plant" and (served := _served_campus_point(conn, s.sid)):
-        return zmap.at_point(img, served[1], served[2]), f"point of campus {served[0]} it serves (plant_serves)"
+        return (zmap.at_point(img, served[1], served[2], in_ercot=True),
+                f"point of campus {served[0]} it serves (plant_serves)")
     county = _county_rings(conn, s.county)
     if county:
         return zmap.over_polygon(img, county[1]), f"county {county[0]}"

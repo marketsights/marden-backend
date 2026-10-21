@@ -13,6 +13,7 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.readmodels.context import known_fact_rows, known_facts
+from marden.readmodels.registry import get_builder
 from marden.readmodels.views.sites_common import Doc, day, next_day, src_or_nd, subjects_listing
 
 BUILDING_FACTS = ("status", "sqft", "facility_mw", "it_mw", "building_permit", "co_date", "construction_start",
@@ -106,7 +107,13 @@ def site_plants(conn: Conn, slug: str, campuses: list[Row]) -> list[Row]:
 
 
 def read_doc(conn: Conn, view: str, key: str) -> Any:
-    """Another view's document as of the build date (the plant row a site's power tab embeds)."""
+    """Another view's document as of the build date (the plant row a site's power tab embeds). Built
+    with that view's own builder when it is registered, so the embed is never older than the facts
+    this rebuild reads (a stored doc may be rebuilt later in the same dirty cycle); the stored
+    snapshot otherwise."""
+    b = get_builder(view)
+    if b is not None and b.build_one is not None:
+        return b.build_one(conn, key)
     row = conn.execute(
         "SELECT doc FROM read_model WHERE view = %s AND key = %s AND as_of <= %s ORDER BY as_of DESC LIMIT 1",
         (view, key, day()),

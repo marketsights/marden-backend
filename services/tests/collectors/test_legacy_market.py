@@ -11,10 +11,16 @@ from pathlib import Path
 
 import pytest
 
-from marden.core import config
+from marden.collectors import yahoo_equity as Y
+from marden.collectors.rates_common import RunStats
+from marden.core import config, db
 from marden.seed import common, legacy_frankfurt, legacy_yahoo
 
 DATA = Path(__file__).parent / "data"
+# The collector's CRWV answer of 2026-10-21 (bars 10/15..10/21): 10/15 and 10/16 overlap the archive's y_CRWV.json,
+# and Yahoo had revised the 10/16 volume (94,876,600 in the archive, 95,394,200 later).
+CRWV_LIVE = (DATA / "yahoo_equity/chart_CRWV_5d_session_open.json").read_bytes()
+AFTER_CLOSE = datetime(2026, 10, 21, 20, 15, tzinfo=UTC)
 SNAPSHOTS = {"watch/dbread/q3/bondq.json": "bondq_2026-10-18.json", "watch/out/db/bondq.json": "bondq_2026-10-20.json"}
 
 
@@ -37,7 +43,7 @@ def seed_dir(tmp_path: Path, monkeypatch) -> Iterator[Path]:
 
 def test_legacy_yahoo_writes_the_series_once(seed_dir, committed):
     first = legacy_yahoo.load()
-    assert first["counts"] == {"files": 1, "bars": 44, "facts_seen": 264, "facts_new": 264}
+    assert first["counts"] == {"files": 1, "bars": 44, "facts_seen": 264, "facts_new": 264, "held_by_collector": 0}
     assert first["files"]["aiwc/research/dl/y_CRWV.json"]["last"] == "2026-10-16"
     assert legacy_yahoo.load()["counts"]["facts_new"] == 0
     close = committed.execute(
@@ -46,6 +52,38 @@ def test_legacy_yahoo_writes_the_series_once(seed_dir, committed):
     assert (close["value"], close["valid_from"], close["tag"]) == (61.39, date(2026, 10, 16), "F")
     assert (close["source_name"], close["producer"]) == ("Yahoo Finance", "seed:legacy_yahoo")
     assert close["url"] == "seed://marden_data_2026-10-20/aiwc/research/dl/y_CRWV.json"
+
+
+def _collector_writes_crwv() -> RunStats:
+    stats = RunStats()
+    with db.transaction() as conn:
+        Y.write_chart(conn, "CRWV", Y.parse_chart(CRWV_LIVE, symbol="CRWV", fetched_at=AFTER_CLOSE),
+                      producer=Y.PRODUCER, document_id=None, stats=stats)
+    return stats
+
+
+def _per_date(conn) -> list[tuple]:
+    return conn.execute(
+        """SELECT field, valid_from, count(*) AS n, count(DISTINCT value) AS nv FROM fact
+           WHERE subject_id = 'equity:CRWV' GROUP BY 1, 2 HAVING count(*) > 1 ORDER BY 1, 2""").fetchall()
+
+
+def test_archive_then_collector_hold_each_date_once(seed_dir, committed):
+    legacy_yahoo.load()
+    stats = _collector_writes_crwv()
+    assert stats.extra["held_by_other_writer"] == 11  # 10/15 and 10/16 already held, except the revised volume
+    assert stats.facts_new == 5 * 6 - 11
+    assert [(r["field"], r["valid_from"], r["n"], r["nv"]) for r in _per_date(committed)] == [
+        ("volume", date(2026, 10, 16), 2, 2)]  # a revision is a new value, never a copy
+    assert legacy_yahoo.load()["counts"]["facts_new"] == 0
+
+
+def test_collector_then_archive_hold_each_date_once(seed_dir, committed):
+    assert _collector_writes_crwv().facts_new == 30
+    report = legacy_yahoo.load()
+    assert report["counts"]["held_by_collector"] == 12 and report["counts"]["facts_new"] == 264 - 12
+    assert _per_date(committed) == []
+    assert _collector_writes_crwv().facts_new == 0
 
 
 def _instruments(conn, skip: set[str]) -> None:
@@ -69,6 +107,7 @@ def test_legacy_frankfurt_loads_fixings_and_recognises_copies(seed_dir, committe
 
     rows = committed.execute(
         "SELECT * FROM price_obs WHERE instrument_id = 'EX-ORCL-255' ORDER BY obs_at").fetchall()
+    assert len(rows) == 2
     assert [(r["obs_date"], r["price"]) for r in rows] == [(date(2026, 10, 16), Decimal("55.78")),
                                                            (date(2026, 10, 20), Decimal("54.13"))]
     last = rows[-1]
@@ -76,3 +115,16 @@ def test_legacy_frankfurt_loads_fixings_and_recognises_copies(seed_dir, committe
     assert (last["kind"], last["tag"], last["source_name"]) == ("exchange", "R", "Börse Frankfurt")
     assert last["source_url"] == "https://live.deutsche-boerse.com/anleihe/us68389xca19"
     assert committed.execute("SELECT count(*) AS n FROM fact WHERE field = 'exchange_quote'").fetchone()["n"] == 0
+
+
+def test_legacy_frankfurt_maps_by_identifiers_not_by_the_archive_id(seed_dir, committed):
+    # EX-CORZ-066 exists but carries another ISIN: the archive's id alone does not put a price on it.
+    _instruments(committed, {"EX-CORZ-066"})
+    committed.execute("INSERT INTO instrument (id, name, kind, issuer_name, isin) VALUES "
+                      "('EX-CORZ-066', 'x', 'bond', 'x', 'US00000000A0')")
+    snap = json.loads((DATA / "legacy_frankfurt/bondq_2026-10-20.json").read_text())
+    isin = next(q["isin"] for q in snap["q"] if q["id"] == "EX-CORZ-066")
+    out = legacy_frankfurt.load()
+    assert f"EX-CORZ-066 {isin}" in out["unmatched"] and "aidebt EX-CORZ-066" in out["unmatched"]
+    assert committed.execute(
+        "SELECT count(*) AS n FROM price_obs WHERE instrument_id = 'EX-CORZ-066'").fetchone()["n"] == 0

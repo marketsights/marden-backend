@@ -21,8 +21,11 @@ JPEG edge blends stay unlabelled), and each colour is opened with a 3x3 square, 
 ringing leaves along lines and edges drop out while the smallest drawn patch (a Rayburn or LCRA dot, about ten
 pixels across) stays. A reading covers the point (or county polygon) plus MARGIN_M around it, the
 fit error and the map's drawing precision; a colour counts when it covers at least MIN_PIXELS pixels there.
-The zone is decided only when exactly one load zone colour is present; several zones, or a zone next to gray,
-leave the subject unassigned with the colours seen.
+The zone is decided only when exactly one load zone colour is present; several zones leave the subject
+unassigned with the colours seen. Gray (Texas outside ERCOT) decides nothing for a subject whose own market facts
+place it in ERCOT (`in_ercot`): membership comes from those facts, never from the map, so gray is set aside (and
+named in the evidence), e.g. a county on the state line whose margin reaches New Mexico. Only gray stays
+unassigned.
 """
 
 from __future__ import annotations
@@ -104,17 +107,23 @@ class Reading:
     def present(self) -> dict[str, int]:
         return {k: v for k, v in sorted(self.counts.items()) if v >= MIN_PIXELS}
 
-    def zone(self) -> tuple[str | None, str]:
-        """(load zone, why) or (None, why not)."""
+    def zone(self, *, in_ercot: bool = False) -> tuple[str | None, str]:
+        """(load zone, why) or (None, why not). `in_ercot`: the subject's market facts place it in ERCOT, so gray
+        is set aside and the load zone colours decide."""
         present = self.present
         if not present:
             return None, "no load zone colour within the reading area"
         if set(present) == {OUTSIDE}:
             return None, "the map shows this area outside ERCOT (gray)"
+        gray = present.pop(OUTSIDE) if in_ercot and OUTSIDE in present else 0
         if len(present) > 1:
             return None, "the map shows several colours within the reading area: " + ", ".join(
                 f"{k} {v} px" for k, v in present.items())
-        return next(iter(present)), f"every labelled pixel within the reading area is {next(iter(present))}"
+        only = next(iter(present))
+        if gray:
+            return only, (f"every load zone pixel within the reading area is {only} (gray, outside ERCOT, {gray} px "
+                          "set aside: the subject is in ERCOT by its market facts)")
+        return only, f"every labelled pixel within the reading area is {only}"
 
 
 def _solid(img: np.ndarray, r0: int, c0: int, rows: int, cols: int, pixel: tuple[int, int]) -> np.ndarray:
@@ -132,9 +141,10 @@ def _counts(labels: np.ndarray) -> dict[str, int]:
     return {LABELS[i]: int(n) for i, n in enumerate(np.bincount(labels[labels >= 0], minlength=len(LABELS))) if n}
 
 
-def at_point(img: np.ndarray, x: float, y: float, *, affine: tuple[float, ...] = AFFINE) -> Reading:
-    """The colours within MARGIN_M of an EPSG:3081 point; for a decided zone, the nearest other colour within
-    SEARCH_M (evidence of how close the reading is to a zone border)."""
+def at_point(img: np.ndarray, x: float, y: float, *, affine: tuple[float, ...] = AFFINE,
+             in_ercot: bool = False) -> Reading:
+    """The colours within MARGIN_M of an EPSG:3081 point; for a decided zone (Reading.zone with `in_ercot`), the
+    nearest other colour within SEARCH_M (evidence of how close the reading is to a zone border)."""
     col, row = (round(v) for v in to_pixel(x, y, affine))
     r, s = margin_px(affine), margin_px(affine, SEARCH_M)
     solid = _solid(img, row - s, col - s, 2 * s + 1, 2 * s + 1, (col, row))
@@ -142,8 +152,8 @@ def at_point(img: np.ndarray, x: float, y: float, *, affine: tuple[float, ...] =
     dist = np.hypot(xx, yy)
     inner = solid[dist <= r]
     reading = Reading(_counts(inner), (col, row), int((dist <= r).sum()), int((inner < 0).sum()))
-    zone = reading.zone()[0]
-    other = (solid >= 0) & (solid != (LABELS.index(zone) if zone else -1)) & (dist <= s)
+    zone = reading.zone(in_ercot=in_ercot)[0]
+    other =(solid >= 0) & (solid != (LABELS.index(zone) if zone else -1)) & (dist <= s)
     if zone is None or not other.any():
         return reading
     k = int(np.argmin(np.where(other, dist, np.inf)))

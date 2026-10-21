@@ -9,7 +9,9 @@ hit keeps the clause it matched so the chain link can show it.
 - modal / contractual wording: 'may terminate', 'right to terminate', 'except force majeure' never match
   (a right or a clause is not an event);
 - procedure: a denied *motion*, *rehearing* or *complaint*, or a withdrawn *counsel*, is not a power
-  denial (a denied rehearing request against an approved permit is good news for the project).
+  denial (a denied rehearing request against an approved permit is good news for the project);
+- filing captions: an 8-K item caption ('Item 1.02 Termination of a Material Definitive Agreement') names
+  a kind of filing, not a contract cut (with 'Entry into ...' it is the usual refinancing pair).
 
 Ratings: `parse_rating` reads S&P / Fitch / DBRS / KBRA letter grades and Moody's grades onto one notch
 scale (AAA = 1 ... BBB- = 10 ... D = 22) and returns the lowest grade stated for the party itself;
@@ -144,8 +146,13 @@ def force_majeure(text: str | None) -> Hit | None:
     return find("force_majeure", FORCE_MAJEURE, text)
 
 
+FILING_CAPTION = re.compile(
+    r"\b(?:entry into|termination of|amendments? to)\s+(?:an?\s+)?material definitive agreements?\b", re.I
+)
+
+
 def contract_cut(text: str | None) -> Hit | None:
-    return find("contract_cut", CONTRACT_CUT, text)
+    return find("contract_cut", CONTRACT_CUT, FILING_CAPTION.sub(" ", text) if text else text)
 
 
 def funding_need(text: str | None) -> Hit | None:

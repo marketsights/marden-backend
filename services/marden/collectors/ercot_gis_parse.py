@@ -9,7 +9,14 @@ Layout (the workbook as ERCOT posts it; the same sheets and header names gridsta
 - "Inactive Projects" (Inactive Date) and "Cancellation Update" (Cancel Date): INR, Project Name, County,
   Fuel, "MW **", Size Category.
 Rows whose INR cell is not an INR number (sub-headers, notes) are skipped. A project listed on several
-sheets keeps the last one in the order above (a cancellation is the newest record of a request).
+sheets keeps the last one in the order above (a cancellation is the newest record of a request). INR
+numbers keep ERCOT's form: the year/INR/number upper case, a split-project suffix lower case ('15INR0064b',
+as ERCOT and LBNL write it).
+
+The MIS listing (https://www.ercot.com/misapp/GetReports.do?reportTypeId=15933, `mis_listing`): an HTML
+table, one row per posted file, its title "RPT.00015933.0000000000000000.<YYYYMMDD>.<HHMMSSmmm>.<file>"
+(the posting time, ERCOT local) and one link to /misdownload/servlets/mirDownload?...doclookupId=<id>.
+The same report type also carries "Co-located_Battery_Identification_Report_<Month>_<Year>.xlsx" files.
 
 Status: the GIS report has no status column, so `status` is the latest milestone ERCOT reports for the
 request, in ERCOT's column words: 'Approved for Synchronization', 'Approved for Energization', 'IA
@@ -70,7 +77,7 @@ COLUMNS = {  # field -> published header names (whitespace collapsed, lower case
     "inactive": ("inactive date",),
     "cancel": ("cancel date",),
 }
-_INR = re.compile(r"^\d{2}INR\d{3,5}[A-Z]?$")
+_INR = re.compile(r"^(\d{2}INR\d{3,5})([A-Z]?)$", re.I)
 MAX_HEADER_ROW = 60
 
 
@@ -79,8 +86,8 @@ def _norm(value: Any) -> str:
 
 
 def _inr(value: Any) -> str | None:
-    s = (text(value) or "").upper().replace(" ", "")
-    return s if _INR.match(s) else None
+    m = _INR.match((text(value) or "").replace(" ", ""))
+    return m[1].upper() + m[2].lower() if m else None
 
 
 def _header(name: str, rows: list[tuple[Any, ...]]) -> tuple[int, dict[str, int]]:

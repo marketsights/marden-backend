@@ -6,7 +6,8 @@ as an object literal annotated with its type, so tsc --strict applies excess-pro
 unions and null checks exactly as the app's compiler would.
 
 `SITE_TYPES` names each view's type. `ND` widens the fields that are null while the model that fills
-them has not run (a chain status before the status model, a projection before the cushion model):
+them has not run (a chain status before the status model, a projection before the cushion model, the
+project file's draw-pace flag and equipment 'late' before the M v0 signals):
 types.ts gives them no null, and the rule is n/d, never a placeholder. Everything else is exact.
 Usable from tests (`check`) and from the command line on saved API responses:
 
@@ -36,7 +37,8 @@ type CompletionRowNd = Nd<T.CompletionRow, 'driver' | 'lastEvidence'>;
 type CompletionNd = Omit<T.CompletionResponse, 'rows'> & { rows: CompletionRowNd[] };
 type DetailNd = Nd<T.SiteDetail, 'status' | 'debtExposed'>;
 type ScheduleNd = Nd<T.SiteSchedule, 'projection'>;
-type ConstructionNd = Nd<T.ProjectConstruction, 'drawPaceFlag'>;
+type EquipmentNd = Nd<T.ProjectConstruction['equipment'][number], 'late'>;
+type ConstructionNd = Omit<Nd<T.ProjectConstruction, 'drawPaceFlag'>, 'equipment'> & { equipment: EquipmentNd[] };
 type ProjectFileNd = Omit<T.ProjectFile, 'construction'> & { construction: ConstructionNd };
 """
 

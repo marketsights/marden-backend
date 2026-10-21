@@ -8,7 +8,7 @@ aidebt copies (no new rows), facts written only when missing, and that a rerun w
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -17,6 +17,8 @@ from marden.collectors.finra_trace_parse import bond_page_url
 from marden.core import config, db
 from marden.core.facts import FactWriter
 from marden.seed import common
+
+REFRESHED_AT = datetime(2026, 10, 20, 14, 55, 29, tzinfo=UTC)  # refresh_state.json t: 10:55:29 ET
 
 pytestmark = pytest.mark.skipif(not os.environ.get("MARDEN_SEED_DIR"), reason="MARDEN_SEED_DIR is not set")
 
@@ -36,6 +38,9 @@ def test_copies_of_one_print_collapse_to_the_unrounded_observation(book):
     apld = b.obs[("00202DAA5", date(2026, 10, 20))]  # the 10/20 10:55 ET refresh: not in eod.json
     assert (apld.price, apld.yield_pct, apld.spread_bp) == (Decimal("102.375"), Decimal("8.369364"), Decimal(347))
     assert apld.origins == {"trace_rows.last", "spreads"}
+    assert apld.obs_at == REFRESHED_AT  # an intraday last sale, read at the refresh: not an end-of-day price
+    assert {o.day for o in b.obs.values() if o.obs_at is not None} == {date(2026, 10, 20)}
+    assert b.outcome["intraday_at_refresh"] == sum(1 for o in b.obs.values() if o.day == date(2026, 10, 20))
     pf1b4 = b.obs[("03790NAA5", date(2026, 10, 16))]  # case_px says 92.812: the eod price is 92.8125
     assert pf1b4.price == Decimal("92.8125") and "case_px" in pf1b4.origins
     iren = b.obs[("46270CAE9", date(2026, 10, 16))]  # trace_rows rounds it to 57.943
@@ -75,7 +80,8 @@ def test_load_writes_each_mapped_print_once(committed, book):
         """SELECT instrument_id, obs_date, price, yield_pct, spread_bp, kind, tag, source_name, source_url, obs_at
            FROM price_obs ORDER BY instrument_id, obs_date""").fetchall()
     assert {(r["kind"], r["tag"], r["source_name"]) for r in rows} == {("trade", "F", "FINRA TRACE (finra.org)")}
-    assert all(r["obs_at"] is None for r in rows)
+    assert all(r["obs_at"] is None for r in rows if r["obs_date"] < date(2026, 10, 20))  # end-of-day prices
+    assert {r["obs_at"] for r in rows if r["obs_date"] == date(2026, 10, 20)} == {REFRESHED_AT}
     assert {r["source_url"] for r in rows if r["instrument_id"] == "EX-CRWV-101"} == {
         bond_page_url("21873SAB4"), bond_page_url("U2069EAA8")}
     last = [r for r in rows if r["instrument_id"] == "EX-APLD-010"][-1]

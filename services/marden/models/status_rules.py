@@ -159,12 +159,11 @@ def tenant(site: SiteInputs, inputs: Inputs, pool: dict[str, list[RatingEvidence
     if (pick := _pick(fm)) is not None:
         found.append(Finding("T2", "red", "Force majeure filed", pick[0], pick[1].clause))
     rated = tenant_rating(site, party, pool)
-    low = rated is not None and rated.rating.at_or_below_bbb_minus
-    power = _pick(_scan(site.items, tx.power_denied, site=site, fields=POWER_FIELDS))
-    if low and power:
-        found.append(Finding("T2", "red", f"Rated {rated.rating.grade} and power denied or withdrawn", power[0],
-                             f"{power[1].clause}; rating: {rated.rating.clause} ({_cite(rated.item)})"))
-    if low:
+    if rated is not None and rated.rating.at_or_below_bbb_minus:
+        power = _pick(_scan(site.items, tx.power_denied, site=site, fields=POWER_FIELDS))
+        if power:
+            found.append(Finding("T2", "red", f"Rated {rated.rating.grade} and power denied or withdrawn", power[0],
+                                 f"{power[1].clause}; rating: {rated.rating.clause} ({_cite(rated.item)})"))
         found.append(Finding("T1", "amber", f"Rated {rated.rating.grade} (BBB- or lower)", rated.item,
                              rated.rating.clause))
     collateral = _pick(_scan(site.items + own, tx.collateral_contested, site=site, names=party.names))
@@ -284,7 +283,8 @@ def _link(role: str, party: str, findings: list[Finding], green_reason: str,
     for f in ordered[:3]:
         cite = f" ({_cite(f.item)})" if f.item else ""
         parts.append(f"{f.code} {f.label}: {f.detail}{cite}" if f.detail else f"{f.code} {f.label}{cite}")
-    link = {"role": role, "party": party, "status": top.status, "ruleCode": top.code, "reason": ". ".join(parts)}
+    link: dict[str, Any] = {"role": role, "party": party, "status": top.status, "ruleCode": top.code,
+                            "reason": ". ".join(parts)}
     fact = top.fact or (top.item.sourced() if top.item else None)
     if fact:
         link["fact"] = fact

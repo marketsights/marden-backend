@@ -23,6 +23,7 @@ So Marden does three things:
 | `FINRA TRACE (finra.org)` | unlicensed-commercial | `collect finra_trace` (finra.org bond pages and the backend they call), `seed legacy_trace` (the archive's finra.org pull) | https://www.finra.org/terms-of-use (last modified Nov 9, 2023): content "shall be used ONLY for your own non-commercial personal or professional use". It forbids anyone to "develop or create a database of data using the FINRA Website", to "use any data mining, scraping or harvesting tools (including robots)", or to use it "in conjunction with any machine learning ... predictive analytics". | FINRA Rule 7730 TRACE subscription (Corporate Bond, Rule 144A, Securitized Products Data Sets) |
 | `Börse Frankfurt` | unlicensed-commercial | `collect boerse_frankfurt`, `seed legacy_frankfurt` | https://live.deutsche-boerse.com/disclaimer, "Download Price History": "Any access to and use of the FWB-Data is subject to a licence which is only granted free of charge if the FWB-Data User does not commercialize the FWB-Data ... FWB-Data User creates and offers value-added services using FWB-Data which are then provided to third parties ... a separate fee liable licence with DBAG is required and any usage without a licence in place is strictly prohibited." | Deutsche Börse MDDA: Börse Frankfurt Pre-Trade distribution €1,115/month real-time; non-display from €360/month |
 | `Yahoo Finance` | unlicensed-commercial | `collect yahoo_equity`, `seed legacy_yahoo` | https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html (last updated 4 Aug 2026): you may not "access or collect data ... from our Services using any automated means ... including but not limited to robots, spiders, scrapers ... for any purpose without our express, prior permission". Also: "Unless otherwise expressly stated, you may not access or reuse the Services, or any portion thereof, for any commercial purpose." https://query1.finance.yahoo.com/robots.txt: `User-agent: *` / `Disallow: /` | An exchange or vendor equity feed with redistribution rights (Nasdaq Basic, Cboe, a data vendor) |
+| `ICE Data Indices, LLC via FRED` | unlicensed-commercial | `collect fred` (series `ice_bofa_us_{hy,bb,b,ccc,bbb,ig}_oas`) | https://fred.stlouisfed.org/legal/: series labelled "Copyrighted: Pre-Approval Required" "may only be used for non-commercial educational or personal use. For any other use, you must obtain permission from the copyright holder". ICE's series note: "Reproduction of this data in any form is prohibited except with the prior written permission of ICE Data Indices." Collected by the owner's decision (2026-10-21) as model inputs only: each series also carries `display_allowed` = false and the ICE notice, so it is never shown, whatever the switch says. | ICE Data Indices written permission, or a direct ICE index licence |
 | `SEC EDGAR` | public | SEC collectors | "Information presented on sec.gov is considered public information and may be copied or further distributed ... without the SEC's permission." | n/a |
 | `N-PORT: <fund> (<period>)`, `N-PORT median of N funds (<period>)`, `BDC 10-Q: <bdc> (<period>)` | public (matched by prefix) | N-PORT and BDC loaders and collectors | Same SEC clause. Cite marks "as filed by <fund>". | n/a |
 | `U.S. Treasury` | public | `collect ust_par_curve` | U.S. Government work (17 U.S.C. §105) | n/a |
@@ -80,7 +81,9 @@ The owner set these limits. `services/marden/collectors/market_http.py` enforces
 ## 5. Tags
 
 - **Yahoo Finance equity series** (`series` / `equity:<TICKER>`: open, high, low, close, adj_close, volume, dividend, split) are tagged **F**: the exchange's official daily prices, as instructed for this build.
+  - `collect yahoo_equity` and `seed legacy_yahoo` hold each series, field and date once between them. The collector does not repeat a value the archive already holds, and the archive does not add a date the collector holds. A value Yahoo later revised, such as a late volume print, is written by the collector as a new value.
 - **Börse Frankfurt** specialist quotes and fixings are **R** (`price_obs.kind = 'exchange'`, plus fact `exchange_quote` with bid/ask on the instrument). They are usually zero-turnover quotes, not trades.
+  - `seed legacy_frankfurt` writes an archive fixing on the instruments whose ISIN, CUSIP or `identifiers` carry its ISIN, the same universe the collector reads. The archive's own instrument id is not enough. Five archive ISINs are reported as `unmatched` for that reason: EX-CRWV-102 `USU2069EAB66`, EX-CRWV-103 `USU2069EAC40` and EX-CRWV-104 `USU2069EAE06` (the RegS lines), plus EX-NBIS-198 `US63954QAE61` and EX-NBIS-199 `US63954QAF37`. `trace/match.json` lists the CoreWeave lines and NBIS-198 as twins, but not NBIS-199's. They load once the `seed instruments` loader adds them to `identifiers`.
   - After the 17:30 close Frankfurt shows no bid or ask (both 0; seen 2026-10-21). The scheduled 18:05 run therefore records the last fixing, day range, previous close, fixings count and nominal turnover, but no bid/ask. Capturing bid/ask needs a run before 17:30, which is outside the "after 17:45 CET" limit, so that is the owner's call.
 - **TRACE prints** are F.
 
@@ -99,7 +102,7 @@ The owner set these limits. `services/marden/collectors/market_http.py` enforces
 **What the collector asks for.** `collect finra_trace` makes the requests the finra.org bond page makes, read from the page's app bundle (`ddwa-cdn-us-east-1.ddwa.finra.org/app-dynamic-reporting/app-dynamic-reporting.js`):
 1. the page itself;
 2. the bond template, then the security master and last sale for the CUSIP;
-3. the price/yield template, then the end-of-day history. The page asks for five years; Marden asks for five years once per CUSIP, then the last 14 days.
+3. the price/yield template, then the end-of-day history. The page asks for five years. Marden asks for five years the first time the collector reads a CUSIP, then the last 14 days. Rows from `seed legacy_trace` do not count as that first read, because the archive only starts in 2026.
 
 The watched universe is every CUSIP an instrument carries: `instrument.cusip`, the CUSIP inside a US/CA ISIN, and the `identifiers` facts.
 
@@ -126,7 +129,37 @@ Each print becomes one observation per CUSIP and trade date. The unrounded `eod.
 - Only CUSIPs the identifiers name are loaded. The run report lists the others, with the archive's own `match.json` guess.
 - `aidebt.json` px values that copy a TRACE row resolve to that same observation and add no rows.
 - `spread_bp` on these rows is the legacy G-spread from `spreads.json`: the TRACE yield minus the interpolated UST par yield. It is a legacy Marden derivation carried on the F price row.
+- The archive's last refresh ran at 10:55 ET on 2026-10-20 (`refresh_state.json`). Its 107 prints dated that day are intraday last sales, not end-of-day prices. They are written with `obs_at` = 2026-10-20 14:55:29 UTC, the refresh time; the print itself is at or before that. End-of-day rows keep `obs_at` NULL, so the collector's end-of-day row for 2026-10-20 never collides with them.
 
 **Known inconsistencies left for the owners of other files:**
-- `docs/methods/price-sources.md` still says these sources are blocked.
+- `docs/methods/price-sources.md` is the research record from before the decision. It says these sources are blocked; a note at its top points here.
 - The `instruments` loader's `legacy_price_status` facts still say `trace_copy_blocked`.
+
+## 8. Loading the main database
+
+Run these after `seed all` has finished on the main database. The legacy loaders need the instruments and their `identifiers` facts that `seed instruments` writes; without them nothing maps.
+
+```
+cd services
+export MARDEN_SEED_DIR=<extracted marden_data_2026-10-20>
+uv run python -m marden seed legacy_trace        # ~5 min on a fresh database; FINRA TRACE (finra.org) rows
+uv run python -m marden seed legacy_frankfurt    # Börse Frankfurt fixings from the bondq snapshots
+uv run python -m marden seed legacy_yahoo        # Yahoo Finance bars from aiwc/research/dl/y_*.json
+uv run python -m marden collect finra_trace      # after 18:30 ET; skipped earlier unless --force
+uv run python -m marden collect boerse_frankfurt # after 17:45 Frankfurt time
+uv run python -m marden collect yahoo_equity     # after 18:00 ET
+```
+
+In short: after `seed all`, run `seed legacy_trace`, `legacy_frankfurt`, `legacy_yahoo`; then `collect finra_trace`, `boerse_frankfurt`, `yahoo_equity`.
+
+- **Order.** Load the archive first, then collect. Either order leaves one row per value, but loading the archive first leaves the collector's newer values (Yahoo's revised volumes, today's quotes) as the latest.
+- **Once.** Run each collector once, in its window after the close, as the daily schedule does. Do not run them several times to test. A second run the same evening writes nothing new, but it is still more requests to the publisher.
+- **Repeat runs.** Every step is idempotent. A second run of any loader or collector writes 0 new rows.
+- **Expected on the scratch database `marden_prices` (2026-10-21, 707 instruments):**
+  - `legacy_trace`: about 24,709 TRACE rows on 203 instruments (203 of 294 watched CUSIPs), 404 security-master facts, 0 rows from `aidebt.json` copies. The 36 `eod.json` CUSIPs that no `identifiers` fact names (mostly RegS twins) are listed under `unmapped` with the archive's `match.json` guess. The other 233 `unmapped` CUSIPs appear only in the security-master searches.
+  - `legacy_frankfurt`: 474 fixings on 158 instruments, plus the 5 unmatched ISINs in §5.
+  - `legacy_yahoo`: 792 facts for CRWV, NBIS and ORCL, 2026-08-17 to 10-16.
+  - `collect finra_trace`: refused today (§7). It records the refusal and writes nothing.
+  - `collect boerse_frankfurt`: about 162 of 306 watched ISINs are listed, one fixing each per day.
+  - `collect yahoo_equity`: 26 tickers, a 2-year backfill on the first run.
+- **Scratch database.** `marden_prices` held these sources while another workflow loaded `marden`. The scratch rows are not copied over: the main database is loaded by these same commands.

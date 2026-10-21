@@ -291,6 +291,9 @@ def test_run_writes_holdings_marks_and_medians_once(instruments):
                          WHERE f.subject_type = 'holding' AND h.accession = '0001532203-26-000117'""").fetchall()
     assert {r["field"]: r["value"] for r in eur}.items() >= {
         "cur_cd": "EUR", "exchange_rt": 1.15315, "fx_convention": "usd_per_currency", "mark_price": 85.1262}.items()
+    fx_tags = db_.execute("""SELECT f.tag, f.method_version FROM fact f JOIN holding h ON f.subject_id = h.id::text
+                             WHERE f.subject_type = 'holding' AND f.field = 'fx_convention'""").fetchall()
+    assert fx_tags and all((r["tag"], r["method_version"]) == ("M", "nport-fx-direction@0.1") for r in fx_tags)
 
     # the seed loader's entity for the Polen ETF is reused and now carries the series id
     polen = db_.execute("SELECT meta FROM entity WHERE id = 'polen-high-income-etf'").fetchone()

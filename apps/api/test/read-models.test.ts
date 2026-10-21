@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db.js';
 import { clearReadModels, makeApp, putReadModel, sourced, testDb } from './helpers.js';
 
-const VIEWS = ['completion', 'site_detail', 'site_tab:evidence', 'instrument_detail', 'risk_list', 'leases', 'obligations'];
+const VIEWS = ['completion', 'site_detail', 'site_tab:evidence', 'instrument_detail', 'gpu_collateral', 'risk_list', 'leases', 'obligations'];
 const SLUG = 'rm-test-site';
 const INSTRUMENT = 'RM-TEST-LOAN';
 
@@ -99,6 +99,21 @@ describe('read-model routes', () => {
     expect((await get(`/api/instruments/${INSTRUMENT}/price-history`)).json().points).toHaveLength(4);
     expect((await get(`/api/instruments/${INSTRUMENT}/holders`)).json()).toEqual({ count: 0, parMm: 0, rows: [] });
     expect((await get(`/api/instruments/${INSTRUMENT}/price-history?range=2w`)).statusCode).toBe(400);
+  });
+
+  it('answers 404 for collateral on an instrument whose detail is built without GPU collateral', async () => {
+    await clearReadModels(db, ['instrument_detail', 'gpu_collateral']);
+    const url = `/api/instruments/${INSTRUMENT}/collateral`;
+    expect((await get(url)).json()).toEqual({ error: 'not_ready', view: 'gpu_collateral', key: INSTRUMENT });
+    await putReadModel(db, { view: 'instrument_detail', key: INSTRUMENT, asOf: '2026-10-15' }, { id: INSTRUMENT, priceHistory: [], holders: { count: 0, parMm: 0, rows: [] } });
+    const res = await get(url);
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: 'not_found', what: 'gpu_collateral' });
+    expect((await get(`${url}?asOf=2026-10-01`)).statusCode).toBe(503);
+    const collateral = { instrumentId: INSTRUMENT, model: 'H100', units: sourced(1000, 'M'), ltvByQuarter: [] };
+    await putReadModel(db, { view: 'gpu_collateral', key: INSTRUMENT, asOf: '2026-10-15' }, collateral);
+    expect((await get(url)).json()).toEqual(collateral);
+    expect((await get('/api/instruments/NO-SUCH-INSTRUMENT/collateral')).statusCode).toBe(404);
   });
 
   it('serves the requested or latest risk list week', async () => {

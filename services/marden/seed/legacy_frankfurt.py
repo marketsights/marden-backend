@@ -5,8 +5,10 @@
 Two inputs, both stored raw as seed documents:
 
 1. ``watch/**/bondq.json``: snapshots of the legacy "bondq" watcher ({asof, src, q: [{id, isin, last,
-   prev, chg, ts, hi52, lo52}]}). Each quote becomes a price_obs on its instrument (the quote's ``id``
-   when that instrument exists, else every instrument carrying the ISIN): price = ``last`` (percent of
+   prev, chg, ts, hi52, lo52}]}). Each quote becomes a price_obs on every instrument whose ISIN, CUSIP or
+   ``identifiers`` carry the quote's ISIN (market_watch.watched_isins, the universe the collector reads),
+   never on an instrument only the archive's own ``id`` names: such quotes are reported (``unmatched``,
+   with that id) until the instruments loader adds the ISIN to the identifiers. price = ``last`` (percent of
    par), obs_at = ``ts`` (the fixing time), obs_date = its Frankfurt date, tag R, source_name
    'Börse Frankfurt', source_url the bond's live.deutsche-boerse.com page: the same keys the
    ``boerse_frankfurt`` collector uses, so a fixing seen in several snapshots is stored once.
@@ -83,10 +85,9 @@ def parse_snapshot(payload: Any, relpath: str) -> tuple[list[Fixing], list[str]]
 
 
 def _targets(conn: Conn, fixings: list[Fixing]) -> dict[tuple[str, str], list[str]]:
-    """(quote id, isin) -> instrument ids: the quote's own id when it exists, else the ISIN's instruments."""
-    ids = {r["id"] for r in conn.execute("SELECT id FROM instrument").fetchall()}
+    """(quote id, isin) -> the instruments whose identifiers carry the ISIN (as the collector maps it)."""
     by_isin = watched_isins(conn)
-    return {(f.quote_id, f.isin): [f.quote_id] if f.quote_id in ids else by_isin.get(f.isin, []) for f in fixings}
+    return {(f.quote_id, f.isin): by_isin.get(f.isin, []) for f in fixings}
 
 
 def aidebt_copies(rows: dict[str, dict[str, Any]], fixings: list[Fixing]) -> dict[str, Fixing]:
@@ -138,11 +139,15 @@ def load() -> dict[str, Any]:
                 counts["snapshot_quotes"] += len(found)
             targets = _targets(conn, fixings)
             prices = PriceWriter(conn)
+            done: set[tuple[str, str, datetime, Decimal]] = set()  # one write per instrument and fixing
             for f in fixings:
                 iids = targets[(f.quote_id, f.isin)]
-                if not iids:
+                if f.quote_id not in iids:  # the archive's id is not an instrument carrying this ISIN
                     unmatched.add(f"{f.quote_id} {f.isin}")
                 for iid in iids:
+                    if (iid, f.isin, f.at, f.price) in done:
+                        continue
+                    done.add((iid, f.isin, f.at, f.price))
                     created = _write(prices, iid, f, docs[f.relpath])
                     counts["price_obs.created" if created else "price_obs.existing"] += 1
             counts["distinct_fixings"] = len({(f.isin, f.at, f.price) for f in fixings})

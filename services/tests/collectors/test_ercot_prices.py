@@ -104,6 +104,16 @@ def test_windows_series_ids_and_streams():
     assert dam.query(date(2024, 11, 2), date(2024, 11, 4), 2).endswith("&page=2")
 
 
+def test_next_day_dam_is_asked_for_only_once_it_can_have_posted():
+    assert prices.dam_through(datetime(2026, 10, 22, 5, 47, tzinfo=UTC)) == date(2026, 10, 22)  # 00:47 CDT run
+    assert prices.dam_through(datetime(2026, 10, 22, 19, 7, tzinfo=UTC)) == date(2026, 10, 23)  # 14:07 CDT run
+    assert prices.dam_through(datetime(2026, 1, 6, 17, 59, tzinfo=UTC)) == date(2026, 1, 6)  # 11:59 CST
+    rt_run = prices.Run(RunStats(), Fetcher(), date(2026, 10, 22), date(2026, 10, 22))
+    dam, rt = prices.STREAMS[0], prices.STREAMS[-1]
+    assert rt_run.missing(dam, {})[-1] == date(2026, 10, 22) and rt_run.missing(rt, {})[-1] == date(2026, 10, 21)
+    assert prices.Run(RunStats(), Fetcher(), date(2024, 11, 4)).dam_end == date(2024, 11, 5)
+
+
 def test_products_terms_and_licence():
     listing = json.loads((DATA / "api_products_excerpt.json").read_text())
     ends = {p["emilId"]: p["artifacts"][0]["_links"]["endpoint"]["href"] for p in listing["products"]}

@@ -6,7 +6,9 @@ Reads ``aiwc/research/dl/y_*.json`` (Yahoo chart API responses saved by the lega
 stores each file raw as a seed document, parses it with the ``yahoo_equity`` collector's parser and writes
 the same series facts the collector writes (open, high, low, close, adj_close, volume; tag F, source_name
 'Yahoo Finance', source_url the ticker's Yahoo history page), with producer ``seed:legacy_yahoo`` and the
-seed file as the document. Unlicensed source: see docs/methods/licensing.md. Idempotent.
+seed file as the document. A date the ``yahoo_equity`` collector already holds is not added again, and the
+collector does not repeat a value this loader wrote (``yahoo_equity.write_chart``), so the two writers never
+hold the same series, field and date twice. Unlicensed source: see docs/methods/licensing.md. Idempotent.
 """
 
 from __future__ import annotations
@@ -64,6 +66,7 @@ def load() -> dict[str, Any]:
             counts["files"] += 1
             counts["bars"] += len(chart.bars)
         counts["facts_seen"], counts["facts_new"] = stats.facts_seen, stats.facts_new
+        counts["held_by_collector"] = stats.extra.get("held_by_other_writer", 0)
         hb.seen(stats.facts_seen)
         hb.new(stats.facts_new)
         hb.meta = {"loader": LOADER, "counts": dict(counts)}

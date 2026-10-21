@@ -9,10 +9,12 @@
   `sec_index` every 10 minutes, and a fund complex files hundreds of series under one CIK.
 - `write_filing`: per matched position a `holding` row (line_key shared with the holdings seed
   loader, so the same filed line is one row), its attribute facts on subject 'holding' (public_date,
-  units, cur_cd, exchange_rt, fx_convention, fair_value_level, asset_cat, unfunded_commitment, and
-  mark_price for a non-USD line valued in its own currency) and a
-  `fund_mark` price; the series' net assets as entity fact `net_assets_usd`.
-Everything is tag F (filed); reruns write nothing new (dedupe keys and the holding unique key).
+  units, cur_cd, exchange_rt, fair_value_level, asset_cat, unfunded_commitment, and mark_price for
+  a non-USD line valued in its own currency) and a `fund_mark` price; the series' net assets as
+  entity fact `net_assets_usd`.
+Everything is tag F (filed) except `fx_convention`, Marden's reading of which way a non-USD line's
+exchange rate points (sec_nport_fx): tag M, method FX_METHOD. Reruns write nothing new (dedupe keys
+and the holding unique key).
 """
 
 from __future__ import annotations
@@ -36,6 +38,7 @@ from marden.seed.instruments_nport import nport_source_name
 from marden.seed.instruments_parse import LOANX_IN_TEXT, core_name, cusip_valid, isin_valid, normalize_name
 
 FILING_TYPE = "N-PORT"
+FX_METHOD = "nport-fx-direction@0.1"  # sec_nport_fx: majority rate across filings, 3% tolerance
 FUND_KIND = "fund"
 _STRONG_OTHER = re.compile(r"^(LX\d{6}|BL\d{7})$")  # LoanX and Bloomberg loan ids
 _UNFUNDED = re.compile(r"unfunded", re.I)
@@ -198,10 +201,10 @@ def unfunded(p: Position) -> bool:
     return bool(_UNFUNDED.search(f"{p.title} {p.name}"))
 
 
-def _holding_facts(p: Position, filing_date: date, fx: str | None) -> dict[str, Any]:
+def _holding_facts(p: Position, filing_date: date) -> dict[str, Any]:
     out: dict[str, Any] = {"public_date": filing_date.isoformat()}
     for name, value in (("units", p.units), ("cur_cd", p.cur_cd), ("exchange_rt", p.exchange_rt),
-                        ("fx_convention", fx), ("fair_value_level", p.fair_value_level), ("asset_cat", p.asset_cat)):
+                        ("fair_value_level", p.fair_value_level), ("asset_cat", p.asset_cat)):
         if value is not None:
             out[name] = value
     if unfunded(p):
@@ -239,12 +242,15 @@ def write_filing(
         out.holdings_new += int(res.created)
         if not res.created:  # a line another loader wrote first: link it if it was left unlinked
             out.holdings_linked += int(holdings.link_instrument(res.id, m.instrument_ids[0]))
-        attrs = _holding_facts(p, filing_date, conv)
+        attrs = _holding_facts(p, filing_date)
         if price is not None and p.cur_cd != "USD":
             # the mark in the position's own currency; a row another loader wrote first keeps its null mark
             attrs["mark_price"] = price
         for name, value in attrs.items():
             out.facts_new += facts.add("holding", str(res.id), name, value, **common).created
+        if conv is not None:  # not a filed value: Marden's reading of the rate's direction
+            out.facts_new += facts.add("holding", str(res.id), "fx_convention", conv,
+                                       **{**common, "tag": "M"}, method_version=FX_METHOD).created
         if price is None:
             out.no_mark += 1
             continue

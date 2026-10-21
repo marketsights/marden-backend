@@ -62,3 +62,33 @@ def test_power_feed_withdrawals(seed):
     for f in withdrawn:
         text = f.get("t") or f.get("title")
         assert "M3" in is_material({"title": text, "kind": "queue"}).codes, text
+
+
+@needs_seed
+def test_scheduled_catalysts_are_not_events(seed):
+    """q3x/cat.json lists scheduled steps ('CoreWeave Q3 10-Q: leverage covenant recomputed: SEC deadline for
+    a large accelerated filer ...'); a step that has not happened is not material by its text."""
+    rows = seed("aiwc/q3x/cat.json")["rows"]
+    titles = [f"{r['ev']}: {r['evl']}" if r.get("evl") else r["ev"] for r in rows if r.get("ev")]
+    filer = [t for t in titles if "accelerated filer" in t]
+    assert filer
+    assert not any(is_material({"title": t, "kind": "catalyst"}) for t in titles)
+    # the same words as a happened event: an SEC filer status is not a lender's acceleration
+    assert not any("M5" in is_material({"title": t, "kind": "news"}).codes for t in filer)
+    # a catalyst is material only through the states around it
+    assert is_material({"title": filer[0], "kind": "catalyst"}, {"cushion_months": 2}, {"cushion_months": -1})
+
+
+@needs_seed
+def test_8k_item_captions_are_not_contract_cuts(seed):
+    """The archive's 8-K extracts: 'Item 1.02 Termination of a Material Definitive Agreement' (usually with
+    'Item 1.01 Entry into ...': a refinancing) is a filing caption, not a tenant notice."""
+    extracts = [r for r in seed("aiwc/q3x/fac/dl/k8_extract.json") if "1.02" in (r.get("items") or "")]
+    captions = []
+    for r in extracts:
+        found = re.findall(r"Item 1\.0[12]\.?\s+((?:Entry into|Termination of) an? Material Definitive Agreement)",
+                           r.get("txt") or "")
+        if found:
+            captions.append("8-K: " + "; ".join(dict.fromkeys(found)))
+    assert captions
+    assert not any("M4" in is_material({"title": c, "kind": "filing"}).codes for c in captions)

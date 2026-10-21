@@ -1,6 +1,7 @@
 """ercot_zone_map / ercot_load_zones: ERCOT's Load Zone Map read at our Texas campuses (crops of the real map at
-their true pixel positions), a county read (Denton), the gray outside ERCOT, the affine fit on a drawn map, the
-ERCOT membership rule, the facts written (once), a changed map refused, and the live map (network).
+their true pixel positions), county reads (Denton; Andrews, where gray beside LZ_WEST is set aside), the gray
+outside ERCOT, the affine fit on a drawn map, the ERCOT membership rule, the facts written (once), stale zones
+listed, a changed map refused, and the live map (network).
 
 The crops are lossless PNG copies of ERCOT-Maps_Load-Zone.jpg (sha256 ercot_zone_map.MAP_SHA256), named
 map_crop_<name>_<col>_<row>.png by their top-left pixel; the EPSG:3081 points are those PostGIS gives for the
@@ -49,10 +50,26 @@ def canvas() -> np.ndarray:
     return img
 
 
-def denton_rings() -> list[list[tuple[float, float]]]:
-    g = json.loads((DATA / "denton_county_3081.json").read_text())["geom_3081"]
+def denton_rings(county: str = "denton") -> list[list[tuple[float, float]]]:
+    g = json.loads((DATA / f"{county}_county_3081.json").read_text())["geom_3081"]
     polys = g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
     return [[tuple(p) for p in poly[0]] for poly in polys]
+
+
+def test_gray_beside_one_zone_is_set_aside_for_a_subject_in_ercot():
+    """Andrews County (Stingray) is all LZ_WEST on the map; its 2 km margin reaches Gaines County and New Mexico
+    (gray). Gray decides nothing for a subject whose market facts put it in ERCOT; two zones, or only gray, still
+    leave it unassigned."""
+    img = canvas()
+    andrews = zmap.over_polygon(img, denton_rings("andrews"))
+    assert set(andrews.present) == {"LZ_WEST", zmap.OUTSIDE} and andrews.zone()[0] is None
+    zone, why = andrews.zone(in_ercot=True)
+    assert zone == "LZ_WEST" and f"{andrews.counts[zmap.OUTSIDE]} px set aside" in why
+    assert zmap.over_polygon(img, denton_rings()).zone(in_ercot=True)[0] is None  # North and a Rayburn patch
+    assert zmap.at_point(img, *POINTS["meta-el-paso"][0]).zone(in_ercot=True) == (
+        None, "the map shows this area outside ERCOT (gray)")
+    temple = zmap.at_point(img, *POINTS["meta-temple"][0], in_ercot=True)
+    assert temple.zone(in_ercot=True)[0] == "LZ_SOUTH" and temple.nearest_other is None
 
 
 def test_zones_at_our_campuses_on_the_real_map():
@@ -151,12 +168,15 @@ def mapped(committed, monkeypatch):
     committed.execute("INSERT INTO plant_serves (plant_id, campus_id) VALUES ('n-abilene-onsite', 'stargate-abilene')")
     _subject(committed, "power_plant", "p-099", None, facts={"iso": "ERCOT"})
     _subject(committed, "site", "coreweave-ddtl-3", None, county="Denton County", facts={"power_iso": "ERCOT"})
-    g = json.loads((DATA / "denton_county_3081.json").read_text())
-    committed.execute(
-        """INSERT INTO us_county (geoid, statefp, countyfp, stusps, name, namelsad, geom)
-           VALUES ('48121', '48', '121', 'TX', 'Denton', 'Denton County',
-                   ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%s), 3081), 4326)))""",
-        (json.dumps(g["geom_3081"]),))
+    _subject(committed, "site", "stingray", None, county="Andrews", facts={"power_iso": "ERCOT (Oncor)"})
+    for county in ("denton", "andrews"):
+        g = json.loads((DATA / f"{county}_county_3081.json").read_text())
+        committed.execute(
+            """INSERT INTO us_county (geoid, statefp, countyfp, stusps, name, namelsad, geom)
+               VALUES (%s, '48', %s, 'TX', %s, %s, ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%s), 3081),
+                       4326)))""",
+            (g["geoid"], g["geoid"][2:], g["namelsad"].removesuffix(" County"), g["namelsad"],
+             json.dumps(g["geom_3081"])))
 
 
 def test_assign_writes_zones_once(committed, mapped):
@@ -165,7 +185,8 @@ def test_assign_writes_zones_once(committed, mapped):
     out = stats.extra["ercot_load_zones"]
     assert out["assigned"] == {"campus:meta-temple": "LZ_SOUTH", "campus:microsoft-sat14": "LZ_CPS",
                                "campus:stargate-abilene": "LZ_WEST", "plant:n-abilene-onsite": "LZ_WEST",
-                               "campus:sb-energy-milam": "LZ_NORTH"}
+                               "campus:sb-energy-milam": "LZ_NORTH", "site:stingray": "LZ_WEST"}
+    assert out["stale"] == {}
     assert set(out["unassigned"]) == {"site:coreweave-ddtl-3", "plant:p-099"}
     assert "LZ_RAYBN" in out["unassigned"]["site:coreweave-ddtl-3"]
     assert "county Denton County (us_county 48121)" in out["unassigned"]["site:coreweave-ddtl-3"]
@@ -179,10 +200,23 @@ def test_assign_writes_zones_once(committed, mapped):
     assert (row["value"], row["tag"], row["producer"], row["method_version"], row["source_url"]) == (
         "LZ_WEST", "M", zones.PRODUCER, zones.METHOD_VERSION, zmap.MAP_URL)
     assert "campus stargate-abilene it serves" in row["quote_loc"] and row["valid_from"] == date(2026, 10, 21)
-    assert stats.facts_new == 5
+    stingray = committed.execute("SELECT quote_loc FROM fact_current WHERE subject_id = 'stingray' AND field = %s",
+                                 (zones.FIELD,)).fetchone()
+    assert "county Andrews County (us_county 48003)" in stingray["quote_loc"] and "set aside" in stingray["quote_loc"]
+    assert stats.facts_new == 6
     again = RunStats()
     zones.assign(again, ercot_prices.SOURCE_ID, Fetcher())
-    assert again.facts_new == 0 and again.facts_seen == 5
+    assert again.facts_new == 0 and again.facts_seen == 6
+
+
+def test_a_zone_the_run_no_longer_supports_is_listed_stale(committed, mapped):
+    with db.transaction() as conn:
+        FactWriter(conn).add("campus", "meta-el-paso", zones.FIELD, "LZ_WEST", tag="M", source_name="ERCOT",
+                             source_url=zmap.MAP_URL, valid_from=date(2026, 10, 21), producer=zones.PRODUCER,
+                             status="published", method_version=zones.METHOD_VERSION)
+    stats = RunStats()
+    zones.assign(stats, ercot_prices.SOURCE_ID, Fetcher())
+    assert stats.extra["ercot_load_zones"]["stale"] == {"campus:meta-el-paso": "LZ_WEST (now: not assigned)"}
 
 
 def test_a_changed_map_is_refused(committed):

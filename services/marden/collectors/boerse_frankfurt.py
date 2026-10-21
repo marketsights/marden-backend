@@ -254,10 +254,12 @@ def write_quote(
 
 # ---------------------------------------------------------------- run
 def recently_not_listed(today: date) -> dict[str, str]:
-    """ISIN -> date last found not listed, from the latest successful run, within the re-check window."""
+    """ISIN -> date last found not listed, from the latest run that checked listings (a run that failed
+    part-way keeps what it learned), within the re-check window."""
     with db.transaction() as conn:
         row = conn.execute(
-            "SELECT meta FROM source_run WHERE source_id = %s AND ok ORDER BY started_at DESC, id DESC LIMIT 1",
+            """SELECT meta FROM source_run WHERE source_id = %s AND meta ? 'not_listed'
+               ORDER BY started_at DESC, id DESC LIMIT 1""",
             (SOURCE_ID,),
         ).fetchone()
     seen = (row["meta"] or {}).get("not_listed", {}) if row else {}
@@ -314,8 +316,9 @@ def run(
             if bad:
                 raise ParseError(f"not valid ISINs: {', '.join(bad)}")
             universe = {i: universe.get(i, []) for i in sorted(wanted)}
-        skip = {} if (recheck_all or isins) else recently_not_listed(today)
-        not_listed: dict[str, str] = dict(skip)
+        known = recently_not_listed(today)
+        skip = {} if (recheck_all or isins) else known
+        not_listed: dict[str, str] = dict(known)  # carried forward; this run's answers update it
         stats.extra.update(watched=len(universe), skipped_recently_not_listed=len(skip), not_listed=not_listed,
                            price_obs_seen=0, price_obs_new=0)
         try:

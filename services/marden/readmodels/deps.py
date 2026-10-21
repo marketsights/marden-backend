@@ -332,6 +332,55 @@ def _install_site_deps() -> None:
     _many("instrument", ("site_tab:debt",), _INSTRUMENT_EXPOSED_SITES)
     _many("holding", ("site_detail", "site_tab:debt", "project_file"), _HOLDING_SITE)
     _many("entity", ("site_tab:opposition", "project_file"), _ENTITY_LINKED_SITES)
+    # The Power and Buildings tabs embed the main plant's `plant_row` (built with its own builder), whose
+    # financed link shows the site's chain status and debt: the site's instruments refresh them too.
+    _many("instrument", ("site_tab:power", "site_tab:buildings"), _INSTRUMENT_SITE)
 
 
 _install_site_deps()
+
+
+# Facilities area (readmodels/views/facilities*.py). A plant's row and detail show the financed link of
+# the campus it serves (that campus's approved site: its chain status and instruments), the fuel line
+# serving the same campus, the served campus's building count and its air-permit docket's status; the
+# plant debt card shows the Power purchase edges of the sites and campuses the plant serves.
+_SITE_PLANTS = via(
+    """SELECT ps.plant_id FROM site_link l JOIN plant_serves ps ON ps.campus_id = l.campus_id
+        WHERE l.site_slug = %s AND l.status = 'approved'"""
+)
+_INSTRUMENT_PLANTS = via(
+    """SELECT ps.plant_id FROM instrument i JOIN site_link l ON l.site_slug = i.site_slug
+         JOIN plant_serves ps ON ps.campus_id = l.campus_id WHERE i.id = %s AND l.status = 'approved'"""
+)
+_BUILDING_PLANTS = via(
+    "SELECT ps.plant_id FROM building b JOIN plant_serves ps ON ps.campus_id = b.campus_id WHERE b.id = %s"
+)
+_SIBLING_PLANTS = via(
+    """SELECT DISTINCT o.plant_id FROM plant_serves ps JOIN plant_serves o ON o.campus_id = ps.campus_id
+        WHERE ps.plant_id = %s AND o.plant_id <> ps.plant_id"""
+)
+_PERMIT_DOCKET_PLANTS = via(
+    """SELECT DISTINCT f.subject_id FROM entity e JOIN fact f ON f.subject_type = 'plant' AND f.field = 'air_permit'
+          AND f.status IN ('published', 'superseded') AND f.value ->> 'proceeding_key' = e.meta ->> 'proceeding_key'
+        WHERE e.id = %s"""
+)
+_OBLIGATION_PLANTS = via(
+    """SELECT ps.plant_id FROM obligation o JOIN plant_serves ps ON ps.campus_id = o.campus_id WHERE o.id = %(id)s
+       UNION SELECT f.subject_id FROM obligation o JOIN fact f ON f.subject_type = 'plant' AND f.field = 'serves_sites'
+          AND f.status IN ('published', 'superseded') AND jsonb_typeof(f.value) = 'array'
+          AND f.value @> jsonb_build_array(o.site_slug)
+        WHERE o.id = %(id)s"""
+)
+
+
+def _install_facility_deps() -> None:
+    _many("site", ("plant_row", "plant_detail"), _SITE_PLANTS)
+    _many("instrument", ("plant_row", "plant_detail"), _INSTRUMENT_PLANTS)
+    _many("building", ("plant_detail",), _BUILDING_PLANTS)
+    _many("plant", ("plant_row", "plant_detail"), _SIBLING_PLANTS)
+    _many("entity", ("plant_row", "plant_detail"), _PERMIT_DOCKET_PLANTS)
+    for subject_type in ("obligation", "contract"):
+        _many(subject_type, ("plant_debt",), _OBLIGATION_PLANTS)
+
+
+_install_facility_deps()
