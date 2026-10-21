@@ -139,6 +139,7 @@ _UNIT_PLANT = via("SELECT plant_id FROM power_unit WHERE id = %s")
 _ENTITY_SITES = via("SELECT site_slug FROM chain_party WHERE entity_id = %s")
 _HOLDING_INSTRUMENT = via("SELECT instrument_id FROM holding WHERE id::text = %s")
 _HOLDING_LINKED = via("SELECT 'all' FROM holding WHERE id::text = %s AND instrument_id IS NOT NULL")
+_FUND_INSTRUMENTS = via("SELECT DISTINCT instrument_id FROM holding WHERE fund_entity_id = %s")
 _OBLIGATION_PAYER = via("SELECT from_entity_id FROM obligation WHERE id = %s")
 _OBLIGATION_COMPANIES = via(
     """SELECT from_entity_id FROM obligation WHERE id = %(id)s
@@ -196,6 +197,9 @@ def _install_defaults() -> None:
     # Rate series (UST par curve, SOFR, spread indexes): tier-curve yields sit on the Treasury curve.
     # Only observations ('value'), not licence facts such as 'notice' or 'display_allowed'.
     depends("series", "value", "curve", singleton)
+
+    # A fund's net assets (collectors/sec_nport) set the NAV share and NAV hit of its holder rows.
+    depends("entity", "net_assets_usd", "instrument_detail", _FUND_INSTRUMENTS)
 
     # Interconnection queue entries (collectors/iso_queue): a link to one of our campuses, sites or
     # plants changes that subject's power section. Status changes reach them as events and, for large

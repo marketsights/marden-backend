@@ -1,0 +1,15 @@
+User-agent: *
+Disallow: /xsl/
+Disallow: /temp/
+Disallow: /sitecore
+Disallow: /Sitecore
+Disallow: /App_Data/
+Disallow: /App_config/
+Disallow: /App_Browsers/
+Disallow: /sitecore_files/
+Disallow: /Calendar Events/
+Disallow: /Calendar-Events/
+Disallow: /sitecore modules/
+Disallow: /PJMWebToolsAdmin/
+
+Sitemap: https://www.pjm.com/sitemap.xml

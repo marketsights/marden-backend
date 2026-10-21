@@ -1,0 +1,664 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Projects>
+  <Project>
+    <ProjectNumber>AH1-563</ProjectNumber>
+    <Cycle>TC2</Cycle>
+    <Stage>Decision Point 2</Stage>
+    <Name>Aurora E.C. 138kV</Name>
+    <CommercialName>Aurora Battery Storage II</CommercialName>
+    <Developer>Aurora Generation, LLC</Developer>
+    <State>IL</State>
+    <County>Not Specified</County>
+    <Status>Withdrawn</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>ComEd</TransmissionOwner>
+    <MWO>1206.0</MWO>
+    <MWEnergy>150.0</MWEnergy>
+    <MWCapacity>150.0</MWCapacity>
+    <MWInService>0.0</MWInService>
+    <CapacityOrEnergy>CAPACITY_RESOURCE</CapacityOrEnergy>
+    <Fuel>Natural Gas,Storage,Hybrid</Fuel>
+    <SubmittedDate>9/11/2021</SubmittedDate>
+    <RequestedInServiceDate>6/1/2029</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <BackfeedDate>
+    </BackfeedDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <LastUpdated>6/2/2026</LastUpdated>
+    <WithdrawnDate>9/30/2026</WithdrawnDate>
+    <WithdrawnRemarks>CIW</WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC2/PHASE_1/AH1-563/AH1-563_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC2/PHASE_2/AH1-563/AH1-563_imp_PHASE_2.htm</Phase2SISReport>
+    <Phase2SISReportStatus>Posted</Phase2SISReportStatus>
+    <Phase3SISReport>
+    </Phase3SISReport>
+    <Phase3SISReportStatus>Not Required</Phase3SISReportStatus>
+    <FinalSISReport>
+    </FinalSISReport>
+    <FinalSISReportStatus>Not Required</FinalSISReportStatus>
+    <EPAGIAWMPAReport>
+    </EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Not Started</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>AH1-570</ProjectNumber>
+    <Cycle>TC2</Cycle>
+    <Stage>Phase 3</Stage>
+    <Name>Millersburg 69 kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <Developer>South Fork Solar, LLC</Developer>
+    <State>KY</State>
+    <County>Not Specified</County>
+    <Status>Active</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>EKPC</TransmissionOwner>
+    <MWO>25.0</MWO>
+    <MWEnergy>25.0</MWEnergy>
+    <MWCapacity>15.6</MWCapacity>
+    <MWInService>0.0</MWInService>
+    <CapacityOrEnergy>CAPACITY_RESOURCE</CapacityOrEnergy>
+    <Fuel>Solar</Fuel>
+    <SubmittedDate>9/10/2021</SubmittedDate>
+    <RequestedInServiceDate>1/30/2028</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <BackfeedDate>
+    </BackfeedDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <LastUpdated>8/20/2026</LastUpdated>
+    <WithdrawnDate>
+    </WithdrawnDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC2/PHASE_1/AH1-570/AH1-570_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC2/PHASE_2/AH1-570/AH1-570_imp_PHASE_2.htm</Phase2SISReport>
+    <Phase2SISReportStatus>Posted</Phase2SISReportStatus>
+    <Phase3SISReport>
+    </Phase3SISReport>
+    <Phase3SISReportStatus>In Process</Phase3SISReportStatus>
+    <FinalSISReport>
+    </FinalSISReport>
+    <FinalSISReportStatus>Not Started</FinalSISReportStatus>
+    <EPAGIAWMPAReport>
+    </EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Not Started</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>AG1-497</ProjectNumber>
+    <Cycle>TC1</Cycle>
+    <Stage>PHASE 2</Stage>
+    <Name>Cartanza 230 kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <Developer>Morgan Branch Solar I, LLC</Developer>
+    <State>DE</State>
+    <County>Kent</County>
+    <Status>Withdrawn</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>DPL</TransmissionOwner>
+    <MWO>120.0</MWO>
+    <MWEnergy>120.0</MWEnergy>
+    <MWCapacity>84.0</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityOrEnergy>Capacity</CapacityOrEnergy>
+    <Fuel>Solar,Storage,Hybrid</Fuel>
+    <SubmittedDate>9/30/2020</SubmittedDate>
+    <RequestedInServiceDate>6/30/2023</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <BackfeedDate>
+    </BackfeedDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <LastUpdated>1/24/2025</LastUpdated>
+    <WithdrawnDate>1/22/2025</WithdrawnDate>
+    <WithdrawnRemarks>Customer Initiated Withdrawal</WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_1/AG1-497/AG1-497_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_2/AG1-497/AG1-497_imp_PHASE_2.htm</Phase2SISReport>
+    <Phase2SISReportStatus>Posted</Phase2SISReportStatus>
+    <Phase3SISReport>
+    </Phase3SISReport>
+    <Phase3SISReportStatus>Not Started</Phase3SISReportStatus>
+    <FinalSISReport>
+    </FinalSISReport>
+    <FinalSISReportStatus>Not Started</FinalSISReportStatus>
+    <EPAGIAWMPAReport>
+    </EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Not Started</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>AG1-460</ProjectNumber>
+    <Cycle>TC1</Cycle>
+    <Stage>FINAL AGREEMENT</Stage>
+    <Name>Kincaid-Pana 345 kV</Name>
+    <CommercialName>Black Diamond Solar</CommercialName>
+    <Developer>Black Diamond Solar Power, LLC</Developer>
+    <State>IL</State>
+    <County>Christian</County>
+    <Status>EP</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>ComEd</TransmissionOwner>
+    <MWO>329.0</MWO>
+    <MWEnergy>30.0</MWEnergy>
+    <MWCapacity>12.0</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityOrEnergy>Capacity</CapacityOrEnergy>
+    <Fuel>Storage</Fuel>
+    <SubmittedDate>9/30/2020</SubmittedDate>
+    <RequestedInServiceDate>12/15/2030</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>12/15/2030</CommercialOperationMilestone>
+    <BackfeedDate>10/15/2030</BackfeedDate>
+    <TestEnergyDate>10/29/2030</TestEnergyDate>
+    <LastUpdated>5/5/2026</LastUpdated>
+    <WithdrawnDate>
+    </WithdrawnDate>
+    <WithdrawnRemarks>Customer Milestone Not Met</WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_1/AG1-460/AG1-460_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_2/AG1-460/AG1-460_imp_PHASE_2.htm</Phase2SISReport>
+    <Phase2SISReportStatus>Posted</Phase2SISReportStatus>
+    <Phase3SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_3/AG1-460/AG1-460_imp_PHASE_3.htm</Phase3SISReport>
+    <Phase3SISReportStatus>Posted</Phase3SISReportStatus>
+    <FinalSISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/FINAL/AG1-460/AG1-460_imp_FINAL.htm</FinalSISReport>
+    <FinalSISReportStatus>Posted</FinalSISReportStatus>
+    <EPAGIAWMPAReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/gia/ag1_460_gia.pdf</EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Posted</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>AG1-374</ProjectNumber>
+    <Cycle>TC1</Cycle>
+    <Stage>FINAL AGREEMENT</Stage>
+    <Name>Blue Mound 345 kV</Name>
+    <CommercialName>Dawson Solar</CommercialName>
+    <Developer>Deriva Energy Solar, LLC</Developer>
+    <State>IL</State>
+    <County>McLean</County>
+    <Status>Pending Termination</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>ComEd</TransmissionOwner>
+    <MWO>300.0</MWO>
+    <MWEnergy>300.0</MWEnergy>
+    <MWCapacity>180.0</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityOrEnergy>Capacity</CapacityOrEnergy>
+    <Fuel>Solar</Fuel>
+    <SubmittedDate>9/30/2020</SubmittedDate>
+    <RequestedInServiceDate>2/28/2030</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>2/28/2030</CommercialOperationMilestone>
+    <BackfeedDate>10/15/2028</BackfeedDate>
+    <TestEnergyDate>10/30/2028</TestEnergyDate>
+    <LastUpdated>7/9/2026</LastUpdated>
+    <WithdrawnDate>
+    </WithdrawnDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_1/AG1-374/AG1-374_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_2/AG1-374/AG1-374_imp_PHASE_2.htm</Phase2SISReport>
+    <Phase2SISReportStatus>Posted</Phase2SISReportStatus>
+    <Phase3SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_3/AG1-374/AG1-374_imp_PHASE_3.htm</Phase3SISReport>
+    <Phase3SISReportStatus>Posted</Phase3SISReportStatus>
+    <FinalSISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/FINAL/AG1-374/AG1-374_imp_FINAL.htm</FinalSISReport>
+    <FinalSISReportStatus>Posted</FinalSISReportStatus>
+    <EPAGIAWMPAReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/gia/ag1_374_gia.pdf</EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Posted</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>AE1-070</ProjectNumber>
+    <Cycle>TC1</Cycle>
+    <Stage>PHASE 2</Stage>
+    <Name>Elwood 345 kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <Developer>Elwood Energy, LLC</Developer>
+    <State>IL</State>
+    <County>Will</County>
+    <Status>Withdrawn</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>ComEd</TransmissionOwner>
+    <MWO>1610.0</MWO>
+    <MWEnergy>0.0</MWEnergy>
+    <MWCapacity>135.0</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityOrEnergy>Capacity</CapacityOrEnergy>
+    <Fuel>Natural Gas</Fuel>
+    <SubmittedDate>7/31/2018</SubmittedDate>
+    <RequestedInServiceDate>12/31/2020</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <BackfeedDate>
+    </BackfeedDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <LastUpdated>1/27/2025</LastUpdated>
+    <WithdrawnDate>1/22/2025</WithdrawnDate>
+    <WithdrawnRemarks>Customer Initiated Withdrawal</WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_1/AE1-070/AE1-070_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_2/AE1-070/AE1-070_imp_PHASE_2.htm</Phase2SISReport>
+    <Phase2SISReportStatus>Posted</Phase2SISReportStatus>
+    <Phase3SISReport>
+    </Phase3SISReport>
+    <Phase3SISReportStatus>Not Started</Phase3SISReportStatus>
+    <FinalSISReport>
+    </FinalSISReport>
+    <FinalSISReportStatus>Not Started</FinalSISReportStatus>
+    <EPAGIAWMPAReport>
+    </EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Not Started</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>AF2-126</ProjectNumber>
+    <Cycle>TC1</Cycle>
+    <Stage>FINAL AGREEMENT</Stage>
+    <Name>Weston 69 kV II</Name>
+    <CommercialName>Juliet Energy</CommercialName>
+    <Developer>Juliet Energy Project, LLC</Developer>
+    <State>OH</State>
+    <County>Wood</County>
+    <Status>UC-ISP</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>ATSI</TransmissionOwner>
+    <MWO>62.0</MWO>
+    <MWEnergy>12.0</MWEnergy>
+    <MWCapacity>8.0</MWCapacity>
+    <MWInService>12.0</MWInService>
+    <CapacityOrEnergy>Capacity</CapacityOrEnergy>
+    <Fuel>Solar</Fuel>
+    <SubmittedDate>2/28/2020</SubmittedDate>
+    <RequestedInServiceDate>6/1/2028</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>6/1/2028</CommercialOperationMilestone>
+    <BackfeedDate>5/7/2026</BackfeedDate>
+    <TestEnergyDate>8/4/2026</TestEnergyDate>
+    <LastUpdated>10/1/2026</LastUpdated>
+    <WithdrawnDate>
+    </WithdrawnDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_1/AF2-126/AF2-126_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_2/AF2-126/AF2-126_imp_PHASE_2.htm</Phase2SISReport>
+    <Phase2SISReportStatus>Posted</Phase2SISReportStatus>
+    <Phase3SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_3/AF2-126/AF2-126_imp_PHASE_3.htm</Phase3SISReport>
+    <Phase3SISReportStatus>Posted</Phase3SISReportStatus>
+    <FinalSISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/FINAL/AF2-126/AF2-126_imp_FINAL.htm</FinalSISReport>
+    <FinalSISReportStatus>Posted</FinalSISReportStatus>
+    <EPAGIAWMPAReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/gia/af2_126_gia.pdf</EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Posted</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>AG1-153</ProjectNumber>
+    <Cycle>TC1</Cycle>
+    <Stage>FINAL AGREEMENT</Stage>
+    <Name>Heritage 500 kV</Name>
+    <CommercialName>Brunswick Battery Storage</CommercialName>
+    <Developer>Virginia Electric and Power Company (d/b/a Dominion Energy Virginia)</Developer>
+    <State>VA</State>
+    <County>Brunswick</County>
+    <Status>UC</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>Dominion</TransmissionOwner>
+    <MWO>75.0</MWO>
+    <MWEnergy>75.0</MWEnergy>
+    <MWCapacity>30.0</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityOrEnergy>Capacity</CapacityOrEnergy>
+    <Fuel>Storage</Fuel>
+    <SubmittedDate>9/10/2020</SubmittedDate>
+    <RequestedInServiceDate>7/28/2031</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>7/28/2031</CommercialOperationMilestone>
+    <BackfeedDate>6/28/2030</BackfeedDate>
+    <TestEnergyDate>12/27/2030</TestEnergyDate>
+    <LastUpdated>8/12/2026</LastUpdated>
+    <WithdrawnDate>
+    </WithdrawnDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_1/AG1-153/AG1-153_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_2/AG1-153/AG1-153_imp_PHASE_2.htm</Phase2SISReport>
+    <Phase2SISReportStatus>Posted</Phase2SISReportStatus>
+    <Phase3SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/PHASE_3/AG1-153/AG1-153_imp_PHASE_3.htm</Phase3SISReport>
+    <Phase3SISReportStatus>Posted</Phase3SISReportStatus>
+    <FinalSISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC1/FINAL/AG1-153/AG1-153_imp_FINAL.htm</FinalSISReport>
+    <FinalSISReportStatus>Posted</FinalSISReportStatus>
+    <EPAGIAWMPAReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/gia/ag1_153_gia.pdf</EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Posted</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/csa/ag1_153_csa.pdf</CSAUSCAReport>
+    <CSAUSCAReportStatus>Posted</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>AH1-127</ProjectNumber>
+    <Cycle>TC2</Cycle>
+    <Stage>Final Agreement</Stage>
+    <Name>Railroad 34.5kV</Name>
+    <CommercialName>Railroad Energy Center</CommercialName>
+    <Developer>Railroad Energy Center, LLC</Developer>
+    <State>VA</State>
+    <County>Prince William</County>
+    <Status>UC</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>Dominion</TransmissionOwner>
+    <MWO>20.0</MWO>
+    <MWEnergy>20.0</MWEnergy>
+    <MWCapacity>0.0</MWCapacity>
+    <MWInService>0.0</MWInService>
+    <CapacityOrEnergy>ENERGY_RESOURCE</CapacityOrEnergy>
+    <Fuel>Storage</Fuel>
+    <SubmittedDate>8/23/2021</SubmittedDate>
+    <RequestedInServiceDate>6/2/2026</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>3/1/2029</CommercialOperationMilestone>
+    <BackfeedDate>
+    </BackfeedDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <LastUpdated>2/27/2026</LastUpdated>
+    <WithdrawnDate>
+    </WithdrawnDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <Phase1SISReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/TC2/PHASE_1/AH1-127/AH1-127_imp_PHASE_1.htm</Phase1SISReport>
+    <Phase1SISReportStatus>Posted</Phase1SISReportStatus>
+    <Phase2SISReport>
+    </Phase2SISReport>
+    <Phase2SISReportStatus>Not Required</Phase2SISReportStatus>
+    <Phase3SISReport>
+    </Phase3SISReport>
+    <Phase3SISReportStatus>Not Required</Phase3SISReportStatus>
+    <FinalSISReport>
+    </FinalSISReport>
+    <FinalSISReportStatus>Not Required</FinalSISReportStatus>
+    <EPAGIAWMPAReport>https://www.pjm.com//pjmfiles/pub/planning/project-queues/wmpa/ah1127_wmpa.pdf</EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Posted</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>C01-1012</ProjectNumber>
+    <Cycle>C01</Cycle>
+    <Stage>Application Submission</Stage>
+    <Name>Raritan River 230 kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <Developer>Heritage Power Marketing, LLC</Developer>
+    <State>NJ</State>
+    <County>Middlesex</County>
+    <Status>Withdrawn</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>JCPL</TransmissionOwner>
+    <MWO>211.3</MWO>
+    <MWEnergy>0.0</MWEnergy>
+    <MWCapacity>0.0</MWCapacity>
+    <MWInService>0.0</MWInService>
+    <CapacityOrEnergy>CAPACITY_RESOURCE</CapacityOrEnergy>
+    <Fuel>Storage</Fuel>
+    <SubmittedDate>5/30/2025</SubmittedDate>
+    <RequestedInServiceDate>11/24/2028</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <BackfeedDate>
+    </BackfeedDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <LastUpdated>5/30/2025</LastUpdated>
+    <WithdrawnDate>7/10/2025</WithdrawnDate>
+    <WithdrawnRemarks>CIW</WithdrawnRemarks>
+    <Phase1SISReport>
+    </Phase1SISReport>
+    <Phase1SISReportStatus>Not Required</Phase1SISReportStatus>
+    <Phase2SISReport>
+    </Phase2SISReport>
+    <Phase2SISReportStatus>Not Required</Phase2SISReportStatus>
+    <Phase3SISReport>
+    </Phase3SISReport>
+    <Phase3SISReportStatus>Not Required</Phase3SISReportStatus>
+    <FinalSISReport>
+    </FinalSISReport>
+    <FinalSISReportStatus>Not Required</FinalSISReportStatus>
+    <EPAGIAWMPAReport>
+    </EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Not Started</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+  <Project>
+    <ProjectNumber>C01-1003</ProjectNumber>
+    <Cycle>C01</Cycle>
+    <Stage>Phase 1</Stage>
+    <Name>McHenry 34.5 kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <Developer>McHenry Battery Storage LLC</Developer>
+    <State>IL</State>
+    <County>McHenry</County>
+    <Status>Active</Status>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <TransmissionOwner>ComEd</TransmissionOwner>
+    <MWO>20.0</MWO>
+    <MWEnergy>0.0</MWEnergy>
+    <MWCapacity>10.0</MWCapacity>
+    <MWInService>0.0</MWInService>
+    <CapacityOrEnergy>CAPACITY_RESOURCE</CapacityOrEnergy>
+    <Fuel>Storage</Fuel>
+    <SubmittedDate>6/12/2025</SubmittedDate>
+    <RequestedInServiceDate>7/2/2026</RequestedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <BackfeedDate>
+    </BackfeedDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <LastUpdated>6/2/2026</LastUpdated>
+    <WithdrawnDate>
+    </WithdrawnDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <Phase1SISReport>
+    </Phase1SISReport>
+    <Phase1SISReportStatus>In Process</Phase1SISReportStatus>
+    <Phase2SISReport>
+    </Phase2SISReport>
+    <Phase2SISReportStatus>Not Started</Phase2SISReportStatus>
+    <Phase3SISReport>
+    </Phase3SISReport>
+    <Phase3SISReportStatus>Not Started</Phase3SISReportStatus>
+    <FinalSISReport>
+    </FinalSISReport>
+    <FinalSISReportStatus>Not Started</FinalSISReportStatus>
+    <EPAGIAWMPAReport>
+    </EPAGIAWMPAReport>
+    <EPAGIAWMPAReportStatus>Not Started</EPAGIAWMPAReportStatus>
+    <CSAUSCAReport>
+    </CSAUSCAReport>
+    <CSAUSCAReportStatus>Not Started</CSAUSCAReportStatus>
+    <TransmissionType>
+    </TransmissionType>
+    <RightsMW>
+    </RightsMW>
+    <TSRID>
+    </TSRID>
+    <LTFStartDate>
+    </LTFStartDate>
+    <LTFEndDate>
+    </LTFEndDate>
+    <TSRMW>
+    </TSRMW>
+  </Project>
+</Projects>

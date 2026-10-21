@@ -80,6 +80,12 @@ def read_holdings_archive(conn: Conn) -> HoldingsArchive:
     _nport(arc)
     _bdc(arc, load_json(FUNDPOS), load_json(REF_META), blocks["data"]["funds"], blocks["realnav"])
     _naic(arc, load_json(INSURERS))
+    for line in arc.lines:
+        line.finalize_mark()
+        if line.source == "nport" and line.raw_mark is not None and line.mark is None:
+            reason = ("N-PORT line not in USD (valUSD over a foreign-currency balance): no mark" if not line.usd
+                      else "N-PORT line with a negative value: no mark")
+            arc.skip(reason, f"{line.fund_name}: {line.title}")
     return arc
 
 
@@ -155,6 +161,9 @@ def _nport_line(relpath: str, r: dict[str, Any], agg_cusip: str | None, arc: Hol
     cusip = agg_cusip or r.get("cusip")
     cusip = cusip if cusip and cusip_valid(cusip) else None
     isin = r.get("isin") if isin_valid(r.get("isin")) else None
+    if isin and cusip and isin[2:11] != cusip:  # e.g. the issuer's common-stock ISIN filed on a convert line
+        arc.skip("N-PORT ISIN contradicts the line's CUSIP: ISIN not kept", f"{relpath}: {cusip} / {isin}")
+        isin = None
     name = None if str(r.get("name") or "").strip() in ("", "N/A") else " ".join(str(r["name"]).split())
     title = " ".join(str(r.get("title") or "").split()) or None
     strong, weak = _codes(cusip, isin, r.get("other"), title or "", name or "")

@@ -201,6 +201,7 @@ class QueueStore:
 
     def _put(self, subject_type: str, subject_id: str, key: str, fld: str, value: Any, *, tag: str = "F",
              day: date | None, source_url: str, document_id: int | None) -> bool:
+        self.stats.facts_seen += 1  # every published value checked, written or not
         old = self.prior.get((key, fld))
         if old is not None and canonical_json(old[0]) == canonical_json(value):
             return False
@@ -210,7 +211,7 @@ class QueueStore:
             unit=UNITS.get(fld), document_id=document_id,
             method_version=qmatch.METHOD_VERSION if tag == "M" else None,
         )
-        self.stats.facts_seen += 1
+        self.prior[(key, fld)] = (value, self._day(day, old[1] if old else None))
         if res.created:
             self.stats.facts_new += 1
             self.counts[f"facts:{fld}"] += 1

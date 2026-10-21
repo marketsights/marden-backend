@@ -54,6 +54,9 @@ ERCOT_REGIONS = frozenset({"TEX"})
 EASTERN_REGIONS = frozenset({"CAR", "CENT", "FLA", "MIDA", "MIDW", "NE", "NY", "SE", "TEN"})
 COUNTRY_BY_REGION = {"CAN": "CA", "MEX": "MX"}
 CANADA_PARENT = {code: parent for _, _, _, parent, code, _ in grid_registry.CANADA if code}
+# EIA-930 files the retired WAPA Upper Great Plains East BA (in SPP since 2015-10-01) under region NW, but it
+# was in the Eastern Interconnection (UGP West, WAUW, is the Western part).
+EXCEPTIONS = {"WAUE": grid_registry.EASTERN}
 
 
 def _yes(value: Any, column: str, code: str) -> bool:
@@ -121,6 +124,8 @@ def parse(data: bytes) -> list[dict[str, Any]]:
 
 
 def interconnection_for(code: str, region_code: str) -> str | None:
+    if code in EXCEPTIONS:
+        return EXCEPTIONS[code]
     if region_code in ERCOT_REGIONS:
         return grid_registry.ERCOT
     if region_code in WESTERN_REGIONS:

@@ -194,11 +194,14 @@ def parse_cycle(data: bytes) -> list[QueueEntry]:
 
 
 # ---------------------------------------------------------------- run
-def load(serial: DocumentRow, cycle: DocumentRow, stats: RunStats) -> None:
+MIN_ROWS = (100, 1000)  # (cycle, serial): fewer means a truncated or changed export
+
+
+def load(serial: DocumentRow, cycle: DocumentRow, stats: RunStats, *, min_rows: tuple[int, int] = MIN_ROWS) -> None:
     """Parse both stored exports and write them as one report (cycle rows win over serial rows)."""
     cycle_entries = parse_cycle(cycle.read())
     serial_entries = parse_serial(serial.read())
-    if len(cycle_entries) < 100 or len(serial_entries) < 1000:
+    if len(cycle_entries) < min_rows[0] or len(serial_entries) < min_rows[1]:
         raise ParseError(f"PJM exports look truncated: {len(cycle_entries)} cycle, {len(serial_entries)} serial rows")
     in_cycle = {e.queue_id for e in cycle_entries}
     day = max(report_date(serial), report_date(cycle))

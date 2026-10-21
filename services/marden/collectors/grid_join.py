@@ -2,23 +2,27 @@
 
 Facts (tag F; the boundary file is the source): `interconnection` ('Eastern' | 'Western' | 'ERCOT'), `iso`
 ('ERCOT', 'PJM', 'MISO', 'SPP', 'CAISO', 'NYISO', 'ISO-NE' or 'non-RTO'), `balancing_authority` (EIA-930 code,
-e.g. 'ERCO'; the HIFLD name when EIA publishes no code) and `utility` (the retail service territory's name as
-HIFLD publishes it). source_name 'HIFLD', source_url and document_id = the layer's GeoPackage, valid_from = the
-layer's HIFLD Open 'modified' date, quote = the matched feature's published name, quote_loc = 'spatial join: ...'
-with the point used, the layer, version and feature.
+e.g. 'ERCO'; the HIFLD name when EIA publishes no code), `utility` (the retail service territory's name as HIFLD
+publishes it) and `utility_territories` (every territory containing the point, sorted). source_name 'HIFLD',
+source_url and document_id = the layer's GeoPackage, valid_from = the layer's HIFLD Open 'modified' date,
+quote = the matched feature's published name, quote_loc = 'spatial join: ...' (the point used, layer, version,
+feature).
 
 Points: the campus, site and plant point; a building's footprint (point on surface), else its campus point.
 
 Rules (a conflict is flagged, never silently resolved):
 - exactly one boundary contains the point -> published;
-- several overlap -> each is a candidate fact with a review item (the person picks);
+- interconnection, ISO or BA boundaries overlap -> each is a candidate fact, with one review item for the
+  subject and field (a person picks);
+- retail territories overlap (HIFLD draws many at county resolution, so co-ops, municipals and IOUs overlap) ->
+  no `utility` fact; `utility_territories` lists them until a filing names the serving utility;
 - none -> no fact (n/d), except `iso`: a point inside a US interconnection but outside all seven ISO/RTO
   footprints is 'non-RTO';
 - the point's balancing authority is retired per EIA-930 -> its `balancing_authority` fact, and the `iso`
   fact when the retirement is newer than the ISO layer, are candidates for review (e.g. WACM and WAUW,
   retired 2026-04-01 when SPP's RTO West started, while the ISO layer dates from 2022);
-- the interconnection of the point's balancing authority (EIA-930) disagrees with the NERC-region union ->
-  the `interconnection` fact is a candidate for review.
+- a balancing authority containing the point belongs (EIA-930) to another interconnection than the NERC-region
+  union says -> the `interconnection` fact is a candidate for review (seams such as Lubbock).
 
 Runs after each hifld_grid load and daily (new campuses and plants). `python -m marden collect grid_join`.
 """
@@ -43,7 +47,7 @@ SOURCE_ID = "grid_join"
 PRODUCER = "collector:grid_join"
 SOURCE_NAME = "HIFLD"
 CRON_UTC = "47 10 * * *"  # daily 10:47 UTC, after the overnight collectors
-FIELDS = ("interconnection", "iso", "balancing_authority", "utility")
+FIELDS = ("interconnection", "iso", "balancing_authority", "utility", "utility_territories")
 SOURCE = declare_source(
     SOURCE_ID, "Grid region spatial join", "model", None, 24 * 60,
     "Internal: PostGIS point-in-polygon over boundary files hifld_grid already stored (no external requests).",
@@ -93,7 +97,7 @@ class Subject:
 @dataclass(frozen=True)
 class Assignment:
     field: str
-    value: str
+    value: Any
     src: dict[str, Any]  # source_url, document_id, as_of, layer, version
     quote: str | None
     quote_loc: str
@@ -136,42 +140,51 @@ def _overlap(field: str, rows: list[Row]) -> str:
     return f"{len(rows)} boundaries for {field} contain the point: {names}"
 
 
-def assign(s: Subject, iso_layer: dict[str, Any] | None) -> list[Assignment]:
-    """The facts one subject gets (see the module rules)."""
-    out: list[Assignment] = []
+def _interconnections(s: Subject) -> list[Assignment]:
     nerc = s.regions.get("reliability_region", [])
     inter = s.regions.get("interconnection", [])
     bas = s.regions.get("balancing_authority", [])
-    retired = [b for b in bas if ((b["meta"] or {}).get("eia930") or {}).get("active") is False]
-
+    out = []
     for row in inter:
-        meta = (row["meta"] or {}).get("boundary") or {}
         sub = next((n for n in nerc if n["parent_id"] == row["region_id"]), None)
         review = _overlap("interconnection", inter) if len(inter) > 1 else None
-        ba_parents = {b["parent_id"] for b in bas if b["parent_id"]}
-        if review is None and len(bas) == 1 and ba_parents and ba_parents != {row["region_id"]}:
-            review = (f"balancing authority {bas[0]['region_id']} is in {sorted(ba_parents)[0]} per EIA-930, but the "
-                      f"NERC-region union puts the point in {row['region_id']}")
+        other = sorted({b["parent_id"] for b in bas if b["parent_id"] and b["parent_id"] != row["region_id"]})
+        if review is None and other:
+            review = (f"balancing authorities containing the point ({', '.join(b['region_id'] for b in bas)}) include "
+                      f"one in {other[0]} per EIA-930; the NERC-region union says {row['region_id']}")
         loc = (f"spatial join: {s.where()} in {_feature(_hifld(sub)) if sub else 'HIFLD NERC Regions'} "
                f"({sub['region_id'] if sub else 'no subregion'}); WECC -> Western, Texas RE -> ERCOT, "
                "others -> Eastern")
-        out.append(Assignment("interconnection", _label(row), meta, sub["name"] if sub else None, loc, review))
+        out.append(Assignment("interconnection", _label(row), (row["meta"] or {}).get("boundary") or {},
+                              sub["name"] if sub else None, loc, review))
+    return out
 
+
+def _isos(s: Subject, iso_layer: dict[str, Any] | None) -> list[Assignment]:
     isos = s.regions.get("iso_rto", [])
+    inter = s.regions.get("interconnection", [])
+    out = []
     for row in isos:
         meta = _hifld(row)
         review = _overlap("iso", isos) if len(isos) > 1 else None
         out.append(Assignment("iso", _label(row), meta, meta.get("name"),
                               f"spatial join: {s.where()} in {_feature(meta)}", review))
     if not isos and inter and iso_layer:
-        late = [b for b in retired if ((b["meta"]["eia930"].get("retirement_date") or "") > iso_layer.get("as_of", ""))]
-        review = (f"balancing authority {late[0]['region_id']} retired per EIA-930 on "
-                  f"{late[0]['meta']['eia930']['retirement_date']}, after the ISO layer ({iso_layer.get('as_of')})"
-                  if late else None)
+        retired = [b for b in s.regions.get("balancing_authority", [])
+                   if ((b["meta"] or {}).get("eia930") or {}).get("active") is False
+                   and (b["meta"]["eia930"].get("retirement_date") or "") > iso_layer.get("as_of", "")]
+        review = (f"balancing authority {retired[0]['region_id']} retired per EIA-930 on "
+                  f"{retired[0]['meta']['eia930']['retirement_date']}, after the ISO layer ({iso_layer.get('as_of')})"
+                  if retired else None)
         loc = (f"spatial join: {s.where()} outside all {LAYER_TITLES['independent-systems-operators']} polygons "
                f"({iso_layer.get('version')}), inside the {inter[0]['name']}")
         out.append(Assignment("iso", grid_registry.NON_RTO, iso_layer, None, loc, review))
+    return out
 
+
+def _bas(s: Subject) -> list[Assignment]:
+    bas = s.regions.get("balancing_authority", [])
+    out = []
     for row in bas:
         meta = _hifld(row)
         e930 = (row["meta"] or {}).get("eia930") or {}
@@ -181,13 +194,28 @@ def assign(s: Subject, iso_layer: dict[str, Any] | None) -> list[Assignment]:
                       f"boundary is as of {meta.get('as_of')}")
         out.append(Assignment("balancing_authority", ba_value(row), meta, meta.get("name"),
                               f"spatial join: {s.where()} in {_feature(meta)}", review))
+    return out
 
-    utilities = s.regions.get("utility", [])
-    for row in utilities:
-        meta = _hifld(row)
-        review = _overlap("utility", utilities) if len(utilities) > 1 else None
-        out.append(Assignment("utility", row["name"], meta, meta.get("name"),
-                              f"spatial join: {s.where()} in {_feature(meta)}", review))
+
+def _utilities(s: Subject) -> list[Assignment]:
+    rows = s.regions.get("utility", [])
+    if not rows:
+        return []
+    meta = _hifld(rows[0])
+    names = sorted(r["name"] for r in rows)
+    features = ", ".join(str(_hifld(r).get("feature_id")) for r in rows)
+    loc = (f"spatial join: {s.where()} in HIFLD {LAYER_TITLES['electric-retail-service-territories']} "
+           f"{meta.get('version')} features {features}")
+    out = [Assignment("utility_territories", names, meta, "; ".join(names), loc)]
+    if len(rows) == 1:
+        out.append(Assignment("utility", rows[0]["name"], meta, meta.get("name"),
+                              f"spatial join: {s.where()} in {_feature(meta)}"))
+    return out
+
+
+def assign(s: Subject, iso_layer: dict[str, Any] | None) -> list[Assignment]:
+    """The facts one subject gets (see the module rules)."""
+    out = [*_interconnections(s), *_isos(s, iso_layer), *_bas(s), *_utilities(s)]
     return [a for a in out if a.src.get("source_url") and a.src.get("as_of")]
 
 
@@ -199,41 +227,47 @@ def iso_layer_meta(conn: Conn) -> dict[str, Any] | None:
     return row["m"] if row else None
 
 
-def write(conn: Conn, s: Subject, a: Assignment) -> tuple[bool, str]:
-    facts = FactWriter(conn)
-    res = facts.add(
+def write(facts: FactWriter, s: Subject, a: Assignment) -> Any:
+    return facts.add(
         s.subject_type, s.subject_id, a.field, a.value, tag="F", source_name=SOURCE_NAME,
         source_url=a.src["source_url"], document_id=a.src.get("document_id"), valid_from=a.src["as_of"],
         producer=PRODUCER, status="candidate" if a.review else "published", quote=a.quote, quote_loc=a.quote_loc,
     )
-    if a.review:
-        facts.request_review(res.id, title=f"{s.subject_type} {s.subject_id}: {a.field} = {a.value}?", reason=a.review,
-                             payload={"field": a.field, "value": a.value, "quote_loc": a.quote_loc})
-    return res.created, res.status
 
 
 def join(conn: Conn, stats: RunStats | None = None) -> dict[str, Any]:
     stats = stats or RunStats()
+    facts = FactWriter(conn)
     subjects = load_subjects(conn)
     iso_layer = iso_layer_meta(conn)
-    by_field: dict[str, dict[str, int]] = {f: {"published": 0, "candidate": 0, "new": 0, "none": 0} for f in FIELDS}
+    by_field = {f: {"published": 0, "candidate": 0, "new": 0, "none": 0} for f in FIELDS}
     results: list[dict[str, Any]] = []
+    reviews = 0
     for s in subjects:
         assignments = assign(s, iso_layer)
+        flagged: dict[str, list[tuple[Assignment, Any]]] = defaultdict(list)
         for f in FIELDS:
-            if not any(a.field == f for a in assignments):
-                by_field[f]["none"] += 1
+            by_field[f]["none"] += int(not any(a.field == f for a in assignments))
         for a in assignments:
-            created, status = write(conn, s, a)
+            res = write(facts, s, a)
             counts = by_field[a.field]
             counts["candidate" if a.review else "published"] += 1
-            counts["new"] += int(created)
+            counts["new"] += int(res.created)
             stats.facts_seen += 1
-            stats.facts_new += int(created)
+            stats.facts_new += int(res.created)
+            if a.review:
+                flagged[a.field].append((a, res))
             results.append({"subject": f"{s.subject_type}:{s.subject_id}", "field": a.field, "value": a.value,
-                            "status": status, "review": a.review})
-    stats.extra.update(subjects=len(subjects), by_field=by_field)
-    return {"subjects": len(subjects), "by_field": by_field, "assignments": results}
+                            "status": res.status, "review": a.review})
+        for field, items in flagged.items():  # one review per subject and field, listing every candidate
+            first = items[0]
+            facts.request_review(
+                first[1].id, title=f"{s.subject_type} {s.subject_id}: which {field}?", reason=first[0].review or "",
+                payload={"field": field, "candidates": [{"fact_id": r.id, "value": a.value, "quote_loc": a.quote_loc}
+                                                        for a, r in items]})
+            reviews += 1
+    stats.extra.update(subjects=len(subjects), by_field=by_field, reviews=reviews)
+    return {"subjects": len(subjects), "by_field": by_field, "reviews": reviews, "assignments": results}
 
 
 def run(*, source: SourceSpec = SOURCE) -> dict[str, Any]:

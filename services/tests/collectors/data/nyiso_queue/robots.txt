@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: */search
+Disallow: /o/
+Disallow: /group/
+Disallow: /content-not-found/
+Disallow: /public/
+Disallow: /viewassets
+
+Sitemap: https://www.nyiso.com/sitemap.xml

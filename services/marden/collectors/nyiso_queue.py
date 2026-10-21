@@ -233,9 +233,13 @@ def parse_workbook(data: bytes) -> list[QueueEntry]:
     return list(seen.values())
 
 
-def load(index: DocumentRow, workbook: DocumentRow, as_of: date, stats: RunStats) -> None:
+MIN_ENTRIES = 500  # fewer means a truncated or changed workbook
+
+
+def load(index: DocumentRow, workbook: DocumentRow, as_of: date, stats: RunStats, *,
+         min_entries: int = MIN_ENTRIES) -> None:
     entries = parse_workbook(workbook.read())
-    if len(entries) < 500:
+    if len(entries) < min_entries:
         raise ParseError(f"NYISO workbook looks truncated: {len(entries)} entries")
     with db.transaction() as conn:
         store = QueueStore(conn, "nyiso", "NYISO", PRODUCER, as_of, stats)

@@ -148,9 +148,12 @@ def unique_ids(entries: list[QueueEntry]) -> list[QueueEntry]:
     return entries
 
 
-def load(doc: DocumentRow, stats: RunStats) -> None:
+MIN_ENTRIES = 500  # fewer means a truncated page or a layout change
+
+
+def load(doc: DocumentRow, stats: RunStats, *, min_entries: int = MIN_ENTRIES) -> None:
     as_of, entries = parse_page(doc.read())
-    if len(entries) < 500:
+    if len(entries) < min_entries:
         raise ParseError(f"IRTT queue looks truncated: {len(entries)} rows")
     fetched = doc.fetched_at.astimezone(ET).date()
     day = min(as_of or fetched, fetched)

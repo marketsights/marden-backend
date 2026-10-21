@@ -1,0 +1,1140 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Projects>
+  <Project>
+    <ProjectNumber>A01</ProjectNumber>
+    <Name>South Lebanon 230 KV</Name>
+    <CommercialName>Ironwood</CommercialName>
+    <State>PA</State>
+    <County>Lebanon</County>
+    <Status>In Service</Status>
+    <TransmissionOwner>ME</TransmissionOwner>
+    <MaximumFacilityOutput>720</MaximumFacilityOutput>
+    <MWEnergy>720</MWEnergy>
+    <MWCapacity>673</MWCapacity>
+    <MWInService>673</MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Natural Gas</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/a01_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/a01_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/facilities/a01_fac.pdf</FacilitiesStudy>
+    <FacilitiesStudyStatus>Document Posted</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/a01_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Not Required</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>4/1/1997</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>4/1/2002</CommercialOperationMilestone>
+    <ProjectedInServiceDate>4/1/2002</ProjectedInServiceDate>
+    <ActualInServiceDate>4/1/2002</ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>A02</ProjectNumber>
+    <Name>Oak Hall 138 kV (Oil CT)</Name>
+    <CommercialName>Chesapeake</CommercialName>
+    <State>VA</State>
+    <County>Unknown</County>
+    <Status>In Service</Status>
+    <TransmissionOwner>DPL</TransmissionOwner>
+    <MaximumFacilityOutput>315</MaximumFacilityOutput>
+    <MWEnergy>315</MWEnergy>
+    <MWCapacity>315</MWCapacity>
+    <MWInService>311.8</MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Oil</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/a02_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/a02_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>Not Required</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/a02_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Not Required</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>4/1/1997</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>8/22/2001</ProjectedInServiceDate>
+    <ActualInServiceDate>8/22/2001</ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>A06</ProjectNumber>
+    <Name>Kearny</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>NJ</State>
+    <County>Gloucester</County>
+    <Status>Withdrawn</Status>
+    <TransmissionOwner>PSEG</TransmissionOwner>
+    <MaximumFacilityOutput>800</MaximumFacilityOutput>
+    <MWEnergy>750</MWEnergy>
+    <MWCapacity>750</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Natural Gas</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/a06_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/a06_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>Withdrawn</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    </Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>
+    </ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>4/1/1997</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>8/28/2000</WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>
+    </ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>B14</ProjectNumber>
+    <Name>Arnold 115kV</Name>
+    <CommercialName>Arnold (Green Mountain) WF</CommercialName>
+    <State>PA</State>
+    <County>Somerset</County>
+    <Status>Deactivated</Status>
+    <TransmissionOwner>PENELEC</TransmissionOwner>
+    <MaximumFacilityOutput>10.4</MaximumFacilityOutput>
+    <MWEnergy>10.4</MWEnergy>
+    <MWCapacity>2.08</MWCapacity>
+    <MWInService>10.4</MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Wind</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/b14_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/b14_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>Not Required</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/b14_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Not Required</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>7/6/1999</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>1/1/1999</ProjectedInServiceDate>
+    <ActualInServiceDate>8/13/2004</ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>1302456</ProjectNumber>
+    <Name>PJM-TVA</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>N/A</State>
+    <County>N/A</County>
+    <Status>Confirmed</Status>
+    <TransmissionOwner>
+    </TransmissionOwner>
+    <MaximumFacilityOutput>300</MaximumFacilityOutput>
+    <MWEnergy>
+    </MWEnergy>
+    <MWCapacity>
+    </MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Energy</CapacityorEnergy>
+    <ProjectType>Long-Term Firm Transmission</ProjectType>
+    <Fuel>
+    </Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>
+    </FeasibilityStudy>
+    <FeasibilityStudyStatus>
+    </FeasibilityStudyStatus>
+    <SystemImpactStudy>
+    </SystemImpactStudy>
+    <SystemImpactStudyStatus>
+    </SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>
+    </FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/N/A</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>N/A</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>
+    </ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>
+    </UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>
+    </UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>
+    </SubmittedDate>
+    <LongTermFirmServiceStartDate>5/1/2010</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>1/1/2015</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>
+    </ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>FF</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>U1-004 865838</ProjectNumber>
+    <Name>FE-PJM</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>N/A</State>
+    <County>N/A</County>
+    <Status>Retracted</Status>
+    <TransmissionOwner>
+    </TransmissionOwner>
+    <MaximumFacilityOutput>200</MaximumFacilityOutput>
+    <MWEnergy>
+    </MWEnergy>
+    <MWCapacity>
+    </MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Energy</CapacityorEnergy>
+    <ProjectType>Long-Term Firm Transmission</ProjectType>
+    <Fuel>
+    </Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/ltf-phase-1/865838_ltf1.pdf</InitialStudy>
+    <FeasibilityStudy>
+    </FeasibilityStudy>
+    <FeasibilityStudyStatus>
+    </FeasibilityStudyStatus>
+    <SystemImpactStudy>
+    </SystemImpactStudy>
+    <SystemImpactStudyStatus>Withdrawn</SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>
+    </FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/N/A</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>N/A</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>
+    </ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>
+    </UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>
+    </UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>2/6/2008</SubmittedDate>
+    <LongTermFirmServiceStartDate>6/1/2011</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>6/1/2016</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>5/29/2008</WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>
+    </ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>FF</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>V1-002 1094626</ProjectNumber>
+    <Name>TVA-PJM</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>N/A</State>
+    <County>N/A</County>
+    <Status>Annulled</Status>
+    <TransmissionOwner>
+    </TransmissionOwner>
+    <MaximumFacilityOutput>300</MaximumFacilityOutput>
+    <MWEnergy>
+    </MWEnergy>
+    <MWCapacity>
+    </MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Energy</CapacityorEnergy>
+    <ProjectType>Long-Term Firm Transmission</ProjectType>
+    <Fuel>
+    </Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/ltf-phase-1/1094626_ltf1.pdf</InitialStudy>
+    <FeasibilityStudy>
+    </FeasibilityStudy>
+    <FeasibilityStudyStatus>
+    </FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/ltf-phase-2/1094626_ltf2.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Executed Agreement and/or Study</SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>
+    </FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/N/A</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>N/A</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>
+    </ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>
+    </UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>
+    </UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>2/2/2009</SubmittedDate>
+    <LongTermFirmServiceStartDate>6/1/2013</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>6/1/2018</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>
+    </ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>FF</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AA1-038</ProjectNumber>
+    <Name>Lexington-Low Moor 230kV</Name>
+    <CommercialName>Rocky Forge Wind </CommercialName>
+    <State>VA</State>
+    <County>Botetourt</County>
+    <Status>Partially in Service - Under Construction</Status>
+    <TransmissionOwner>Dominion</TransmissionOwner>
+    <MaximumFacilityOutput>78.2</MaximumFacilityOutput>
+    <MWEnergy>78.2</MWEnergy>
+    <MWCapacity>10.1</MWCapacity>
+    <MWInService>12</MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Wind</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/aa1038_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/aa1038_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/facilities/aa1038_fac.pdf</FacilitiesStudy>
+    <FacilitiesStudyStatus>Document Posted</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/aa1_038_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/csa/aa1_038_csa.pdf</ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Document Posted</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>8/31/2026</BackfeedDate>
+    <SubmittedDate>8/19/2014</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>9/17/2026</TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>12/31/2026</CommercialOperationMilestone>
+    <ProjectedInServiceDate>12/31/2026</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AA2-119</ProjectNumber>
+    <Name>Glen Falls 138kV</Name>
+    <CommercialName>Glen Falls Facility</CommercialName>
+    <State>WV</State>
+    <County>Harrison</County>
+    <Status>Under Construction</Status>
+    <TransmissionOwner>APS</TransmissionOwner>
+    <MaximumFacilityOutput>550</MaximumFacilityOutput>
+    <MWEnergy>550</MWEnergy>
+    <MWCapacity>550</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Natural Gas</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/aa2119_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/aa2119_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/facilities/aa2119_fac.pdf</FacilitiesStudy>
+    <FacilitiesStudyStatus>Document Posted</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/aa2_119_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/csa/aa2_119_csa.pdf</ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Document Posted</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>11/11/2027</BackfeedDate>
+    <SubmittedDate>4/30/2015</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>7/31/2028</TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>1/31/2029</CommercialOperationMilestone>
+    <ProjectedInServiceDate>1/31/2029</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AB1-056</ProjectNumber>
+    <Name>Indian River 230kV I</Name>
+    <CommercialName>Maryland Offshore Wind Energy Project (MOWEP)</CommercialName>
+    <State>DE</State>
+    <County>Sussex</County>
+    <Status>Suspended</Status>
+    <TransmissionOwner>DPL</TransmissionOwner>
+    <MaximumFacilityOutput>247.8</MaximumFacilityOutput>
+    <MWEnergy>247.8</MWEnergy>
+    <MWCapacity>64.4</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Offshore Wind</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/ab1056_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/ab1056_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/facilities/ab1056_fac.pdf</FacilitiesStudy>
+    <FacilitiesStudyStatus>Document Posted</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/ab1_056_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/csa/ab1_056_csa.pdf</ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Document Posted</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>7/1/2029</BackfeedDate>
+    <SubmittedDate>8/31/2015</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>10/29/2029</TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>12/31/2027</CommercialOperationMilestone>
+    <ProjectedInServiceDate>12/31/2027</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AB1-088</ProjectNumber>
+    <Name>Sullivan 345kV #2</Name>
+    <CommercialName>Sullivan Generating Station 2</CommercialName>
+    <State>IN</State>
+    <County>Sullivan</County>
+    <Status>Engineering and Procurement</Status>
+    <TransmissionOwner>AEP</TransmissionOwner>
+    <MaximumFacilityOutput>480</MaximumFacilityOutput>
+    <MWEnergy>480</MWEnergy>
+    <MWCapacity>480</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Natural Gas</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/ab1088_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/ab1088_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/facilities/ab1088_fac.pdf</FacilitiesStudy>
+    <FacilitiesStudyStatus>Document Posted</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/ab1_088_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/csa/ab1_088_csa.pdf</ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Document Posted</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>11/15/2027</BackfeedDate>
+    <SubmittedDate>10/1/2015</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>3/23/2028</TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>12/31/2028</CommercialOperationMilestone>
+    <ProjectedInServiceDate>12/31/2028</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AC1-073</ProjectNumber>
+    <Name>Laurel Mountain 138 kV</Name>
+    <CommercialName>Laurel Mountain Wind Farm &amp; Energy Storage Facility</CommercialName>
+    <State>WV</State>
+    <County>Barbour</County>
+    <Status>Canceled</Status>
+    <TransmissionOwner>APS</TransmissionOwner>
+    <MaximumFacilityOutput>141.3</MaximumFacilityOutput>
+    <MWEnergy>16.3</MWEnergy>
+    <MWCapacity>5.8</MWCapacity>
+    <MWInService>0</MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Wind; Storage</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/ac1073_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/ac1073_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>
+    </FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/ac1_073_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/csa/ac1_073_csa.pdf</ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Document Posted</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>9/28/2016</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>12/31/2019</CommercialOperationMilestone>
+    <ProjectedInServiceDate>12/31/2019</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AD1-070</ProjectNumber>
+    <Name>Fostoria Central 138 kV</Name>
+    <CommercialName>South Branch Solar</CommercialName>
+    <State>OH</State>
+    <County>Hancock</County>
+    <Status>Pending Termination</Status>
+    <TransmissionOwner>AEP</TransmissionOwner>
+    <MaximumFacilityOutput>205</MaximumFacilityOutput>
+    <MWEnergy>205</MWEnergy>
+    <MWCapacity>36</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Solar</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/ad1070_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/ad1070_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/facilities/ad1070_fac.pdf</FacilitiesStudy>
+    <FacilitiesStudyStatus>Document Posted</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/ad1_070_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/csa/ad1_070_csa.pdf</ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Document Posted</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>8/31/2017</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>12/31/2025</CommercialOperationMilestone>
+    <ProjectedInServiceDate>12/31/2025</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AE1-070 - moved to TC1</ProjectNumber>
+    <Name>Elwood 345 kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>IL</State>
+    <County>Will</County>
+    <Status>Withdrawn</Status>
+    <TransmissionOwner>ComEd</TransmissionOwner>
+    <MaximumFacilityOutput>1610</MaximumFacilityOutput>
+    <MWEnergy>0</MWEnergy>
+    <MWCapacity>135</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Natural Gas</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/ae1070_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/ae1070_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>Withdrawn</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    </Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>
+    </ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>7/31/2018</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>1/22/2025</WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>12/31/2020</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AE1-071</ProjectNumber>
+    <Name>Shade Gap-Roxbury 115 kV</Name>
+    <CommercialName>Aspen Road Solar</CommercialName>
+    <State>PA</State>
+    <County>Franklin</County>
+    <Status>In Service</Status>
+    <TransmissionOwner>PENELEC</TransmissionOwner>
+    <MaximumFacilityOutput>100.1</MaximumFacilityOutput>
+    <MWEnergy>100.1</MWEnergy>
+    <MWCapacity>62.1</MWCapacity>
+    <MWInService>100.1</MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Solar</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/ae1071_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/ae1071_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/facilities/ae1071_fac.pdf</FacilitiesStudy>
+    <FacilitiesStudyStatus>Document Posted</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/ae1_071_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/csa/ae1_071_csa.pdf</ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Document Posted</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>12/20/2024</BackfeedDate>
+    <SubmittedDate>7/31/2018</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>2/18/2025</TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>3/8/2025</CommercialOperationMilestone>
+    <ProjectedInServiceDate>3/8/2025</ProjectedInServiceDate>
+    <ActualInServiceDate>2/28/2025</ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AE2-289</ProjectNumber>
+    <Name>Frostburg 138 kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>MD</State>
+    <County>Allegany</County>
+    <Status>Active</Status>
+    <TransmissionOwner>APS</TransmissionOwner>
+    <MaximumFacilityOutput>80</MaximumFacilityOutput>
+    <MWEnergy>80</MWEnergy>
+    <MWCapacity>11.76</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Wind</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/ae2289_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/impact_studies/ae2289_imp.pdf</SystemImpactStudy>
+    <SystemImpactStudyStatus>Document Posted</SystemImpactStudyStatus>
+    <FacilitiesStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/facilities/ae2289_fac.pdf</FacilitiesStudy>
+    <FacilitiesStudyStatus>Document Posted</FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/isa/ae2_289_isa.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/csa/ae2_289_csa.pdf</ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>Document Posted</ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>3/29/2019</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>12/31/2021</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AG1-374 - moved to TC1</ProjectNumber>
+    <Name>Blue Mound 345 kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>IL</State>
+    <County>McLean</County>
+    <Status>Pending Termination</Status>
+    <TransmissionOwner>ComEd</TransmissionOwner>
+    <MaximumFacilityOutput>300</MaximumFacilityOutput>
+    <MWEnergy>300</MWEnergy>
+    <MWCapacity>180</MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Capacity</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Solar</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>https://www.pjm.com/pjmfiles/pub/planning/project-queues/feas_docs/ag1374_fea.pdf</FeasibilityStudy>
+    <FeasibilityStudyStatus>Document Posted</FeasibilityStudyStatus>
+    <SystemImpactStudy>
+    </SystemImpactStudy>
+    <SystemImpactStudyStatus>In Progress</SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>
+    </FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/pub/planning/project-queues/gia/ag1_374_gia.pdf</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>Document Posted</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>
+    </ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>10/15/2028</BackfeedDate>
+    <SubmittedDate>9/30/2020</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>10/30/2028</TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>2/28/2030</CommercialOperationMilestone>
+    <ProjectedInServiceDate>2/28/2030</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>AH1-127 - moved to TC2</ProjectNumber>
+    <Name>Railroad 34.5kV</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>VA</State>
+    <County>Prince William</County>
+    <Status>Under Construction</Status>
+    <TransmissionOwner>Dominion</TransmissionOwner>
+    <MaximumFacilityOutput>20</MaximumFacilityOutput>
+    <MWEnergy>20</MWEnergy>
+    <MWCapacity>
+    </MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Energy</CapacityorEnergy>
+    <ProjectType>Generation Interconnection</ProjectType>
+    <Fuel>Storage</Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>
+    </FeasibilityStudy>
+    <FeasibilityStudyStatus>In Progress</FeasibilityStudyStatus>
+    <SystemImpactStudy>
+    </SystemImpactStudy>
+    <SystemImpactStudyStatus>
+    </SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>
+    </FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    </Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>
+    </ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>N/A</UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>N/A</UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>8/23/2021</SubmittedDate>
+    <LongTermFirmServiceStartDate>N/A</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>N/A</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>3/1/2029</CommercialOperationMilestone>
+    <ProjectedInServiceDate>3/1/2029</ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>N</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+  <Project>
+    <ProjectNumber>994856</ProjectNumber>
+    <Name>PJM-TVA</Name>
+    <CommercialName>
+    </CommercialName>
+    <State>N/A</State>
+    <County>N/A</County>
+    <Status>Withdrawn</Status>
+    <TransmissionOwner>
+    </TransmissionOwner>
+    <MaximumFacilityOutput>138</MaximumFacilityOutput>
+    <MWEnergy>
+    </MWEnergy>
+    <MWCapacity>
+    </MWCapacity>
+    <MWInService>
+    </MWInService>
+    <CapacityorEnergy>Energy</CapacityorEnergy>
+    <ProjectType>Long-Term Firm Transmission</ProjectType>
+    <Fuel>
+    </Fuel>
+    <ProjectACOrDC>
+    </ProjectACOrDC>
+    <RightsMW>
+    </RightsMW>
+    <InitialStudy>
+    </InitialStudy>
+    <FeasibilityStudy>
+    </FeasibilityStudy>
+    <FeasibilityStudyStatus>
+    </FeasibilityStudyStatus>
+    <SystemImpactStudy>
+    </SystemImpactStudy>
+    <SystemImpactStudyStatus>
+    </SystemImpactStudyStatus>
+    <FacilitiesStudy>
+    </FacilitiesStudy>
+    <FacilitiesStudyStatus>
+    </FacilitiesStudyStatus>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement>https://www.pjm.com/pjmfiles/N/A</Interim-InterconnectionService-GenerationInterconnectionAgreement>
+    <Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>N/A</Interim-InterconnectionService-GenerationInterconnectionAgreement-Status>
+    <WholesaleMarketParticipationAgreement>N/A</WholesaleMarketParticipationAgreement>
+    <ConstructionServiceAgreement>
+    </ConstructionServiceAgreement>
+    <ConstructionServiceAgreementStatus>
+    </ConstructionServiceAgreementStatus>
+    <UpgradeConstructionServiceAgreement>
+    </UpgradeConstructionServiceAgreement>
+    <UpgradeConstructionServiceAgreementStatus>
+    </UpgradeConstructionServiceAgreementStatus>
+    <BackfeedDate>
+    </BackfeedDate>
+    <SubmittedDate>9/18/2008</SubmittedDate>
+    <LongTermFirmServiceStartDate>2/1/2009</LongTermFirmServiceStartDate>
+    <LongTermFirmServiceEndDate>2/1/2014</LongTermFirmServiceEndDate>
+    <TestEnergyDate>
+    </TestEnergyDate>
+    <WithdrawalDate>
+    </WithdrawalDate>
+    <WithdrawnRemarks>
+    </WithdrawnRemarks>
+    <CommercialOperationMilestone>
+    </CommercialOperationMilestone>
+    <ProjectedInServiceDate>
+    </ProjectedInServiceDate>
+    <ActualInServiceDate>
+    </ActualInServiceDate>
+    <SuspensionDate>N/A</SuspensionDate>
+    <AttachmentType>FF</AttachmentType>
+    <AlternateProject>No</AlternateProject>
+    <SlideProject>
+    </SlideProject>
+  </Project>
+</Projects>
