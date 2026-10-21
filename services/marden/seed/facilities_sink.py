@@ -168,7 +168,7 @@ class FactSink:
         return res.id
 
     def fields(self) -> list[str]:
-        return sorted({f"{st}.{f}" for st, f in self.counts})
+        return sorted({f"{st}.{f}" for st, f in self.counts if st != "skipped"})
 
 
 @dataclass

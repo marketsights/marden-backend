@@ -28,7 +28,7 @@ def test_finds_the_newest_edition_and_checks_its_licence():
         "https://eta-publications.lbl.gov/publications/queued-2026-edition-characteristics")
     edition = (DATA / "queued-2026-edition_excerpt.html").read_bytes()
     lbnl.check_licence(edition, DATA_URL)
-    with pytest.raises(ParseError, match="CC BY 4.0"):
+    with pytest.raises(ParseError, match=r"CC BY 4\.0"):
         lbnl.check_licence(edition.replace(b"licensed", b"available"), DATA_URL)
     with pytest.raises(ParseError, match="does not link"):
         lbnl.check_licence(edition, DATA_URL.replace("thru2025", "thru2026"))

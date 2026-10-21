@@ -1,7 +1,8 @@
 """Cross-fund N-PORT medians for the `sec_nport` collector (docs/methods/price-sources.md §4-5).
 
 Per instrument and report period, over the fund series holding it (each series' latest filing for
-the period, its lines combined as 100 x sum of value / sum of par): the median as a `fund_mark`
+the period, its lines combined as 100 x sum of value / sum of par; a non-USD line's mark is the
+holding's `mark_price` fact when the row itself has none): the median as a `fund_mark`
 price named 'N-PORT median of N funds (<period>)', and fact `fund_mark_dispersion` on the
 instrument with n_funds, median, min, max, the range in points (flagged above 1 point) and the
 first and last public (filing) dates, so a backtest knows when the median could have been known
@@ -89,13 +90,26 @@ def _groups(rows: list[dict[str, Any]], watched: Watched) -> dict[tuple[str, dat
     return out
 
 
+# Every priced N-PORT line from `since`: the row's own mark and filing date, else (a row another
+# loader wrote first) the holding facts this collector added for that line.
+_ROWS = """
+SELECT h.instrument_id, h.cusip, h.isin, h.fund_entity_id, h.accession, h.period_end, h.par,
+       coalesce(h.mark_price, (mp.v)::numeric) AS mark_price, coalesce(h.filed_at, (pd.v)::date) AS filed_at
+FROM holding h
+LEFT JOIN LATERAL (SELECT f.value #>> '{}' AS v FROM fact f WHERE f.subject_type = 'holding'
+                   AND f.subject_id = h.id::text AND f.field = 'mark_price' AND f.status = 'published'
+                   ORDER BY f.learned_at DESC, f.id DESC LIMIT 1) mp ON h.mark_price IS NULL
+LEFT JOIN LATERAL (SELECT f.value #>> '{}' AS v FROM fact f WHERE f.subject_type = 'holding'
+                   AND f.subject_id = h.id::text AND f.field = 'public_date' AND f.status = 'published'
+                   ORDER BY f.learned_at DESC, f.id DESC LIMIT 1) pd ON h.filed_at IS NULL
+WHERE h.filing_type = %s AND h.period_end >= %s AND h.par > 0
+  AND coalesce(h.mark_price, (mp.v)::numeric) IS NOT NULL
+"""
+
+
 def write_medians(conn: Conn, watched: Watched, *, since: date, producer: str) -> MedianWrite:
     """Medians and dispersion for every instrument and report period from `since` on."""
-    rows = conn.execute(
-        """SELECT instrument_id, cusip, isin, fund_entity_id, accession, filed_at, period_end, par, mark_price
-           FROM holding WHERE filing_type = %s AND period_end >= %s AND mark_price IS NOT NULL AND par > 0""",
-        (FILING_TYPE, since),
-    ).fetchall()
+    rows = conn.execute(_ROWS, (FILING_TYPE, since)).fetchall()
     out = MedianWrite()
     facts, prices = FactWriter(conn), PriceWriter(conn)
     for (iid, period, cusip), group in sorted(_groups(rows, watched).items(), key=lambda kv: (kv[0][0], kv[0][1],

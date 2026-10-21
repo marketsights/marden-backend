@@ -8,8 +8,11 @@ neoclouds, and every "lease not yet commenced" amount: us-gaap has no non-dimens
 never appear here; those stay with the extraction agents.
 
 Rules:
-- `FIELDS` maps each Marden field to an ordered list of concepts that mean the same thing (US GAAP and
-  IFRS names). Per period the first concept the filer reported wins; quote_loc names it.
+- `FIELDS` maps each Marden field to an ordered list of concepts that are the same quantity (a US GAAP
+  name and its IFRS twin). Within one filing the first listed concept it reported wins; across filings
+  every value counts (a switch from IFRS to US GAAP re-presents prior periods). quote_loc names the
+  concept. Look-alikes that filers report side by side with different values (Revenues vs revenue from
+  contracts with customers, PP&E payments vs productive-asset payments) are separate fields.
 - Durations become `<base>_<n>m_usd` for 3, 6, 9 and 12-month periods (13/14-week quarters and 52/53-week
   years included); stub periods (e.g. 2 or 7 months) are skipped and counted. Instants become
   `<base>_usd`; share counts carry no `_usd`.
@@ -64,16 +67,19 @@ def _spec(base: str, kind: str, unit: str, *concepts: str) -> FieldSpec:
 
 
 FIELDS: tuple[FieldSpec, ...] = (
+    # Concepts share a field only when they are the same quantity (a US GAAP name and its IFRS twin);
+    # look-alikes that filers report side by side with different values get their own field.
     _spec("operating_cash_flow", DURATION, USD, "us-gaap:NetCashProvidedByUsedInOperatingActivities",
-          "us-gaap:NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
           "ifrs-full:CashFlowsFromUsedInOperatingActivities"),
-    # Amazon, NVIDIA, Galaxy and Applied Digital tag their capex line with PaymentsToAcquireProductiveAssets.
+    _spec("operating_cash_flow_continuing", DURATION, USD,
+          "us-gaap:NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"),
     _spec("capex", DURATION, USD, "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment",
-          "us-gaap:PaymentsToAcquireProductiveAssets",
           "ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"),
-    _spec("revenue", DURATION, USD, "us-gaap:Revenues", "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
-          "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax", "ifrs-full:Revenue",
-          "ifrs-full:RevenueFromContractsWithCustomers"),
+    # Amazon and NVIDIA tag their capex line this way (PP&E plus intangibles for NVIDIA).
+    _spec("productive_asset_payments", DURATION, USD, "us-gaap:PaymentsToAcquireProductiveAssets"),
+    _spec("revenue", DURATION, USD, "us-gaap:Revenues", "ifrs-full:Revenue"),
+    _spec("contract_revenue", DURATION, USD, "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax", "ifrs-full:RevenueFromContractsWithCustomers"),
     _spec("cash", INSTANT, USD, "us-gaap:CashAndCashEquivalentsAtCarryingValue", "ifrs-full:CashAndCashEquivalents"),
     # Total debt only where the filer tags a total; the long-term debt pieces are their own fields.
     _spec("total_debt", INSTANT, USD, "us-gaap:DebtLongtermAndShorttermCombinedAmount", "ifrs-full:Borrowings"),
@@ -246,12 +252,25 @@ def _nominal_gap(rec: Record) -> float:
     return abs(days - n * DAYS_PER_MONTH) if n else 0.0
 
 
+def _period_records(ranked: list[tuple[int, Record]], sel: Selection) -> list[Record]:
+    """One (field, period end)'s records: per filing only its first listed concept, one period start."""
+    best: dict[str, int] = {}
+    for rank, rec in ranked:
+        best[rec.accession] = min(rank, best.get(rec.accession, rank))
+    recs = [rec for rank, rec in ranked if rank == best[rec.accession]]
+    sel.skipped["shadowed"] += len(ranked) - len(recs)
+    if len({r.start for r in recs}) > 1:  # two periods of the same length end the same day: keep the closest fit
+        keep = min(recs, key=lambda r: (_nominal_gap(r), -(r.start.toordinal() if r.start else 0))).start
+        sel.skipped["period_conflict"] += sum(1 for r in recs if r.start != keep)
+        recs = [r for r in recs if r.start == keep]
+    return recs
+
+
 def select(cf: CompanyFacts, *, since: date, today: date) -> Selection:
     """The observations to write for one filer (see module docstring), oldest filing first."""
     sel = Selection()
     for spec in FIELDS:
-        # (field, end) -> concept rank -> records
-        periods: dict[tuple[str, date], dict[int, list[Record]]] = defaultdict(lambda: defaultdict(list))
+        periods: dict[tuple[str, date], list[tuple[int, Record]]] = defaultdict(list)  # (field, end) -> records
         for rank, concept in enumerate(spec.concepts):
             for unit, rows in cf.concepts.get(concept, {}).items():
                 if unit != spec.unit:
@@ -266,18 +285,10 @@ def select(cf: CompanyFacts, *, since: date, today: date) -> Selection:
                     if reason or rec is None or name is None:
                         sel.skipped[reason or "malformed"] += 1
                         continue
-                    periods[(name, rec.end)][rank].append(rec)
-        for (name, end), by_rank in periods.items():
-            best = min(by_rank)
-            sel.skipped["shadowed"] += sum(len(v) for r, v in by_rank.items() if r != best)
-            recs = by_rank[best]
-            starts = {r.start for r in recs}
-            if len(starts) > 1:  # two periods of the same length end the same day: keep the closest fit
-                keep = min(recs, key=lambda r: (_nominal_gap(r), -(r.start.toordinal() if r.start else 0))).start
-                sel.skipped["period_conflict"] += sum(1 for r in recs if r.start != keep)
-                recs = [r for r in recs if r.start == keep]
+                    periods[(name, rec.end)].append((rank, rec))
+        for (name, end), ranked in periods.items():
             first: dict[Any, Record] = {}
-            for rec in sorted(recs, key=lambda r: r.order):
+            for rec in sorted(_period_records(ranked, sel), key=lambda r: r.order):
                 first.setdefault(rec.value, rec)
             for value, rec in first.items():
                 sel.observations.append(Observation(name, value, spec.unit, end, rec))

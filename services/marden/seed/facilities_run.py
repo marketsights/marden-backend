@@ -30,18 +30,31 @@ _STATE = {FactSink: ("counts", "created", "seen"),
 
 @dataclass
 class Sections:
+    """`stats` is the loader's run-statistics dict: restored with the sinks before a retry."""
+
     conn: Conn
     sinks: tuple[FactSink | EventSink, ...]
+    stats: dict[str, Any] = field(default_factory=dict)
     timings: dict[str, float] = field(default_factory=dict)
     retries: dict[str, int] = field(default_factory=dict)
 
-    def _snapshot(self) -> list[dict[str, Any]]:
-        return [{a: copy.copy(getattr(s, a)) for a in _STATE[type(s)]} for s in self.sinks]
+    def _snapshot(self) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        sinks = [{a: copy.deepcopy(getattr(s, a)) for a in _STATE[type(s)]} for s in self.sinks]
+        return sinks, copy.deepcopy(self.stats)
 
-    def _restore(self, snap: list[dict[str, Any]]) -> None:
-        for sink, state in zip(self.sinks, snap, strict=True):
+    def _restore(self, snap: tuple[list[dict[str, Any]], dict[str, Any]]) -> None:
+        for sink, state in zip(self.sinks, snap[0], strict=True):
             for attr, value in state.items():
                 setattr(sink, attr, value)
+        for key, value in snap[1].items():  # in place: the loader holds references into stats
+            current = self.stats.get(key)
+            if isinstance(current, dict) and isinstance(value, dict):
+                current.clear()
+                current.update(value)
+            elif isinstance(current, list) and isinstance(value, list):
+                current[:] = value
+            else:
+                self.stats[key] = value
 
     def run(self, name: str, fn: Callable[[], T]) -> T:
         """Run `fn` in its own transaction (a savepoint when the caller holds one)."""

@@ -8,7 +8,9 @@ A model over facts Marden already holds (tag M, producer 'model:capacity_zones',
   checked against the zones of PJM's latest stored auction results;
 - ISO-NE: the capacity zone of the latest stored FCA that holds the subject's state (from each zone's
   published `load_zones`); a state split across capacity zones is left unassigned;
-- MISO: the Local Resource Zone, NYISO: the load zone A-K, only where the facts name it ("MISO (Zone 9)");
+- MISO: the Local Resource Zone the facts name ("MISO (Zone 9)"), else the state's only LRZ (MISO_STATE_LRZ),
+  else in Wisconsin / Michigan (split between zones) the LRZ of the utility named;
+- NYISO: the load zone A-K, only where the facts name it ("NYISO (Zone A)");
 - ERCOT, SPP, CAISO and non-RTO areas have no capacity auction: capacity_market 'none' and the reason, no
   capacity_zone. A market field naming several markets marks a multi-site portfolio, and then decides over
   the single boundary point grid_join placed: 'none' when every market named runs no capacity auction, else
@@ -87,6 +89,16 @@ RPM_ZONES = ("AE", "AEP", "APS", "ATSI", "BGE", "COMED", "DAYTON", "DEOK", "DLCO
 ISONE_LOAD_ZONE_STATE = {"CT": "CT", "ME": "ME", "NH": "NH", "VT": "VT", "RI": "RI", "NEMA": "MA", "SEMA": "MA",
                          "WCMA": "MA"}
 _MISO_ZONE = re.compile(r"\b(?:lrz|zone)\s*(\d{1,2})\b", re.I)
+# MISO Local Resource Zones are groups of Local Balancing Authorities; in these states every MISO LBA is in one
+# LRZ (1: MN, ND, SD and western WI; 3: IA; 4: IL; 5: MO; 6: IN, KY; 8: AR; 9: LA, TX; 10: MS). Wisconsin and
+# Michigan are split (LRZ 1 / 2, LRZ 2 / 7) and are placed only by the utilities below.
+MISO_STATE_LRZ = {"MN": 1, "ND": 1, "SD": 1, "IA": 3, "IL": 4, "MO": 5, "IN": 6, "KY": 6, "AR": 8, "LA": 9, "TX": 9,
+                  "MS": 10}
+MISO_SPLIT_STATE_UTILITY = {
+    "WI": ((r"we energies|wepco|wisconsin electric|wisconsin public service|alliant|wisconsin power (&|and) light|"
+            r"madison gas", 2), (r"xcel|northern states power|dairyland", 1)),
+    "MI": ((r"\bdte\b|consumers energy", 7), (r"upper peninsula power|uppco|upper michigan energy|umerc", 2)),
+}
 _NYISO_ZONE = re.compile(r"\bzone\s*([a-k])\b", re.I)
 _STATE = re.compile(r"^[A-Z]{2}$")
 
@@ -135,6 +147,23 @@ def pjm_zone(texts: list[str], known: set[str]) -> tuple[str | None, str | None]
     if zones[0] not in known:
         return None, f"PJM zone {zones[0]} is not in PJM's latest auction results"
     return zones[0], f"PJM transmission zone {zones[0]} from the utility name"
+
+
+def miso_zone(texts: list[str], state: str | None) -> tuple[str | None, str]:
+    """(LRZ, note): the zone the facts name ('MISO (Zone 9)'), else the only MISO LRZ of the subject's state, else
+    (Wisconsin, Michigan) the LRZ of the utility named."""
+    m = next((m for t in texts if (m := _MISO_ZONE.search(t)) and 1 <= int(m[1]) <= 10), None)
+    if m:
+        return f"LRZ{int(m[1])}", f"MISO zone named in the text: {m[0]!r}"
+    if state in MISO_STATE_LRZ:
+        n = MISO_STATE_LRZ[state]
+        return f"LRZ{n}", f"MISO Local Resource Zone {n}: every MISO Local Balancing Authority in {state} is in it"
+    split = MISO_SPLIT_STATE_UTILITY.get(state or "", ())
+    zones = {n for pattern, n in split for t in texts if re.search(pattern, t, re.I)}
+    if len(zones) == 1:
+        n = zones.pop()
+        return f"LRZ{n}", f"MISO Local Resource Zone {n}: the {state} utility named in the facts is in it"
+    return None, f"no MISO Local Resource Zone named, and state {state!r} does not decide one"
 
 
 def pjm_zones(conn: Conn) -> set[str]:
@@ -221,9 +250,7 @@ def classify(facts: dict[str, Row], state: str | None, ctx: dict[str, Any]) -> A
     if market == "pjm":
         out.zone, out.zone_loc = pjm_zone(texts, ctx["pjm_zones"])
     elif market == "miso":
-        m = next((m for t in texts if (m := _MISO_ZONE.search(t)) and 1 <= int(m[1]) <= 10), None)
-        out.zone, out.zone_loc = (f"LRZ{int(m[1])}", f"MISO zone named in the text: {m[0]!r}") if m else (
-            None, "no MISO Local Resource Zone named")
+        out.zone, out.zone_loc = miso_zone(texts, state)
     elif market == "nyiso":
         m = next((m for t in texts if (m := _NYISO_ZONE.search(t))), None)
         out.zone, out.zone_loc = (m[1].upper(), f"NYISO zone named in the text: {m[0]!r}") if m else (

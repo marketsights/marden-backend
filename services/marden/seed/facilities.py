@@ -186,12 +186,17 @@ def load_into(conn: Conn, *, cases: list[str] | None = None, campus_keys: tuple[
     arc = Archive(conn, frozenset(cases) if cases is not None else None, frozenset(campus_keys), exhibit_limit)
     facts = FactSink(conn)
     events = EventSink(conn, facts)
-    sections = Sections(conn, (facts, events))
+    stats: dict[str, Any] = {
+        "campuses": 0, "buildings": 0, "skipped": {}, "plants": plant_stats(),
+        "dockets": {"docket_entities": 0, "items": 0, "skipped": []}, "state_events": {"events": 0, "skipped": []},
+        "power_events": new_stats(), "exhibits": {"documents": 0, "new": 0}, "_catalysts": catalyst_stats(conn),
+    }
+    dockets, pev, cat = stats["dockets"], stats["power_events"], stats["_catalysts"]  # restored in place on retry
+    sections = Sections(conn, (facts, events), stats)
     run = sections.run
     run("archive", arc.load_all)  # documents first, so every later section can cite them
     existing_sites = {r["slug"] for r in conn.execute("SELECT slug FROM site").fetchall()}
     index = counties(arc.data[COUNTIES])
-    stats: dict[str, Any] = {"campuses": 0, "buildings": 0, "skipped": {}}
     for rows in chunked(arc.dcmap_rows, 2):
         run("campuses", lambda rows=rows: _campuses(conn, facts, arc, rows, index, stats))
     for name in arc.epoch_names:
@@ -200,14 +205,12 @@ def load_into(conn: Conn, *, cases: list[str] | None = None, campus_keys: tuple[
         run("status", lambda rows=rows: _statuses(facts, arc, rows))
     links = PowerLinks.build(arc, existing_sites)
     stats["skipped"]["power_links"] = links.skipped
-    stats["plants"] = plant_stats()
     for pids in chunked(sorted(arc.projects), 2):
         run("plants", lambda pids=pids: write_plants(conn, facts, arc, links, pids, stats["plants"]))
     stats["serves"] = run("serves", lambda: write_serves(conn, facts, arc, links))
     stats["units"] = run("units", lambda: write_units(conn, facts, arc, links))
     stats["air_permits"] = run("air_permits", lambda: write_air_permits(facts, arc, existing_sites))
     stats["site_links"] = run("site_links", lambda: propose_links(conn, facts, arc, existing_sites))
-    dockets: dict[str, Any] = {"docket_entities": 0, "items": 0, "skipped": []}
     for key in sorted(arc.inventory_by_key):
         sites = run("dockets", lambda key=key: write_docket(conn, facts, arc, key, existing_sites, dockets))
         for items in chunked(arc.docket_file(key).get("items") or [], CHUNK // len(sites)) if sites else []:
@@ -215,26 +218,22 @@ def load_into(conn: Conn, *, cases: list[str] | None = None, campus_keys: tuple[
                 write_docket_items(events, arc, key, items, sites, dockets))
     for part in chunked(arc.data[POWER].get("dockets") or [], CHUNK // 6):
         run("power_dockets", lambda part=part: write_power_dockets(conn, facts, arc, part, dockets))
-    stats["dockets"] = dockets
-    stats["state_events"] = {"events": 0, "skipped": []}
     for rows in chunked(arc.data[EVENTS], CHUNK):
         run("state_events", lambda rows=rows: write_state_events(events, arc, existing_sites, rows,
                                                                  stats["state_events"]))
-    pev = stats["power_events"] = new_stats()
     for pids in chunked(sorted(arc.projects), 3):
         run("power_events", lambda pids=pids: write_project_events(events, arc, links, pids, pev))
     for feed in chunked(arc.data[POWER].get("feed") or [], CHUNK // 2):
         run("power_feed", lambda feed=feed: write_feed_events(events, arc, links, existing_sites, feed, pev))
     run("power_filings", lambda: write_docket_filings(events, arc, links, existing_sites, pev))
-    cat = catalyst_stats(conn)
     for rows in chunked(arc.data[CATALYSTS]["rows"], CHUNK // 4):
         run("catalysts", lambda rows=rows: write_catalysts(events, arc, existing_sites, rows, cat))
     for items in chunked(sorted(cat["next"].items()), CHUNK):
         run("next_catalysts", lambda items=items: write_next_catalysts(facts, arc, items))
-    stats["catalysts"] = {k: cat[k] for k in ("catalysts", "events", "skipped")} | {"next": len(cat["next"])}
-    stats["exhibits"] = {"documents": 0, "new": 0}
     for recs in chunked(exhibit_records(arc), CHUNK):
         run("exhibits", lambda recs=recs: write_exhibit_documents(conn, arc, recs, stats["exhibits"]))
+    stats.pop("_catalysts")
+    stats["catalysts"] = {k: cat[k] for k in ("catalysts", "events", "skipped")} | {"next": len(cat["next"])}
     stats.update({
         "facts_seen": facts.seen, "facts_new": facts.created, "events_new": events.created,
         "event_reviews_new": events.reviews, "materiality_notes_new": events.notes,

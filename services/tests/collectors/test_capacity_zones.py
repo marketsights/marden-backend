@@ -54,7 +54,15 @@ def test_capacity_markets_and_zones():
     assert _classify(power_iso="MISO (Zone 9)", power_utility="Entergy Louisiana").zone == "LRZ9"
     assert _classify(power_iso="MISO (Zone 2)").market == "miso"
     no_lrz = _classify(power_iso="MISO")
-    assert (no_lrz.market, no_lrz.zone, no_lrz.reason) == ("miso", None, "no MISO Local Resource Zone named")
+    assert (no_lrz.market, no_lrz.zone) == ("miso", None) and "no MISO Local Resource Zone named" in no_lrz.reason
+    # MISO's LRZ by state where the state's MISO footprint is one zone; Wisconsin and Michigan by utility
+    assert _classify("IA", iso="MISO", utility="MidAmerican Energy").zone == "LRZ3"
+    assert _classify("MS", iso="MISO").zone == "LRZ10"
+    assert _classify("LA", iso="MISO", power_iso="MISO (Zone 9)").zone_loc.startswith("MISO zone named")
+    assert _classify("WI", iso="MISO", utility="We Energies").zone == "LRZ2"
+    assert _classify("WI", iso="MISO", utility="Xcel Energy (Northern States Power-Wisconsin)").zone == "LRZ1"
+    assert _classify("MI", iso="MISO", utility="DTE Electric").zone == "LRZ7"
+    assert _classify("WI", iso="MISO").zone is None
     assert _classify(power_iso="NYISO (Zone A)").zone == "A"
     assert (_classify("MA", iso="ISO-NE").zone, _classify("ME", iso="ISO-NE").zone) == ("ROP", "MAINE")
     assert _classify("NY", iso="ISO-NE").zone is None

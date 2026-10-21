@@ -9,7 +9,8 @@
   `sec_index` every 10 minutes, and a fund complex files hundreds of series under one CIK.
 - `write_filing`: per matched position a `holding` row (line_key shared with the holdings seed
   loader, so the same filed line is one row), its attribute facts on subject 'holding' (public_date,
-  units, cur_cd, exchange_rt, fx_convention, fair_value_level, asset_cat, unfunded_commitment) and a
+  units, cur_cd, exchange_rt, fx_convention, fair_value_level, asset_cat, unfunded_commitment, and
+  mark_price for a non-USD line valued in its own currency) and a
   `fund_mark` price; the series' net assets as entity fact `net_assets_usd`.
 Everything is tag F (filed); reruns write nothing new (dedupe keys and the holding unique key).
 """
@@ -238,7 +239,11 @@ def write_filing(
         out.holdings_new += int(res.created)
         if not res.created:  # a line another loader wrote first: link it if it was left unlinked
             out.holdings_linked += int(holdings.link_instrument(res.id, m.instrument_ids[0]))
-        for name, value in _holding_facts(p, filing_date, conv).items():
+        attrs = _holding_facts(p, filing_date, conv)
+        if price is not None and p.cur_cd != "USD":
+            # the mark in the position's own currency; a row another loader wrote first keeps its null mark
+            attrs["mark_price"] = price
+        for name, value in attrs.items():
             out.facts_new += facts.add("holding", str(res.id), name, value, **common).created
         if price is None:
             out.no_mark += 1

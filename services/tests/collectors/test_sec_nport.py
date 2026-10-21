@@ -215,13 +215,20 @@ def instruments(committed):
              ('NP-DLR-DUTCH', 'Digital Dutch Finco EUR notes', 'bond', 'Digital Dutch Finco', NULL, 'XS2232115423');
            INSERT INTO entity (id, name, kind, meta) VALUES
              ('polen-high-income-etf', 'Polen High Income ETF', 'fund',
-              '{"role": "nport_series", "registrant_cik": "1388485"}');
-           -- one line of that filing as the holdings seed loader writes it (same fund, accession, line_key)
+              '{"role": "nport_series", "registrant_cik": "1388485"}'),
+             ('vanguard-total-international-bond-ii-index-fund', 'VANGUARD TOTAL INTERNATIONAL BOND II INDEX FUND',
+              'fund', '{"role": "nport_series", "registrant_cik": "1532203"}');
+           -- lines of two filings as the holdings seed loader writes them (same fund, accession, line_key): it
+           -- links conservatively and does not price non-USD lines
            INSERT INTO holding (fund_entity_id, accession, line_key, period_end, filing_type, filing_url, cusip,
-                                par, value_usd, mark_price)
-           VALUES ('polen-high-income-etf', '0000940400-26-037899', '00202DAA5|PA|275000|292439.4', '2026-07-31',
-                   'N-PORT', 'https://www.sec.gov/Archives/edgar/data/1388485/000094040026037899/primary_doc.xml',
-                   '00202DAA5', 275000, 292439.4, 106.3416)"""
+                                isin, par, value_usd, mark_price) VALUES
+             ('polen-high-income-etf', '0000940400-26-037899', '00202DAA5|PA|275000|292439.4', '2026-07-31',
+              'N-PORT', 'https://www.sec.gov/Archives/edgar/data/1388485/000094040026037899/primary_doc.xml',
+              '00202DAA5', NULL, 275000, 292439.4, 106.3416),
+             ('vanguard-total-international-bond-ii-index-fund', '0001532203-26-000117',
+              'XS2232115423|PA|4000000|3926532.36', '2026-07-31', 'N-PORT',
+              'https://www.sec.gov/Archives/edgar/data/1532203/000153220326000117/primary_doc.xml',
+              NULL, 'XS2232115423', 4000000, 3926532.36, NULL)"""
     )
     with db.transaction() as conn:
         facts = FactWriter(conn)
@@ -251,8 +258,8 @@ def test_run_writes_holdings_marks_and_medians_once(instruments):
     first = _run(_fetcher(transport))
     assert first.ok, first.summary()
     assert (first.filings_listed, first.filings_fetched, first.filings_skipped_no_match) == (4, 8, 3)
-    assert (first.filings_matched, first.holdings_new, first.holdings_seen, first.positions_marked) == (5, 9, 10, 10)
-    assert first.holdings_linked == 1  # the seeded line had no instrument
+    assert (first.filings_matched, first.holdings_new, first.holdings_seen, first.positions_marked) == (5, 8, 10, 10)
+    assert first.holdings_linked == 2  # the seeded lines had no instrument
     assert first.dataset["2026q3"]["candidates"] == 4 and first.datasets_read == ["2026q3"]
     assert first.matched_by_period == {"2026-07-31": 4, "2026-08-31": 1}
     assert first.fx["EUR 2026-07-31"]["reference"] == "0.86719"
@@ -283,7 +290,7 @@ def test_run_writes_holdings_marks_and_medians_once(instruments):
     eur = db_.execute("""SELECT f.field, f.value FROM fact f JOIN holding h ON f.subject_id = h.id::text
                          WHERE f.subject_type = 'holding' AND h.accession = '0001532203-26-000117'""").fetchall()
     assert {r["field"]: r["value"] for r in eur}.items() >= {
-        "cur_cd": "EUR", "exchange_rt": 1.15315, "fx_convention": "usd_per_currency"}.items()
+        "cur_cd": "EUR", "exchange_rt": 1.15315, "fx_convention": "usd_per_currency", "mark_price": 85.1262}.items()
 
     # the seed loader's entity for the Polen ETF is reused and now carries the series id
     polen = db_.execute("SELECT meta FROM entity WHERE id = 'polen-high-income-etf'").fetchone()

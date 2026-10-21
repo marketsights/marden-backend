@@ -124,6 +124,12 @@ def _entry(cells: list[str | None]) -> QueueEntry | None:
     })
 
 
+def _cell_text(words: list[tuple[Any, ...]], box: tuple[float, float, float, float]) -> str:
+    x0, y0, x1, y1 = box
+    inside = [w for w in words if x0 <= (w[0] + w[2]) / 2 <= x1 and y0 <= (w[1] + w[3]) / 2 <= y1]
+    return " ".join(w[4] for w in sorted(inside, key=lambda w: (w[5], w[6], w[7])))
+
+
 def parse_pdf(data: bytes) -> tuple[date | None, list[QueueEntry]]:
     """(the PDF's modification date, entries)."""
     if not data.startswith(b"%PDF-"):
@@ -139,10 +145,11 @@ def parse_pdf(data: bytes) -> tuple[date | None, list[QueueEntry]]:
     for page in doc:
         if TITLE not in page.get_text():
             raise ParseError(f"EPE queue PDF changed: no {TITLE!r} title")
+        words = page.get_text("words")  # (x0, y0, x1, y1, word, block, line, word number)
         for table in page.find_tables().tables:
             for row in table.rows:
-                # each cell's own text box (the table's extract() interleaves wrapped lines)
-                cells = [" ".join(page.get_textbox(pymupdf.Rect(c)).split()) if c else None for c in row.cells]
+                # the words inside each cell, in reading order (the table's extract() interleaves wrapped lines)
+                cells = [_cell_text(words, c) if c else None for c in row.cells]
                 if len(cells) != COLUMNS:
                     raise ParseError(f"EPE queue table has {len(cells)} columns, expected {COLUMNS}")
                 if (cells[1] or "").upper() == "QUEUE #":
