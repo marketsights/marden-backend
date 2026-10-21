@@ -111,7 +111,7 @@ def lease_record(conn: Conn, ob: Row, ctx: dict[str, Any]) -> Doc | None:
     if not edge_known(facts, rows):
         return None
     names, model_out = ctx["names"], ctx["model"]
-    given = (output_field(model_out, "leases") or {}).get(ob["id"])
+    given = model_leases(model_out).get(ob["id"])
     given = given if isinstance(given, dict) else {}
     sites = edge_sites(ob, facts, ctx["sites"])
     site = sites[0] if len(sites) == 1 else None
@@ -170,8 +170,19 @@ def reconciliation(model_out: Row | None) -> list[Doc]:
     return rows
 
 
+def model_leases(model_out: Row | None) -> dict[str, Any]:
+    """The leases model's per-lease values by lease id: its `leases` is LeaseRecord[] (types.ts
+    LeaseMapPage); a {id: {...}} map is read as is."""
+    raw = output_field(model_out, "leases")
+    if isinstance(raw, list):
+        return {r["id"]: r for r in raw if isinstance(r, dict) and isinstance(r.get("id"), str)}
+    return raw if isinstance(raw, dict) else {}
+
+
 def inferred(model_out: Row | None) -> list[Doc]:
     rows = output_field(model_out, "inferred") or []
+    if not rows:  # LeaseMapPage form: the inferred records sit in `leases` with attribution 'Inferred'
+        rows = [r for r in model_leases(model_out).values() if r.get("attribution") == "Inferred"]
     return [
         r for r in rows if isinstance(r, dict) and isinstance(r.get("id"), str) and r.get("attribution") == "Inferred"
     ]
@@ -214,7 +225,8 @@ def build_leases(conn: Conn):
         "bands": {},
     }
     leases = [r for ob in obligations if (r := lease_record(conn, ob, ctx)) is not None]
-    leases.extend(inferred(model_out))
+    edge_ids = {ob["id"] for ob in obligations}
+    leases.extend(r for r in inferred(model_out) if r["id"] not in edge_ids)
     leases.sort(key=_rank)
     recon = reconciliation(model_out)
     yield "all", {"asOf": day().isoformat(), "totals": totals(leases, recon), "reconciliation": recon, "leases": leases}

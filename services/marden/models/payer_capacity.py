@@ -19,7 +19,8 @@ clouds, AI labs and neoclouds on the obligation map), subject ('entity', id) = P
   largest payer's share of the payer's filed backlog (obligation map);
 - downgradeRisk (Marden view, never a rating): points for each negative outlook (up to 2), a downgrade in
   the last 12 months, sitting on the last investment-grade rung (BBB- / Baa3), leverage rising one turn or
-  more along the path, and a positive 3-year funding gap; 3+ = High, 1-2 = Watch, 0 = Low; n/d when no
+  more along the path, and a 3-year funding gap above a quarter of three years' operating cash flow;
+  3+ = High, 1-2 = Watch, 0 = Low; n/d when no
   rating and no filed financials are public;
 - exposed: ExposedInstrument per instrument behind a lease, compute contract or guarantee the payer owes,
   with the rating-tied term its documents quote (agreement_term / covenant_test, tag F) and its holders.
@@ -56,6 +57,7 @@ KIND_LABELS = {"cloud": "Cloud", "ai_lab": "AI lab", "neocloud": "Neocloud"}
 _SHARE = re.compile(r"([A-Z][\w&.\- ]{1,40}?)\s*~?(\d{1,3}(?:\.\d+)?)%")
 _RATING_TERM = re.compile(r"rating|investment[- ]grade|\bIG\b|\bBBB|\bBaa", re.I)
 DOWNGRADE = re.compile(r"\b(cut|downgraded|lowered)\b", re.I)
+GAP_SHARE = 0.25  # a funding gap counts once it exceeds this share of three years' operating cash flow
 ENTITY_FIELDS = (*FIN_FIELDS, "funding_fact", "top_customers")
 
 
@@ -85,7 +87,7 @@ def _action_date(text: str | None) -> date | None:
 
 
 def downgrade_band(rs: dict[str, AgencyRating], lev_today: float | None, lev_peak: float | None,
-                   gap_3y: float | None, has_financials: bool, day: date) -> tuple[str, list[str]]:
+                   gap_3y: float | None, ocf_b: float | None, has_financials: bool, day: date) -> tuple[str, list[str]]:
     reasons = []
     neg = [a for a, r in rs.items() if r.outlook == "Negative"]
     reasons += [f"{a} outlook negative" for a in neg[:2]]
@@ -98,8 +100,8 @@ def downgrade_band(rs: dict[str, AgencyRating], lev_today: float | None, lev_pea
         reasons.append("on the last investment-grade rung (BBB- / Baa3)")
     if lev_today is not None and lev_peak is not None and lev_peak - lev_today >= 1.0:
         reasons.append(f"lease-adjusted leverage rises {lev_peak - lev_today:.1f}x along the path")
-    if gap_3y is not None and gap_3y > 0:
-        reasons.append(f"3-year funding gap ${gap_3y:.1f}B")
+    if gap_3y is not None and ocf_b is not None and gap_3y > GAP_SHARE * 3 * max(ocf_b, 0.0):
+        reasons.append(f"3-year funding gap ${gap_3y:.1f}B, over a quarter of 3 years' operating cash flow")
     if not rs and not has_financials:
         return "n/d", reasons
     return ("High" if len(reasons) >= 3 else "Watch" if reasons else "Low"), reasons
@@ -177,7 +179,9 @@ def payer_doc(conn: Conn, eid: str, day: date, edges: list[graph.Edge], fin: Any
     cover, cmiss = ai_coverage(conn, eid, ent["kind"], day, edges)
     missing += cmiss
     has_fin = fin.debt() is not None or fin.ttm("operating_cash_flow") is not None
-    band, reasons = downgrade_band(rs, p.leverage_today, p.leverage_peak, p.gap_3y, has_fin, day)
+    ocf = fin.ttm("operating_cash_flow")
+    band, reasons = downgrade_band(rs, p.leverage_today, p.leverage_peak, p.gap_3y,
+                                   ocf.usd / 1e9 if ocf else None, has_fin, day)
     missing.append("agency-stated downgrade triggers (agency releases not collected): headroom and breach year n/d")
     if not rs:
         missing.append(f"entity {eid}: agency ratings (no rating fact public on {day})")

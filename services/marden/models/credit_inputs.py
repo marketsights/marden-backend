@@ -244,15 +244,23 @@ def parse_ratings(text: str, row: Row) -> list[AgencyRating]:
     return [out[a] for a in AGENCIES if a in out]
 
 
+UNSECURED_KINDS = ("bond", "convert", "note")
+_NOT_ITS_OWN = re.compile(r"backstop|guarant|^\s*[\w.,&' -]{0,40}\bunrated\b", re.I)
+
+
 def rating_rows(conn: Conn, day: date, entity_id: str) -> list[Row]:
-    """Rating facts about the company: its own notes' rating texts, then the tenant rating of the sites it
-    leases, newest first."""
-    inst = [r["id"] for r in conn.execute("SELECT id FROM instrument WHERE issuer_entity_id = %s",
-                                          (entity_id,)).fetchall()]
+    """Rating facts about the company itself, newest first: rating texts on its own unsecured notes or
+    texts that state the issuer rating ('Issuer: ...'; a secured facility's own rating is not the
+    company's), then the tenant rating of the sites it leases (not when the text rates a backstop or says
+    the tenant is unrated)."""
+    insts = conn.execute("SELECT id, kind FROM instrument WHERE issuer_entity_id = %s", (entity_id,)).fetchall()
+    kinds = {r["id"]: r["kind"] for r in insts}
     sites = [r["site_slug"] for r in conn.execute(
         "SELECT site_slug FROM chain_party WHERE entity_id = %s AND role = 'tenant'", (entity_id,)).fetchall()]
-    rows = pit.fact_rows(conn, day, "instrument", inst, ["rating"]) if inst else []
-    rows += pit.fact_rows(conn, day, "site", sites, ["tenant_rating"]) if sites else []
+    rows = [r for r in (pit.fact_rows(conn, day, "instrument", list(kinds), ["rating"]) if kinds else [])
+            if isinstance(r["value"], str) and (kinds.get(r["subject_id"]) in UNSECURED_KINDS or "Issuer:" in r["value"])]
+    rows += [r for r in (pit.fact_rows(conn, day, "site", sites, ["tenant_rating"]) if sites else [])
+             if isinstance(r["value"], str) and not _NOT_ITS_OWN.search(r["value"])]
     return sorted(rows, key=lambda r: (r["valid_from"], r["subject_type"] == "instrument"), reverse=True)
 
 

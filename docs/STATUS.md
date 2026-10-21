@@ -38,6 +38,9 @@ API should return 404 (not 503) for collateral on non-GPU instruments.
 Shared local dev servers: API :4000 (dev auth), web :3000. FRED was in maintenance at 18:14 UTC; retry scheduled 20:16 UTC (ICE BofA OAS needed by the tier curves).
 Done since the table below: price pulls reviewed and fixed (commit 454271d); FRED ICE series unblocked (7ef0e37). Open: clean Yahoo duplicates and the 107 intraday TRACE rows in the main DB after the price model run; rotate the Neon app_rw password (it was printed into a local agent log).
 
+Goal set by the owner 2026-10-21: everything working today, selling to funds from 2026-10-22.
+Release-readiness pass to run when the workflows above finish: wire MARDEN_SHOW_UNLICENSED_PRICES into API/read models/models; clean the main-DB Yahoo duplicates and intraday TRACE rows; fix tests/test_worker.py for the new tasks; API 404 (not 503) for collateral on non-GPU instruments; resolve the 7 grid-region review items; review-queue UI (staff); weekly note; full suites; route walk of every screen with real data; deploy per docs/DEPLOY.md once the owner adds credentials.
+
 ### Earlier runs
 | Workflow | What | Script |
 | --- | --- | --- |
