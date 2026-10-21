@@ -1,0 +1,695 @@
+{
+  "assets": {
+    "geojson-782aafb09c6f": {
+      "file:checksum": "d501104d3de3a0300bf72a42bc54d25b270097",
+      "file:size": 68450082,
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/control-areas/v1.0.0/geojson/control-areas-geojson.geojson",
+      "roles": [
+        "data"
+      ],
+      "title": "control-areas-geojson.geojson",
+      "type": "application/geo+json"
+    },
+    "geopackage-f50717e228a2": {
+      "file:checksum": "d50110429dc9c26b9e4c1a44273943b5613afa",
+      "file:size": 36761600,
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/control-areas/v1.0.0/geopackage/control-areas.gpkg",
+      "roles": [
+        "data"
+      ],
+      "title": "control-areas.gpkg",
+      "type": "application/geopackage+sqlite3"
+    },
+    "geoparquet-80ff2fee44a9": {
+      "file:checksum": "d50110dfe650bed606837253f972acb5c2de61",
+      "file:size": 15945838,
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/control-areas/v1.0.0/geoparquet/control-areas.parquet",
+      "roles": [
+        "data"
+      ],
+      "title": "control-areas.parquet",
+      "type": "application/vnd.apache.parquet"
+    },
+    "pmtiles-99d4d9e45013": {
+      "file:checksum": "d50110f4b38012580ceacac48f94c11f8c673b",
+      "file:size": 11788213,
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/control-areas/v1.0.0/pmtiles/control-areas.pmtiles",
+      "roles": [
+        "data"
+      ],
+      "title": "control-areas.pmtiles",
+      "type": "application/vnd.pmtiles"
+    },
+    "shapefile-d382aad8c0fd": {
+      "file:checksum": "d5011020967e225917b4716b63bd0af3e80648",
+      "file:size": 19765044,
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/control-areas/v1.0.0/shapefile/control-areas.zip",
+      "roles": [
+        "data"
+      ],
+      "title": "control-areas.zip",
+      "type": "application/zip"
+    }
+  },
+  "description": "This feature class/shapefile represents electric power control areas. Control Areas, also known as Balancing Authority Areas, are controlled by Balancing Authorities, who are responsible for monitoring and balancing the generation, load, and transmission of electric power within their region, often comprised of the retail service territories of numerous electric power utilities. Each control area is interconnected with neighboring ones to facilitate emergency support, coordinated operations, and power purchases and sales. The following updates have been made since the previous release: 1 feature removed.",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -158.2809,
+          21.2547500000001,
+          -66.95013,
+          61.48406
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "hifld:agency": "Department of Energy",
+  "hifld:feature_count": 71,
+  "hifld:feature_id_column": null,
+  "hifld:geometry_column": "geometry",
+  "hifld:geometry_type": "MultiPolygon",
+  "hifld:inventory_match_type": null,
+  "hifld:manifest_keys": [
+    "control-areas/metadata/source_manifest.json",
+    "control-areas/control-areas/metadata/source_manifest.json"
+  ],
+  "hifld:manifest_role": "resolved_version",
+  "hifld:metadata_resolved_from": {},
+  "hifld:metadata_sources": [],
+  "hifld:native_bbox": [
+    -158.2809,
+    21.2547500000001,
+    -66.95013,
+    61.48406
+  ],
+  "hifld:native_crs": "{\"$schema\": \"https://proj.org/schemas/v0.7/projjson.schema.json\", \"coordinate_system\": {\"axis\": [{\"abbreviation\": \"Lat\", \"direction\": \"north\", \"name\": \"Geodetic latitude\", \"unit\": \"degree\"}, {\"abbreviation\": \"Lon\", \"direction\": \"east\", \"name\": \"Geodetic longitude\", \"unit\": \"degree\"}], \"subtype\": \"ellipsoidal\"}, \"datum\": {\"ellipsoid\": {\"inverse_flattening\": 298.257223563, \"name\": \"WGS 84\", \"semi_major_axis\": 6378137}, \"name\": \"World Geodetic System 1984\", \"type\": \"GeodeticReferenceFrame\"}, \"id\": {\"authority\": \"EPSG\", \"code\": 4326}, \"name\": \"WGS 84\", \"type\": \"GeographicCRS\"}",
+  "hifld:office": "Oak Ridge National Laboratory",
+  "hifld:quality": {
+    "columns_hash": "0eaa55a93d77123f923e94b30e543e742dae8490e8797fe90f4f91a2c5e7b9c2",
+    "invalid_geometry_count": 28,
+    "manifest_href": "metadata/quality_manifest.json",
+    "null_geometry_count": 0,
+    "passed": false,
+    "provenance": "production_metadata_and_parquet_footer_spike",
+    "sampled_feature_count": null,
+    "sampled_invalid_geometry_count": null,
+    "sampled_null_geometry_count": null
+  },
+  "hifld:source_dates": {
+    "issued": "2022-12-09",
+    "modified": "2025-04-08",
+    "provenance": {
+      "issued": "inventory",
+      "modified": "inventory"
+    }
+  },
+  "hifld:spatial_status": "spatial",
+  "id": "hifld/control-areas/control-areas/v1.0.0",
+  "keywords": [
+    "Energy",
+    "Boundaries"
+  ],
+  "license": "other",
+  "links": [
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/releases/1704edb3-322d-469c-91da-92902fe76a2d/catalog.json",
+      "rel": "root",
+      "type": "application/json"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/releases/1704edb3-322d-469c-91da-92902fe76a2d/hifld/control-areas/control-areas/catalog.json",
+      "rel": "parent",
+      "type": "application/json"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/releases/1704edb3-322d-469c-91da-92902fe76a2d/hifld/control-areas/control-areas/v1.0.0/collection.json",
+      "rel": "self",
+      "type": "application/json"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/control-areas/v1.0.0/AGENTS.md",
+      "rel": "agents",
+      "type": "text/markdown"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/control-areas/v1.0.0/README.md",
+      "rel": "describedby",
+      "type": "text/markdown"
+    },
+    {
+      "href": "https://www.datalumos.org/datalumos/project/239072/version/V1/view",
+      "rel": "derived_from"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/control-areas/v1.0.0/pmtiles/control-areas.pmtiles",
+      "rel": "pmtiles",
+      "title": "control-areas.pmtiles",
+      "type": "application/vnd.pmtiles"
+    }
+  ],
+  "providers": [
+    {
+      "name": "Department of Energy",
+      "roles": [
+        "producer"
+      ]
+    },
+    {
+      "name": "HIFLD Next",
+      "roles": [
+        "host"
+      ],
+      "url": "https://hifld.publicenvirodata.org"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://stac-extensions.github.io/version/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "stac_version": "1.1.0",
+  "table:columns": [
+    {
+      "is_geometry": true,
+      "name": "geometry",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "geometry"
+    },
+    {
+      "exampleValues": [
+        "27",
+        "28",
+        "49",
+        "23",
+        "31"
+      ],
+      "is_geometry": false,
+      "max": "71.0",
+      "min": "1.0",
+      "name": "OBJECTID",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "13434",
+        "13485",
+        "18429",
+        "11208",
+        "14378"
+      ],
+      "is_geometry": false,
+      "length": 5,
+      "name": "ID",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "ISO NEW ENGLAND INC.",
+        "NEW SMYRNA BEACH, UTILITIES COMMISSION OF",
+        "CITY OF TACOMA, DEPARTMENT OF PUBLIC UTILITIES, LIGHT DIVISION",
+        "LOS ANGELES DEPARTMENT OF WATER AND POWER",
+        "PACIFICORP - WEST"
+      ],
+      "is_geometry": false,
+      "length": 62,
+      "name": "NAME",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "1 SULLIVAN RD",
+        "200 CANAL ST.",
+        "3628 SOUTH 35TH STREET",
+        "P O BOX 51111",
+        "P O BOX 26000"
+      ],
+      "is_geometry": false,
+      "length": 32,
+      "name": "ADDRESS",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "HOLYOKE",
+        "NEW SMYRNA BEACH",
+        "TACOMA",
+        "LOS ANGELES",
+        "PORTLAND"
+      ],
+      "is_geometry": false,
+      "length": 16,
+      "name": "CITY",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "MA",
+        "FL",
+        "WA",
+        "CA",
+        "OR"
+      ],
+      "is_geometry": false,
+      "length": 2,
+      "name": "STATE",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "01040",
+        "32168",
+        "98411",
+        "90051",
+        "97256"
+      ],
+      "is_geometry": false,
+      "length": 13,
+      "name": "ZIP",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "(413) 535-4000",
+        "(386) 427-1361",
+        "NOT AVAILABLE",
+        "NOT AVAILABLE",
+        "(888) 221-7070"
+      ],
+      "is_geometry": false,
+      "length": 14,
+      "name": "TELEPHONE",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "USA",
+        "USA",
+        "USA",
+        "USA",
+        "USA"
+      ],
+      "is_geometry": false,
+      "length": 3,
+      "name": "COUNTRY",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "possibleValues": [
+        "CAN",
+        "USA"
+      ],
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "2211",
+        "2211",
+        "2211",
+        "2211",
+        "2211"
+      ],
+      "is_geometry": false,
+      "length": 4,
+      "name": "NAICS_CODE",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "possibleValues": [
+        "2211"
+      ],
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "ELECTRIC POWER GENERATION, TRANSMISSION AND DISTRIBUTION",
+        "ELECTRIC POWER GENERATION, TRANSMISSION AND DISTRIBUTION",
+        "ELECTRIC POWER GENERATION, TRANSMISSION AND DISTRIBUTION",
+        "ELECTRIC POWER GENERATION, TRANSMISSION AND DISTRIBUTION",
+        "ELECTRIC POWER GENERATION, TRANSMISSION AND DISTRIBUTION"
+      ],
+      "is_geometry": false,
+      "length": 56,
+      "name": "NAICS_DESC",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "possibleValues": [
+        "ELECTRIC POWER GENERATION, TRANSMISSION AND DISTRIBUTION"
+      ],
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "FERC 714, EIA 861",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "FERC 714, EIA 861"
+      ],
+      "is_geometry": false,
+      "length": 156,
+      "name": "SOURCE",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "possibleValues": [
+        "EIA 861",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census, https://outagemap.ouc.com/external/default.html",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census, https://www.duke-energy.com/outages/current-outages",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census, https://www.jea.com/outage_center/outage_map/",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census, https://www.sceg.com/outages-emergencies/power-outages/outage-map",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census, https://www.sec.gov/Archives/edgar/data/37634/000075330812000025/fplserviceterritorymap.jpg",
+        "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census, https://www.tampaelectric.com/residential/outages/outagemap/",
+        "FERC 714, EIA 860, EIA 861, Urban Areas - Cartographic Boundary Shapefiles - U.S. Census",
+        "FERC 714, EIA 860, EIA 861, http://energy.ky.gov/generation/Documents/Electric_Service_Areas_Legal_Size_Map.pdf",
+        "FERC 714, EIA 861"
+      ],
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "2021-06-21T00:00:00+00:00",
+        "2021-06-21T00:00:00+00:00",
+        "2021-06-21T00:00:00+00:00",
+        "2021-06-21T00:00:00+00:00",
+        "2021-06-21T00:00:00+00:00"
+      ],
+      "is_geometry": false,
+      "length": 25,
+      "name": "SOURCEDATE",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "possibleValues": [
+        "2018-10-12T00:00:00+00:00",
+        "2019-06-20T00:00:00+00:00",
+        "2021-06-21T00:00:00+00:00"
+      ],
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "OTHER",
+        "OTHER",
+        "OTHER",
+        "OTHER",
+        "OTHER"
+      ],
+      "is_geometry": false,
+      "length": 5,
+      "name": "VAL_METHOD",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "possibleValues": [
+        "OTHER"
+      ],
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "2022-06-03T00:00:00+00:00",
+        "2022-06-03T00:00:00+00:00",
+        "2022-06-03T00:00:00+00:00",
+        "2022-06-03T00:00:00+00:00",
+        "2022-06-03T00:00:00+00:00"
+      ],
+      "is_geometry": false,
+      "length": 25,
+      "name": "VAL_DATE",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "possibleValues": [
+        "2019-05-01T00:00:00+00:00",
+        "2020-05-15T00:00:00+00:00",
+        "2022-06-03T00:00:00+00:00"
+      ],
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "https://www.iso-ne.com/",
+        "http://www.ucnsb.net/",
+        "NOT AVAILABLE",
+        "NOT AVAILABLE",
+        "https://www.pacificorp.com/"
+      ],
+      "is_geometry": false,
+      "length": 67,
+      "name": "WEBSITE",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "2020",
+        "NOT AVAILABLE",
+        "2020",
+        "2020",
+        "2020"
+      ],
+      "is_geometry": false,
+      "length": 13,
+      "name": "YEAR",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "possibleValues": [
+        "2017",
+        "2018",
+        "2020",
+        "NOT AVAILABLE"
+      ],
+      "type": "string"
+    },
+    {
+      "exampleValues": [
+        "7",
+        "-999999",
+        "1",
+        "8",
+        "7"
+      ],
+      "is_geometry": false,
+      "max": "11.0",
+      "min": "-999999.0",
+      "name": "PEAK_MONTH",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "30344",
+        "-999999",
+        "789",
+        "8233",
+        "6314"
+      ],
+      "is_geometry": false,
+      "max": "155657.0",
+      "min": "-999999.0",
+      "name": "AVAIL_CAP",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "137",
+        "-999999",
+        "0",
+        "208",
+        "61"
+      ],
+      "is_geometry": false,
+      "max": "8811.0",
+      "min": "-999999.0",
+      "name": "PLAN_OUT",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "811",
+        "-999999",
+        "0",
+        "392",
+        "1081"
+      ],
+      "is_geometry": false,
+      "max": "22380.0",
+      "min": "-999999.0",
+      "name": "UNPLAN_OUT",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "0",
+        "-999999",
+        "0",
+        "0",
+        "22"
+      ],
+      "is_geometry": false,
+      "max": "763.0",
+      "min": "-999999.0",
+      "name": "OTHER_OUT",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "34630",
+        "-999999",
+        "1316",
+        "9364",
+        "7478"
+      ],
+      "is_geometry": false,
+      "max": "163030.0",
+      "min": "-999999.0",
+      "name": "TOTAL_CAP",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "25105",
+        "-999999",
+        "894",
+        "6734",
+        "3750"
+      ],
+      "is_geometry": false,
+      "max": "144530.0",
+      "min": "-999999.0",
+      "name": "PEAK_LOAD",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "10178",
+        "-999999",
+        "462",
+        "0",
+        "1587"
+      ],
+      "is_geometry": false,
+      "max": "70416.0",
+      "min": "-999999.0",
+      "name": "MIN_LOAD",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "integer"
+    },
+    {
+      "exampleValues": [
+        "335277373668.16797",
+        "4217909541.1191406",
+        "40872456597.109375",
+        "9406051458.601562",
+        "476437729255.26953"
+      ],
+      "is_geometry": false,
+      "max": "2984568402617.881",
+      "min": "11505001.390625",
+      "name": "SHAPE__Area",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "float"
+    },
+    {
+      "exampleValues": [
+        "10717112.791651014",
+        "815294.1361944431",
+        "2294624.6071469155",
+        "1258990.9652897608",
+        "8253391.609910363"
+      ],
+      "is_geometry": false,
+      "max": "42210311.354253665",
+      "min": "15996.364775367028",
+      "name": "SHAPE__Length",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "float"
+    },
+    {
+      "exampleValues": [
+        "b2780ed8-7a3c-4dcb-a8d8-8cbf59ecc971",
+        "4b5df9c8-8e0b-4139-95c0-0ada94374dd5",
+        "d49b82be-d8a1-466f-8ce0-aa1fac89ecb0",
+        "eb89558c-f672-4ad5-887b-a1e638783884",
+        "4c68b7fc-1b6e-404e-b5ae-0a2d93039258"
+      ],
+      "is_geometry": false,
+      "length": 36,
+      "name": "GlobalID",
+      "null_count": 0,
+      "nullable": false,
+      "numNullValues": 0,
+      "type": "string"
+    }
+  ],
+  "title": "Control Areas",
+  "type": "Collection"
+}

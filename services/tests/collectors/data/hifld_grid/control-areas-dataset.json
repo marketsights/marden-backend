@@ -1,0 +1,62 @@
+{
+  "description": "This feature class/shapefile represents electric power control areas. Control Areas, also known as Balancing Authority Areas, are controlled by Balancing Authorities, who are responsible for monitoring and balancing the generation, load, and transmission of electric power within their region, often comprised of the retail service territories of numerous electric power utilities. Each control area is interconnected with neighboring ones to facilitate emergency support, coordinated operations, and power purchases and sales. The following updates have been made since the previous release: 1 feature removed.",
+  "hifld:created_at": "2026-08-17T22:48:50.629047",
+  "hifld:tags": {
+    "categories": [
+      "Energy",
+      "Boundaries"
+    ],
+    "inventory_name": "control-areas"
+  },
+  "hifld:updated_at": "2026-08-17T22:48:50.629067",
+  "id": "hifld/control-areas",
+  "keywords": [
+    "Energy",
+    "Boundaries"
+  ],
+  "links": [
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/releases/1704edb3-322d-469c-91da-92902fe76a2d/catalog.json",
+      "rel": "root",
+      "type": "application/json"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/releases/1704edb3-322d-469c-91da-92902fe76a2d/hifld/catalog.json",
+      "rel": "parent",
+      "type": "application/json"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/releases/1704edb3-322d-469c-91da-92902fe76a2d/hifld/control-areas/catalog.json",
+      "rel": "self",
+      "type": "application/json"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/AGENTS.md",
+      "rel": "agents",
+      "type": "text/markdown"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/hifld/control-areas/README.md",
+      "rel": "describedby",
+      "type": "text/markdown"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/releases/1704edb3-322d-469c-91da-92902fe76a2d/hifld/control-areas/control-areas/catalog.json",
+      "rel": "child",
+      "title": "Control Areas",
+      "type": "application/json"
+    },
+    {
+      "href": "https://storage.googleapis.com/hifld-next-datasets-prod/releases/1704edb3-322d-469c-91da-92902fe76a2d/hifld/control-areas/control-areas/catalog.json",
+      "rel": "child",
+      "title": "Control Areas",
+      "type": "application/json"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
+  ],
+  "stac_version": "1.1.0",
+  "title": "Control Areas",
+  "type": "Catalog"
+}

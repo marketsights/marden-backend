@@ -26,7 +26,7 @@ from marden.core.queue import app
 
 DATA = Path(__file__).parent / "data" / "fred"
 PUBLIC = fred.FredSeries("DGS10", "test_fred_dgs10", "Board of Governors of the Federal Reserve System via FRED",
-                         tag="F", display_allowed=False, notice="test notice")
+                         tag="F", display_allowed=False, notice="test notice", start=date(2026, 8, 1))
 SECRET = "k3y-0f-32-chars-abcdefghijklmnop"
 
 
@@ -67,6 +67,10 @@ def test_ice_terms_are_quoted_from_the_series_page_and_fred_legal():
     assert {s.fred_id for s in fred.ICE_SERIES} == {
         "BAMLH0A0HYM2", "BAMLH0A1HYBB", "BAMLH0A2HYB", "BAMLH0A3HYC", "BAMLC0A4CBBB", "BAMLC0A0CM"}
     assert all(s.display_allowed is False and s.notice == fred.ICE_NOTICE for s in fred.ICE_SERIES)
+    hy = fred.ICE_SERIES[0]
+    assert hy.csv_url == "https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A0HYM2"  # FRED keeps 3 years
+    assert PUBLIC.csv_url.endswith("?id=DGS10&cosd=2026-08-01")
+    assert SECRET not in PUBLIC.api_url and PUBLIC.api_url.endswith("&observation_start=2026-08-01")
 
 
 def test_blocked_source_makes_no_request_and_writes_nothing(committed):
@@ -90,7 +94,7 @@ def test_blocked_source_makes_no_request_and_writes_nothing(committed):
 
 def test_load_writes_values_and_licence_facts_once(committed):
     spec = _public_source()
-    doc = documents.record_document(spec.id, fred.csv_url("DGS10"), (DATA / "fredgraph_DGS10.csv").read_bytes(),
+    doc = documents.record_document(spec.id, PUBLIC.csv_url, (DATA / "fredgraph_DGS10.csv").read_bytes(),
                                     content_type="application/csv", doc_type="fredgraph_csv", external_id="DGS10")
     first = RunStats()
     assert fred.load_document(doc, PUBLIC, first) == 54
@@ -158,7 +162,7 @@ def test_live_public_series_run_twice_writes_nothing_new(committed):
     spec = _public_source()
     first = fred.run(series=(PUBLIC,), source=spec)
     assert first["ok"], first
-    assert first["access"] == "fredgraph.csv" and first["documents_new"] == 1 and first["facts_new"] > 100
+    assert first["access"] == "fredgraph.csv" and first["documents_new"] == 1 and first["facts_new"] > 40
     second = fred.run(series=(PUBLIC,), source=spec)
     assert second["ok"], second
     assert second["documents_new"] == 0 and second["facts_new"] == 0
