@@ -16,6 +16,11 @@ Signals (track_record_cases.ASSUMPTIONS), each against the subject's own state o
 - price: a case instrument's Marden price is below 95 when it was 95 or more (or not yet priced);
 - cushion: a case site's cushion band moves into 0-3 or below zero from a better band (00-global alerts:
   "cushion under 3 months or under zero").
+
+A diagnostic added after the first run (not a locked signal): the same scan without anything derived from
+the Marden price (`price_free`): the chain status without its L1 / L2 price findings, and the cushion. For a
+traded bond the Marden price follows its own prints, so a price-derived "lead" is partly the bond falling
+through 98 before it falls through 95; the price-free flag shows what the other rules saw.
 """
 
 from __future__ import annotations
@@ -76,10 +81,27 @@ def _stored(conn: Conn, model: str, subject_type: str, ids: Sequence[str], day: 
     return {r["subject_id"]: r["output"] for r in rows}
 
 
+PRICE_LABELS = ("L1 Marden price 95-98", "L2 Marden price below 95")  # status_rules' lenders findings
+OTHER_LENDER_LABELS = ("Syndication stalled", "Default notice")
+
+
+def _price_only(link: dict[str, Any]) -> bool:
+    """A lenders link tripped only by the Marden price (no syndication or default finding)."""
+    reason = link.get("reason") or ""
+    return (link.get("role") == "lenders" and any(lbl in reason for lbl in PRICE_LABELS)
+            and not any(lbl in reason for lbl in OTHER_LENDER_LABELS))
+
+
 def _status_doc(output: dict[str, Any]) -> dict[str, Any]:
-    codes = [f"{link.get('ruleCode')} {link['role']}" for link in output.get("chain") or []
-             if link.get("status") in ("amber", "red") and link.get("ruleCode")]
-    return {"status": output.get("status"), "codes": codes}
+    """{status, statusExPrice (the chain without the Marden-price findings), codes}."""
+    chain = output.get("chain") or []
+    tripped = [link for link in chain if link.get("status") in ("amber", "red") and link.get("ruleCode")]
+    codes = [f"{link['ruleCode']} {link['role']}" + (" (Marden price)" if _price_only(link) else "")
+             for link in tripped]
+    worst = max(({"red": 2, "amber": 1}[link["status"]] for link in tripped if not _price_only(link)), default=0)
+    status = output.get("status")
+    ex_price = status if status == "No build" else {2: "Broken", 1: "Strained"}.get(worst, "Holding")
+    return {"status": status, "statusExPrice": ex_price, "codes": codes}
 
 
 def _cushion_months(output: dict[str, Any] | None) -> int | None:
@@ -185,16 +207,22 @@ class Fire:
                 "basis": self.basis}
 
 
-def fires(ids: Sequence[str], slugs: Sequence[str], base: State, state: State) -> list[Fire]:
-    """The case's signals that are on in `state` against the window-start state `base`."""
+def fires(ids: Sequence[str], slugs: Sequence[str], base: State, state: State, *,
+          price_free: bool = False) -> list[Fire]:
+    """The case's signals that are on in `state` against the window-start state `base`. With `price_free`
+    (a diagnostic): the chain status without its Marden-price findings, and the cushion; no price signal."""
     day, out = date.fromisoformat(state["day"]), []
+    key = "statusExPrice" if price_free else "status"
     for slug in slugs:
         b, s = base["status"].get(slug), state["status"].get(slug)
-        if b and s and STATUS_RANK.get(s["status"], 0) > STATUS_RANK.get(b["status"], 0):
-            codes = ", ".join(s["codes"]) or "no rule code"
-            out.append(Fire(day, "status", slug, f"{slug} chain {b['status']} -> {s['status']} ({codes})",
-                            state["basis"]["status"]))
-    for iid in ids:
+        if not (b and s):
+            continue
+        before, after = b.get(key, b["status"]), s.get(key, s["status"])
+        if STATUS_RANK.get(after, 0) > STATUS_RANK.get(before, 0):
+            codes = [c for c in s["codes"] if not (price_free and c.endswith("(Marden price)"))]
+            detail = f"{slug} chain {before} -> {after} ({', '.join(codes) or 'no rule code'})"
+            out.append(Fire(day, "status", slug, detail, state["basis"]["status"]))
+    for iid in ids if not price_free else []:
         b, p = base["price"].get(iid), state["price"].get(iid)
         if p is not None and p < PRICE_TRIGGER and (b is None or b >= PRICE_TRIGGER):
             start = "not priced" if b is None else f"{b:.1f}"
@@ -209,14 +237,15 @@ def fires(ids: Sequence[str], slugs: Sequence[str], base: State, state: State) -
     return out
 
 
-def first_fires(ids: Sequence[str], slugs: Sequence[str], states: dict[date, State]) -> dict[str, Fire]:
+def first_fires(ids: Sequence[str], slugs: Sequence[str], states: dict[date, State], *,
+                price_free: bool = False) -> dict[str, Fire]:
     """The first fire of each signal over the ordered states (the first state is the baseline)."""
     days = sorted(states)
     if not days:
         return {}
     base, found = states[days[0]], {}
     for day in days[1:]:
-        for f in fires(ids, slugs, base, states[day]):
+        for f in fires(ids, slugs, base, states[day], price_free=price_free):
             found.setdefault(f.signal, f)
     return found
 

@@ -67,17 +67,17 @@ export function watchlistRoutes(app: FastifyInstance, db: Db): void {
   });
 
   app.get('/api/alerts', async (req) => {
-    const { orgId } = authOf(req);
+    const { orgId, userId } = authOf(req);
     const q = queryOf(req);
     const limit = Math.min(Math.max(Math.trunc(num(q, 'limit') ?? 100), 1), 500);
-    return db.withOrg(orgId, (c) => listAlerts(c, orgId, { asOf: asOfOf(req), unreadOnly: flag(q, 'unread'), limit }));
+    return db.withOrg(orgId, (c) => listAlerts(c, orgId, userId, { asOf: asOfOf(req), unreadOnly: flag(q, 'unread'), limit }));
   });
 
   app.post('/api/alerts/read', async (req, reply) => {
     const auth = authOf(req);
     const { ids } = parseBody(readSchema, req.body ?? {});
     await db.withOrg(auth.orgId, async (c) => {
-      const changed = await markAlertsRead(c, auth.orgId, ids ?? null);
+      const changed = await markAlertsRead(c, auth.orgId, auth.userId, ids ?? null);
       await audit(c, {
         orgId: auth.orgId, userId: auth.userId, action: 'alerts.read', ip: req.ip,
         meta: { ids: changed, all: ids === undefined },

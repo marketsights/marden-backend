@@ -47,7 +47,10 @@ WULF_JV_DECK = Doc(f"{EDGAR}/1083301/000110465925102858/tm2529509d1_ex99-3.htm",
                    "TeraWulf Inc. Form 8-K Exhibit 99.3, Fluidstack joint venture presentation (October 2025)",
                    "8-K exhibit", date(2025, 10, 28))
 IREN_20F_2024 = Doc(f"{EDGAR}/1878848/000162828024038677/iren-20240630.htm",
-                    "IREN Limited Form 20-F for the year ended June 30, 2024", "20-F", date(2024, 8, 28))
+                    "Iris Energy Limited (now IREN Limited) Form 20-F for the year ended June 30, 2024", "20-F",
+                    date(2024, 8, 28))
+IREN_10K_2025 = Doc(f"{EDGAR}/1878848/000187884825000063/iren-20250630.htm",
+                    "IREN Limited Form 10-K for the year ended June 30, 2025", "10-K", date(2025, 8, 28))
 GLXY_10Q_2026Q2 = Doc(f"{EDGAR}/1859392/000185939226000091/glxy-20260630.htm",
                       "Galaxy Digital Inc. Form 10-Q for the quarter ended June 30, 2026", "10-Q", date(2026, 8, 10))
 MDU_10Q_2026Q2 = Doc(f"{EDGAR}/67716/000006771626000072/mdu-20260630.htm",
@@ -94,6 +97,17 @@ EVIDENCE: tuple[Statement, ...] = (
         "Item 5 (Operating and Financial Review and Prospects), electricity in Texas: IREN's Childress site",
     ),
     Statement(
+        IREN_10K_2025,
+        "At our Childress operation in Texas, the electricity market is deregulated and operates through a "
+        "competitive wholesale market, which is subject to many factors, including fluctuations in commodity and "
+        "energy prices. In August 2024 we closed out existing hedging arrangements for August and September 2024 at "
+        "a cost of $7.2 million, and from August 2024 we expect to participate in the ERCOT wholesale spot energy "
+        "market at our Childress operation in Texas.",
+        (("iso", "ERCOT"),),
+        (("site", "childress"), ("campus", "iren-childress")),
+        "Item 1 (Business), Cost of electricity: IREN's Childress operation",
+    ),
+    Statement(
         GLXY_10Q_2026Q2,
         "In total, the Electric Reliability Council of Texas (“ERCOT”) has approved over 1.6 gigawatts (“GW”) of "
         "gross power capacity at our Helios campus.",
@@ -108,8 +122,9 @@ EVIDENCE: tuple[Statement, ...] = (
         (("iso", "MISO"),),
         (*POLARIS, ("campus", "apld-polaris-forge-1"), ("building", "apld-polaris-forge-1-b1"),
          ("building", "apld-polaris-forge-1-b2"), ("building", "apld-polaris-forge-1-b3")),
-        "Item 2 (MD&A), Outlook: Montana-Dakota serves Applied Digital's Ellendale campus (Polaris Forge 1; its "
-        "second and third HPC buildings are sites polaris-forge-1 and polaris-forge-1-building-4)",
+        "Item 2 (MD&A), Outlook: Montana-Dakota serves Applied Digital's Ellendale campus (Polaris Forge 1): the "
+        "second and third HPC buildings it names are site polaris-forge-1 (Buildings 2 and 3); site "
+        "polaris-forge-1-building-4 (Building 4) is Applied Digital load on the same campus",
     ),
     Statement(
         MDU_10Q_2026Q2,

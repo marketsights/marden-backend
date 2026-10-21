@@ -236,3 +236,6 @@ def test_listed_quotes_are_in_the_live_filings():
             resp = fetcher.get(doc.url)
             text = ge.document_text(resp.content, resp.content_type)
             assert all(ge.has_quote(text, q) for q in quotes), doc.url
+            if doc.doc_type in {"10-K", "10-Q", "20-F"}:  # the title names the registrant on the cover page
+                registrant = doc.title.split(" Form ")[0].split(" (now ")[0]
+                assert ge.has_quote(text.lower(), f"{registrant} (exact name of registrant".lower()), doc.title

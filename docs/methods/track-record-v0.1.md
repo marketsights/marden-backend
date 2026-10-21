@@ -58,6 +58,55 @@ Spec 12 says flag dates come only from snapshots taken at the time. Marden's liv
 - After a full run for today, or a refresh, the `track_record` view is marked dirty. A run on a subset of cases (`--case`) is not the published backtest and marks nothing.
 - `python -m marden model track_record [--as-of YYYY-MM-DD] [--case KEY ...] [--workers N] [--step DAYS] [--no-mark] [--json]`. A past `--as-of` ends the window that day: only moves public by then, only signals up to then.
 
-## Results
+## A diagnostic added after the first run (not locked)
 
-See "Runs on the local database" below; filled from the runs of 2026-10-21.
+For a traded bond the Marden price follows the bond's own prints (TRACE, N-PORT, dealer quotes enter its Kalman filter), and status rule L1 trips at a Marden price of 98. So a "lead" from L1 or from the price signal is partly the bond falling through 98 before it falls through 95, which says little about foresight. After seeing the first run, each case also gets `priceFree`: the same scan without anything derived from the Marden price (the chain status without its L1 / L2 price findings, and the cushion), with its own flag and lead. The summary reports it under `summary.priceFree` with `postHoc: true`. The locked headline is not changed by it.
+
+## Runs on the local database (2026-10-21)
+
+Full scan, step 7 days, 3 workers: 30 weekly scan days plus 60 refinement days, 20 minutes on the shared machine (the price engine is about 15 s a day); the three past as-of runs reuse those states in the same sitting.
+
+| As of | Repricings | Flagged first | Same day | Late | Missed | Median lead (days) | Credit-driven | Graded controls, false alarms | Price-free: first / late / missed, median lead |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-07-31 | 3 (+3 pending) | 1 | 1 | 1 | 0 | 0 | 1 | 16, 9 | 1 / 0 / 2, 4 |
+| 2026-08-31 | 3 (+3 pending) | 1 | 1 | 1 | 0 | 0 | 1 | 19, 11 | 1 / 0 / 2, 4 |
+| 2026-09-30 | 9 (+2 pending) | 7 | 1 | 1 | 0 | 50 | 1 | 14, 9 | 3 / 0 / 6, 54 |
+| 2026-10-21 | 11 (+2 pending) | 9 | 1 | 1 | 0 | 50 | 2 | 12, 8 | 3 / 4 / 4, −6 |
+
+Cases as of 2026-10-21 (every flag a reconstruction):
+
+| Case | First Marden signal | Market move | Lead | Driver | Price-free flag (lead) |
+| --- | --- | --- | --- | --- | --- |
+| Oracle senior notes | 2026-07-09 T1 (S&P cut Oracle) on Oracle's sites | 2026-07-13 5.70% 2036 TRACE 94.2 | 4 | rates (+12bp) | 2026-07-09 (4) |
+| CoreWeave unsecured notes | 2026-07-16 Marden price 94.4 (9.625% 2032) | 2026-07-16 TRACE 94.25 | 0 | credit | 2026-10-20 T1 (−96) |
+| Edged 7.5% 2031 | 2026-07-27 Marden price 94.9 | 2026-07-23 TRACE 94.5 | −4 | rates | none (no site) |
+| Hut 8 Beacon Point 2042 | 2026-07-21 L1 (Marden price 95-98) | 2026-08-31 TRACE 94.7 | 41 | rates | none |
+| The Barn project bonds | 2026-07-09 T1 (Oracle) | 2026-09-01 TRACE 94.0 | 54 | rates | 2026-07-09 (54) |
+| Meta Hyperion (Beignet) 2049 | 2026-07-21 L1 (Marden price) | 2026-09-09 TRACE 94.9 | 50 | rates | none |
+| Jupiter construction loans | 2026-07-09 T1 (Oracle) | 2026-09-18 dealer 90 (FT via Kfgo) | 71 | n/d | 2026-07-09 (71) |
+| Applied Digital PF1 Bldg 4 7.00% 2031 | 2026-07-17 L1 (Marden price) | 2026-09-23 TRACE 94.25 | 68 | rates | 2026-10-20 T1 (−27) |
+| Hut 8 River Bend 2042 | 2026-07-22 L1 (Marden price) | 2026-09-24 TRACE 94.5 | 64 | rates (+1bp) | none |
+| Galaxy Helios II 9.875% 2031 | 2026-09-23 L1 (Marden price) | 2026-10-13 TRACE 94.5 | 20 | rates (+87bp) | 2026-10-20 T1 (−7) |
+| Core Scientific 7.75% 2031 | 2026-07-22 L1 (Marden price) | 2026-10-14 TRACE 93.0 | 84 | credit | 2026-10-20 T1 (−6) |
+| Anthropic junior chip paper | — | no instrument or dated price on file | pending | — | — |
+| Nscale GPU facilities | — | none in the window (BDC marks 98.5–98.75 adjusted for the unfunded commitment) | pending | — | — |
+
+Controls (graded: a market price was observed and did not move): flagged Applied Digital 9.25% 2030 (T1, 10-20), Polaris Forge 2 (T1 Oracle, 07-09), Cipher Barber Lake (D1, 09-25), CoreWeave DDTLs (L1 price, 07-24), IREN Childress (L1 price, 09-09), TeraWulf Lake Mariner (D1, 08-05), Vantage HoldCo sub loan (price 94.0, 05-15), xAI VCI (L1 price, 04-29); not flagged Cipher Black Pearl, Fluidstack Abernathy, Galaxy Helios I, Meta El Paso. Abilene and Frontier (T1, 07-09) have no market price, so they are ungraded.
+
+What the numbers say:
+
+- By the spec's rule 11 instruments repriced in the window; 9 of the 11 moves are rates-driven (long fixed-rate bonds falling with Treasuries; Hut 8 River Bend's spread was 136bp at the move against 135bp at issue). Only CoreWeave unsecured and Core Scientific moved on credit.
+- The headline (9 of 11 flagged first, median 50 days) rests mostly on L1, a Marden price of 98 or less, and on 8 false alarms out of 12 graded controls. Without the price-derived signals, 3 of 11 were flagged first, all by one event: S&P's cut of Oracle on 2026-07-09 (T1 on Oracle's six sites), 71 days before Jupiter's first quote and 54 before The Barn's bonds broke 95.
+- Misses and late calls: Edged (no site, so only its price; 4 days late), CoreWeave unsecured (same day: the Marden price follows the bonds; the non-price T1 on CoreWeave's B+ rating appears only with the archive's dossier notes on 2026-10-20, 96 days after the move).
+- Validation against pricing-v0.1's locked Jupiter path (below 95 on 2026-08-17; 94.1 on 2026-09-18): not reproduced. The reconstructed Marden price for Jupiter stays at 98.3–100 through 2026-09-17 and first falls below 95 (94.7) on 2026-09-18, the day the 90 dealer quote enters; 87.7 on 2026-09-30 after the force majeure notice.
+
+## Limits (v0.1)
+
+| Gap | Effect | Fix |
+| --- | --- | --- |
+| Flags before 2026-10-21 are reconstructions with code written in October 2026 | Hindsight in the rules and the price engine | Accumulate live daily snapshots; grade only those |
+| L1 at a Marden price of 98 and the price signal follow the bonds' own prints | Leads on traded bonds are partly mechanical | Grade the price-free diagnostic; a price signal from untraded inputs only |
+| 9 of 11 moves are rates-driven | "Repricing" by the spec rule is mostly Treasury moves | A rates-neutral price rule (price at the baseline curve) in v0.2 |
+| Archive dossier notes count only from 2026-10-20 | Ratings and debt notes reach backtests late (e.g. CoreWeave B+) | Dated extraction of the underlying filings |
+| Anthropic junior and Nscale have no dated price | Two named cases stay pending | A dealer quote or mark with a source; BDC Q3 marks for Nscale |
+| Weekly scan, daily only before each case's first signal and first price-free signal | Its other signals are dated to the scan week unless a refined day covers them | Daily scan once the price engine is faster |

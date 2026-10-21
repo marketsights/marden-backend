@@ -42,7 +42,7 @@ Done: per-product access + ERCOT prices/load zones + ERCOT GIS from MIS (wf_5a24
 Done since the table below: price pulls reviewed and fixed (commit 454271d); FRED ICE series unblocked (7ef0e37). Open: clean Yahoo duplicates and the 107 intraday TRACE rows in the main DB after the price model run; rotate the Neon app_rw password (it was printed into a local agent log).
 
 Goal set by the owner 2026-10-21: everything working today, selling to funds from 2026-10-22.
-Release-readiness pass to run when the workflows above finish: wire MARDEN_SHOW_UNLICENSED_PRICES into API/read models/models; clean the main-DB Yahoo duplicates and intraday TRACE rows; fix tests/test_worker.py for the new tasks; API 404 (not 503) for collateral on non-GPU instruments; resolve the 7 grid-region review items; review-queue UI (staff); weekly note; full suites; route walk of every screen with real data; deploy per docs/DEPLOY.md once the owner adds credentials.
+Release-readiness pass to run when the workflows above finish: wire MARDEN_SHOW_UNLICENSED_PRICES into API/read models/models; clean the main-DB Yahoo duplicates and intraday TRACE rows; fix tests/test_worker.py for the new tasks; API 404 (not 503) for collateral on non-GPU instruments; ~~resolve the 7 grid-region review items~~ (done, next step 2); review-queue UI (staff); weekly note; full suites; route walk of every screen with real data; deploy per docs/DEPLOY.md once the owner adds credentials.
 
 ### Earlier runs
 | Workflow | What | Script |
@@ -58,7 +58,7 @@ If a new session starts: read this file, check `git log`, then re-run any workfl
 
 ## Next steps (in order)
 1. After the seed load: run `seed legacy_trace`, `legacy_frankfurt`, `legacy_yahoo`, then `collect finra_trace`, `boerse_frankfurt`, `yahoo_equity` on the main DB (`docs/methods/licensing.md`).
-2. Resolve the 7 grid-region review items from filings (Abernathy, Childress, Helios 1/2, Polaris Forge 1/B4, Stingray).
+2. ~~Resolve the 7 grid-region review items from filings (Abernathy, Childress, Helios 1/2, Polaris Forge 1/B4, Stingray).~~ Done 2026-10-21: `collect grid_evidence` settled all 16 site items (and 17 on their campuses/buildings) from 8 SEC filings (docs/grid-coverage.md section 1).
 3. Extraction workers (Claude API; claude CLI fallback for local runs), alert engine + email (Postmark or Resend), weekly note, review queue UI.
 4. Remaining screens: Home, Customize Home, Payers, Payer, Stress, Risk list, Watchlist, Track record, Obligations, GPUs, Leases.
 5. Deploy: Dockerfiles + Railway config (`web`, `api`, `worker`), `dbmate up` on Neon (strip `channel_binding` for dbmate), smoke tests, then re-run `seed all` + collectors against Neon.
@@ -68,7 +68,7 @@ If a new session starts: read this file, check `git log`, then re-run any workfl
 - Facility/debt coverage and pricing are equal priority.
 - Collect FINRA TRACE (finra.org), Börse Frankfurt, Yahoo, SPP, El Paso Electric and ERCOT MIS despite noncommercial terms/robots; never evade bot protection; everything licence-flagged (`MARDEN_SHOW_UNLICENSED_PRICES`).
 - Clerk: share the marden.ai production instance with the other app; Marden permissions live in Marden's DB per product (no Clerk roles).
-- Hosting: Railway Hobby now (Pro once a fund uses it); Neon Postgres only; R2 for raw files and backups; no Redis, no Neon Functions/Realtime/AI gateway.
+- Hosting: Railway paused all builds/deploys on 2026-10-21 (major outage), so the first deploy goes to Render via `render.yaml` (core-api, core-worker, core-web; ~$39/month; docs/DEPLOY-render.md). Same Docker images; Railway config kept for later. Originally: Railway Hobby now (Pro once a fund uses it); Neon Postgres only; R2 for raw files and backups; no Redis, no Neon Functions/Realtime/AI gateway.
 - Names: Neon `core`/`app`/`app_rw`; R2 `core-raw`, `core-snapshots`, `core-backups`; Railway project `core` with `web`, `api`, `worker`.
 
 ## Credentials (values are NOT in git)

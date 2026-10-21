@@ -1,0 +1,55 @@
+{
+ "id": "ratings_coreweave_ddtl55_release",
+ "area": "ratings",
+ "document": {
+  "document_id": 1222,
+  "source_id": "sec_index",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex991pr.htm",
+  "sha256": "854b5316f55c926eb1c154d0f82c139a9c1a608ebed60466c11fcae9907a4dae",
+  "doc_type": "EX-99.1",
+  "title": "EX-99.1",
+  "date": "2026-08-10"
+ },
+ "note": "CoreWeave press release on closing the DDTL 5.5 Facility (EX-99.1, Aug 10, 2026)",
+ "excerpt": "LIVINGSTON, N.J. — AUGUST 10, 2026 — CoreWeave, Inc. (Nasdaq: CRWV), The Essential Cloud for AI™, today announced it has closed its $2.6 billion delayed draw term loan facility (“DDTL 5.5 Facility”), supporting the continued expansion of its AI cloud platform and committed customer deployments.\n\nThe DDTL 5.5 Facility extends CoreWeave’s HPC infrastructure-backed financing platform by broadening the scope of customer contracts eligible for publicly syndicated infrastructure financing. Unlike prior delayed draw term loan facilities backed by customer contracts extending through the maturity of the debt, the DDTL 5.5 Facility carries an approximate five-year maturity while its underlying customer contracts average approximately three years in length. By financing these shorter-date commitments, lenders are signalling confidence in the long-term value of NVIDIA GPUs running on CoreWeave’s cloud platform and a willingness to underwrite renewal risk. These shorter duration customer contracts also often command higher prices, which CoreWeave expects to allow it to capture higher margins while expanding market reach.\n\n“This transaction demonstrates the continued evolution and growing flexibility of AI infrastructure financing and represents a major unlock for CoreWeave,” said Brannin McBee, co-founder and chief development officer at CoreWeave. “Lenders are now comfortable financing shorter-dated contracts, which allows us to target a wider variety of customers, including global enterprises that typically favor shorter-term agreements.”\n\nThe facility received ratings of Ba2 from Moody’s and BB+ from Fitch, reflecting the strength of the collateral and structural protections supporting the transaction.\n\nProceeds from the DDTL 5.5 Facility will support the purchase and deployment of HPC-backed infrastructure dedicated to customer contracts. The facility includes the option for CoreWeave to either renew existing contracts or re-lease capacity to other customers at the end of the initial underlying contracts, subject to the criteria described in the credit agreement for the DDTL 5.5 Facility.\nThe transaction was meaningfully oversubscribed, attracting exceptional investor demand, and priced at SOFR + 5.50%. The DDTL 5.5 Facility was issued through CoreWeave Financing DDTL V-V, LLC.\n\nJPMorgan and Mitsubishi UFJ Financial Group served as joint lead arrangers and bookrunners for the transaction.\n\nThe DDTL 5.5 Facility builds on CoreWeave’s continued capital markets momentum and follows the company’s previously announced $3.1 billion DDTL 5.0 facility completed earlier this year. With the closing of this transaction, CoreWeave has secured more than $30 billion of debt and equity capital year-to-date, representing a significant step in CoreWeave's evolution as it continues to scale its global footprint and service offerings for a larger and more diverse set of customers.",
+ "gold": [
+  {
+   "field": "rating",
+   "subject_kind": [
+    "instrument"
+   ],
+   "value": "Ba2",
+   "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch"
+  },
+  {
+   "field": "rating",
+   "subject_kind": [
+    "instrument"
+   ],
+   "value": "BB+",
+   "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch"
+  },
+  {
+   "field": "rating_action",
+   "subject_kind": [
+    "instrument"
+   ],
+   "value": {
+    "agency": "Moody",
+    "rating": "Ba2"
+   },
+   "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch"
+  },
+  {
+   "field": "rating_action",
+   "subject_kind": [
+    "instrument"
+   ],
+   "value": {
+    "agency": "Fitch",
+    "rating": "BB+"
+   },
+   "quote": "The facility received ratings of Ba2 from Moody’s and BB+ from Fitch"
+  }
+ ]
+}

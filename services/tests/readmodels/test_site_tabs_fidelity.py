@@ -53,8 +53,8 @@ def test_header_counts_the_linked_campus_buildings_as_the_lists_do(sites):
         named = re.search(r"(\d+) buildings?\b", detail["facts"])
         assert (int(named.group(1)) if named else 0) == total, (slug, detail["facts"])
     # Jupiter's campus has no building records yet; its own building_count fact (R) is the count.
-    count = copied_rows("SELECT value FROM fact_current WHERE subject_type = 'campus' AND subject_id = 'project-jupiter' "
-                        "AND field = 'building_count'")
+    count = copied_rows("SELECT value FROM fact_current WHERE subject_type = 'campus' "
+                        "AND subject_id = 'project-jupiter' AND field = 'building_count'")
     records = copied_rows("SELECT 1 FROM building WHERE campus_id = 'project-jupiter' LIMIT 1")
     if count and not records and "jupiter" in listed:
         assert build("site_detail", "jupiter")["buildings"]["value"]["total"] == count[0]["value"]
@@ -68,8 +68,9 @@ def test_facts_line_names_the_buildings_once_counted():
 
 
 def test_material_events_are_one_per_story(sites):
-    assert _story_key("Oracle’s ‘force majeure’ warning lands as AI power gets scarce - Yahoo Finance") == _story_key(
-        "Oracle's ‘force majeure’ warning lands as AI power gets scarce - TheStreet")
+    curly = "Oracle\u2019s \u2018force majeure\u2019 warning lands as AI power gets scarce"
+    assert _story_key(f"{curly} - Yahoo Finance") == _story_key(
+        "Oracle's \u2018force majeure\u2019 warning lands as AI power gets scarce - TheStreet")
     assert _story_key("Pipeline right-of-way denied") != _story_key("Pipeline right-of-way reconsideration denied")
     for slug in sites:
         events = build("site_detail", slug)["materialEvents"]

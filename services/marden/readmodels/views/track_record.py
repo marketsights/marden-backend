@@ -66,8 +66,9 @@ MODEL_INFO: dict[str, tuple[str, str, str, str | None]] = {
     "contagion": ("Contagion", "Obligation map edges and payers' capacity to pay", "On request", None),
     "risk_list": ("Risk ranking", "Status, cushion, mark gap and recent slips", "Sunday night, published Monday",
                   None),
-    "track_record": ("Backtest", "Dated snapshots of Marden flags vs later price moves", "Weekly",
-                     None),
+    "track_record": ("Backtest", "Status, price and cushion signals (live snapshots, else point-in-time "
+                     "reconstructions) vs market price moves", "Weekly, Sunday 21:17 UTC, and on new prices",
+                     "track-record-v0.1.md"),
 }
 
 

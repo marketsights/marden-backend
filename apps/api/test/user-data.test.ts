@@ -90,11 +90,19 @@ describe('user data', () => {
     expect((await call('PUT', '/api/home/layout', { widgets: [{ key: 'pie_chart' }] })).statusCode).toBe(400);
   });
 
-  it('lists alerts and marks them read', async () => {
+  it("lists the member's own alerts and marks them read", async () => {
+    // The alert engine writes one row per member (alert.user_id); another member's copy is theirs alone.
+    await db.query(`INSERT INTO app_user (id, email) VALUES ('ud-other-user', 'ud-other@example.test') ON CONFLICT DO NOTHING`);
+    await db.query(`INSERT INTO membership (org_id, user_id, role) VALUES ('dev', 'ud-other-user', 'member') ON CONFLICT DO NOTHING`);
     await db.query(
-      `INSERT INTO alert (org_id, kind, headline, tag, rule_label, ref_url, subject_type, subject_id)
-       VALUES ('dev', 'power', 'Permit hearing moved', 'F', 'Power event', '/sites/${SITE}', 'site', $1),
-              ('dev', 'cushion', 'Cushion under 3 months', 'M', 'Cushion < 3', '/sites/${SITE}', 'site', $1)`,
+      `INSERT INTO alert (org_id, user_id, kind, headline, body, tag, rule_label, ref_url, subject_type, subject_id,
+                          severity, occurred_on, trigger_key, dedupe_key)
+       VALUES ('dev', 'dev-user', 'power', 'Permit hearing moved', 'b', 'F', 'Power event', '/sites/${SITE}', 'site', $1,
+               'amber', '2026-10-20', 'event:ud-1', 'ud-1'),
+              ('dev', 'dev-user', 'cushion', 'Cushion under 3 months', 'b', 'M', 'Cushion < 3', '/sites/${SITE}', 'site', $1,
+               'red', '2026-10-20', 'event:ud-2', 'ud-2'),
+              ('dev', 'ud-other-user', 'cushion', 'Cushion under 3 months', 'b', 'M', 'Cushion < 3', '/sites/${SITE}', 'site', $1,
+               'red', '2026-10-20', 'event:ud-2', 'ud-2')`,
       [SITE],
     );
     const alerts = (await call('GET', '/api/alerts')).json();
@@ -104,6 +112,8 @@ describe('user data', () => {
     expect((await call('GET', '/api/alerts?unread=true')).json()).toHaveLength(1);
     expect((await call('POST', '/api/alerts/read', {})).statusCode).toBe(204);
     expect((await call('GET', '/api/alerts?unread=true')).json()).toHaveLength(0);
+    const other = await db.query<{ read_at: Date | null }>(`SELECT read_at FROM alert WHERE user_id = 'ud-other-user'`);
+    expect(other.rows.map((r) => r.read_at)).toEqual([null]); // reading mine leaves theirs unread
   });
 
   it('validates stress runs, answers 503 until the stress model exists, and saves scenarios', async () => {

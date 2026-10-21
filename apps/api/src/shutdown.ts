@@ -2,7 +2,15 @@
 // time): stop accepting connections, close SSE clients (they reconnect to the new deploy and replay
 // from Last-Event-ID), let in-flight requests finish, close the pool, exit 0. If that takes longer
 // than the timeout the process exits 1 anyway, before the platform has to kill it.
+//
+// Keep-alive: server.close() waits for every open connection, and Fastify closes only the connections
+// that are idle at that moment. A connection whose request finishes during the drain (Railway's edge
+// and Next's /api rewrite both keep connections alive) would hold the close open until the timeout, so
+// idle connections are swept every IDLE_SWEEP_MS until the close completes.
 import type { FastifyInstance } from 'fastify';
+
+/** How often a draining server closes connections that went idle after their last response. */
+export const IDLE_SWEEP_MS = 200;
 
 export interface ShutdownOptions {
   timeoutMs: number;
@@ -23,12 +31,16 @@ export function shutdownHandler(app: FastifyInstance, opts: ShutdownOptions): (s
       exit(1);
     }, opts.timeoutMs);
     timer.unref();
+    const sweep = setInterval(() => app.server.closeIdleConnections(), IDLE_SWEEP_MS);
+    sweep.unref();
     try {
       await app.close();
+      clearInterval(sweep);
       clearTimeout(timer);
       app.log.info('shutdown complete');
       exit(0);
     } catch (err) {
+      clearInterval(sweep);
       clearTimeout(timer);
       app.log.error({ err }, 'shutdown failed');
       exit(1);

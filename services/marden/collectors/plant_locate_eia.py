@@ -5,14 +5,15 @@ A Marden plant is an EIA plant when exactly one EIA plant in the workbook passes
 - state: the EIA Plant State is the plant's state;
 - name: every distinctive word of the EIA Plant Name is in our plant's name (`eia_860m_store.names_match`:
   parentheticals in the EIA name dropped, CamelCase split, generic words such as 'energy', 'station', 'gas'
-  dropped);
+  dropped), and at least one of them is not a state name ('Louisiana 1' names no place of its own);
 - technology: when our technology is known (gas, nuclear, fuel cell), at least one of the EIA plant's generators
   has it ('Natural Gas ...' / 'Other Natural Gas', 'Nuclear', prime mover FC). A wind farm that shares a name
   with a gas plant is not that gas plant;
 - corroboration, at least one of:
-  (a) operator: a distinctive word of an EIA Entity Name (the operator EIA lists; org words such as 'public',
-      'power', 'district' and state names dropped), or its acronym ('NPPD' for Nebraska Public Power District),
-      is in our operator or plant name;
+  (a) operator: the company in an EIA Entity Name (its distinctive words that are not the plant's own name, or
+      else its first distinctive word: 'NextEra' in 'NextEra Energy Point Beach LLC', 'Talen' in 'TalenEnergy
+      Montour LLC'; org words such as 'public', 'power', 'district' and state names dropped) is in our operator,
+      or the entity's acronym ('NPPD' for Nebraska Public Power District) is in our operator or plant name;
   (b) location: our reference point (the plant's own point, else its served campus's) within MATCH_KM;
   (c) capacity: our stated MW within CAPACITY_TOLERANCE of the EIA plant's planned or existing nameplate MW;
   (d) phrase: an EIA name of two or more distinctive words appears as a phrase in our name, and our technology
@@ -76,8 +77,22 @@ def generator_techs(g: Generator) -> set[str]:
     return out
 
 
-def entity_words(name: str) -> set[str]:
-    return name_words(name) - ORG_WORDS - STATE_WORDS
+def entity_words(name: str) -> list[str]:
+    seen = set()
+    out = []
+    for w in word_list(name):
+        if len(w) > 1 and w not in GENERIC_WORDS | ORG_WORDS | STATE_WORDS and w not in seen:
+            seen.add(w)
+            out.append(w)
+    return out
+
+
+def company_words(entity: str, plant_name: str) -> set[str]:
+    """Who an EIA Entity Name says runs the plant: its distinctive words that are not the plant's own name, else
+    its first distinctive word ('TalenEnergy Montour LLC' for the plant 'TalenEnergy Montour' -> talen)."""
+    words = entity_words(entity)
+    rest = set(words) - eia_name_words(plant_name)
+    return rest or set(words[:1])
 
 
 def acronym(name: str) -> str | None:
@@ -147,11 +162,10 @@ class Outcome:
 def corroboration(ours: OurPlant, site: EiaSite) -> list[str]:
     """The records that agree our plant is this EIA plant besides its name (empty: none)."""
     out: list[str] = []
-    mine = name_words(ours.operator) | name_words(ours.name)
+    operator = name_words(ours.operator)
     tokens = set(word_list(ours.operator)) | set(word_list(ours.name))
-    plant_words = eia_name_words(site.plant.name)  # 'NextEra Energy Point Beach LLC' names the plant, not who runs it
     for ent in site.entities:
-        shared = sorted((entity_words(ent) - plant_words) & mine)
+        shared = sorted(company_words(ent, site.plant.name) & operator)
         abbr = acronym(ent)
         if shared:
             out.append(f"operator: EIA entity '{ent}' shares {', '.join(shared)} with '{ours.operator}'")
@@ -183,7 +197,8 @@ def match(ours: OurPlant, by_id: dict[int, EiaSite], by_state: dict[str, list[Ei
             return Outcome("eia_plant_id_not_in_report")
         return Outcome("by_eia_plant_id", site, [f"EIA plant id {site.id} already on the plant"])
     state = (ours.state or "").strip().upper()
-    named = [s for s in by_state.get(state, []) if (w := eia_name_words(s.plant.name)) and w <= name_words(ours.name)]
+    mine = name_words(ours.name)
+    named = [s for s in by_state.get(state, []) if (w := eia_name_words(s.plant.name)) - STATE_WORDS and w <= mine]
     if not named:
         return Outcome("no_name_match")
     passing: list[tuple[EiaSite, list[str]]] = []

@@ -7,11 +7,12 @@ ISO/RTO (as a code; the boundary join when the stated value names none), online 
 built / total count the campus's building records (Operating = built); a campus with no building
 record yet shows the building counts its own facts state. `plantId` is the largest generating plant
 serving the campus (fuel lines excluded). `financed` is the approved site link (facilities_common).
-`lastChange` is the newest value change or record (the History and Records tabs), else the newest
-fact. Detail adds every displayed fact with its source, owner of record (assessor; n/d until a
-county collector writes `owner_of_record`), parcels, balancing authority, the large-load request and
-queue entry, backup generators counted on the campus (MW and fuel n/d until the air permit is
-read), key dates, Sentinel-2 imagery and the tab counts.
+`lastChange` is the newest dated change (facilities_common.last_change): a History-tab change (value
+change, first status / MW, first seen), a record (event) or a large-load queue listing, by date, then
+learned_at; else the newest fact. Detail adds every displayed fact with its source, owner of record
+(assessor; n/d until a county collector writes `owner_of_record`), parcels, balancing authority, the
+large-load request and queue entry, backup generators counted on the campus (MW and fuel n/d until
+the air permit is read), key dates, Sentinel-2 imagery and the tab counts.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.registry import builder
 from marden.readmodels.views.facilities_campus_tabs import (
     building_docs,
+    campus_changes,
     campus_history,
     campus_records,
     request_text,
@@ -30,10 +32,12 @@ from marden.readmodels.views.facilities_campus_tabs import (
 from marden.readmodels.views.facilities_common import (
     DC_STATUSES,
     POWER_SOURCES,
+    QUEUE_PREFIX,
     campus_buildings,
     campus_ids,
     campus_row,
     enum_value,
+    event_changes,
     field_label,
     financed_link,
     first_seen,
@@ -42,6 +46,8 @@ from marden.readmodels.views.facilities_common import (
     iso_value,
     last_change,
     number_value,
+    queue_changes,
+    queue_text,
     serving_plants,
     subject_events,
     text_value,
@@ -140,8 +146,8 @@ def main_plant_id(conn: Conn, campus_id: str) -> str | None:
 
 def row_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
     cid = campus["id"]
-    events = subject_events(conn, "campus", cid)
-    history = campus_history(conn, cid)
+    changes = campus_changes(conn, cid) + event_changes(subject_events(conn, "campus", cid))
+    changes += queue_changes(conn, "campus", cid)
     return {
         "id": cid,
         "name": campus["name"],
@@ -162,7 +168,7 @@ def row_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
         "plantId": main_plant_id(conn, cid),
         "onlineYear": number_value(facts.get("online_year"), "F"),
         "financed": financed_link(conn, [cid]),
-        "lastChange": last_change(history, events, facts),
+        "lastChange": last_change(changes, facts),
         "firstSeen": first_seen(facts, campus["first_seen_at"].date() if campus.get("first_seen_at") else None),
     }
 
@@ -189,7 +195,7 @@ def facts_table(facts: dict[str, Row]) -> dict[str, Doc]:
     out: dict[str, Doc] = {}
     for field in sorted(facts, key=field_label):
         row = facts[field]
-        if field in NOT_IN_FACTS or field.startswith("large_load_queue_") or row["valid_from"] > day():
+        if field in NOT_IN_FACTS or field.startswith(QUEUE_PREFIX) or row["valid_from"] > day():
             continue
         value: Any = row["value"]
         if not (isinstance(value, int | float) and not isinstance(value, bool)):
@@ -213,16 +219,9 @@ def large_load(conn: Conn, campus_id: str, facts: dict[str, Row]) -> Doc | None:
 
 def queue_entry(facts: dict[str, Row]) -> Doc | None:
     """The campus's large-load queue entry as the operator lists it (large_load_queue_<iso> facts)."""
-    for field in sorted(f for f in facts if f.startswith("large_load_queue_")):
-        row = facts[field]
-        entries = row["value"] if isinstance(row["value"], list) else [row["value"]]
-        parts = []
-        for e in entries:
-            if isinstance(e, dict) and e.get("queue_id"):
-                status = f" ({e['status']})" if e.get("status") else ""
-                parts.append(f"{field.rsplit('_', 1)[-1].upper()} queue {e['queue_id']}{status}")
-        if parts:
-            return with_value(row, "; ".join(parts))
+    for field in sorted(f for f in facts if f.startswith(QUEUE_PREFIX)):
+        if text := queue_text(field, facts[field]["value"]):
+            return with_value(facts[field], text)
     return None
 
 

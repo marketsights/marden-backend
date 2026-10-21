@@ -113,6 +113,22 @@ def test_signals_fire_against_the_window_start_state():
     assert {f.subject for f in ts.fires(["A", "B"], ["s"], base, later) if f.signal == "price"} == {"A"}
 
 
+def test_the_price_free_diagnostic_drops_only_marden_price_findings():
+    def chain(lenders_reason: str) -> dict:
+        return {"status": "Strained", "chain": [
+            {"role": "tenant", "status": "green", "reason": "No tenant rule met"},
+            {"role": "lenders", "status": "amber", "ruleCode": "L1", "reason": lenders_reason}]}
+    by_price = ts._status_doc(chain("L1 Marden price 95-98: Marden price 97.0 (X)"))
+    assert by_price == {"status": "Strained", "statusExPrice": "Holding", "codes": ["L1 lenders (Marden price)"]}
+    stalled = ts._status_doc(chain("L1 Marden price 95-98: Marden price 97.0 (X). L1 Syndication stalled: ..."))
+    assert stalled["statusExPrice"] == "Strained" and stalled["codes"] == ["L1 lenders"]
+    base = {"day": "2026-04-01", "basis": {"price": "r", "status": "r", "cushion": "r"}, "price": {"A": 99.0},
+            "status": {"s": {"status": "Holding", "statusExPrice": "Holding", "codes": []}}, "cushion": {}}
+    later = {**base, "day": "2026-07-21", "price": {"A": 94.0}, "status": {"s": by_price}}
+    assert {f.signal for f in ts.fires(["A"], ["s"], base, later)} == {"status", "price"}
+    assert ts.fires(["A"], ["s"], base, later, price_free=True) == []
+
+
 def test_refine_days_cover_the_week_before_the_first_signal():
     states = {date(2026, 4, 1): {}, date(2026, 4, 8): {}}
     fire = ts.Fire(date(2026, 4, 8), "status", "s", "", "reconstructed")
@@ -187,6 +203,7 @@ def test_run_shapes_the_output_for_the_read_models_and_marks_the_view(jupiter_ro
         if c["flagged"] and c["moved"]:
             assert c["leadDays"] == (date.fromisoformat(c["moved"]) - date.fromisoformat(c["flagged"])).days
         assert c["outcome"] in ("early", "same day", "late", "missed")
+        assert set(c["priceFree"]) == {"flagged", "leadDays", "signal"}
     assert by_key["jupiter"]["moved"] == "2026-09-18"
     assert all(e["leadDays"] > 0 for e in out["earlierCalls"])
     assert [r["link"] for r in out["rules"]] == ["End user", "Tenant", "Developer", "Lenders"]

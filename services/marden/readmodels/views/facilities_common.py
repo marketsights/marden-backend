@@ -10,17 +10,21 @@ buildings, plants and units as Marden knew them on the build date.
 - `financed` (FinancedLink) is the campus's approved site link only (spec 16: no link without an
   approved evidence record): the site's chain status from the `status` model and the debt of the
   instruments that need the site finished. Proposed links never show.
+- `lastChange` (campus and plant rows) is the newest of all the subject's dated changes (`Change`):
+  value changes and first values of the History tab, records (events) and large-load queue listings,
+  ranked by date (valid_from / event date), then learned_at, then kind and row id. Every kind competes
+  on its date, so an older record never hides a newer value change.
 """
 
 from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Sequence
-from datetime import date
-from typing import Any
+from datetime import date, datetime
+from typing import Any, NamedTuple
 
 from marden.core.db import Conn, Row
-from marden.readmodels.context import known_fact_rows
+from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.views.sites_common import (
     US_STATES,
     Doc,
@@ -43,6 +47,7 @@ PLANT_STATUSES = ("Permit pending", "Permitted", "Under construction", "Operatin
 PLANT_TECHS = ("Simple-cycle turbine", "Reciprocating engine", "Fuel cell", "Combined cycle", "Other")
 ISO_CODES = re.compile(r"^\s*(ERCOT|PJM|MISO|SPP|CAISO|NYISO|ISO-NE)\b", re.I)
 GRID_JOIN = "collector:grid_join"
+QUEUE_PREFIX = "large_load_queue_"  # operator queue listings of a large load (marden.collectors.iso_queue)
 PIPELINE_WORDS = ("pipeline", "lateral", "gas supply")  # as sites_power: fuel lines, not generation
 
 FIELD_LABELS = {
@@ -266,12 +271,31 @@ def _shown(value: Any) -> str | None:
     return text_of(value, 160)
 
 
-def fact_history(
+class Change(NamedTuple):
+    """A dated change on a subject: its DcHistoryEvent and what `last_change` ranks it by. `kind`
+    (FIRST_SEEN < FIRST_VALUE < VALUE_CHANGE < QUEUE < RECORD) orders changes of the same date learned
+    at the same instant; `row_id` (the fact's or event's id) then makes the order total."""
+
+    entry: Doc
+    learned_at: datetime
+    kind: int
+    row_id: int
+
+
+FIRST_SEEN, FIRST_VALUE, VALUE_CHANGE, QUEUE, RECORD = range(5)
+
+
+def history_entries(changes: Iterable[Change]) -> list[Doc]:
+    """The History tab: DcHistoryEvent per change, newest date first (by field on the same date)."""
+    return sorted((c.entry for c in changes), key=lambda h: (h["date"], h["field"]), reverse=True)
+
+
+def fact_changes(
     conn: Conn, subject_type: str, subject_id: str, fields: Sequence[str], initial: Sequence[str] = ()
-) -> list[Doc]:
-    """DcHistoryEvent per change of each field (before -> after), oldest value first per field;
-    the first known value is an event too for the `initial` fields. Newest first."""
-    out: list[Doc] = []
+) -> list[Change]:
+    """A change per new value of each field (before -> after), oldest value first per field; the
+    first known value is a change too for the `initial` fields (n/d -> value)."""
+    out: list[Change] = []
     rows = known_fact_rows(conn, subject_type, subject_id, list(fields))
     for field in fields:
         prev: str | None = None
@@ -284,51 +308,76 @@ def fact_history(
                 continue
             if seen or field in initial:
                 text = f"{field_label(field)}: {prev} -> {after}" if seen else f"{field_label(field)}: {after}"
-                out.append(
-                    {
-                        "date": row["valid_from"].isoformat(),
-                        "field": field,
-                        "before": prev if seen else None,
-                        "after": after,
-                        "evidence": fact_evidence(row, text),
-                    }
-                )
+                entry = {
+                    "date": row["valid_from"].isoformat(),
+                    "field": field,
+                    "before": prev if seen else None,
+                    "after": after,
+                    "evidence": fact_evidence(row, text),
+                }
+                out.append(Change(entry, row["learned_at"], VALUE_CHANGE if seen else FIRST_VALUE, row["id"]))
             prev, seen = after, True
-    out.sort(key=lambda h: (h["date"], h["field"]), reverse=True)
     return out
 
 
-def event_history(events: Sequence[Row]) -> list[Doc]:
-    """Records as history entries (permits filed, decided, dockets ...): field 'record'."""
+def event_changes(events: Sequence[Row]) -> list[Change]:
+    """Each record (event: permit, docket, filing, queue status or COD change) as a change."""
     return [
-        {
-            "date": e["event_date"].isoformat(),
-            "field": "record",
-            "before": None,
-            "after": e["title"],
-            "evidence": event_evidence(e),
-        }
+        Change(
+            {
+                "date": e["event_date"].isoformat(),
+                "field": "record",
+                "before": None,
+                "after": e["title"],
+                "evidence": event_evidence(e),
+            },
+            e["learned_at"],
+            RECORD,
+            e["id"],
+        )
         for e in events
     ]
 
 
-def last_change(history: Sequence[Doc], events: Sequence[Row], facts: dict[str, Row]) -> Doc | None:
-    """The newest dated change: a value change (before -> after) or a record (records first on the same
-    day); else the first recorded value of a tracked field; else the newest fact Marden holds on the
-    subject; None (n/d) when it holds none."""
-    changes = [h for h in history if h["before"] is not None or h["field"] == "record"]
-    if not changes and not events:
-        changes = list(history)
-    best: tuple[str, int, Doc] | None = None
-    for h in changes:
-        cand = (h["date"], 0, h["evidence"])
-        best = cand if best is None or cand[:2] > best[:2] else best
-    if events:
-        ev = event_evidence(events[0])
-        cand = (ev["date"], 1, ev)
-        best = cand if best is None or cand[:2] > best[:2] else best
+def queue_text(field: str, value: Any) -> str | None:
+    """A large-load queue listing as the operator states it: 'NYISO queue 1732 (SRIS/SIS Approved)'."""
+    parts = []
+    for e in value if isinstance(value, list) else [value]:
+        if isinstance(e, dict) and e.get("queue_id"):
+            status = f" ({e['status']})" if e.get("status") else ""
+            parts.append(f"{field.rsplit('_', 1)[-1].upper()} queue {e['queue_id']}{status}")
+    return "; ".join(parts) or None
+
+
+def queue_changes(conn: Conn, subject_type: str, subject_id: str) -> list[Change]:
+    """Each operator queue listing of the subject's large loads (`large_load_queue_<iso>`, written
+    only when the entry changes), dated by the queue file it was read from."""
+    fields = sorted(f for f in known_facts(conn, subject_type, subject_id) if f.startswith(QUEUE_PREFIX))
+    if not fields:
+        return []
+    out = []
+    for field, rows in known_fact_rows(conn, subject_type, subject_id, fields).items():
+        for row in rows:
+            if row["valid_from"] <= day() and (text := queue_text(field, row["value"])):
+                entry = {
+                    "date": row["valid_from"].isoformat(),
+                    "field": field,
+                    "before": None,
+                    "after": text,
+                    "evidence": fact_evidence(row, f"Large-load queue: {text}"),
+                }
+                out.append(Change(entry, row["learned_at"], QUEUE, row["id"]))
+    return out
+
+
+def last_change(changes: Iterable[Change], facts: dict[str, Row]) -> Doc | None:
+    """`lastChange`: the newest dated change of any kind (value change, first value of a tracked
+    field, first seen, queue listing, record), by date (valid_from / event date), then learned_at,
+    then kind and row id; else the newest fact Marden holds on the subject; None (n/d) when it holds
+    none. An older record never hides a newer value change."""
+    best = max(changes, key=lambda c: (c.entry["date"], c.learned_at, c.kind, c.row_id), default=None)
     if best is not None:
-        return best[2]
+        return best.entry["evidence"]
     dated = [r for r in facts.values() if r["valid_from"] <= day()]
     if dated:
         row = max(dated, key=lambda r: (r["valid_from"], r["id"]))

@@ -78,8 +78,8 @@ export function issuerFromPublishableKey(key: string | null): string | null {
 
 /** NODE_ENV values where dev auth (one local owner + staff user, no token) may run. */
 const DEV_AUTH_NODE_ENVS = new Set(['development', 'test']);
-/** Set by Railway on every deployed service (staging and production). */
-const DEPLOY_MARKERS = ['RAILWAY_ENVIRONMENT', 'RAILWAY_ENVIRONMENT_NAME', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_PROJECT_ID'];
+/** Set by the host on every deployed service (Railway, Render; staging and production). */
+const DEPLOY_MARKERS = ['RAILWAY_ENVIRONMENT', 'RAILWAY_ENVIRONMENT_NAME', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_PROJECT_ID', 'RENDER', 'RENDER_SERVICE_ID'];
 
 /**
  * Dev auth only on a developer machine or in tests: refused unless NODE_ENV is development or test,

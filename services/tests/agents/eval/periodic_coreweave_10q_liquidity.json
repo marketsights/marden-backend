@@ -1,0 +1,23 @@
+{
+ "id": "periodic_coreweave_10q_liquidity",
+ "area": "periodic",
+ "document": {
+  "document_id": 1227,
+  "source_id": "sec_index",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+  "sha256": "0ac9a9eacae96a533698d025df9eb9085239485fc9ce1dabc5105f0aad02a9b5",
+  "doc_type": "10-Q",
+  "title": "10-Q",
+  "date": "2026-08-12"
+ },
+ "note": "CoreWeave 10-Q Q2 2026, Liquidity and Capital Resources (table in millions)",
+ "excerpt": "Liquidity and Capital Resources\n\nOur operations have been financed primarily through net proceeds from sales of our equity securities, including in our IPO, and from borrowings pursuant to our Credit Facilities and the issuances of debt securities. The following table summarizes our principal sources of liquidity for the periods presented (in millions):\n\nJune 30,\n\n2026 December 31,\n\n2025\n\nCash and cash equivalents $ 5,524 $ 3,127\n\nMarketable securities\n15 34\n\nAvailability under existing facilities(1)\n10,014 3,701\n\nTotal liquidity $ 15,553 $ 6,862\n\n____________\n\n(1)Refers to secured commitments under the revolving credit facility and delayed draw term loan agreements.",
+ "gold": [
+  {
+   "field": "cash_usd",
+   "subject_kind": "entity",
+   "value": 5524000000,
+   "quote": "Cash and cash equivalents $ 5,524 $ 3,127"
+  }
+ ]
+}

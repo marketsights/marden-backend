@@ -1,0 +1,99 @@
+# Render Blueprint for Marden: web (marden-front-end), api and worker (this repo). docs/DEPLOY-render.md has
+# the steps. The images are the same Dockerfiles Railway uses; nothing here is Render-only code.
+#
+# Region: ohio, next to Neon (us-east-2). Secrets are `sync: false`: Render asks for each value when the
+# Blueprint is first applied and never stores them in this file.
+# Branch: the build branch until it is merged; switch all three to main afterwards.
+
+services:
+  - type: web
+    name: core-api
+    runtime: docker
+    repo: https://github.com/marketsights/marden-backend
+    branch: claude/modest-bardeen-tkbmaq
+    region: ohio
+    plan: starter
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    # dbmate with an advisory lock: safe when the worker's pre-deploy runs at the same time.
+    preDeployCommand: marden-migrate
+    buildFilter:
+      paths: [apps/api/**, db/migrations/**, scripts/migrate.sh, package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
+    envVars:
+      - key: DATABASE_URL            # Neon pooled (app_rw)
+        sync: false
+      - key: DATABASE_URL_UNPOOLED   # Neon direct (stream LISTEN, migrations)
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_WEBHOOK_SIGNING_SECRET
+        sync: false
+      - key: WEB_ORIGIN              # e.g. https://app.marden.ai (or the core-web onrender.com URL)
+        sync: false
+      - key: TRUST_PROXY             # one hop: Render's proxy
+        value: "1"
+
+  - type: worker
+    name: core-worker
+    runtime: docker
+    repo: https://github.com/marketsights/marden-backend
+    branch: claude/modest-bardeen-tkbmaq
+    region: ohio
+    plan: standard                   # 2 GB: EIA/ERCOT spreadsheets, PDFs and QuantLib runs exceed starter's 512 MB
+    dockerfilePath: ./services/Dockerfile
+    dockerContext: .
+    preDeployCommand: marden-migrate
+    buildFilter:
+      paths: [services/**, db/migrations/**, scripts/migrate.sh]
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: ERCOT_API_KEY
+        sync: false
+      - key: ERCOT_API_USERNAME
+        sync: false
+      - key: ERCOT_API_PASSWORD
+        sync: false
+      - key: RESEND_API_KEY          # or POSTMARK_TOKEN (add it by hand) + ALERT_EMAIL_PROVIDER
+        sync: false
+      - key: ALERT_FROM_EMAIL
+        sync: false
+      - key: ALERT_LINK_SECRET
+        generateValue: true
+      - key: MARDEN_APP_URL          # e.g. https://app.marden.ai
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+
+  - type: web
+    name: core-web
+    runtime: docker
+    repo: https://github.com/marketsights/marden-front-end
+    branch: claude/modest-bardeen-tkbmaq
+    region: ohio
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      # The /api/* rewrite target, fixed at build time (Render passes env vars to the Docker build as
+      # build args): core-api's public URL, e.g. https://core-api.onrender.com or https://api.marden.ai.
+      - key: API_ORIGIN
+        sync: false
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false

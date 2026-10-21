@@ -1,0 +1,45 @@
+{
+ "id": "gpu_coreweave_q2_2026_release",
+ "area": "gpu",
+ "document": {
+  "document_id": 1225,
+  "source_id": "sec_index",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000362/coreweave2q26earningspress.htm",
+  "sha256": "387026040861c3988f54fce654d74091e22bd68be5c25e1753420b5dffe65d4e",
+  "doc_type": "EX-99.1",
+  "title": "EX-99.1",
+  "date": "2026-08-11"
+ },
+ "note": "CoreWeave Q2 2026 earnings release (EX-99.1), highlights",
+ "excerpt": "Additional Second Quarter 2026 Financial Highlights\n\nRevenue backlog1 was approximately $104 billion as of June 30, 2026.\n\n1 Does not include more than $25 billion of net new customer commitments added in early Q3. Revenue backlog includes remaining performance obligations, plus other amounts we estimate will be recognized as revenue in future periods under committed customer contracts, in each case, subject to the satisfaction of delivery and availability of service requirements.\nSecond Quarter 2026 Highlights\n\n•Customer Wins across AI Labs, Hyperscalers, and Enterprises\n\n◦Partner of choice for leading enterprises and AI pioneers, including Bentley Systems, Caterpillar, Grammarly, Isomorphic Labs, and Sunday Robotics\n\n◦Expanded relationships with existing enterprise and AI native customers including Cognition, Databricks, Hudson River Trading, Periodic Labs, Rescale, and Runway ML\n\n•Continued Rapid Scaling of Purpose-Built AI Infrastructure\n\n◦Expanded active power by nearly 500 MWs to reach 1.5 GW\n\n◦Grew total contracted power to approximately 3.7 GW while further diversifying portfolio of providers and expanding powered land footprint\n\n•",
+ "gold": [
+  {
+   "field": "active_it_mw",
+   "subject_kind": "entity",
+   "value": 1500,
+   "quote": "Expanded active power by nearly 500 MWs to reach 1.5 GW"
+  },
+  {
+   "field": "contracted_mw",
+   "subject_kind": "entity",
+   "value": 3700,
+   "quote": "Grew total contracted power to approximately 3.7 GW"
+  },
+  {
+   "field": "backlog_rpo_usd",
+   "subject_kind": "entity",
+   "value": 104000000000,
+   "quote": "Revenue backlog1 was approximately $104 billion as of June 30, 2026."
+  },
+  {
+   "field": "top_customers",
+   "subject_kind": "entity",
+   "value": [
+    "Cognition",
+    "Databricks",
+    "Hudson River Trading"
+   ],
+   "quote": "Expanded relationships with existing enterprise and AI native customers including Cognition, Databricks, Hudson River Trading, Periodic Labs, Rescale, and Runway ML"
+  }
+ ]
+}

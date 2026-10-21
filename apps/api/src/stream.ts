@@ -1,5 +1,6 @@
 // GET /api/stream: Server-Sent Events from stream_event. One shared LISTEN marden_stream connection;
-// each NOTIFY carries a row id, the row is loaded and pushed to clients of its org (org_id null = all).
+// each NOTIFY carries a row id, the row is loaded and pushed to clients of its org (org_id null = all)
+// and, for a row written for one member (user_id, e.g. their alert), to that member only.
 // Reconnecting clients send Last-Event-ID and get the rows after it (at most 500) before live events.
 import type { ServerResponse } from 'node:http';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
@@ -12,7 +13,7 @@ export const STREAM_CHANNEL = 'marden_stream';
 export const REPLAY_LIMIT = 500;
 const MAX_BUFFERED_BYTES = 1024 * 1024;
 
-interface StreamRow { id: string; org_id: string | null; payload: unknown }
+interface StreamRow { id: string; org_id: string | null; user_id?: string | null; payload: unknown }
 
 // Ids are selected as text (bigint does not fit a JS number). ORDER BY must name the table's bigint
 // column (stream_event.id): a bare `id` would bind to the text output column and sort '100' before
@@ -20,10 +21,11 @@ interface StreamRow { id: string; org_id: string | null; payload: unknown }
 /** Rows written while the listener was down, oldest first. */
 export const CATCH_UP_SQL =
   `SELECT id::text, org_id, payload FROM stream_event WHERE id > $1 ORDER BY stream_event.id LIMIT ${REPLAY_LIMIT}`;
-/** The newest REPLAY_LIMIT rows after a client's Last-Event-ID that its org may see, oldest first. */
+/** The newest REPLAY_LIMIT rows after a client's Last-Event-ID that its org and user may see, oldest first. */
 export const REPLAY_SQL = `SELECT * FROM (
-     SELECT id::text, org_id, payload, count(*) OVER ()::int AS total FROM stream_event
-     WHERE id > $1 AND (org_id IS NULL OR org_id = $2) ORDER BY stream_event.id DESC LIMIT ${REPLAY_LIMIT}) t
+     SELECT id::text, org_id, user_id, payload, count(*) OVER ()::int AS total FROM stream_event
+     WHERE id > $1 AND (org_id IS NULL OR org_id = $2) AND (user_id IS NULL OR user_id = $3)
+     ORDER BY stream_event.id DESC LIMIT ${REPLAY_LIMIT}) t
    ORDER BY id::bigint`;
 
 interface Client {
@@ -121,11 +123,14 @@ export class StreamHub {
   private async deliver(id: bigint): Promise<void> {
     if (id > this.lastSeen) this.lastSeen = id;
     if (this.clients.size === 0) return;
-    const res = await this.db.query<StreamRow>(`SELECT id::text, org_id, payload FROM stream_event WHERE id = $1`, [id.toString()]);
+    const res = await this.db.query<StreamRow>(
+      `SELECT id::text, org_id, user_id, payload FROM stream_event WHERE id = $1`, [id.toString()],
+    );
     const row = res.rows[0];
     if (!row) return;
     for (const client of this.clients) {
       if (row.org_id !== null && row.org_id !== client.orgId) continue;
+      if (row.user_id && row.user_id !== client.userId) continue; // one member's event (their alert)
       if (client.pending) client.pending.push(row);
       else this.send(client, row);
     }
@@ -184,7 +189,7 @@ export class StreamHub {
 
   private async replay(client: Client, after: bigint): Promise<void> {
     try {
-      const res = await this.db.query<StreamRow & { total: number }>(REPLAY_SQL, [after.toString(), client.orgId]);
+      const res = await this.db.query<StreamRow & { total: number }>(REPLAY_SQL, [after.toString(), client.orgId, client.userId]);
       // More missed than we replay: tell the client to refetch everything, then send the newest rows.
       if ((res.rows[0]?.total ?? 0) > REPLAY_LIMIT) this.write(client, `event: reset\ndata: {"reason":"replay_truncated"}\n\n`);
       client.lastId = after;

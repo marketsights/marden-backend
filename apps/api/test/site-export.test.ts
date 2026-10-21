@@ -94,7 +94,7 @@ describe('site tab export', () => {
       ['Gas supply / grid interconnection in service', 'Slipped', '2027-02'],
       ['Rent start', 'Projected', ''], // no projection: empty cell, never a made-up date
     ]);
-    expect(rows[0].latestEvidence).toBe('2026-10-13 · Feb 1 2027 per letter to FERC');
+    expect(rows[0]?.latestEvidence).toBe('2026-10-13 · Feb 1 2027 per letter to FERC');
     expect(sources.some((l) => l[2] === 'latestEvidence' && l[4] === 'F')).toBe(true);
   });
 

@@ -1,10 +1,12 @@
 // Production behaviour that the deploy relies on (docs/DEPLOY.md): /healthz reports database
 // reachability (503 when it is gone), TRUST_PROXY as a hop count keys rate limits on the address
 // Railway's edge appended (a client cannot pick its own key), and SIGTERM drains then exits.
+import { readFileSync } from 'node:fs';
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 import { checkHealth } from '../src/lib/health.js';
+import { IPV4_ANY, listenWithFallback } from '../src/listen.js';
 import { shutdownHandler } from '../src/shutdown.js';
 import { makeApp, testDb } from './helpers.js';
 
@@ -113,5 +115,70 @@ describe('graceful shutdown', () => {
     void handler('SIGTERM'); // a second signal does not start a second shutdown
     await new Promise((r) => setTimeout(r, 300));
     expect(exits).toEqual([1]);
+  });
+});
+
+describe('railway.json (config as code)', () => {
+  const railway = JSON.parse(readFileSync(new URL('../railway.json', import.meta.url), 'utf8')) as {
+    build: { builder: string; dockerfilePath: string; watchPatterns: string[] };
+    deploy: Record<string, unknown>;
+  };
+  const dockerfile = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
+
+  it('builds this Dockerfile, migrates before deploy and checks /healthz (tested above)', () => {
+    expect(railway.build).toMatchObject({ builder: 'DOCKERFILE', dockerfilePath: 'apps/api/Dockerfile' });
+    expect(railway.build.watchPatterns).toEqual(expect.arrayContaining(['apps/api/**', 'db/migrations/**']));
+    expect(railway.deploy.preDeployCommand).toEqual(['marden-migrate']);
+    expect(dockerfile).toContain('scripts/migrate.sh /usr/local/bin/marden-migrate');
+    expect(railway.deploy.healthcheckPath).toBe('/healthz');
+    // The start command is the image's CMD, so `docker run` and Railway run the same process.
+    expect(dockerfile).toContain(`CMD ["${String(railway.deploy.startCommand).split(' ').join('", "')}"]`);
+    expect(dockerfile).toMatch(/^USER node$/m);
+  });
+
+  it('gives a stopping API longer than its own drain timeout before Railway kills it', () => {
+    const config = loadConfig({ DATABASE_URL, NODE_ENV: 'test', MARDEN_AUTH_MODE: 'dev' });
+    expect(Number(railway.deploy.drainingSeconds) * 1000).toBeGreaterThan(config.shutdownTimeoutMs);
+  });
+
+  it('refuses dev auth on Railway or Render even when NODE_ENV says development', () => {
+    for (const marker of ['RAILWAY_ENVIRONMENT', 'RAILWAY_ENVIRONMENT_NAME', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_PROJECT_ID', 'RENDER', 'RENDER_SERVICE_ID']) {
+      expect(() => loadConfig({ DATABASE_URL, NODE_ENV: 'development', MARDEN_AUTH_MODE: 'dev', [marker]: 'x' }))
+        .toThrow(new RegExp(`${marker} is set`));
+    }
+  });
+});
+
+describe('listenWithFallback (HOST=:: in the image)', () => {
+  const errno = (code: string) => Object.assign(new Error(code), { code });
+
+  it('binds :: where IPv6 exists, else 0.0.0.0, and the API answers either way', async () => {
+    const app = Fastify({ logger: false });
+    app.get('/ping', () => Promise.resolve({ ok: true }));
+    try {
+      const host = await listenWithFallback(app, { host: '::', port: 0 });
+      expect(['::', IPV4_ANY]).toContain(host); // this sandbox has no IPv6, so it exercises the fallback
+      const address = app.server.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      expect(await (await fetch(`http://127.0.0.1:${port}/ping`)).json()).toEqual({ ok: true });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('falls back only for EAFNOSUPPORT on ::, and rethrows anything else', async () => {
+    const app = Fastify({ logger: false });
+    const calls: string[] = [];
+    const noV6 = (t: { host: string }) => {
+      calls.push(t.host);
+      return t.host === '::' ? Promise.reject(errno('EAFNOSUPPORT')) : Promise.resolve();
+    };
+    expect(await listenWithFallback(app, { host: '::', port: 1 }, noV6)).toBe(IPV4_ANY);
+    expect(calls).toEqual(['::', IPV4_ANY]);
+    await expect(listenWithFallback(app, { host: '::', port: 1 }, () => Promise.reject(errno('EADDRINUSE'))))
+      .rejects.toThrow('EADDRINUSE');
+    await expect(listenWithFallback(app, { host: '10.0.0.1', port: 1 }, () => Promise.reject(errno('EAFNOSUPPORT'))))
+      .rejects.toThrow('EAFNOSUPPORT');
+    await app.close();
   });
 });

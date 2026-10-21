@@ -2,13 +2,13 @@
 `site_schedule` (GET /api/sites/:slug/schedule, SiteSchedule), specs 04 and 16.
 
 SiteDetail is the site's SiteSummary (views/sites.py: same chain, status, cushion and debt as the
-lists) plus `buildings` (built / total on the linked campuses, as the lists count them), the facts
-line ("2.46 GW · $18.0B debt · 4 buildings"), tracking names, tab counts (the same counts the
+lists) plus `buildings` (built / total on the linked campuses, as the lists count them), the
+facts line ("2.46 GW · $18.0B debt · 4 buildings"), tracking names, tab counts (the same counts the
 Evidence, Opposition and Material events tabs list), the main instrument that needs the site
 finished (size, dealer quote R, Marden price and recovery from the price / recovery models, filed
-holders) and the material events, one per story (a headline syndicated by several outlets once). The Schedule tab's projection, milestones and
-cushion history come from the `cushion` model; imagery from Sentinel-2 facts; documents are the
-latest filed records (F first).
+holders) and the material events, one per story (a headline syndicated by several outlets once).
+The Schedule tab's projection, milestones and cushion history come from the `cushion` model;
+imagery from Sentinel-2 facts; documents are the latest filed records (F first).
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def _story_key(title: str) -> str:
     """One key per story: the same headline syndicated by several outlets ('… - Yahoo Finance',
     '… - TheStreet') is one material event, not five."""
     text = re.sub(r"\s+-\s+[^-]{2,40}$", "", title or "")
-    return re.sub(r"[^a-z0-9]+", " ", text.lower().replace("’", "'")).strip()
+    return re.sub(r"[^a-z0-9]+", " ", text.lower().replace("\u2019", "'")).strip()
 
 
 def marden_price(conn: Conn, instrument_id: str) -> Doc:

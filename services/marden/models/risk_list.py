@@ -18,8 +18,8 @@ Universe: the V1 instruments the price model has priced on or before the as-of d
 odds of a 3+ point move in 90 days = score / (score + 6), 'odds v0' (uncalibrated). Rank by odds, ties by
 size. Up to 15 rows with a positive score. `why` lists the records behind the points (risk_note), the note
 is filled by code templates from those numbers. `move` compares with the previous week's list.
-earlierCalls: earlier lists' rows whose Marden price then moved 3+ points (first price output that did,
-leadDays from the list's week).
+earlierCalls: earlier lists' rows whose Marden price then moved 3+ points (first price output that did; one
+call per instrument, its earliest flag; leadDays from the list's week).
 
 Runs: Sundays 23:40 ET (cron 40 3 * * 1 UTC, the Monday's list), plus a dirty-mark runner that only
 writes a week with no list yet (so a published list stays frozen).
@@ -177,7 +177,10 @@ def earlier_calls(conn: Conn, week: date, day: date) -> list[dict[str, Any]]:
                         }
                     )
                     break
-    return sorted(calls, key=lambda c: c["flagged"], reverse=True)
+    first: dict[str, dict[str, Any]] = {}  # one call per instrument: its earliest flag (the longest lead)
+    for c in sorted(calls, key=lambda c: (c["flagged"], c["moved"])):
+        first.setdefault(c["name"], c)
+    return sorted(first.values(), key=lambda c: c["flagged"], reverse=True)
 
 
 def compute(conn: Conn, day: date) -> Batch:

@@ -17,6 +17,7 @@ PLUGIN_PACKAGES = (
     "marden.extraction",
     "marden.models",
     "marden.alerts",
+    "marden.agents",
 )
 
 _loaded = False

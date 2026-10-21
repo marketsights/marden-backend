@@ -87,13 +87,14 @@ const EXPORTS: Record<string, Expect | null> = {
   'risk-list': ['risk_list', 'latest'], payers: ['payers', 'all'], payer: ['payer', ENTITY], 'payer-exposed': ['payer_capacity', ENTITY],
   leases: ['leases', 'all'],
   obligations: ['obligations', 'all'], watchlist: null,
+  'track-record': ['track_record', 'all'], models: ['track_record', 'all'], sources: null,
   stress: ['model:stress', 'power_delay'], // a run of the stress model (stress_run), not a read model
 };
 
 /** GET routes that read app tables, identity tables or the stream, not a read model. */
 const APP_ROUTES = new Set([
   '/api/home/layout', '/api/stress/saved', '/api/stress/saved/:id', '/api/watchlist', '/api/watchlist/issuers/:id', '/api/alerts',
-  '/api/alert-settings', '/api/sources/health', '/api/account', '/api/search', '/api/stream', '/api/me',
+  '/api/alert-settings', '/api/saved-views', '/api/sources/health', '/api/account', '/api/search', '/api/stream', '/api/me',
   '/api/export/:table.xlsx', '/healthz',
 ]);
 

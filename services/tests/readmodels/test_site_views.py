@@ -407,6 +407,13 @@ def test_dependencies_reach_the_site_views(sites):
         building_id = copied_rows("SELECT id FROM building WHERE campus_id = 'stargate-abilene' LIMIT 1")[0]["id"]
         assert {("site_detail", "abilene"), ("site_tab:buildings", "abilene")} <= targets(
             "building", building_id, "status", conn=conn)
+        # The lists' "Bldgs" column (spec 16): a linked campus's building or count fact refreshes them.
+        assert {("sites", "all"), ("completion", "all")} <= targets("building", building_id, "status", conn=conn)
+        assert {("sites", "all"), ("completion", "all")} <= targets(
+            "campus", "stargate-abilene", "building_count", conn=conn)
+        unlinked = copied_rows("SELECT id FROM campus WHERE id NOT IN (SELECT campus_id FROM site_link) LIMIT 1")
+        if unlinked:
+            assert ("sites", "all") not in targets("campus", unlinked[0]["id"], "building_count", conn=conn)
         note = copied_rows("""SELECT i.id FROM instrument i JOIN fact_current f ON f.subject_type = 'instrument'
                                AND f.subject_id = i.id AND f.field = 'exposure_links'
                               WHERE f.value @> '[{"case": "JUPITER", "role": "Tenant"}]' LIMIT 1""")

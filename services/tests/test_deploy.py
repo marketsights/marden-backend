@@ -1,5 +1,6 @@
-"""Deploy safety (docs/DEPLOY.md): the migrate script, stalled-job recovery, the raw store's refusal of
-local disk on Railway, the worker's shutdown timeout and redacted JSON logs."""
+"""Deploy safety (docs/DEPLOY.md): the migrate script, the Railway config, the worker's queues, stalled-job
+recovery, the raw store's refusal of local disk on Railway, the worker's shutdown timeout and redacted
+JSON logs."""
 
 from __future__ import annotations
 
@@ -21,7 +22,8 @@ from psycopg.conninfo import make_conninfo
 from marden import worker
 from marden.core import config, logs, rawstore
 from marden.core.config import ConfigError, Settings
-from marden.core.queue import app
+from marden.core.queue import QUEUES, app
+from marden.plugins import load_plugins
 
 REPO = Path(__file__).resolve().parents[2]
 MIGRATE = REPO / "scripts" / "migrate.sh"
@@ -91,13 +93,75 @@ def test_migrate_refuses_without_a_database_url():
     assert out.returncode == 2 and "must be set" in out.stderr
 
 
+# ------------------------------------------------------------------ Railway config as code
+# Keys of Railway's config-as-code schema (https://railway.com/railway.schema.json, fetched 2026-10-21). The
+# schema allows unknown keys, so a misspelt one would be silently ignored; this catches it.
+RAILWAY_BUILD_KEYS = {"buildCommand", "builder", "dockerfilePath", "nixpacksConfigPath", "nixpacksPlan",
+                      "nixpacksVersion", "railpackVersion", "watchPatterns"}
+RAILWAY_DEPLOY_KEYS = {"cronSchedule", "drainingSeconds", "healthcheckPath", "healthcheckTimeout", "ipv6EgressEnabled",
+                       "limitOverride", "multiRegionConfig", "numReplicas", "overlapSeconds", "preDeployCommand",
+                       "preDeployTimeoutSeconds", "region", "registryCredentials", "requiredMountPath",
+                       "restartPolicyMaxRetries", "restartPolicyType", "runtime", "sleepApplication", "startCommand"}
+
+
+def _railway(path: str) -> dict:
+    cfg = json.loads((REPO / path).read_text())
+    assert set(cfg) <= {"$schema", "build", "deploy"}
+    assert set(cfg["build"]) <= RAILWAY_BUILD_KEYS, set(cfg["build"]) - RAILWAY_BUILD_KEYS
+    assert set(cfg["deploy"]) <= RAILWAY_DEPLOY_KEYS, set(cfg["deploy"]) - RAILWAY_DEPLOY_KEYS
+    return cfg
+
+
+def test_railway_config_builds_each_image_and_migrates_before_deploy():
+    api, wk = _railway("apps/api/railway.json"), _railway("services/railway.json")
+    for cfg, dockerfile in ((api, "apps/api/Dockerfile"), (wk, "services/Dockerfile")):
+        assert cfg["build"]["builder"] == "DOCKERFILE" and cfg["build"]["dockerfilePath"] == dockerfile
+        text = (REPO / dockerfile).read_text()
+        # The pre-deploy command exists in the image, migrations ride along, and the process is not root.
+        assert cfg["deploy"]["preDeployCommand"] == ["marden-migrate"]
+        # dbmate waits up to MARDEN_MIGRATE_LOCK_TIMEOUT (10 min) for a concurrent migration's lock.
+        assert cfg["deploy"]["preDeployTimeoutSeconds"] > 600
+        assert "scripts/migrate.sh /usr/local/bin/marden-migrate" in text and "COPY db/migrations" in text
+        assert "db/migrations/**" in cfg["build"]["watchPatterns"]
+        user = [line.split()[1] for line in text.splitlines() if line.startswith("USER ")]
+        assert user and user[-1] not in ("root", "0")
+        assert cfg["deploy"]["restartPolicyType"] == "ON_FAILURE" and cfg["deploy"]["sleepApplication"] is False
+    assert api["deploy"]["healthcheckPath"] == "/healthz"
+    assert "healthcheckPath" not in wk["deploy"]  # no HTTP server in the worker
+    # The start command is the image's CMD, so `docker run` and Railway run the same thing.
+    assert wk["deploy"]["startCommand"] == "python -m marden worker"
+    assert 'CMD ["python", "-m", "marden", "worker"]' in (REPO / "services/Dockerfile").read_text()
+    # Railway kills after drainingSeconds: the worker must have finished draining by then.
+    assert wk["deploy"]["drainingSeconds"] > worker.DEFAULT_SHUTDOWN_TIMEOUT_S
+
+
+def test_every_task_runs_on_a_declared_queue_and_the_worker_takes_all_queues():
+    load_plugins()
+    queues = {t.queue for name, t in app.tasks.items() if not name.startswith(("builtin:", "procrastinate."))}
+    assert queues <= set(QUEUES), queues - set(QUEUES)
+    assert {"collect", "models", "readmodels", "alerts", "default"} <= queues
+    assert "extract" in QUEUES and "agents" in QUEUES
+    # `python -m marden worker` passes no queue list: Procrastinate then works every queue.
+    from marden import commands  # noqa: F401  (registers the built-in `worker` command)
+    from marden.cli import build_parser
+
+    args = build_parser().parse_args(["worker"])
+    assert args.queues is None and args.once is False
+
+
 # ------------------------------------------------------------------ worker
-def test_retry_stalled_requeues_jobs_of_a_dead_worker(committed):
-    dead = committed.execute(
+def _dead_worker(committed) -> int:
+    return committed.execute(
         "INSERT INTO procrastinate_workers (last_heartbeat) VALUES (now() - interval '10 minutes') RETURNING id"
     ).fetchone()["id"]
+
+
+def test_retry_stalled_requeues_jobs_of_a_dead_worker(committed):
+    dead = _dead_worker(committed)
+    # Its own queueing lock: the worker's periodic deferrer queues a fresh rebuild_dirty run (with the task's
+    # queueing lock) as it starts, and that case is the next test's.
     with app.open():
-        job_id = worker.rebuild_dirty_task.defer(timestamp=0)
+        job_id = worker.rebuild_dirty_task.configure(queueing_lock="test.requeue").defer(timestamp=0)
     committed.execute("UPDATE procrastinate_jobs SET status = 'doing', worker_id = %s WHERE id = %s", (dead, job_id))
     with app.open():
         worker.retry_stalled_task.defer(timestamp=0)
@@ -106,6 +170,21 @@ def test_retry_stalled_requeues_jobs_of_a_dead_worker(committed):
     assert job["status"] == "todo" and job["worker_id"] is None  # back in the queue, lock released
     gone = committed.execute("SELECT count(*) AS n FROM procrastinate_workers WHERE id = %s", (dead,)).fetchone()
     assert gone["n"] == 0
+
+
+def test_retry_stalled_closes_a_stalled_job_whose_next_run_is_already_queued(committed):
+    dead = _dead_worker(committed)
+    task = worker.rebuild_all_task.configure(queueing_lock="test.retry_stalled")
+    with app.open():
+        stalled = task.defer(timestamp=0)
+    committed.execute("UPDATE procrastinate_jobs SET status = 'doing', worker_id = %s WHERE id = %s", (dead, stalled))
+    with app.open():
+        queued = task.defer(timestamp=1)  # allowed: the queueing lock only binds `todo` jobs
+        worker.retry_stalled_task.defer(timestamp=0)
+    worker.run_worker(queues=["default"], concurrency=1, wait=False)
+    found = committed.execute("SELECT id, status FROM procrastinate_jobs WHERE id IN (%s, %s)", (stalled, queued))
+    rows = {r["id"]: r["status"] for r in found}
+    assert rows == {stalled: "failed", queued: "todo"}  # the stalled one closed, its lock released
 
 
 def test_retry_stalled_leaves_jobs_of_a_live_worker_alone(committed):
@@ -132,6 +211,7 @@ def test_shutdown_timeout():
 def test_raw_store_refuses_local_disk_on_a_deployed_service(monkeypatch):
     assert config.deploy_marker({}) is None
     assert config.deploy_marker({"RAILWAY_ENVIRONMENT_NAME": "production"}) == "RAILWAY_ENVIRONMENT_NAME"
+    assert config.deploy_marker({"RENDER": "true"}) == "RENDER"
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
     with pytest.raises(rawstore.RawStoreError, match="R2 is not configured"):
         rawstore.get_store(Settings(database_url=TEST_URL))

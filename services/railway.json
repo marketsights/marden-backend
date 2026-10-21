@@ -1,0 +1,25 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "services/Dockerfile",
+    "watchPatterns": [
+      "services/**",
+      "db/migrations/**",
+      "scripts/migrate.sh"
+    ]
+  },
+  "deploy": {
+    "startCommand": "python -m marden worker",
+    "preDeployCommand": [
+      "marden-migrate"
+    ],
+    "preDeployTimeoutSeconds": 900,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "overlapSeconds": 0,
+    "drainingSeconds": 120,
+    "numReplicas": 1,
+    "sleepApplication": false
+  }
+}

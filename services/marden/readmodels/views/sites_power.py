@@ -5,8 +5,9 @@ Power: power needed (site gross / IT MW), gas supply in service (the pipeline pl
 as stated), grid connection (the site's large-load request), one track per plant serving the site
 (status, planned in-service date as stated, its recorded changes), the dockets and pages the case
 research watches (cadence of the Marden collector for that kind, when one exists), and the in-service
-history from dated schedule changes and ready-for-service statements, each under the power source its
-text names (gas pipeline, turbines, fuel cells, on-site generation, grid; else the site schedule). 'Permitted on-site GW' is a
+history from dated schedule changes and ready-for-service statements, each under the power
+source its text names (gas pipeline, turbines, fuel cells, on-site generation, grid; else the site
+schedule). 'Permitted on-site GW' is a
 Marden count (M) left n/d until a permit-count model runs. The plant card embeds the `plant_row`
 document (On-site power view) of the site's main plant when it has been built.
 

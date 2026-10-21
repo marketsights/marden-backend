@@ -23,8 +23,12 @@ class ConfigError(RuntimeError):
     """A required setting is missing or invalid."""
 
 
-# Set by Railway on every deployed service (staging and production); apps/api/src/config.ts checks the same.
-DEPLOY_MARKERS = ("RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID")
+# Set by the host on every deployed service (Railway, Render; staging and production); apps/api/src/config.ts
+# checks the same.
+DEPLOY_MARKERS = (
+    "RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID",
+    "RENDER", "RENDER_SERVICE_ID",
+)
 
 
 def deploy_marker(env: dict[str, str] | None = None) -> str | None:

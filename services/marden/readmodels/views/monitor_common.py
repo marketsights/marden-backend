@@ -150,6 +150,9 @@ def sum_sourced(values: list[Doc]) -> Doc | None:
                 "asOf": max(v["asOf"] for v in known)}
     if names:
         out["sourceName"] = " + ".join(names)
+    methods = sorted({v["methodVersion"] for v in known if v["tag"] == "M" and v.get("methodVersion")})
+    if out["tag"] == "M" and methods:
+        out["methodVersion"] = " + ".join(methods)  # an M sum names the methods of its M parts
     return out
 
 

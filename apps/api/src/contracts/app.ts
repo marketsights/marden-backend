@@ -2,7 +2,7 @@
 // (me, account, sources health, search, saved stress, home, track record, GPU index). types.ts stays a
 // verbatim copy of the handoff.
 import type {
-  ChainStatus, Evidence, GpuModelDetail, GpuPricePoint, GpuProviderPrice, LinkStatus, Sourced, StressRequest,
+  ChainStatus, Evidence, GpuModelDetail, GpuPricePoint, GpuProviderPrice, LinkStatus, RiskList, Sourced, StressRequest,
 } from './types.js';
 
 export type Role = 'owner' | 'admin' | 'member' | 'viewer';
@@ -131,6 +131,12 @@ export interface HomeResponse {
   watchlistChanges: HomeChange[];
   comingUp: HomeCatalyst[];
 }
+
+/**
+ * GET /api/risk-list?week= (spec 10): the week's published list as frozen (types.ts RiskList) plus every
+ * week published so far (Mondays, oldest first) for the week picker. ?week= takes any day of its week.
+ */
+export interface RiskListPage extends RiskList { published: string[] }
 
 /** GET /api/track-record (spec 12): the backtest's cases, the fixed rules and the models. */
 export interface TrackRecordCase {

@@ -147,7 +147,8 @@ class FactWriter:
         if decided_by is None:
             blocked = self.conn.execute(
                 """SELECT id FROM fact WHERE id = ANY(%s) AND status = 'candidate'
-                   AND (material OR (producer LIKE 'extractor:%%' AND verifier IS DISTINCT FROM 'agree'))""",
+                   AND (material OR ((producer LIKE 'extractor:%%' OR producer LIKE 'agent:%%')
+                                     AND verifier IS DISTINCT FROM 'agree'))""",
                 (ids,),
             ).fetchall()
             if blocked:

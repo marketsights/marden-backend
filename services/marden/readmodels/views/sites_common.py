@@ -219,8 +219,12 @@ def debt_value(instruments: Sequence[Doc]) -> Doc:
     if len(rows) == 1:
         return with_value(rows[0], billions(rows[0]["value"]))
     names = sorted({r["source_name"] for r in rows if r.get("source_name")})
-    return {"value": billions(sum(r["value"] for r in rows)), "tag": weakest_tag(r["tag"] for r in rows),
-            "asOf": max(r["valid_from"] for r in rows).isoformat(), "sourceName": " + ".join(names)}
+    out = {"value": billions(sum(r["value"] for r in rows)), "tag": weakest_tag(r["tag"] for r in rows),
+           "asOf": max(r["valid_from"] for r in rows).isoformat(), "sourceName": " + ".join(names)}
+    methods = sorted({r["method_version"] for r in rows if r["tag"] == "M" and r.get("method_version")})
+    if out["tag"] == "M" and methods:
+        out["methodVersion"] = " + ".join(methods)  # an M sum names the methods of its M parts
+    return out
 
 
 def main_instrument(instruments: Sequence[Doc]) -> Doc | None:

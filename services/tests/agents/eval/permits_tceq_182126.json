@@ -1,0 +1,40 @@
+{
+ "id": "permits_tceq_182126",
+ "area": "permits",
+ "document": {
+  "document_id": 9877,
+  "source_id": "agent_url",
+  "url": "https://www.tceq.texas.gov/downloads/permitting/air/bilingual/pending-permit-notices/182126-pls-english.pdf",
+  "sha256": "ab4e19e6d533fe3eb643e33840d2ffa7a7f5507a93fb91988df48e6a9677a008",
+  "doc_type": "url_document",
+  "title": "TCEQ notice: air permit 182126 / PSDTX1688 (Crusoe Energy Systems)",
+  "date": null
+ },
+ "note": "TCEQ plain-language summary for air permit application 182126 (Crusoe, Longhorn Data Center, Abilene)",
+ "excerpt": "Plain Language Summary for New Source Review (NSR)\nInitial Application for Air New Source Review Permit\nNumber 182126, GHGPSDTX263 and PSDTX1688\nThe following summary is provided for this pending air permit application being reviewed by\nthe Texas Commission on Environmental Quality as required by 30 Texas Administrative\nCode Chapter 39. The information provided in this summary may change during the\ntechnical review of the application and are not federal enforceable representations of the\npermit application. Crusoe Energy Systems LLC (CN606257079) has submitted an\napplication for an initial permit 182126, GHGPSDTX263, and PSDTX1688. The Longhorn\nData Center (RN112029061) will generate electricity at 32.50792, -99.77722, Abilene,\nTaylor County. This permit will authorize additional power generation equipment for onsite\nconsumption in data center buildings. Crusoe Energy Systems LLC has listed in the\napplication the pollutants and amounts that will be emitted for the facility. Below is the\ntotal amount for each pollutant that is proposed to be emitted each year for all the\nfacilities.\nPollutant\nProposed Emissions (ton/yr)\nVOC\n815.59\nPM10\n451.10\nPM2.5\n313.20\nNOx\n760.33\nCO\n870.07\nSO2\n233.90\nHAPs\n49.77\nThe new equipment will be controlled by selective catalytic reduction and oxidation\ncatalysts to reduce NOx, CO, VOCs, and HAPs.",
+ "gold": [
+  {
+   "field": "air_permit",
+   "subject_kind": [
+    "plant",
+    "site"
+   ],
+   "value": {
+    "number": "182126",
+    "agency": "TCEQ"
+   },
+   "quote": "Crusoe Energy Systems LLC (CN606257079) has submitted an application for an initial permit 182126, GHGPSDTX263, and PSDTX1688."
+  },
+  {
+   "field": "emission_limits",
+   "subject_kind": [
+    "plant"
+   ],
+   "value": {
+    "NOx": "760.33",
+    "CO": "870.07"
+   },
+   "quote": "NOx 760.33 CO 870.07"
+  }
+ ]
+}

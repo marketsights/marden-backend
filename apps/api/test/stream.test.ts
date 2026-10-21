@@ -64,6 +64,28 @@ describe('GET /api/stream', () => {
     sse.close();
   });
 
+  it("delivers a member's own events (their alerts) to that member only, live and on replay", async () => {
+    const forUser = async (source: string, userId: string): Promise<string> => {
+      const res = await db.query<{ id: string }>(
+        `INSERT INTO stream_event (org_id, user_id, payload) VALUES ('dev', $1, $2) RETURNING id::text`,
+        [userId, JSON.stringify({ type: 'pipeline', source, status: 'ok', at: '2026-10-21T00:00:00Z' })],
+      );
+      return res.rows[0]!.id;
+    };
+    const sse = await connect(port);
+    await until(() => sse.chunks().includes(': connected'));
+    const theirs = await forUser('stream-test-user-other', 'someone-else');
+    const mine = await forUser('stream-test-user-mine', 'dev-user');
+    const marker = await insert('stream-test-user-marker', 'dev');
+    await until(() => events(sse.chunks()).length >= 2);
+    expect(events(sse.chunks()).map((e) => e.id)).toEqual([mine, marker]);
+    sse.close();
+    const replay = await connect(port, (BigInt(theirs) - 1n).toString());
+    await until(() => events(replay.chunks()).length >= 2);
+    expect(events(replay.chunks()).map((e) => e.id)).toEqual([mine, marker]);
+    replay.close();
+  });
+
   it('closes streams when the session or user is revoked', async () => {
     const sse = await connect(port);
     await until(() => app.streams.size === 1);

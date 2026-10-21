@@ -34,7 +34,7 @@ from marden.core.documents import DocumentRow
 SEC_SUFFIX = "sec.gov"
 SEC_MAX_PER_SECOND = 5.0
 DEFAULT_PER_SECOND = 2.0
-RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+RETRY_STATUSES = frozenset({429, 500, 502, 503, 504, 520, 522, 524})  # 52x: Cloudflare could not reach the origin
 MAX_BACKOFF_SECONDS = 60.0
 MAX_RETRY_AFTER_SECONDS = 600.0
 CACHE_ENTRIES = 256

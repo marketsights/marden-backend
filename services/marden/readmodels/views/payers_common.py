@@ -157,6 +157,9 @@ def summed(rows: Sequence[Doc], tag: str = "R") -> Doc:
     }
     if names:
         out["sourceName"] = " + ".join(names)
+    methods = sorted({r["methodVersion"] for r in known if r["tag"] == "M" and r.get("methodVersion")})
+    if out["tag"] == "M" and methods:
+        out["methodVersion"] = " + ".join(methods)  # an M sum names the methods of its M parts
     return out
 
 

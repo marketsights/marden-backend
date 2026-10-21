@@ -4,8 +4,11 @@ import type {
   CompletionResponse, InstrumentDetail, InstrumentRow, LeaseMapPage, ObligationGraph, Payer, PayerCapacity, PayersPage, RiskList,
   SiteSummary,
 } from '../contracts/types.js';
+import type { TrackRecord } from '../contracts/app.js';
 import type { Db } from '../db.js';
 import { badRequest, notFound, notReady } from '../errors.js';
+import { mondayOf } from '../queries/risk-list.js';
+import { sourcesHealth } from '../queries/sources.js';
 import { queryRows } from '../queries/rows.js';
 import { runStress, stressModelAvailable, stressRequestFromQuery, stressResultRows } from '../queries/stress.js';
 import { watchedSiteSlugs, watchRows } from '../queries/watchlist.js';
@@ -59,7 +62,8 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     return { view: 'instrument_detail', asOf: ctx.asOf, rows: asRows((await doc<InstrumentDetail>(ctx, 'instrument_detail', id)).holders.rows) };
   },
   'risk-list': async (ctx) => {
-    const week = isoDate(ctx.q, 'week') ?? (await ctx.db.latestKey('risk_list', ctx.asOf));
+    const asked = isoDate(ctx.q, 'week');
+    const week = asked ? mondayOf(asked) : await ctx.db.latestKey('risk_list', ctx.asOf);
     if (!week) throw notReady('risk_list', 'latest');
     return { view: 'risk_list', asOf: week, rows: asRows((await doc<RiskList>(ctx, 'risk_list', week)).rows) };
   },
@@ -99,6 +103,24 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     const rows = stressResultRows(await runStress(ctx.db, request));
     if (rows === null) throw notReady('model:stress', request.scenario);
     return { view: 'model:stress', asOf: null, rows };
+  },
+  // Track record (spec 12): the backtest's cases, the models table and the collector heartbeats, as on screen.
+  'track-record': async (ctx) => {
+    const d = await doc<TrackRecord>(ctx, 'track_record', 'all');
+    return { view: 'track_record', asOf: d.asOf, rows: asRows(d.cases) };
+  },
+  models: async (ctx) => {
+    const d = await doc<TrackRecord>(ctx, 'track_record', 'all');
+    return { view: 'track_record', asOf: d.asOf, rows: asRows(d.models) };
+  },
+  sources: async (ctx) => {
+    const health = await sourcesHealth(ctx.db, ctx.asOf);
+    const rows = health.sources.map((s) => ({
+      source: s.name, id: s.id, kind: s.kind, cadenceMinutes: s.cadenceMinutes, status: s.status, blocked: s.blocked,
+      blockedReason: s.blockedReason, lastRunStarted: s.lastRun?.startedAt ?? null, lastRunFinished: s.lastRun?.finishedAt ?? null,
+      lastOkAt: s.lastOkAt, lastError: s.lastError,
+    }));
+    return { view: 'sources', asOf: ctx.asOf, rows };
   },
   watchlist: async (ctx) => {
     // ?kind=site|instrument: the Watchlist tab on screen (All / Sites / Instruments).

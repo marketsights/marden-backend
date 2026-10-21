@@ -1,0 +1,30 @@
+{
+ "id": "periodic_coreweave_10q_maturities",
+ "area": "periodic",
+ "document": {
+  "document_id": 1227,
+  "source_id": "sec_index",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+  "sha256": "0ac9a9eacae96a533698d025df9eb9085239485fc9ce1dabc5105f0aad02a9b5",
+  "doc_type": "10-Q",
+  "title": "10-Q",
+  "date": "2026-08-12"
+ },
+ "note": "CoreWeave 10-Q Q2 2026, future principal payments (in millions)",
+ "excerpt": "As of June 30, 2026, the future principal payments for the Company's total debt were as follows (in millions):\n\nYears Ending December 31, Amount\n\nRemaining portion of 2026 $ 4,413\n\n2027 6,184\n\n2028 4,416\n\n2029 2,421\n\n2030 3,221\n\nThereafter 14,896",
+ "gold": [
+  {
+   "field": "debt_maturities",
+   "subject_kind": "entity",
+   "value": {
+    "2026": 4413000000,
+    "2027": 6184000000,
+    "2028": 4416000000,
+    "2029": 2421000000,
+    "2030": 3221000000,
+    "thereafter": 14896000000
+   },
+   "quote": "Remaining portion of 2026 $ 4,413 2027 6,184 2028 4,416 2029 2,421 2030 3,221 Thereafter 14,896"
+  }
+ ]
+}

@@ -106,14 +106,16 @@ def _holder_rows(doc: Doc | None) -> list[dict[str, Any]]:
 
 def _mark_events(key: str, previous: Doc | None, doc: Doc) -> list[dict[str, Any]]:
     """types.ts StreamEvent 'mark' for each holder whose filed last mark changed since the previous
-    snapshot (Holder.lastMark, from that holder's filing). None on a first build: no screen holds it."""
+    snapshot (Holder.lastMark, from that holder's filing). None on a first build, and none for a holder
+    row the previous snapshot did not have (rows appearing once the mark gap is priced): no screen
+    holds that mark, and the web app patches existing rows only."""
     if previous is None:
         return []
     before = {r["name"]: r.get("lastMark") for r in _holder_rows(previous)}
     out: list[dict[str, Any]] = []
     for row in _holder_rows(doc):
         mark = row.get("lastMark")
-        if row["name"] in before and before[row["name"]] == mark:
+        if row["name"] not in before or before[row["name"]] == mark:
             continue
         payload = {
             "type": "mark", "instrumentId": key, "holder": row["name"],

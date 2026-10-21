@@ -24,13 +24,16 @@ from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.registry import builder
 from marden.readmodels.views.facilities_common import (
     FIELD_LABELS,
+    FIRST_SEEN,
     GRID_JOIN,
+    Change,
     campus_buildings,
     campus_ids,
     campus_row,
-    fact_history,
+    fact_changes,
     field_label,
     first_seen,
+    history_entries,
     subject_events,
 )
 from marden.readmodels.views.sites_common import Doc, day, event_evidence, fact_evidence, latest_output
@@ -200,22 +203,25 @@ def request_text(v: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------- history
-def campus_history(conn: Conn, campus_id: str) -> list[Doc]:
-    out = fact_history(conn, "campus", campus_id, HISTORY_FIELDS, initial=HISTORY_INITIAL)
+def campus_changes(conn: Conn, campus_id: str) -> list[Change]:
+    """The History tab's changes (value changes, first status / MW, first seen), unordered."""
+    out = fact_changes(conn, "campus", campus_id, HISTORY_FIELDS, initial=HISTORY_INITIAL)
     row = known_facts(conn, "campus", campus_id, ["first_seen"]).get("first_seen")
     when = first_seen({"first_seen": row}, None) if row else None
     if row is not None and when and when <= day().isoformat():
-        out.append(
-            {
-                "date": when,
-                "field": "first_seen",
-                "before": None,
-                "after": "First seen",
-                "evidence": fact_evidence(row, f"First seen in Marden's records {when}", when),
-            }
-        )
-    out.sort(key=lambda h: (h["date"], h["field"]), reverse=True)
+        entry = {
+            "date": when,
+            "field": "first_seen",
+            "before": None,
+            "after": "First seen",
+            "evidence": fact_evidence(row, f"First seen in Marden's records {when}", when),
+        }
+        out.append(Change(entry, row["learned_at"], FIRST_SEEN, row["id"]))
     return out
+
+
+def campus_history(conn: Conn, campus_id: str) -> list[Doc]:
+    return history_entries(campus_changes(conn, campus_id))
 
 
 # ---------------------------------------------------------------- buildings and capacity

@@ -1,0 +1,25 @@
+{
+ "id": "power_ercot_llwg_feb2026",
+ "area": "power",
+ "document": {
+  "document_id": 4166,
+  "source_id": "ercot",
+  "url": "https://www.ercot.com/files/docs/2026/03/05/February-TAC-Report.pdf",
+  "sha256": "a4cc69d18ea10adf541dbecde28896daf1211fbb8701b2e974122916e66f4cb4",
+  "doc_type": "llwg_report_pdf",
+  "title": "February TAC Report",
+  "date": "2026-03-05"
+ },
+ "note": "ERCOT Large Load Interconnection Status Update, February 2026 TAC report",
+ "excerpt": "Loads Approved to Energize – Observations 1\n•\nOf the 8876 MW that have received Approval to Energize, ERCOT has observed a non-simultaneous monthly peak consumption of\n3998 MW in February 2025 which is a slight decrease since January 2025.\n–\nThis is calculated as the sum of the maximum value for each individual load per month\n–\nThis value represents how much approved load ERCOT believes is now operational\n6\nPUBLIC\nLoads Approved to Energize – Observations 2\n•\nERCOT has observed a simultaneous monthly peak consumption of 3846 MW in February 2025 which is a slight increase since\nJanuary 2025.\n–\nThis is the maximum value of the sum of all the individual loads per month\n–\nThis value is the maximum amount of large load that ERCOT has had to serve at a single point in time\n7\nPUBLIC",
+ "gold": [
+  {
+   "field": "energized_mw",
+   "subject_kind": [
+    "entity"
+   ],
+   "value": 8876,
+   "quote": "Of the 8876 MW that have received Approval to Energize"
+  }
+ ]
+}

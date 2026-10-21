@@ -29,7 +29,7 @@ export interface HealthOptions {
 
 export async function checkHealth(db: Queryable, opts: HealthOptions = {}): Promise<Health> {
   const env = opts.env ?? process.env;
-  const sha = env.RAILWAY_GIT_COMMIT_SHA?.trim();
+  const sha = (env.RAILWAY_GIT_COMMIT_SHA ?? env.RENDER_GIT_COMMIT)?.trim();
   const commit = sha ? sha.slice(0, 12) : null;
   try {
     await withTimeout(db.query('SELECT 1'), opts.timeoutMs ?? HEALTH_DB_TIMEOUT_MS);

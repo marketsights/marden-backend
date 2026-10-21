@@ -37,10 +37,11 @@ from __future__ import annotations
 import argparse
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from marden import cli
+from marden.collectors import plant_locate_county as county
 from marden.collectors import plant_locate_eia as eia
 from marden.collectors.eia_860m_parse import Report, parse_workbook
 from marden.collectors.eia_860m_store import report_date, served_campus_points
@@ -58,9 +59,6 @@ SOURCE_ID = "plant_locate"
 PRODUCER = "collector:plant_locate"
 CRON_UTC = "37 10 * * *"  # daily 10:37 UTC, before grid_join (10:47)
 ONSITE_METHOD = "plant-locate-onsite@0.1"
-COUNTY_METHOD = "point-in-county-polygon@0.1"
-QUEUE_METHOD = "plant-locate-queue@0.1"
-COUNTY_SOURCE = "US Census Bureau cartographic boundary files"
 ONSITE = re.compile(r"\bon[- ]?site\b|\bbehind[- ]the[- ]meter\b|\bmicrogrid\b", re.I)
 ONSITE_FIELDS = ("utility", "serves_text", "risk_note")
 FUEL_LINE = re.compile(r"\b(pipeline|lateral)\b", re.I)
@@ -119,7 +117,7 @@ class Located:
     eia_county: str | None = None
     county: str | None = None
     county_fact: dict[str, Any] | None = None
-    note: str = ""
+    notes: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------- point
@@ -137,7 +135,7 @@ def _eia_facts(loc: Located, out: eia.Outcome, doc: DocumentRow, report: Report)
         loc.eia_fact = {**common, "value": site.id, "quote": cells,
                         "quote_loc": f"{where}; matched: {'; '.join(out.evidence)}"}
     if site.plant.lat is None:
-        loc.note = f"EIA plant {site.id} has no coordinates"
+        loc.notes.append(f"EIA plant {site.id} has no coordinates")
         return
     loc.method, loc.point = "eia_860m", (site.plant.lat, site.plant.lon)
     loc.point_fact = loc.point_src = {
@@ -155,15 +153,9 @@ def _onsite_text(plant: Row, facts: dict[str, Row]) -> tuple[str, str] | None:
 
 
 def _onsite(conn: Conn, loc: Located, plant: Row, facts: dict[str, Row], campus: dict[str, Any] | None) -> None:
-    said = _onsite_text(plant, facts)
-    if said is None:
-        loc.note = "no point: no EIA match or record, and no on-site statement for a served-campus point"
-        return
-    if FUEL_LINE.search(" ".join([plant["name"], str((facts.get("technology_type") or {}).get("value") or "")])):
-        loc.note = "fuel line: not placed at the campus it feeds"
-        return
     target, serves = None, None
-    if campus is not None and "serves_campus" in facts:
+    served = (facts.get("serves_campus") or {}).get("value")
+    if campus is not None and isinstance(served, dict) and served.get("campus_id") == campus["campus_id"]:
         target, serves = ("campus", campus["campus_id"], campus["lat"], campus["lon"]), facts["serves_campus"]
     elif campus is None and "serves_sites" in facts and isinstance(facts["serves_sites"]["value"], list):
         slugs = facts["serves_sites"]["value"]
@@ -173,8 +165,16 @@ def _onsite(conn: Conn, loc: Located, plant: Row, facts: dict[str, Row], campus:
         same = [r for r in rows if (r["state"] or "").upper() == (plant["state"] or "").upper()]
         if len(slugs) == 1 and len(same) == 1:
             target, serves = ("site", same[0]["slug"], same[0]["lat"], same[0]["lon"]), facts["serves_sites"]
+    said = _onsite_text(plant, facts)
     if target is None:
-        loc.note = "on-site, but not exactly one served campus or site with a point in the plant's state"
+        loc.notes.append("no served campus or site with a point in the plant's state" +
+                         (f" (its {said[0]} says on-site)" if said else ""))
+        return
+    if said is None:
+        loc.notes.append(f"serves {target[0]} {target[1]}, but its facts do not say it is on-site: not placed there")
+        return
+    if FUEL_LINE.search(" ".join([plant["name"], str((facts.get("technology_type") or {}).get("value") or "")])):
+        loc.notes.append(f"a fuel line: not placed at the {target[0]} it feeds")
         return
     kind, tid, lat, lon = target
     basis = f"on-site at served {kind} {tid}"
@@ -185,81 +185,6 @@ def _onsite(conn: Conn, loc: Located, plant: Row, facts: dict[str, Row], campus:
         "valid_from": serves["valid_from"], "method_version": ONSITE_METHOD, "quote": said[1],
         "quote_loc": f"{basis}: the {kind}'s point; served per plant fact {serves['id']} ({serves['field']}); "
                      f"on-site per the plant's {said[0]}",
-    }
-
-
-# ---------------------------------------------------------------- county
-def _norm_county(name: str | None) -> str:
-    words = eia.word_list(name or "")
-    return " ".join(w for w in words if w not in ("county", "parish", "city", "borough"))
-
-
-def county_at(conn: Conn, lat: float, lon: float) -> list[Row]:
-    return conn.execute(
-        """SELECT geoid, stusps, name, namelsad, meta FROM us_county
-            WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint(%s, %s), 4326)) ORDER BY geoid""",
-        (lon, lat),
-    ).fetchall()
-
-
-def _county_from_point(conn: Conn, loc: Located, state: str | None, counts: Counter[str]) -> None:
-    assert loc.point is not None and loc.point_src is not None
-    lat, lon, src = *loc.point, loc.point_src
-    found = county_at(conn, lat, lon)
-    if len(found) != 1 or (state and found[0]["stusps"] != state.strip().upper()):
-        counts["county_polygon_missing_or_other_state"] += 1
-        return
-    c, meta = found[0], found[0]["meta"] or {}
-    if loc.eia_county and _norm_county(loc.eia_county) != _norm_county(c["name"]):
-        counts["county_polygon_disagrees_with_eia"] += 1
-        fips = conn.execute("SELECT geoid FROM us_county WHERE stusps = %s AND lower(name) = lower(%s)",
-                            (c["stusps"], loc.eia_county.title())).fetchone()
-        loc.county = loc.eia_county.title()
-        value = {"name": loc.county, "state": c["stusps"], **({"fips": fips["geoid"]} if fips else {})}
-        loc.county_fact = {**{k: src[k] for k in ("source_name", "source_url", "document_id", "valid_from",
-                                                  "method_version")},
-                           "value": value, "tag": "F", "quote": f"County {loc.eia_county}",
-                           "quote_loc": f"{src['quote_loc'].split(';')[0]}; the county polygon at the point is "
-                                        f"{c['namelsad']} ({c['geoid']}), EIA's record is kept"}
-        return
-    loc.county = c["name"]
-    loc.county_fact = {
-        "value": {"name": c["name"], "fips": c["geoid"], "state": c["stusps"]}, "tag": "R",
-        "source_name": COUNTY_SOURCE, "source_url": meta.get("source_url"), "document_id": meta.get("document_id"),
-        "valid_from": src["valid_from"], "method_version": COUNTY_METHOD,
-        "quote_loc": f"point in county polygon: ({lat}, {lon}) in {c['namelsad']}, {c['stusps']} (us_county "
-                     f"{c['geoid']}, {meta.get('layer')})",
-    }
-
-
-def _county_from_queue(conn: Conn, loc: Located, plant: Row, facts: dict[str, Row]) -> None:
-    ids = (facts.get("queue_ids") or {}).get("value")
-    if not isinstance(ids, list) or not ids:
-        return
-    rows = conn.execute(
-        """SELECT * FROM fact_current WHERE subject_type = 'queue_project' AND field IN ('county', 'state')
-             AND subject_id IN (SELECT id FROM queue_project WHERE split_part(id, ':', 2) = ANY(%s))""",
-        ([str(i) for i in ids],),
-    ).fetchall()
-    by_entry: dict[str, dict[str, Row]] = {}
-    for r in rows:
-        by_entry.setdefault(r["subject_id"], {})[r["field"]] = r
-    state = (plant["state"] or "").strip().upper()
-    named = {(e["county"]["value"], e["state"]["value"]) for e in by_entry.values() if "county" in e and "state" in e}
-    if len(by_entry) != len(ids) or len(named) != 1 or next(iter(named))[1] != state:
-        return
-    county = next(iter(named))[0]
-    entries = sorted(by_entry)
-    src = max((by_entry[e]["county"] for e in entries), key=lambda r: r["valid_from"])
-    fips = conn.execute("SELECT geoid FROM us_county WHERE stusps = %s AND lower(name) = lower(%s)",
-                        (state, county)).fetchone()
-    loc.county = county
-    loc.county_fact = {
-        "value": {"name": county, "state": state, **({"fips": fips["geoid"]} if fips else {})}, "tag": "F",
-        "source_name": src["source_name"], "source_url": src["source_url"], "document_id": src["document_id"],
-        "valid_from": src["valid_from"], "method_version": QUEUE_METHOD,
-        "quote_loc": f"interconnection queue {', '.join(entries)}: county '{county}', state '{state}' (the plant's "
-                     f"queue_ids fact {facts['queue_ids']['id']}); no point",
     }
 
 
@@ -297,21 +222,27 @@ def decide(conn: Conn, report: Report | None, doc: DocumentRow | None, counts: C
             _eia_facts(loc, outcome, doc, report)
         elif outcome.status == "eia_plant_id_not_in_report":
             loc.eia_plant_id = ours.eia_plant_id
-            loc.note = f"EIA plant {ours.eia_plant_id} is not in the {report.label if report else ''} workbook"
+            loc.notes.append(f"EIA plant {ours.eia_plant_id} is not in the {report.label if report else ''} workbook")
+        elif outcome.status == "no_name_match":
+            loc.notes.append(f"no EIA-860M plant of that name in {p['state']}")
         elif outcome.candidates:
-            loc.note = f"EIA {outcome.status}: " + "; ".join(
-                f"{c['eia_plant_id']} {c['eia_name']} ({c['why']})" for c in outcome.candidates)
+            loc.notes.append(f"EIA {outcome.status}: " + "; ".join(
+                f"{c['eia_plant_id']} {c['eia_name']} ({c['why']})" for c in outcome.candidates))
         if loc.point is None and record and record_pt:
             loc.method, loc.point = "record", (record_pt["lat"], record_pt["lon"])
             loc.point_src = {k: record[k] for k in ("source_name", "source_url", "document_id", "valid_from",
                                                     "method_version")} | {"quote_loc": record["quote_loc"] or ""}
-            loc.note = f"point from {record['source_name']} fact {record['id']}"
+            loc.notes.append(f"point from {record['source_name']} fact {record['id']}")
         if loc.point is None:
             _onsite(conn, loc, p, facts, campus)
-        if loc.point is not None:
-            _county_from_point(conn, loc, p["state"], counts)
+        if loc.point is not None and loc.point_src is not None:
+            found, what = county.from_point(conn, loc.point, p["state"], loc.point_src, loc.eia_county)
+            counts[what] += 1
         else:
-            _county_from_queue(conn, loc, p, facts)
+            found = county.from_queue(conn, p["state"], facts.get("queue_ids"))
+            counts["county_queue" if found else "county_none"] += 1
+        if found:
+            loc.county, loc.county_fact = found
         counts[f"located_by_{loc.method}"] += 1
         counts["with_county"] += int(loc.county is not None)
         out.append(loc)
@@ -368,7 +299,7 @@ def locate(conn: Conn, stats: RunStats, *, dry_run: bool = False) -> list[Locate
     stats.extra.update(
         eia_report=report.label if report else None, eia_document_id=doc.id if doc else None,
         plants=len(decisions), counts=dict(sorted(counts.items())), columns_changed=changed, columns_cleared=cleared,
-        unplaced=[{"plant": d.plant, "county": d.county, "why": d.note} for d in decisions if d.point is None],
+        unplaced=[{"plant": d.plant, "county": d.county, "why": d.notes} for d in decisions if d.point is None],
     )
     return decisions
 

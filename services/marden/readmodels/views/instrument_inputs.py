@@ -112,14 +112,21 @@ def model_sourced(out: Row, raw: Any) -> dict[str, Any] | None:
         got.setdefault("asOf", iso(out["as_of"]))
         if got["tag"] == "M":
             got.setdefault("methodVersion", method_version(out))
+            got.setdefault("sourceName", model_source_name(out))
         return got
     out_doc: dict[str, Any] = {
         "value": raw,
         "tag": "M",
         "asOf": iso(out["as_of"]),
         "methodVersion": method_version(out),
+        "sourceName": model_source_name(out),
     }
     return out_doc
+
+
+def model_source_name(out: Row) -> str:
+    """Who computed an M value: 'Marden price model' (every Sourced value names its source)."""
+    return f"Marden {str(out['model']).replace('_', ' ')} model"
 
 
 def output_field(out: Row | None, *keys: str) -> Any:

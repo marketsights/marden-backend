@@ -89,6 +89,7 @@ def test_a_changed_holder_mark_sends_one_mark_event(committed, take_view):
     assert _events(committed, "mark") == []  # first build: no screen holds it yet
 
     holders["B Fund"] = 96.25
+    holders["C Fund"] = 98.0  # a holder row that appears is not a changed mark: no screen holds it
     mark_dirty("instrument_detail", INST)
     stats = rebuild_dirty()
     assert not stats.errors

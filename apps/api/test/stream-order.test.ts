@@ -46,7 +46,7 @@ describe('stream row order', () => {
   it('replays the newest rows by number, oldest first, when more were missed than it replays', async () => {
     const { boundary, ids } = await insertAcrossBoundary(3, REPLAY_LIMIT + 2);
     expect(ids[0]).toBe(boundary - 3n);
-    const res = await db.query<{ id: string; total: number }>(REPLAY_SQL, [(ids[0]! - 1n).toString(), 'dev']);
+    const res = await db.query<{ id: string; total: number }>(REPLAY_SQL, [(ids[0]! - 1n).toString(), 'dev', 'dev-user']);
     expect(res.rows[0]?.total).toBe(REPLAY_LIMIT + 2);
     expect(res.rows.map((r) => BigInt(r.id))).toEqual(ids.slice(2));
   });

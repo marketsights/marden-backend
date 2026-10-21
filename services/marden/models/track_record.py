@@ -97,8 +97,10 @@ def assess(case: tc.Case, market: tc.Market, sites: list[str], states: dict[date
     """One case's document from its market side and the scan states."""
     ids = list(case.instruments)
     first = ts.first_fires(ids, sites, states)
-    flag = min(first.values(), key=lambda f: (f.day, f.signal), default=None)
+    signal = earliest(first)
+    free = earliest(ts.first_fires(ids, sites, states, price_free=True))
     move = market.move
+    flag = signal if move is not None else None  # a lead needs a move; a pending case keeps firstSignal
     lead = (move.day - flag.day).days if move is not None and flag is not None else None
     if move is None:
         outcome = "pending" if case.named else "control"
@@ -119,7 +121,7 @@ def assess(case: tc.Case, market: tc.Market, sites: list[str], states: dict[date
         missing.append(f"{case.name}: no site linked (no chain status or cushion signal)")
     return {
         "key": case.key, "name": case.name,
-        "instrumentId": case.instruments[0] if case.instruments else None,
+        "instrumentId": move.instrument_id if move else (case.instruments[0] if case.instruments else None),
         "instrumentIds": list(case.instruments),
         "flagged": flag.day.isoformat() if flag else None,
         "moved": move.day.isoformat() if move else None,
@@ -128,6 +130,10 @@ def assess(case: tc.Case, market: tc.Market, sites: list[str], states: dict[date
         "outcome": outcome,
         "driver": move.driver if move else None,
         "signals": {k: f.doc() for k, f in sorted(first.items())},
+        "firstSignal": signal.doc() if signal else None,
+        "priceFree": {"flagged": free.day.isoformat() if free else None,
+                      "leadDays": (move.day - free.day).days if move is not None and free is not None else None,
+                      "signal": free.doc() if free else None},
         "evidence": evidence,
         "flagBasis": flag.basis if flag else None,
         "sites": sites,
@@ -136,6 +142,10 @@ def assess(case: tc.Case, market: tc.Market, sites: list[str], states: dict[date
         "missing": missing,
         "pending": (case.note or "no market move on file in the window") if move is None and case.named else None,
     }
+
+
+def earliest(first: dict[str, ts.Fire]) -> ts.Fire | None:
+    return min(first.values(), key=lambda f: (f.day, f.signal), default=None)
 
 
 def _baseline(base: ts.State | None, ids: list[str], sites: list[str]) -> dict[str, Any] | None:
@@ -162,6 +172,19 @@ def summary(cases: list[dict[str, Any]], controls: list[dict[str, Any]]) -> dict
         "controls": sum(c["graded"] for c in controls),
         "falseAlarms": sum(c["graded"] and c["flagged"] is not None for c in controls),
         "ungradedFlags": sum(not c["graded"] and c["flagged"] is not None for c in controls),
+        "priceFree": price_free_summary(done, controls),
+    }
+
+
+def price_free_summary(done: list[dict[str, Any]], controls: list[dict[str, Any]]) -> dict[str, Any]:
+    """The diagnostic added after the first run: the same tally without signals derived from the Marden price."""
+    leads = [c["priceFree"]["leadDays"] for c in done if c["priceFree"]["leadDays"] is not None]
+    return {
+        "postHoc": True,
+        "flaggedFirst": sum(lead > 0 for lead in leads), "sameDay": sum(lead == 0 for lead in leads),
+        "late": sum(lead < 0 for lead in leads), "missed": len(done) - len(leads),
+        "medianLeadDays": statistics.median(leads) if leads else None,
+        "falseAlarms": sum(c["graded"] and c["priceFreeFlagged"] is not None for c in controls),
     }
 
 
@@ -169,7 +192,9 @@ def assemble(day: date, p: dict[str, Any], markets: dict[str, tc.Market], states
              scan_meta: dict[str, Any]) -> dict[str, Any]:
     docs = [assess(c, markets[c.key], p["sites"][c.key], states) for c in p["cases"]]
     cases = [d for d in docs if d["outcome"] != "control"]
-    controls = [{**{k: d[k] for k in ("key", "name", "instrumentIds", "flagged", "signals", "sites", "missing")},
+    controls = [{**{k: d[k] for k in ("key", "name", "instrumentIds", "signals", "sites", "missing")},
+                 "flagged": d["firstSignal"]["date"] if d["firstSignal"] else None,
+                 "priceFreeFlagged": d["priceFree"]["flagged"],
                  "graded": markets[d["key"]].graded}  # a market price was observed and did not move
                 for d in docs if d["outcome"] == "control"]
     calls = [{"name": c["name"], "flagged": c["flagged"], "moved": c["moved"], "leadDays": c["leadDays"]}
@@ -204,9 +229,9 @@ def scan(p: dict[str, Any], day: date, workers: int, step: int, refine: bool = T
     states = ts.compute_days(weekly, *args, workers, memo)
     extra: set[date] = set()
     for c in p["cases"] if refine else []:
-        first = ts.first_fires(list(c.instruments), p["sites"][c.key], states)
-        earliest = min(first.values(), key=lambda f: f.day, default=None)
-        extra |= {d for d in ts.refine_days(states, earliest) if d not in states}
+        for free in (False, True):  # the flag and the price-free diagnostic, each dated to the day
+            first = earliest(ts.first_fires(list(c.instruments), p["sites"][c.key], states, price_free=free))
+            extra |= {d for d in ts.refine_days(states, first) if d not in states}
     if extra:
         states.update(ts.compute_days(sorted(extra), *args, workers, memo))
     return states, {"weekly": [d.isoformat() for d in weekly], "refined": sorted(d.isoformat() for d in extra),
@@ -338,12 +363,14 @@ def track_record_command(args: argparse.Namespace) -> int:
         return 0
     print(f"track_record run {result['run_id']} as of {result['as_of']}: {out['published']} of {out['total']} "
           f"published; {out['summary']}")
-    print(f"{'case':48} {'flagged':10} {'moved':10} {'lead':>5} {'outcome':9} {'driver':6} first signal")
+    print(f"{'case':44} {'flagged':10} {'moved':10} {'lead':>5} {'pfLead':>6} {'outcome':9} {'driver':6} first signal")
     for c in out["cases"]:
-        signals = [e["text"] for e in c["evidence"] if e["kind"] != "market"]
-        first = (signals[0] if signals else c["pending"] or "no signal")[:70]
-        print(f"{c['name'][:48]:48} {c['flagged'] or '—':10} {c['moved'] or '—':10} "
-              f"{'—' if c['leadDays'] is None else c['leadDays']:>5} {c['outcome']:9} {c['driver'] or '—':6} {first}")
+        first = (c["firstSignal"]["detail"] if c["firstSignal"] else c["pending"] or "no signal")[:64]
+        pf = c["priceFree"]["leadDays"]
+        print(f"{c['name'][:44]:44} {c['flagged'] or '—':10} {c['moved'] or '—':10} "
+              f"{'—' if c['leadDays'] is None else c['leadDays']:>5} {'—' if pf is None else pf:>6} "
+              f"{c['outcome']:9} {c['driver'] or '—':6} {first}")
     for c in out["controls"]:
-        print(f"  control {c['name'][:46]:46} flagged {c['flagged'] or '—'}")
+        print(f"  control {c['name'][:42]:42} graded {c['graded']!s:5} flagged {c['flagged'] or '—':10} "
+              f"price-free {c['priceFreeFlagged'] or '—'}")
     return 0

@@ -1,0 +1,41 @@
+{
+ "id": "local_dona_ana_bocc_2026_10_13",
+ "area": "local",
+ "document": {
+  "document_id": 9882,
+  "source_id": "agent_url",
+  "url": "https://donaanaconm.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=5467,plainText=false)",
+  "sha256": "cc2a2d74019c8daf949179ed164ca01d1ca8b76c9ea2bbbdc2f5a017d91e4e72",
+  "doc_type": "url_document",
+  "title": "Dona Ana County BOCC Amended Agenda, Regular Meeting October 13, 2026",
+  "date": null
+ },
+ "note": "Dona Ana County BOCC amended agenda, October 13, 2026: two Project Jupiter items among routine business",
+ "excerpt": "AMENDED AGENDA\n\nThe following will be considered at the Regular Meeting of the Doña Ana County Board of County\nCommissioners to be held on Tuesday, October 13, 2026, at 9:00 AM in the Doña Ana County Commission\nChambers, 1st Floor, Doña Ana County Government Center, 845 North Motel Boulevard, Las Cruces, New\nMexico:\n\n• Invocation /Moment of Silence\n\n• Pledge of Allegiance\n\n• Roll Call of Commission Members Present and Determination of Quorum\n\nCOMMISSION CONVENES AS THE BOARD OF COUNTY COMMISSIONERS AND THE COUNTY\nBOARD OF FINANCE IN OPEN SESSION\n\n• CHANGES TO THE AGENDA: Deborah Weir, Lucio Luttrell, Stephen Lopez, Acting County Managers.\n\n• CONSENT AGENDA: The Board will be asked to approve by one motion the following items of recurring\nor routine business:\n\n1.\nAccept a grant award from the Substance Abuse and Mental Health\nServices Administration (SAMHSA) in the amount of $196,956.00, and\napprove associated budget revision and resolution.\nJamie Michael,\nHHS Director\n\n2.\nApprove a no-cost change order for a 3-month time extension on\nContract #23-169 TO#5 for Mendez Pond Construction due to\navailability of construction materials\nMichael Garza,\nEngineer Supervisor\n\n3.\nAccept donation of 14’x72’ Construction Trailer from Charles\nDickerson INC.\nJustin Weaver,\nProject Manager\n\n4.\nApprove contract award in an amount not to exceed $129,600 to Cruces\nCreatives for Comprehensive Planning, Coordination, and Execution\nServices for a 2027 Renaissance Fair Event in Doña Ana County.\nDenisse Carter,\nEconomic Development\nDirector\n\n5.\nApprove a Resolution Adopting the 2026 Doña Ana County Multi-\nJurisdictional Hazard Mitigation Plan\nAmanda Bowen,\nOEM Director\n\n6.\nApproval to submit the Fire Rescue Department policies and procedures\nmanual as documentation of compliance with Special Audit Findings\n#2026-029S, #2026-030S, and #2026-031S.\nStephen Lopez,\nActing County Manager\n\n7.\nApproval to submit the plan that the County Manager's Office will\nrequire departments to submit and maintain complete records for agenda\nitems for confirmation of compliance with Special Audit Finding\n#2026-032S.\nStephen Lopez,\nActing County Manager\nOctober 13, 2026\nAMENDED AGENDA\nPage 2 of 10\n\n8.\nApproval to submit the Doña Ana County Litigation and Conflict\nCounsel Standard Operating Procedure as documentation of compliance\nwith Special Audit Finding #2026-036S.\nAlonzo Maestas,\nDeputy County Attorney\n\n9.\nAllocate $2,000 to the City of Las Cruces to help cover the cost of\nreplacing and updating the plaques that honor veterans at the Las Cruces\nVeteran's Park\nSusie Kimble,\nCommissioner, District 3\nChristopher Schaljo-\nHernandez,\nCommissioner, District 1\n\n10. Authorize Acting County Managers to provide a letter of support to\nNew Mexico State University for a grant proposal related to water\ndesalination research in the County.\nStephen Lopez,\nActing County Manager\n\n11. Proclaim October as Cybersecurity Awareness Month in Doña Ana\nCounty\nSusie Kimble,\nCommissioner, District 3\n\n12. Proclaim October as Domestic Violence Month in Doña Ana County\nSusana Chaparro,\nCommissioner, District 4\n\n13. Proclaim October as Breast Cancer Awareness Month in Doña Ana\nCounty\nSusana Chaparro,\nCommissioner, District 4\n\n14. Appointment of Don Bassett and Marcus Wells as the District 4\nmembers to Community Monitoring Committee Related to Project\nJupiter.\nStephen Lopez,\nActing County Manager\n\n• EMPLOYEE RECOGNITION: The Commission will recognize Doña Ana County employees for their years\nof service to Doña Ana County — Read by Deborah Weir, Assistant County Manager.\n\nName\nRichard Frietze\nDepartment\nFacilities & Parks\nYears of Service\n20\n\n• PROCLAMATIONS\n\n15. Proclaim October as Cybersecurity Awareness Month in Doña Ana\nCounty\nSusie Kimble,\nCommissioner, District 3\n\n16. Proclaim October as Domestic Violence Month in Doña Ana County\nSusana Chaparro,\nCommissioner, District 4\n\n17. Proclaim October as Breast Cancer Awareness Month in Doña Ana\nCounty\nSusana Chaparro,\nCommissioner, District 4\n\n• PUBLIC INPUT\n\n• COMMISSION INPUT\n\n• COUNTY ELECTED OFFICIALS' INPUT\n\n• STAFF INPUT\nOctober 13, 2026\nAMENDED AGENDA\nPage 3 of 10\n\n• COMMISSION-APPOINTED BOARD REPORT BACK\n\n• PRESENTATIONS\n\n18. Presentation and Update by Project Jupiter Representatives\nDenisse Carter,\nEconomic Development\nDirector\n\n19. Presentation and Update by Wilson & Company, Inc. Engineers &\nArchitects on progress made during FY26, related to the Economic\nDevelopment & Market Analysis Professional Services Contract.\nDenisse Carter,\nEconomic Development\nDirector\n\n• MINUTES\n\n20. Regular Meeting Minutes for September 22, 2026, Special Meeting\nMinutes and Work Session Minutes for October 6, 2026\nBrandi Delgado,\nAdministrative Assistant",
+ "gold": [
+  {
+   "field": "opposition_event",
+   "subject_kind": [
+    "site",
+    "campus"
+   ],
+   "value": {
+    "kind": "presentation",
+    "date": "2026-10-13"
+   },
+   "quote": "Presentation and Update by Project Jupiter Representatives"
+  },
+  {
+   "field": "opposition_event",
+   "subject_kind": [
+    "site",
+    "campus"
+   ],
+   "value": {
+    "kind": "appointment",
+    "date": "2026-10-13"
+   },
+   "quote": "Appointment of Don Bassett and Marcus Wells as the District 4 members to Community Monitoring Committee Related to Project Jupiter."
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "id": "power_ferc_oklo_pjm",
+ "area": "power",
+ "document": {
+  "document_id": 4536,
+  "source_id": "ferc",
+  "url": "https://elibrary.ferc.gov/eLibrary/filedownload?fileid=15376640-9C1A-CA10-97FB-A0D53B400000",
+  "sha256": "9dc546304ac207ecd6be283389d79eac1439a37c5fad8bbc824c4a63cb15e1d3",
+  "doc_type": "ferc_issuance",
+  "title": "Order Denying Complaint re Oklo Inc. v. PJM Interconnection, L.L.C. under EL26-101.",
+  "date": "2026-09-24"
+ },
+ "note": "FERC order denying Oklo's complaint against PJM (196 FERC 61,231)",
+ "excerpt": "196 FERC ¶ 61,231\nUNITED STATES OF AMERICA\nFEDERAL ENERGY REGULATORY COMMISSION\n\nBefore Commissioners: Laura V. Swett, Chairman;\nDavid Rosner, Lindsay S. See,\nJudy W. Chang, and David LaCerte.\n\nOklo Inc.\n\nv.\n\nPJM Interconnection, L.L.C.\nDocket No.\nEL26-101-000\n\nORDER DENYING COMPLAINT\n\n(Issued September 24, 2026)\n\nOn August 28, 2026, as revised on September 1, 2026, Oklo Inc. (Oklo) filed a complaint against PJM Interconnection, L.L.C. (PJM) pursuant to sections 206, 306, and 309 of the Federal Power Act (FPA) and Rule 206 of the Commission’s Rules of Practice and Procedure. Oklo alleges that PJM unlawfully administered the interconnection process in its Open Access Transmission Tariff (Tariff) to Oklo’s 750 megawatt (MW) mixed technology project (Project) and unjustifiably withdrew the Project from Cycle 01. Oklo also seeks waiver of provisions deemed necessary by the Commission to effectuate the Project’s reinstatement and inclusion in Cycle 01 with minimal disruption and delay. In this order, we deny the complaint and dismiss as moot the waiver request, as discussed below.",
+ "gold": [
+  {
+   "field": "docket_order",
+   "subject_kind": [
+    "entity",
+    "plant",
+    "site",
+    "campus"
+   ],
+   "value": {
+    "docket": "EL26-101",
+    "outcome": "denied",
+    "date": "2026-09-24"
+   },
+   "quote": "In this order, we deny the complaint and dismiss as moot the waiver request"
+  }
+ ]
+}

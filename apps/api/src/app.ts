@@ -50,6 +50,11 @@ export interface AppDeps {
 }
 
 const REQUEST_ID = /^[A-Za-z0-9._:-]{1,64}$/;
+
+/** A hop count as the function Fastify itself builds from a number (trust the n nearest proxies). */
+function trustProxyOption(v: boolean | number): boolean | ((address: string, hop: number) => boolean) {
+  return typeof v === 'number' ? (_address, hop) => hop < v : v;
+}
 const STREAM_RULE = ROUTE_RULES['GET /api/stream']!;
 
 function errorBody(err: FastifyError | HttpError): { status: number; body: Record<string, unknown> } {
@@ -126,7 +131,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       return typeof incoming === 'string' && REQUEST_ID.test(incoming) ? incoming : randomUUID();
     },
     exposeHeadRoutes: false,
-    trustProxy: config.trustProxy,
+    trustProxy: trustProxyOption(config.trustProxy),
   });
   app.decorate('db', db);
 

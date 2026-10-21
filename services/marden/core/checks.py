@@ -17,6 +17,9 @@ SUBJECT_TYPES = frozenset(
 SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
 PRODUCER = re.compile(r"^[a-z][a-z_]*:\S+$")
 EXTRACTED_PREFIX = "extractor:"
+# Producers whose values were read from documents by a model ('extractor:...' and the agent system's
+# 'agent:<area>'): they need the exact quote and a document, and publish only once verified.
+EXTRACTED_PREFIXES = (EXTRACTED_PREFIX, "agent:")
 MODEL_PREFIX = "model:"
 # The latest calendar date anywhere on Earth (UTC+14): a date after it is in the future everywhere.
 MAX_UTC_OFFSET = timedelta(hours=14)
@@ -81,7 +84,7 @@ def producer(value: str) -> str:
 
 
 def is_extracted(producer_name: str) -> bool:
-    return producer_name.startswith(EXTRACTED_PREFIX)
+    return producer_name.startswith(EXTRACTED_PREFIXES)
 
 
 def model_rules(tag_value: str, method_version: str | None, producer_name: str) -> None:

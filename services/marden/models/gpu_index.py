@@ -42,6 +42,21 @@ CRON_UTC = "23 9 * * *"
 SOURCE = "Marden GPU model"
 
 
+def new_price_value(row: Any, new_price: float | None, day: date) -> dict[str, Any]:
+    """New-unit price: the published figure (R), or the midpoint of a published low-high range, which
+    Marden computes and so tags M (the range's source stays in sourceUrl)."""
+    if row is None or new_price is None:
+        return fact_value(None, as_of=day, tag="R")
+    v = row["value"] if isinstance(row["value"], dict) else {}
+    if num(v.get("low")) and num(v.get("high")) and num(v.get("low")) != num(v.get("high")):
+        name = f"{SOURCE}: midpoint of {row['source_name']} range"
+        out = m_value(round(new_price), day, MODEL_METHOD, source_name=name)
+        if row.get("source_url"):
+            out["sourceUrl"] = row["source_url"]
+        return out
+    return fact_value(row, round(new_price), as_of=day, tag="R")
+
+
 def providers_doc(market: Market, model: str | None = None) -> list[dict[str, Any]]:
     return [{"provider": p.provider, "model": p.model, "term": TERM, "region": REGION,
              "usdHr": fact_value(p.row, round(p.usd_hr, 4)), "capturedAt": p.captured.isoformat(),
@@ -107,8 +122,7 @@ def model_output(market: Market, fit: Fit | None, model: str, facilities: list[A
     return {
         "model": model,
         "launch": fact_value(rows.get("first_volume_ship"), as_of=day, tag="R"),
-        "newPrice": fact_value(rows.get("new_price_usd"), None if new_price is None else round(new_price), as_of=day,
-                               tag="R") if rows.get("new_price_usd") else fact_value(None, as_of=day, tag="R"),
+        "newPrice": new_price_value(rows.get("new_price_usd"), new_price, day),
         "index": [p for p in index_points(market.prices) if p["model"] == model],
         "providers": providers_doc(market, model),
         "resale": [{"date": r["valid_from"].isoformat(), "usd": float(r["value"]), "source": r["source_name"],

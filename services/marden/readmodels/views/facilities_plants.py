@@ -29,10 +29,12 @@ from marden.readmodels.views.facilities_common import (
     DC_STATUSES,
     PLANT_STATUSES,
     PLANT_TECHS,
+    Change,
     enum_value,
-    event_history,
-    fact_history,
+    event_changes,
+    fact_changes,
     financed_link,
+    history_entries,
     is_fuel_line,
     last_change,
     number_value,
@@ -133,6 +135,9 @@ def permitted_mw(units: list[Doc], facts: dict[str, Row]) -> Doc:
         }
         if len(urls) == 1:
             out["sourceUrl"] = urls.pop()
+        methods = sorted({r["method_version"] for r in rows if r["tag"] == "M" and r.get("method_version")})
+        if out["tag"] == "M" and methods:
+            out["methodVersion"] = " + ".join(methods)  # an M sum names the methods of its M parts
         return out
     return number_value(facts.get("capacity_mw"), "F")
 
@@ -232,12 +237,12 @@ def _plant(conn: Conn, plant_id: str) -> tuple[Row, dict[str, Row]] | None:
     return (plant, known_facts(conn, "plant", plant_id, PLANT_FIELDS)) if plant else None
 
 
-def plant_history(conn: Conn, plant_id: str, events: list[Row]) -> list[Doc]:
-    out = fact_history(conn, "plant", plant_id, HISTORY_FIELDS, initial=("status", "air_permit")) + event_history(
+def plant_changes(conn: Conn, plant_id: str, events: list[Row]) -> list[Change]:
+    """The plant's history (value changes, first status and air permit, records); newest first via
+    history_entries, and the candidates of `lastChange`."""
+    return fact_changes(conn, "plant", plant_id, HISTORY_FIELDS, initial=("status", "air_permit")) + event_changes(
         events
     )
-    out.sort(key=lambda h: (h["date"], h["field"]), reverse=True)
-    return out
 
 
 def row_parts(conn: Conn, plant: Row, facts: dict[str, Row]) -> tuple[Doc, dict[str, Any]]:
@@ -246,7 +251,8 @@ def row_parts(conn: Conn, plant: Row, facts: dict[str, Row]) -> tuple[Doc, dict[
     units = plant_units(conn, pid, status["value"] if status else None)
     campuses = served_campuses(conn, pid)
     events = subject_events(conn, "plant", pid)
-    history = plant_history(conn, pid, events)
+    changes = plant_changes(conn, pid, events)
+    history = history_entries(changes)
     permit = air_permit(conn, facts)
     lines = fuel_lines(conn, plant, facts, campuses)
     tech = (facts.get("technology") or {}).get("value")
@@ -267,7 +273,7 @@ def row_parts(conn: Conn, plant: Row, facts: dict[str, Row]) -> tuple[Doc, dict[
         "fuelSupply": fuel_supply(lines),
         "gridMode": grid_mode(conn, campuses),
         "financed": financed_link(conn, [c["id"] for c in campuses]),
-        "lastChange": last_change(history, events, facts),
+        "lastChange": last_change(changes, facts),
     }
     return doc, {"units": units, "campuses": campuses, "history": history, "permit": permit, "lines": lines}
 

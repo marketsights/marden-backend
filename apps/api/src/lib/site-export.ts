@@ -23,7 +23,7 @@ export const EVIDENCE_GROUPS: Readonly<Record<string, readonly string[]>> = {
 
 const groupOf = (type: unknown): string | undefined => {
   const word = String(type ?? '').trim().toLowerCase();
-  return Object.keys(EVIDENCE_GROUPS).find((g) => EVIDENCE_GROUPS[g].includes(word));
+  return Object.entries(EVIDENCE_GROUPS).find(([, words]) => words.includes(word))?.[0];
 };
 
 /** The records table as the Evidence tab shows it: one chip's records; under All, the monthly images

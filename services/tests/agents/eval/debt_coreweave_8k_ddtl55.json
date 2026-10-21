@@ -1,0 +1,141 @@
+{
+ "id": "debt_coreweave_8k_ddtl55",
+ "area": "debt",
+ "document": {
+  "document_id": 1219,
+  "source_id": "sec_index",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/crwv-20260807.htm",
+  "sha256": "82d2fb46a5601872075deb115c4672854e31e68e547c5bf90f290379d6e21cf7",
+  "doc_type": "8-K",
+  "title": "8-K",
+  "date": "2026-08-10"
+ },
+ "note": "CoreWeave 8-K (Aug 10, 2026) Item 1.01 on the DDTL 5.5 Facility",
+ "excerpt": "Item 1.01 Entry into a Material Definitive Agreement.\n\nOn August 7, 2026, CoreWeave Financing DDTL V-V, LLC (the “Borrower”), a Delaware limited liability company and an indirect subsidiary of CoreWeave, Inc., a Delaware corporation (the “Parent”), entered into a credit agreement (the “Credit Agreement”) with, inter alios, JPMorgan Chase Bank, N.A., as administrative agent, U.S. Bank Trust Company, National Association, as collateral agent, U.S. Bank National Association, as depositary bank, JPMorgan Chase Bank, N.A. and MUFG Bank, Ltd. as joint lead arrangers, joint bookrunners and syndication agents, and the lenders party thereto, providing for a $2.6 billion delayed draw term loan facility (the “DDTL 5.5 Facility”). The DDTL 5.5 Facility was entered into primarily to finance capital expenditures required to perform certain customer contracts, including the acquisition of GPU servers and related infrastructure.\n\nAvailability and Maturity\n\nThe DDTL 5.5 Facility provides for delayed draw term loans available in one or more draws until the commitment termination date in December 2026. The maturity date of the DDTL 5.5 Facility is September 1, 2031.\n\nInterest Rate and Fees\n\nAmounts borrowed under the DDTL 5.5 Facility are subject to an interest rate per annum equal to (i) for SOFR loans, Term SOFR (subject to a 0.00% floor) plus an applicable margin of 5.50% per annum, and (ii) for base rate loans, the base rate (determined by reference to the highest of (A) the prime rate, (B) the federal funds effective rate plus 0.50% and (C) Term SOFR for a one-month tenor plus 1.00%) (subject to a 0.00% floor), plus an applicable margin of 4.50% per annum. The DDTL 5.5 Facility provides for payment of, among others, undrawn fees in an amount equal to 0.50% per annum on the average daily undrawn portion of the DDTL 5.5 Facility, which undrawn fees are payable monthly in arrears.\n\nGuarantees and Security\n\nAll obligations under the DDTL 5.5 Facility are unconditionally guaranteed by the Parent pursuant to a parent guarantee and pledge agreement, dated as of August 7, 2026, by and among the Parent, CW Financing DDTL V-V Holdco, LLC, a Delaware limited liability company, and U.S. Bank Trust Company, National Association (the “Parent Guarantee and Pledge Agreement”), and all obligations under the DDTL 5.5 Facility are also unconditionally guaranteed by the subsidiaries of the Borrower pursuant to a collateral agreement. All obligations under the DDTL 5.5 Facility are secured by substantially all assets of the Borrower and its subsidiaries and a pledge of 100% of the equity interests in the Borrower held by CW Financing DDTL V-V Holdco, LLC.\n\nCovenants\n\nThe Borrower is required to comply with the following covenants, among others described in the Credit Agreement:\n\nDebt Service Coverage Ratio. Beginning the first full calendar month after the earlier to occur of (a) the date on which the commitments are reduced to zero and (b) December 31, 2026, the Borrower is required to maintain a debt service coverage ratio of at least 1.35x.\n\nCertain Other Covenants and Events of Default. The DDTL 5.5 Facility contains a number of other customary negative covenants, and the Credit Agreement contains customary events of default, including payment defaults, failure to perform or observe covenants, cross-defaults with certain other indebtedness, a change of control, and certain bankruptcy events. The Credit Agreement also contains events of default related to certain adverse events with respect to certain material contracts.",
+ "gold": [
+  {
+   "field": "amount_usd",
+   "subject_kind": "instrument",
+   "value": 2600000000,
+   "quote": "providing for a $2.6 billion delayed draw term loan facility"
+  },
+  {
+   "field": "maturity",
+   "subject_kind": "instrument",
+   "value": "2031-09-01",
+   "quote": "The maturity date of the DDTL 5.5 Facility is September 1, 2031."
+  },
+  {
+   "field": "commitment_termination_date",
+   "subject_kind": "instrument",
+   "value": "2026-12",
+   "quote": "until the commitment termination date in December 2026"
+  },
+  {
+   "field": "closing_date",
+   "subject_kind": "instrument",
+   "value": "2026-08-07",
+   "quote": "On August 7, 2026, CoreWeave Financing DDTL V-V, LLC"
+  },
+  {
+   "field": "coupon_type",
+   "subject_kind": "instrument",
+   "value": "floating",
+   "quote": "for SOFR loans, Term SOFR (subject to a 0.00% floor) plus an applicable margin of 5.50% per annum"
+  },
+  {
+   "field": "coupon_benchmark",
+   "subject_kind": "instrument",
+   "value": "Term SOFR",
+   "quote": "for SOFR loans, Term SOFR (subject to a 0.00% floor) plus an applicable margin of 5.50% per annum"
+  },
+  {
+   "field": "coupon_spread_bp",
+   "subject_kind": "instrument",
+   "value": 550,
+   "quote": "for SOFR loans, Term SOFR (subject to a 0.00% floor) plus an applicable margin of 5.50% per annum"
+  },
+  {
+   "field": "sofr_floor_pct",
+   "subject_kind": "instrument",
+   "value": 0,
+   "quote": "Term SOFR (subject to a 0.00% floor)"
+  },
+  {
+   "field": "undrawn_fee_pct",
+   "subject_kind": "instrument",
+   "value": 0.5,
+   "quote": "undrawn fees in an amount equal to 0.50% per annum on the average daily undrawn portion of the DDTL 5.5 Facility"
+  },
+  {
+   "field": "min_dscr",
+   "subject_kind": "instrument",
+   "value": 1.35,
+   "quote": "the Borrower is required to maintain a debt service coverage ratio of at least 1.35x"
+  },
+  {
+   "field": "admin_agent",
+   "subject_kind": "instrument",
+   "value": "JPMorgan Chase Bank, N.A.",
+   "quote": "JPMorgan Chase Bank, N.A., as administrative agent"
+  },
+  {
+   "field": "collateral_agent",
+   "subject_kind": "instrument",
+   "value": "U.S. Bank Trust Company, National Association",
+   "quote": "U.S. Bank Trust Company, National Association, as collateral agent"
+  },
+  {
+   "field": "arrangers",
+   "subject_kind": "instrument",
+   "value": [
+    "JPMorgan Chase Bank, N.A.",
+    "MUFG Bank, Ltd."
+   ],
+   "quote": "JPMorgan Chase Bank, N.A. and MUFG Bank, Ltd. as joint lead arrangers, joint bookrunners and syndication agents"
+  },
+  {
+   "field": "borrower",
+   "subject_kind": "instrument",
+   "value": "CoreWeave Financing DDTL V-V, LLC",
+   "quote": "CoreWeave Financing DDTL V-V, LLC (the “Borrower”)"
+  },
+  {
+   "field": "guarantors",
+   "subject_kind": "instrument",
+   "value": [
+    "CoreWeave, Inc."
+   ],
+   "quote": "All obligations under the DDTL 5.5 Facility are unconditionally guaranteed by the Parent"
+  },
+  {
+   "field": "collateral_text",
+   "subject_kind": "instrument",
+   "value": "substantially all assets of the Borrower and its subsidiaries and a pledge of 100% of the equity interests in the Borrower",
+   "quote": "All obligations under the DDTL 5.5 Facility are secured by substantially all assets of the Borrower and its subsidiaries and a pledge of 100% of the equity interests in the Borrower held by CW Financing DDTL V-V Holdco, LLC."
+  },
+  {
+   "field": "events_of_default",
+   "subject_kind": "instrument",
+   "value": [
+    "payment defaults",
+    "cross-defaults",
+    "change of control",
+    "bankruptcy"
+   ],
+   "quote": "the Credit Agreement contains customary events of default, including payment defaults, failure to perform or observe covenants, cross-defaults with certain other indebtedness, a change of control, and certain bankruptcy events"
+  },
+  {
+   "field": "change_of_control",
+   "subject_kind": "instrument",
+   "value": "event of default",
+   "quote": "the Credit Agreement contains customary events of default, including payment defaults, failure to perform or observe covenants, cross-defaults with certain other indebtedness, a change of control, and certain bankruptcy events"
+  },
+  {
+   "field": "use_of_proceeds",
+   "subject_kind": "instrument",
+   "value": "finance capital expenditures required to perform certain customer contracts",
+   "quote": "The DDTL 5.5 Facility was entered into primarily to finance capital expenditures required to perform certain customer contracts, including the acquisition of GPU servers and related infrastructure."
+  }
+ ]
+}
