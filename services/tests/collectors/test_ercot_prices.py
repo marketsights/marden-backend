@@ -24,7 +24,7 @@ from marden.collectors import ercot_api, ercot_load_zones
 from marden.collectors import ercot_prices as prices
 from marden.collectors import ercot_prices_parse as parse
 from marden.collectors.rates_common import ParseError, RunStats, due_et
-from marden.core import config, documents, licensing, sources
+from marden.core import config, documents, http, licensing, sources
 from marden.core.http import Fetcher
 from marden.core.queue import app
 
@@ -47,7 +47,7 @@ def test_dam_fall_back_and_spring_forward_days():
     assert fall.hourly[:4] == [[1, Decimal("10.87")], [2, Decimal("10.49")], [2, Decimal("13.6")], [3, Decimal("6.76")]]
     assert fall.intervals_over_1000 is None
     spring = parse.daily(parse.dam_page(fixture("dam_lz_west_2025-03-08_2025-03-10")).rows, per_hour=1)[0]
-    assert [(d.day, d.periods) for d in spring] == [(date(2025, 3, 8), 24), (date(2025, 3, 9), 23), (date(2025, 3, 10), 24)]
+    assert [(d.day.day, d.periods) for d in spring] == [(8, 24), (9, 23), (10, 24)]  # March 2025
     assert [h for h, _ in spring[1].hourly][:3] == [1, 2, 4]  # ERCOT skips hour ending 03 when clocks go forward
     assert spring[1].avg == Decimal("54.0765")
     assert (parse.hours_in_day(date(2025, 3, 9)), parse.hours_in_day(date(2024, 11, 3)),
@@ -94,8 +94,7 @@ def test_refuses_other_shapes():
 
 def test_windows_series_ids_and_streams():
     days = [date(2024, 10, 30), date(2024, 10, 31), date(2024, 11, 1), date(2024, 11, 2), date(2024, 11, 5)]
-    assert list(prices.windows(days)) == [(date(2024, 10, 30), date(2024, 10, 31)),
-                                          (date(2024, 11, 1), date(2024, 11, 2)), (date(2024, 11, 5), date(2024, 11, 5))]
+    assert list(prices.windows(days)) == [(days[0], days[1]), (days[2], days[3]), (days[4], days[4])]
     assert prices.series_id("LZ_WEST", "rt") == "power_price:ercot:lz_west:rt"
     assert len(prices.STREAMS) == 19 and {p for s in prices.STREAMS if s.market == "rt" for p in s.points} == set(
         prices.LOAD_ZONES + prices.HUBS)
@@ -129,6 +128,19 @@ EMPTY = {"NP4-190-CD": ["deliveryDate", "hourEnding", "settlementPoint", "settle
 def _empty(emil: str) -> dict:
     return {"_meta": {"totalRecords": 0, "pageSize": 50000, "totalPages": 0, "currentPage": 0},
             "report": {"reportEMIL": emil}, "fields": [{"name": n} for n in EMPTY[emil]], "data": []}
+
+
+@pytest.fixture(autouse=True)
+def _fast_mock_api(request):
+    """Mocked answers need not wait for ERCOT's 0.4 requests a second; the live test keeps the real limit."""
+    if request.node.get_closest_marker("network"):
+        yield
+        return
+    http.set_rate_limit(ercot_api.API_HOST, 1000.0)
+    http.set_rate_limit(ercot_api.TOKEN_HOST, 1000.0)
+    yield
+    http.set_rate_limit(ercot_api.API_HOST, 0.4)
+    http.set_rate_limit(ercot_api.TOKEN_HOST, 0.2)
 
 
 @pytest.fixture
@@ -181,7 +193,7 @@ def test_api_flow_writes_complete_days_once(committed, keyed, no_zones, monkeypa
     assert info["days_written"] == {"dam": 3, "rt": 1} and first["facts_new"] == 3 * 4 + 4
     assert first["latest"]["power_price:ercot:hb_north:dam"][0] == "2024-11-04"
     rows = {(r["subject_id"], r["field"], r["valid_from"]): r for r in committed.execute(
-        "SELECT * FROM fact_current WHERE subject_type = 'series'").fetchall()}
+        "SELECT * FROM fact WHERE subject_type = 'series'").fetchall()}
     fall = rows[("power_price:ercot:hb_north:dam", "avg", date(2024, 11, 3))]
     assert (Decimal(str(fall["value"])), fall["unit"], fall["tag"], fall["source_name"], fall["source_url"]) == (
         Decimal("16.5004"), "USD/MWh", "F", "ERCOT", prices.DAM_PRODUCT_URL)

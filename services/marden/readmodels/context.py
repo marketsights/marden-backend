@@ -69,3 +69,26 @@ def known_facts(
     if is_backfill():
         return facts_asof(conn, build_date(), subject_type, subject_id, fields)
     return current_facts(conn, subject_type, subject_id, fields)
+
+
+def known_fact_rows(conn: Conn, subject_type: str, subject_id: str, fields: Sequence[str]) -> dict[str, list[Row]]:
+    """field -> every row of a one-fact-per-item field (structure_term, issue, imagery, risk_evidence ...)
+    as Marden knew them on the build date, newest valid_from first. `known_facts` keeps only the
+    current row per field; these fields hold one published row per item. Same visibility rules as
+    `fact_current` (today) and `fact_asof(day)` (a backfilled day)."""
+    day = build_date()
+    if is_backfill():
+        sql = """SELECT * FROM fact WHERE subject_type = %s AND subject_id = %s AND field = ANY(%s)
+                   AND status IN ('published', 'superseded') AND valid_from <= %s
+                   AND learned_at < (%s::date + 1)::timestamptz AND (valid_to IS NULL OR valid_to > %s)
+                 ORDER BY field, valid_from DESC, id DESC"""
+        params: tuple = (subject_type, subject_id, list(fields), day, day, day)
+    else:
+        sql = """SELECT * FROM fact WHERE subject_type = %s AND subject_id = %s AND field = ANY(%s)
+                   AND status = 'published' AND (valid_to IS NULL OR valid_to > CURRENT_DATE)
+                 ORDER BY field, valid_from DESC, id DESC"""
+        params = (subject_type, subject_id, list(fields))
+    out: dict[str, list[Row]] = {f: [] for f in fields}
+    for row in conn.execute(sql, params).fetchall():
+        out[row["field"]].append(row)
+    return out

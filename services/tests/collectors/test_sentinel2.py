@@ -192,9 +192,11 @@ def test_change_scores_on_real_windows():
     assert sr.change_score(cloudy, "05.11", w[MAY], "05.11") is None  # < half the box clear in both
 
 
-def test_pixel_window_covers_the_box():
+def test_pixel_window_covers_the_box_and_signed_urls_are_redacted():
     transform = (20.0, 0.0, 300000.0, 0.0, -20.0, 3600000.0)
     assert sr.pixel_window((300010.0, 3598490.0, 301490.0, 3599990.0), transform) == (0, 0, 75, 76)
+    signed = "'/vsicurl/https://sentinel2l2a01.blob.core.windows.net/a/B04.tif?st=2026&se=2026&sp=rl&sig=AbC%3D' x"
+    assert sr.redact(signed) == "'/vsicurl/https://sentinel2l2a01.blob.core.windows.net/a/B04.tif?<signed>' x"
 
 
 def test_rank_skips_a_cloudy_pass():

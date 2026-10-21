@@ -2,9 +2,12 @@
 
 Each V1 site (``site.in_v1``) is checked through ``fact_current`` and the identity tables:
 
-- outside_date: a published ``outside_date`` fact on the site, or on an obligation whose ``linked_sites`` names it;
+- outside_date: a published ``outside_date`` fact on the site, or on an obligation whose ``linked_sites`` names it,
+  that starts with a date (a rule such as 'target commencement + 120 days' or a redacted '[*]' is still a gap:
+  the cushion model needs a date);
 - debt: an instrument with ``site_slug`` = the site and an ``amount_usd`` fact;
-- lead_lenders: a ``chain_party`` row with role ``lenders`` that resolves to an entity (a label is not enough);
+- lead_lenders: a ``chain_party`` row with role ``lenders`` that names a lender: an entity, or a label that is
+  not a placeholder ('Noteholders', 'About 20 banks' do not count; 'JPMorgan Chase and MUFG' does);
 - power_source: a published ``power_source`` fact;
 - coordinates (``site.geom``) and campus_link (a ``site_link`` row), which the power, buildings and imagery tabs need.
 
@@ -14,11 +17,13 @@ summary table (DATA_DICTIONARY section 4) finds it.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 from marden.core import db
+from marden.seed.sites_entities import is_placeholder
 
 FIELDS = ("outside_date", "debt", "lead_lenders", "power_source", "coordinates", "campus_link")
 FILL_WITH = {
@@ -39,6 +44,16 @@ def _short(value: Any, n: int = 60) -> str:
     text = value if isinstance(value, str) else str(value)
     text = text.replace("|", "/").replace("\n", " ")
     return text if len(text) <= n + 3 else text[:n] + "..."
+
+
+def _dated(value: Any) -> bool:
+    return isinstance(value, str) and bool(re.match(r"\d{4}-\d{2}", value.strip()))
+
+
+def _lenders(label: str | None, gap: bool) -> str:
+    if not label:
+        return "n/d"
+    return _short(label, 45) + (" (placeholder)" if gap else "")
 
 
 def site_gaps(conn: Any) -> list[dict[str, Any]]:
@@ -73,14 +88,14 @@ def site_gaps(conn: Any) -> list[dict[str, Any]]:
         outside = site_facts.get((slug, "outside_date"), obligation_outside.get(slug))
         lender = lenders.get(slug)
         have = {
-            "outside_date": outside is not None, "debt": any(debts.get(slug, [])),
-            "lead_lenders": bool(lender and lender["entity_id"]),
+            "outside_date": _dated(outside), "debt": any(debts.get(slug, [])),
+            "lead_lenders": bool(lender and (lender["entity_id"] or not is_placeholder(lender["label"]))),
             "power_source": (slug, "power_source") in site_facts, "coordinates": s["has_geom"],
             "campus_link": slug in linked,
         }
         out.append({"slug": slug, "case": s["legacy_group"], "outside_date": outside,
                     "debt": f"{len(debts.get(slug, []))} ({sum(debts.get(slug, []))})",
-                    "lenders": (lender["label"] + ("" if lender["entity_id"] else " (label only)")) if lender else None,
+                    "lenders": lender["label"] if lender else None,
                     "power_source": site_facts.get((slug, "power_source")),
                     "gaps": [f for f in FIELDS if not have[f]]})
     return out
@@ -105,7 +120,7 @@ def render_gaps(conn: Any) -> str:
     for r in rows:
         lines.append(
             f"| {r['slug']} | {r['case']} | {_short(r['outside_date']) if r['outside_date'] is not None else 'n/d'} | "
-            f"{r['debt']} | {_short(r['lenders']) if r['lenders'] else 'n/d'} | {r['power_source'] or 'n/d'} | "
+            f"{r['debt']} | {_lenders(r['lenders'], 'lead_lenders' in r['gaps'])} | {r['power_source'] or 'n/d'} | "
             f"{', '.join(r['gaps']) or 'none'} |")
     return "\n".join(lines) + "\n"
 

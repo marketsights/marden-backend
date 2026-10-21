@@ -149,9 +149,14 @@ def assign(stats: RunStats, source_id: str, fetcher: Fetcher) -> None:
             if zone is None:
                 out["unassigned"][key] = f"{why} ({where})"
                 continue
+            near = (f"nearest other colour {reading.nearest_other[0]} at {reading.nearest_other[1] / 1000:.1f} km"
+                    if reading.nearest_other else f"no other colour within {zmap.SEARCH_M / 1000:.0f} km")
+            if not where.startswith("point"):
+                near = "county reading"
             loc = (f"ERCOT Load Zone Map pixel {reading.pixel[0]},{reading.pixel[1]} ({where}; EPSG:{zmap.MAP_SRID} "
                    f"affine fit to county lines, median residual {zmap.FIT_RESIDUAL_PX} px): {why} "
-                   f"({reading.counts.get(zone, 0)} px, {int(zmap.MARGIN_M)} m margin); in ERCOT per {s.market_text}")
+                   f"({reading.counts.get(zone, 0)} px, {int(zmap.MARGIN_M)} m margin; {near}); "
+                   f"in ERCOT per {s.market_text}")
             valid_from = max(zmap.MAP_POSTED, s.market_from or zmap.MAP_POSTED)
             res = facts.add(s.stype, s.sid, FIELD, zone, tag="M", source_name="ERCOT", source_url=zmap.MAP_URL,
                             valid_from=valid_from, producer=PRODUCER, status="published", document_id=doc_id,

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
@@ -47,6 +48,22 @@ GDAL_OPTIONS = {
 }
 
 http.set_rate_limit(BLOB_HOST, 4.0)
+_SIGNED_QUERY = re.compile(r"\?[^\s'\"]*sig=[^\s'\"]*")
+
+
+def redact(text: str) -> str:
+    """`text` with the query string of any signed blob URL removed."""
+    return _SIGNED_QUERY.sub("?<signed>", text)
+
+
+class _RedactSigned(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg, record.args = redact(record.getMessage()), None
+        return True
+
+
+for _name in ("rasterio._env", "rasterio._err", "rasterio._base", "rasterio._io", "rasterio.env"):
+    logging.getLogger(_name).addFilter(_RedactSigned())  # GDAL messages can quote the URL being read
 
 
 class ReadError(RuntimeError):
@@ -163,6 +180,7 @@ class CogReader:
     def read(self, hrefs: Mapping[str, str], box: Box) -> dict[str, np.ndarray]:
         import rasterio
         from rasterio.errors import RasterioError
+        from rasterio.session import DummySession
         from rasterio.warp import transform_bounds
         from rasterio.windows import Window
 
@@ -170,7 +188,8 @@ class CogReader:
         out: dict[str, np.ndarray] = {}
         ref: tuple[tuple[float, ...], tuple[int, int, int, int]] | None = None
         try:
-            with rasterio.Env(GDAL_HTTP_USERAGENT=self.user_agent, **GDAL_OPTIONS):
+            # DummySession: plain https range reads; no cloud credentials from the environment are handed to GDAL.
+            with rasterio.Env(session=DummySession(), GDAL_HTTP_USERAGENT=self.user_agent, **GDAL_OPTIONS):
                 for band in order:
                     signed = self._sign(hrefs[band])
                     http.bucket_for(urlparse(hrefs[band]).hostname or BLOB_HOST)[1].acquire()
@@ -188,7 +207,7 @@ class CogReader:
                     out[band] = arr
         except RasterioError as exc:
             self.errors += 1
-            raise ReadError(f"{type(exc).__name__}: {str(exc)[:200]}".split("?", 1)[0]) from None
+            raise ReadError(redact(f"{type(exc).__name__}: {exc}")[:300]) from None
         except ReadError:
             self.errors += 1
             raise

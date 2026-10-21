@@ -53,7 +53,7 @@ GPU-lease segment has 7 rows (target 8) and tenant credits 6 (target 7); constru
 | 15 | `EX-HUT-172` | 6.129% Sr Sec Notes due 2042 (Beacon Point, 07367AAA7) | Beacon Point DC LLC | bond | beacon-point | 4.25 |  | 2042-11 | fund marks | Beacon Point (case HUT_BP); 6.129% secured notes $4.25B, 2026 |
 | 16 | `EX-WULF-369` | 7.75% Sr Secured Notes 2030 | WULF Compute LLC | bond | lake-mariner | 3.20 |  | 2030-10 | fund marks | Lake Mariner (case WULF_LM); 7.75% secured notes $3.2B |
 | 17 | `EX-FLUIDSTACK-156` | Flash Compute 7.25% Sr Sec Notes 2030 | Flash Compute LLC (Abernathy JV) | bond | abernathy | 1.30 |  | 2030 | fund marks | Abernathy (case FLASH_ABERNATHY); Flash Compute 7.25% $1.3B, 2025 |
-| 18 | `EX-BEIGNET-022` | 6.581% Sr Secured Notes due 2049 | Beignet Investor LLC | bond | hyperion | 27.29 |  | 2049-05 | dealer quote (press) | Meta Hyperion / Beignet (spec-named); 6.581% notes $27.3B, 2025 |
+| 18 | `EX-BEIGNET-022` | 6.581% Sr Secured Notes due 2049 | Beignet Investor LLC | bond | hyperion | 27.29 |  | 2049-05 | fund marks; dealer quote (press) | Meta Hyperion / Beignet (spec-named); 6.581% notes $27.3B, 2025 |
 | 19 | `EX-SOPAIPILLA-309` | 7.534% Sr Secured Notes due 2048 | Sopaipilla Investor LLC | bond | meta-el-paso | 12.55 |  | 2048-11 | fund marks | Meta El Paso / Sopaipilla (case); 7.534% notes $12.5B, 2026 |
 | 20 | `EX-XAI_VCI-388` | VCI AH1 1L Term Loan (LX276526) | VCI Asset Holdings 1 LLC | term_loan | colossus-2 | n/d |  | 2030-11 | fund marks | Colossus 2 GPU SPV (case XAI_VCI); VCI AH1 first-lien loan, 2025 |
 | 21 | `EX-XAI_VCI-389` | VCI AH2 1L Term Loan (LX284984) | VCI Asset Holdings 2 LLC | term_loan | colossus-2 | n/d |  | 2031-02 | fund marks | Colossus 2 GPU SPV (case XAI_VCI); VCI AH2 notes $3.5B committed, 2026 |
@@ -66,17 +66,17 @@ GPU-lease segment has 7 rows (target 8) and tenant credits 6 (target 7); constru
 | 28 | `EX-CRWV-094` | DDTL 3.0 | CoreWeave Compute Acquisition Co. VII, LLC (co-borrower CCAC V) | ddtl | coreweave-ddtl-3 | 2.21 | drawn | 2030-08 | none | CoreWeave DDTL 3.0 (spec-named, case CRWV_DDTL3); $2.6B commitment, 2025 |
 | 29 | `EX-CRWV-095` | DDTL 4.0 | CoreWeave Compute Acquisition Co. VIII, LLC | ddtl | coreweave-ddtl-4 | 2.84 | drawn | 2032-03 | fund marks | CoreWeave DDTL 4.0 (spec-named, case CRWV_DDTL4); $8.5B commitment, 2026 |
 | 30 | `EX-CRWV-096` | DDTL 5.0 | CoreWeave Financing DDTL V, LLC | ddtl |  | 1.10 | drawn | 2031-11 | fund marks | CoreWeave DDTL 5.0 (spec-named); $3.1B commitment, 2026 |
-| 31 | `EX-CRWV-097` | DDTL 5.5 | CoreWeave Financing DDTL V-V, LLC | ddtl |  | 1.20 | drawn | 2031-09 | none | CoreWeave DDTL 5.5; $2.6B commitment, 2026 |
+| 31 | `EX-CRWV-097` | DDTL 5.5 | CoreWeave Financing DDTL V-V, LLC | ddtl |  | 1.20 | drawn | 2031-09 | fund marks | CoreWeave DDTL 5.5; $2.6B commitment, 2026 |
 | 32 | `EX-IREN-184` | DDTL (Credit Agreement) | IE US Hardware 3 LLC | ddtl | childress | 0.41 | drawn | 2031-12 | fund marks | IREN Childress (spec-named, case IREN_CHILDRESS); $1.545B DDTL, 2026 |
 | 33 | `EX-IREN-185` | 5.96% USPP Sr. Secured Notes | IE US Hardware 3 LLC | bond | childress | 0.53 |  | 2031-12 | none | IREN Childress GPU notes (case); $2.1B USPP programme, 2026 |
 | 34 | `EX-NBIS-204` | Senior secured term loan | Nebius Compute II LLC / Nebius Compute II Oy | term_loan |  | 0.78 |  | 2030-10 | none | Nebius (spec-named) US GPU SPV term loan; $775M, below $1B, kept as named |
 | 35 | `EX-NSCALE-210` | Ward County GPU DDTL | Nscale Ward County Borrower SPV, LLC | ddtl |  | n/d |  | 2033-02 | none | Nscale (spec-named) Ward County TX GPU facility; $1.85B, 2026 |
 | 36 | `EX-NSCALE-211` | North Carolina GPU DDTL | Nscale NC Borrower SPV, LLC | ddtl |  | n/d |  | 2031-12 | none | Nscale (spec-named) North Carolina GPU facility; $1.2B, 2026 |
-| 37 | `EX-CRWV-102` | 9.00% Sr Notes 2031 | CoreWeave, Inc. | bond |  | 1.75 |  | 2031-02 | none | CoreWeave 2031s (spec-named); 9.00% notes $1.75B, 2025 |
-| 38 | `EX-CRWV-103` | 9.75% Sr Notes 2031 | CoreWeave, Inc. | bond |  | 2.75 |  | 2031-10 | dealer quote (press) | CoreWeave 2031s (spec-named); 9.75% notes $2.75B, 2026 |
-| 39 | `EX-CRWV-104` | 9.625% Sr Notes 2032 | CoreWeave, Inc. | bond |  | 1.25 |  | 2032-07 | none | CoreWeave 2032s (spec-named); 9.625% notes $1.25B, 2026 |
+| 37 | `EX-CRWV-102` | 9.00% Sr Notes 2031 | CoreWeave, Inc. | bond |  | 1.75 |  | 2031-02 | fund marks | CoreWeave 2031s (spec-named); 9.00% notes $1.75B, 2025 |
+| 38 | `EX-CRWV-103` | 9.75% Sr Notes 2031 | CoreWeave, Inc. | bond |  | 2.75 |  | 2031-10 | fund marks; dealer quote (press) | CoreWeave 2031s (spec-named); 9.75% notes $2.75B, 2026 |
+| 39 | `EX-CRWV-104` | 9.625% Sr Notes 2032 | CoreWeave, Inc. | bond |  | 1.25 |  | 2032-07 | fund marks | CoreWeave 2032s (spec-named); 9.625% notes $1.25B, 2026 |
 | 40 | `EX-CRWV-105` | 8.50% EUR Sr Notes 2032 | CoreWeave, Inc. | bond |  | 2.28 |  | 2032-07 | none | CoreWeave 2032s (spec-named); 8.50% EUR notes $2.28B, 2026 |
-| 41 | `EX-CRWV-106` | 1.75% Convertible Notes 2031 | CoreWeave, Inc. | convert |  | 2.59 |  | 2031-12 | none | CoreWeave 2031 convert; 1.75% $2.59B, 2025 |
+| 41 | `EX-CRWV-106` | 1.75% Convertible Notes 2031 | CoreWeave, Inc. | convert |  | 2.59 |  | 2031-12 | fund marks | CoreWeave 2031 convert; 1.75% $2.59B, 2025 |
 | 42 | `EX-CRWV-107` | 1.75% Convertible Notes 2032 | CoreWeave, Inc. | convert |  | 4.00 |  | 2032-10 | fund marks | CoreWeave 2032 convert; 1.75% $4.0B, 2026 |
 | 43 | `EX-VANTAGE-361` | Retained Vantage HoldCo sr sub loan | Retained Vantage DC Intermediate Holdco, LP + Assets, LP | term_loan |  | 0.66 |  | 2031-12 | fund marks | Vantage sub loan (spec-named); $662M HoldCo sub loan, kept as named |
 | 44 | `MAN-EDGED-75SeniorSecuredGreenNote` | 7.5% Senior Secured Green Notes due 2031 | Edged Compute LLC (sub of EDC Venture, LLC) | bond |  | 1.30 |  | 2031-04 | fund marks | Edged Compute developer notes; 7.5% $1.3B, 2026 |

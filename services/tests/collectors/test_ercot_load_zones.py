@@ -9,6 +9,7 @@ campuses' coordinates.
 
 from __future__ import annotations
 
+import itertools
 import json
 from datetime import date
 from pathlib import Path
@@ -58,15 +59,20 @@ def test_zones_at_our_campuses_on_the_real_map():
     img = canvas()
     got = {name: zmap.at_point(img, *xy).zone() for name, (xy, _) in POINTS.items()}
     assert {k: v[0] for k, v in got.items()} == {
-        "meta-temple": "LZ_SOUTH", "sb-energy-milam": None, "edgeconnex-cedar-creek": "LZ_SOUTH",
+        "meta-temple": "LZ_SOUTH", "sb-energy-milam": "LZ_NORTH", "edgeconnex-cedar-creek": None,
         "microsoft-sat14": "LZ_CPS", "stargate-abilene": "LZ_WEST", "vantage-frontier": "LZ_WEST",
         "meta-el-paso": None}
-    assert "LZ_NORTH" in got["sb-energy-milam"][1] and "LZ_SOUTH" in got["sb-energy-milam"][1]
+    # Cedar Creek sits on the Travis / Bastrop line, within 2 km of Austin Energy's zone: left unassigned.
+    assert "LZ_AEN" in got["edgeconnex-cedar-creek"][1] and "LZ_SOUTH" in got["edgeconnex-cedar-creek"][1]
     assert got["meta-el-paso"][1] == "the map shows this area outside ERCOT (gray)"
+    milam = zmap.at_point(img, *POINTS["sb-energy-milam"][0])
+    assert milam.nearest_other == ("LZ_SOUTH", 2830.0)  # outside the 2 km margin
     temple = zmap.at_point(img, *POINTS["meta-temple"][0])
-    assert temple.pixel == (2889, 1943) and temple.area_px == 113 and zmap.margin_px() == 6
-    county = zmap.over_polygon(img, denton_rings())
-    assert county.zone()[0] == "LZ_NORTH" and county.area_px > 20_000
+    assert temple.pixel == (2887, 1942) and temple.area_px == 113 and zmap.margin_px() == 6
+    assert temple.nearest_other is None  # no other colour within 10 km
+    county = zmap.over_polygon(img, denton_rings())  # North, with a Rayburn patch at its north-east corner
+    assert county.zone()[0] is None and county.counts["LZ_RAYBN"] >= zmap.MIN_PIXELS
+    assert county.counts["LZ_NORTH"] > 20_000
 
 
 def test_labels_and_refusals():
@@ -87,12 +93,12 @@ def test_fit_recovers_a_drawn_affine():
     for x0 in range(0, 100_000, 25_000):
         for y0 in range(0, 100_000, 25_000):
             corners = [(x0, y0), (x0 + 25_000, y0), (x0 + 25_000, y0 + 25_000), (x0, y0 + 25_000), (x0, y0)]
-            ring = np.array([np.array(p) + t * (np.array(q) - np.array(p)) for p, q in zip(corners, corners[1:])
+            ring = np.array([np.array(p) + t * (np.array(q) - np.array(p)) for p, q in itertools.pairwise(corners)
                              for t in np.linspace(0, 1, 13, endpoint=False)])
             rings.append(ring)
             for x, y in ring:
-                c, r = zmap.to_pixel(x, y, true)
-                img[int(round(r)) - 1:int(round(r)) + 2, int(round(c)) - 1:int(round(c)) + 2] = 255
+                c, r = (round(v) for v in zmap.to_pixel(x, y, true))
+                img[r - 1:r + 2, c - 1:c + 2] = 255
     fitted, residual = zmap.fit_affine(img, rings, (0.00306, 0.0, 55.0, 0.0, -0.00294, 345.0))
     for x, y in ((0, 0), (100_000, 100_000), (50_000, 25_000)):
         assert np.hypot(*np.subtract(zmap.to_pixel(x, y, fitted), zmap.to_pixel(x, y, true))) < 1.5
@@ -159,9 +165,13 @@ def test_assign_writes_zones_once(committed, mapped):
     out = stats.extra["ercot_load_zones"]
     assert out["assigned"] == {"campus:meta-temple": "LZ_SOUTH", "campus:microsoft-sat14": "LZ_CPS",
                                "campus:stargate-abilene": "LZ_WEST", "plant:n-abilene-onsite": "LZ_WEST",
-                               "site:coreweave-ddtl-3": "LZ_NORTH"}
-    assert set(out["unassigned"]) == {"campus:sb-energy-milam", "plant:p-099"}
-    assert "several colours" in out["unassigned"]["campus:sb-energy-milam"]
+                               "campus:sb-energy-milam": "LZ_NORTH"}
+    assert set(out["unassigned"]) == {"site:coreweave-ddtl-3", "plant:p-099"}
+    assert "LZ_RAYBN" in out["unassigned"]["site:coreweave-ddtl-3"]
+    assert "county Denton County (us_county 48121)" in out["unassigned"]["site:coreweave-ddtl-3"]
+    milam = committed.execute("SELECT quote_loc FROM fact_current WHERE subject_id = 'sb-energy-milam' AND field = %s",
+                              (zones.FIELD,)).fetchone()
+    assert "nearest other colour LZ_SOUTH at 2.8 km" in milam["quote_loc"]
     assert out["not_in_ercot"] == {"campus:meta-el-paso": "iso='WECC (El Paso Electric; not ERCOT)'",
                                    "campus:no-facts": "no market fact"}
     row = committed.execute("SELECT * FROM fact_current WHERE subject_id = 'n-abilene-onsite' AND field = %s",
