@@ -122,6 +122,9 @@ are shown to staff only.
 `python -m marden alerts scan --since-days 30 --dry-run` evaluates the window and writes alerts only: dated
 on the day the change happened (an event dated ahead: on the scan's day, never in the future), `backfill = true`,
 landed read (history, not news for the badge), no stream event, never emailed. The triggers it evaluated are not evaluated again by the live scan.
+Once a live scan has evaluated anything (an `alert_trigger` row with `dry_run = false`) the command refuses
+`--dry-run` (exit 2): it would turn the news the worker has not evaluated yet into read history that is never
+emailed. `--history-anyway` runs it regardless.
 
 Run on the local database, 2026-10-21 (window 2026-09-21 to 2026-10-21; one firm, `dev`, watching 4 sites
 and 2 instruments): 3,051 triggers (1,201 events, 415 rating facts, 1,435 model-output changes), 528 material.
@@ -129,7 +132,9 @@ Findings by rule (all names): PX 417, MK 252, L2 27, L1 18, M1 13, M4 10, T1 6, 
 D2 1, M2 1, T2 1. Alerts to the watching member: 31 (PX 6, L2 5, E1 4, L1 4, M1 3, M4 3, MK 2, D1 1, M2 1,
 OP 1, T2 1; 9 red), with 6 repeat articles joined to an earlier alert. A second run wrote nothing.
 Rerun at 23:06 UTC the same day, after the price, mark-gap, cushion and status models had re-run: 20 changed
-model outputs evaluated, none material, no alert, no stream event, no email row (outbox empty).
+model outputs evaluated, none material, no alert, no stream event, no email row (outbox empty). Rerun at 00:33
+UTC on Oct 22 by the reviewer, with the fixes above: 30 changed model outputs, 7 material (L1 5, L2 2, on names
+the dev firm does not watch), no alert, no error, no stream event, no email row.
 
 On a new database (Neon) the backfill is optional: the worker starts before any firm holds the product or
 watches a name (docs/DEPLOY.md section 7), so its first scans evaluate the recent rows with nobody to alert

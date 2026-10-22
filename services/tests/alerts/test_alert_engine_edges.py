@@ -202,3 +202,21 @@ def test_model_state_never_moves_back_to_an_older_output():
                                                 occurred_on=as_of, state=state))
     kept = rows("SELECT as_of, output_hash FROM alert_state")
     assert kept == [{"as_of": newer, "output_hash": f"h{newer}"}]
+
+
+def test_a_backfill_is_refused_once_the_live_engine_has_run(capsys):
+    from argparse import Namespace
+
+    from marden.alerts import tasks
+
+    if SITE not in copy_sites([SITE])["sites"]:
+        pytest.skip("jupiter is not in the source database")
+    first = rows("SELECT min(event_date) AS d FROM event WHERE kind <> 'catalyst'")[0]["d"]
+    backfill = Namespace(since_days=0, today=first, dry_run=True, history_anyway=False)
+    assert tasks.scan_command(backfill) == 0  # a new database: the backfill is the engine's first evaluation
+    engine.scan(since=first, today=first + timedelta(days=30))  # the worker's live scans
+    if not rows("SELECT 1 FROM alert_trigger WHERE NOT dry_run LIMIT 1"):
+        pytest.skip("the live scan evaluated nothing in the copied window")
+    capsys.readouterr()
+    assert tasks.scan_command(backfill) == 2 and "refused" in capsys.readouterr().out
+    assert tasks.scan_command(Namespace(**{**vars(backfill), "history_anyway": True})) == 0

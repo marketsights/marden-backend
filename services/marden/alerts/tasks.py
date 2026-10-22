@@ -6,6 +6,8 @@
                     digests once each, send
 
     python -m marden alerts scan [--since-days 30] [--dry-run]   # backfill: alerts only, never emailed
+                                                                 # (refused once the live engine has run,
+                                                                 # unless --history-anyway)
     python -m marden alerts send | digest | status
 """
 
@@ -49,10 +51,24 @@ def _scan_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--since-days", type=int, default=None, help=f"window in days (default {engine.LIVE_DAYS})")
     p.add_argument("--today", type=date.fromisoformat, default=None, help="end of the window (YYYY-MM-DD)")
     p.add_argument("--dry-run", action="store_true", help="write alerts only: no stream events, never emailed")
+    p.add_argument("--history-anyway", action="store_true",
+                   help="allow --dry-run after the live engine has run (what it evaluates is never news)")
+
+
+def live_engine_ran() -> bool:
+    """True once a live (not dry-run) scan has evaluated anything: a backfill now would land, as read history
+    that is never emailed, the news the worker has not evaluated yet."""
+    with db.connection() as conn:
+        return conn.execute("SELECT 1 FROM alert_trigger WHERE NOT dry_run LIMIT 1").fetchone() is not None
 
 
 @cli.action("alerts", "scan", help="Evaluate events, ratings and model outputs; write alerts", configure=_scan_args)
 def scan_command(args: argparse.Namespace) -> int:
+    if args.dry_run and not args.history_anyway and live_engine_ran():
+        print(json.dumps({"refused": "the live alert engine has already run here: a --dry-run backfill would turn "
+                                     "news it has not evaluated yet into read history that is never emailed. "
+                                     "Pass --history-anyway to run it regardless."}, indent=2))
+        return 2
     today = args.today or business_today()
     since = today - timedelta(days=args.since_days) if args.since_days is not None else None
     stats = engine.scan(since=since, today=today, dry_run=args.dry_run)
