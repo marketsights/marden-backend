@@ -10,9 +10,10 @@ about the site by construction. Left out whatever they say: market-wide prints (
 results, GPU spot prices '$1.99/hr'); a regulator order, county agenda or press item that names none
 of the above is noise for this site.
 
-Among the records that count: material events first (approved, judged material by the archive, or
-flagged red / amber), then filed records (F), then reported ones (R), then model notes (M); the most
-recent first within each. None when no record about the site exists yet (shown as n/d).
+Among the records that count: the latest material event (approved, judged material by the archive,
+or flagged red / amber); with none, the latest record of any tag, a filed record (F) winning over a
+reported one (R) or a model note (M) only on the same day. None when no record about the site exists
+yet (shown as n/d).
 """
 
 from __future__ import annotations
@@ -54,7 +55,8 @@ class Candidate:
     evidence: Doc
 
     def key(self) -> tuple:
-        return (self.tier, -date.fromisoformat(self.date).toordinal(), self.strength, self.order)
+        material = 0 if self.tier == 0 else 1
+        return (material, -date.fromisoformat(self.date).toordinal(), self.tier, self.strength, self.order)
 
 
 def linked_events(conn: Conn, subject_type: str, ids: Sequence[str]) -> list[Row]:

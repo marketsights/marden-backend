@@ -99,16 +99,29 @@ def test_childress_shows_a_record_about_childress_not_gpu_spot_prices(sites):
         pytest.skip("childress not in the copied rows")
     ev = completion_rows()["childress"]["lastEvidence"]
     assert ev is not None
-    # IREN (developer) files its 10-K and 8-Ks under CIK 1878848: a filed record of the chain, so the
-    # row shows a filed (F) record at least as new as IREN's newest filing on the site.
+    # IREN (developer) files its 10-K and 8-Ks under CIK 1878848: records of the chain, so the row shows
+    # a record about the site at least as new as IREN's newest filing on it (filed or a newer report).
     cik = copied_rows("SELECT cik FROM entity WHERE id = 'iren-ltd'")
     filings = copied_rows(
         """SELECT max(value->>'date') AS d FROM fact WHERE subject_type = 'site' AND subject_id = 'childress'
              AND field = 'risk_evidence' AND status = 'published' AND tag = 'F' AND value->>'url' LIKE %s""",
         (f"%/edgar/data/{int(cik[0]['cik'])}/%",))
     assert filings[0]["d"], "IREN's filings are not in the copied rows"
-    assert ev["tag"] == "F" and ev["date"] >= filings[0]["d"], ev
+    assert ev["date"] >= filings[0]["d"], ev
     assert "RunPod" not in ev["text"]
+
+
+def test_newest_record_wins_when_no_material_event(sites):
+    """Without a material event, the newest record about the site is shown whatever its tag; a filed
+    record only wins a tie on the same day."""
+    from marden.readmodels.views.sites_evidence import Candidate
+    old_filed = Candidate(1, "2026-09-11", 0, 0, {})
+    new_report = Candidate(2, "2026-10-17", 0, 0, {})
+    same_day_report = Candidate(2, "2026-09-11", 0, 0, {})
+    old_material = Candidate(0, "2026-08-01", 0, 0, {})
+    assert sorted([old_filed, new_report], key=Candidate.key)[0] is new_report
+    assert sorted([same_day_report, old_filed], key=Candidate.key)[0] is old_filed
+    assert sorted([new_report, old_material], key=Candidate.key)[0] is old_material
 
 
 def test_material_records_about_the_site_come_first(sites):
