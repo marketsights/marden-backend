@@ -3,9 +3,13 @@ filters, sorts, pages and summarises these docs) and `dc_detail` (DataCenterDeta
 
 Row values are the campus facts as known on the build date: developer, tenant (the lease tenant,
 else the compute users Epoch names), status (DcStatus), facility / IT MW, power source, utility,
-ISO/RTO (as a code; the boundary join when the stated value names none), online year. Buildings
-built / total count the campus's building records (Operating = built); a campus with no building
-record yet shows the building counts its own facts state. `plantId` is the largest generating plant
+ISO/RTO (as a code; the boundary join when the stated value names none), online year. Status and
+buildings operating / total are decided once, from the strongest and newest record (facilities_status:
+certificate of occupancy or energization > utility or permit record > company statement > third-party
+tracker), so the campus status follows its most advanced building and the table shows one status;
+`statusNote` is the one plain line, with the records compared, when a record of another source or
+strength disagrees (null otherwise). A campus with no building record yet shows its stated status and
+the building counts its own facts state. `plantId` is the largest generating plant
 serving the campus (fuel lines excluded). `financed` is the approved site link with the most debt and
 `financedSites` every approved financed site on the campus (facilities_common). `financing` is Marden's
 financing note on a campus with no asset-level debt to link (campus fact `financing_note`, tag M, written by
@@ -26,6 +30,7 @@ from typing import Any
 from marden.core.db import Conn, Row
 from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.registry import builder
+from marden.readmodels.views import facilities_status
 from marden.readmodels.views.facilities_campus_tabs import (
     building_docs,
     campus_changes,
@@ -141,15 +146,14 @@ def financing_note(row: Row | None) -> Doc | None:
     })
 
 
-def building_counts(conn: Conn, campus_id: str, facts: dict[str, Row]) -> dict[str, int]:
-    rows = campus_buildings(conn, campus_id)
-    if rows:
-        built = sum(
-            1
-            for b in rows
-            if (s := known_facts(conn, "building", b["id"], ["status"]).get("status")) and s["value"] == "Operating"
-        )
-        return {"built": built, "total": len(rows)}
+def building_counts(conn: Conn, campus_id: str, facts: dict[str, Row],
+                    resolution: facilities_status.Resolution | None = None) -> dict[str, int]:
+    """Operating / total buildings. With building records: the operating count decided from the strongest,
+    newest record (facilities_status: a campus count, the building records, a filed status). Without
+    any: the counts the campus's own facts state."""
+    res = resolution if resolution is not None else facilities_status.load(conn, campus_id)
+    if res.total:
+        return {"built": res.operating or 0, "total": res.total}
     total = _count(facts.get("building_count")) or 0
     built = _count(facts.get("buildings_operational")) or 0
     return {"built": min(built, total) if total else built, "total": max(total, built)}
@@ -173,6 +177,8 @@ def row_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
     changes = campus_changes(conn, cid) + event_changes(subject_events(conn, "campus", cid))
     changes += queue_changes(conn, "campus", cid)
     financed = financed_sites(conn, [cid])
+    res = facilities_status.load(conn, cid)
+    status = res.status if res.total else enum_value(facts.get("status"), DC_STATUSES)
     return {
         "id": cid,
         "name": campus["name"],
@@ -183,10 +189,11 @@ def row_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
         "lon": campus["lon"],
         "developer": text_value(facts.get("developer")),
         "tenant": _tenant(facts),
-        "status": enum_value(facts.get("status"), DC_STATUSES),
+        "status": status,
+        "statusNote": facilities_status.status_note_doc(res),
         "facilityMw": number_value(facts.get("facility_mw"), "F"),
         "itMw": number_value(facts.get("it_mw"), "F"),
-        "buildings": building_counts(conn, cid, facts),
+        "buildings": building_counts(conn, cid, facts, res),
         "powerSource": enum_value(facts.get("power_source"), POWER_SOURCES, "M"),
         "utility": text_value(facts.get("utility"), "F"),
         "iso": iso_value(conn, "campus", cid, facts.get("iso")),

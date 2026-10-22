@@ -12,8 +12,9 @@ from typing import Any
 import numpy as np
 
 from marden.core.db import Conn
+from marden.core.facts import sourced
 from marden.models import cushion_dates as cd
-from marden.models import runs
+from marden.models import late_cost, runs
 from marden.models.cushion_history import MIN_POOLED, SlipHistory
 from marden.models.cushion_inputs import SiteInputs
 from marden.models.cushion_milestones import Milestone, milestone_doc
@@ -55,7 +56,56 @@ def _p50_of(output: dict[str, Any] | None) -> str | None:
     return ((output or {}).get("projection") or {}).get("p50")
 
 
-def projection_doc(site: SiteInputs, sim: SimResult | None, prior: dict[str, Any] | None) -> dict[str, Any]:
+def _usd(v: float) -> str:
+    return f"${v / 1e9:,.2f}B" if v >= 1e9 else f"${v / 1e6:,.1f}M"
+
+
+def _src(row: Any) -> dict[str, Any] | None:
+    return sourced(row) if row is not None else None
+
+
+def late_cost_doc(site: SiteInputs, debt: dict[str, Any] | None, rent_done: bool) -> dict[str, Any]:
+    """SiteSchedule projection.lateCost: the month-late cost in parts with formulas, who bears each part as a
+    source states it, the instruments left out and, when there is no figure, why (marden.models.late_cost)."""
+    debt = debt or {"lines": [], "excluded": [], "bearers": [], "sofr": None, "instruments": 0}
+    rent_monthly = site.rent.monthly_usd if site.rent is not None else None
+    sums = late_cost.assemble(debt, rent_monthly=rent_monthly, rent_done=rent_done)
+
+    def bearer(b: dict[str, Any]) -> dict[str, Any]:
+        src = {k: v for k, v in (_src(b["row"]) or {}).items() if k != "value"}  # the source, not the term's object
+        return {"key": b["key"], "text": b["text"], **src}
+
+    parts: list[dict[str, Any]] = []
+    if sums["interest"]:
+        lines = debt["lines"]
+        parts.append({
+            "kind": "interest", "label": "Construction interest", "monthlyUsd": round(sums["interest"]),
+            "formula": " + ".join(f"{_usd(ln.amount)} x {ln.rate_pct:g}% / 12" for ln in lines),
+            "lines": [{"name": ln.name, "instrumentId": ln.instrument, "amountUsd": ln.amount,
+                       "amountBasis": ln.amount_basis, "ratePct": ln.rate_pct, "rateBasis": ln.rate_basis,
+                       "monthlyUsd": round(ln.monthly), "sources": [d for r in ln.rows if (d := _src(r))]}
+                      for ln in lines],
+            "bearers": [bearer(b) for b in debt["bearers"] if b["key"] in ("Completion support", "Reserves")],
+            "paidBy": "the borrower (the issuer that owes the debt)",
+        })
+    if sums["rent"]:
+        assert site.rent is not None
+        parts.append({
+            "kind": "rent", "label": "Rent not yet collected", "monthlyUsd": round(sums["rent"]),
+            "formula": site.rent.basis, "source": _src(site.rent.row),
+            "condition": "for each month rent start slips past its due date",
+            "bearers": [bearer(b) for b in debt["bearers"] if b["key"] not in ("Completion support", "Reserves")],
+            "paidBy": "the landlord (rent it does not receive)",
+        })
+    doc: dict[str, Any] = {"parts": parts, "excluded": debt["excluded"], "methodVersion": late_cost.VERSION,
+                           "why": sums["why"]}
+    if debt.get("sofr") is not None:
+        doc["sofr"] = _src(debt["sofr"])
+    return doc
+
+
+def projection_doc(site: SiteInputs, sim: SimResult | None, prior: dict[str, Any] | None,
+                   late: dict[str, Any] | None = None, rent_done: bool = False) -> dict[str, Any]:
     as_of = site.as_of
     months = months_of(sim.rent) if sim is not None else {"p10": None, "p50": None, "p90": None}
     doc: dict[str, Any] = {**months, "outsideDate": outside_doc(site)}
@@ -74,8 +124,11 @@ def projection_doc(site: SiteInputs, sim: SimResult | None, prior: dict[str, Any
     doc["deltaWeek"] = m_value(cushion - before if cushion is not None and before is not None else None, as_of)
     if o is not None and sim is not None:
         doc["oddsOfMissing"] = m_value(round(odds_after(sim.rent, o.month), 3), as_of, ODDS_VERSION)
-    if site.rent is not None:
-        doc["costPerMonthLate"] = m_value(round(site.rent.monthly_usd), as_of)
+    lc = late_cost_doc(site, late, rent_done)
+    total = sum(p["monthlyUsd"] for p in lc["parts"]) if lc["parts"] else None
+    if total is not None:
+        doc["costPerMonthLate"] = m_value(total, as_of, late_cost.VERSION)
+    doc["lateCost"] = lc
     return doc
 
 
@@ -104,7 +157,7 @@ def missing_list(site: SiteInputs, milestones: list[Milestone], sim: SimResult |
     if site.outside is None:
         missing.append("outside_date: no lease outside date in any source (cushion and odds not computed)")
     if site.rent is None:
-        missing.append("rent: no rent or contract value and term disclosed (cost per month late not computed)")
+        missing.append("rent: no rent or contract value and term disclosed (the month-late cost has no rent part)")
     for ms in milestones:
         if not ms.applicable or ms.is_done:
             continue

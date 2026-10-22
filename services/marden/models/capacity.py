@@ -4,8 +4,10 @@ triangulated from the equipment and records Marden holds. Labelled M 'capacity v
     python -m marden model capacity [--as-of YYYY-MM-DD] [--campus ID ...] [--json]
 
 Outputs, one per subject: ('campus', id) and ('building', id) = CapacityEstimate (types.ts) + `missing`
-(the dc_tab:capacity read model lists the campus and then its buildings). Every campus is estimated;
-buildings on campuses linked to a V1 site are estimated (the others are listed in the campus's missing).
+(the dc_tab:capacity read model lists the campus and then its buildings). Every campus and every building
+is estimated. A building's methods: its own stated MW (`facility_mw` on the building), its share of the
+campus's stated facility MW by traced footprint area ("Campus share"), and its floor area (stated `sqft`,
+else the footprint polygon, reported as `footprintSqft`) x developer density; its generation is the campus's.
 
 1. Facility MW: the methods of capacity_methods (filed, utility load, prime generation, backup generators,
    footprint, disclosed GPU count) combined: a filed figure is the answer and the rest are checks; else the
@@ -14,6 +16,7 @@ buildings on campuses linked to a V1 site are estimated (the others are listed i
    pue_range low / high; base = midpoint). The assumption is shown in `pue`.
 3. GPUs = IT MW x GPU share of IT / kW per GPU. Generation: the campus's disclosed chip types, else its
    online year (2026 or later GB300, 2025 GB200, earlier H100: the rule is in the generation's methodVersion).
+   Racks = GPUs / 72 for the rack-scale GB200 / GB300 NVL72 platforms (`racks`, `gpusPerRack`).
    kW per GPU: the chip's power from `gpu_model:<chip>` tdp_w (as published). GPU share of IT: calibrated on
    every campus that discloses both its chips and its IT MW (median, quartiles for the range); n/d below
    three such campuses. Implied GPU value = GPUs x the chip's new price range (gpu_model new_price_usd).
@@ -58,6 +61,11 @@ CAMPUS_FIELDS = (
 PLANT_FIELDS = ("capacity_mw", "status")
 UNIT_FIELDS = ("count", "rating_mw_each", "fuel")
 GEN_BY_YEAR = ((2026, "GB300"), (2025, "GB200"), (0, "H100"))
+BUILDING_FIELDS = ("facility_mw", "it_mw", "sqft", "gpu_type")
+# Rack-scale platforms: GPUs per rack as NVIDIA states it (GB200 / GB300 NVL72: 72 Blackwell GPUs per rack,
+# about 120-140 kW of IT per rack). Other generations ship as 8-GPU servers whose rack count depends on the
+# hall's power density, so no rack count is derived for them.
+GPUS_PER_RACK = {"GB200": 72, "GB300": 72}
 
 
 def _r3(low: float | None, base: float | None, high: float | None, digits: int = 0) -> dict[str, float | None]:
@@ -181,12 +189,25 @@ def estimate(
     mk: Market,
     dens: dict[str, list[tuple[str, float]]],
     sqft: tuple[float | None, Row | None, str],
+    *,
+    campus_cur: dict[str, Row] | None = None,
+    share: tuple[float | None, float | None] = (None, None),
 ) -> dict[str, Any]:
     day = mk.day
     n_chips, chip_row, disclosed_chip = chips_of(cur) if scope == "campus" else (None, None, None)
+    if scope == "building" and campus_cur is not None:
+        _, chip_row, disclosed_chip = chips_of(campus_cur)  # the campus's disclosed chips; counts stay campus-level
+        chip_row = None
+        cur = {**{k: v for k, v in campus_cur.items() if k in ("chip_types", "online_year")}, **cur}
+    campus_mw = cm.mw_of(campus_cur["facility_mw"]["value"]) if campus_cur and "facility_mw" in campus_cur else None
     year = num((cur.get("online_year") or {}).get("value"))
-    gen = disclosed_chip or (next(c for y, c in GEN_BY_YEAR if (year or 0) >= y) if year else None)
-    kw, share = mk.kw(gen), mk.share(cid)
+    stated_types = (cur.get("chip_types") or {}).get("value")
+    accelerator = None  # a stated chip that is not a known GPU (Trainium, TPU): no GPU count is assumed for it
+    if not disclosed_chip and isinstance(stated_types, list) and stated_types:
+        disclosed_chip = chip_key(str(stated_types[0]))
+        accelerator = None if disclosed_chip else str(stated_types[0])
+    gen = disclosed_chip or (next(c for y, c in GEN_BY_YEAR if (year or 0) >= y) if year and not accelerator else None)
+    kw, gpu_share = mk.kw(gen), mk.share(cid if scope == "campus" else str((campus_cur or {}).get("_id", cid)))
     methods = [
         m
         for m in (
@@ -194,8 +215,11 @@ def estimate(
             cm.utility_load(cur),
             cm.prime_generation(plants),
             cm.backup(cur),
+            cm.campus_share(campus_mw, (campus_cur or {}).get("facility_mw"), share[0], share[1], name)
+            if scope == "building"
+            else None,
             cm.footprint(sqft[0], sqft[1], cid, cm.developer_key(cur), dens, sqft[2]),
-            cm.gpu_implied(n_chips, chip_row, kw, share, mk.pue),
+            cm.gpu_implied(n_chips, chip_row, kw, gpu_share, mk.pue),
         )
         if m is not None
     ]
@@ -215,16 +239,20 @@ def estimate(
     if best and mk.pue:
         it = _r3(best.low / mk.pue[2], best.base / mk.pue[1], best.high / mk.pue[0])
     gpus = _r3(None, None, None)
-    if it["base"] is not None and share and kw:
+    if it["base"] is not None and gpu_share and kw:
         gpus = _r3(
-            it["low"] * share[0] * 1000 / kw, it["base"] * share[1] * 1000 / kw, it["high"] * share[2] * 1000 / kw
+            it["low"] * gpu_share[0] * 1000 / kw,
+            it["base"] * gpu_share[1] * 1000 / kw,
+            it["high"] * gpu_share[2] * 1000 / kw,
         )
     else:
         lacking = (
-            f"kW per GPU for {gen}"
+            f"the stated chips are {accelerator}, not a GPU with a published power figure"
+            if accelerator
+            else f"kW per GPU for {gen}"
             if not kw
             else "GPU share of IT (fewer than 3 campuses disclose chips and IT MW)"
-            if not share
+            if not gpu_share
             else "IT MW"
         )
         missing.append(f"GPU estimate: {lacking}")
@@ -256,7 +284,7 @@ def estimate(
         "pue": fact_value(mk.pue_row, round(mk.pue[1], 3)) if mk.pue else fact_value(None, as_of=day),
         "gpuGeneration": gen_doc if gen else fact_value(None, as_of=day, tag="M"),
         "kwPerGpu": fact_value(kw_row, round(kw, 3)) if kw and kw_row is not None else fact_value(None, as_of=day),
-        "gpuShareOfIt": m_value(round(share[1], 3) if share else None, day, METHOD, uncalibrated=True),
+        "gpuShareOfIt": m_value(round(gpu_share[1], 3) if gpu_share else None, day, METHOD, uncalibrated=True),
         "confidence": confidence,
         "methods": [
             {
@@ -271,24 +299,31 @@ def estimate(
         "replacedByFiling": replaced,
         "methodVersion": f"{METHOD} (model v0)",
         "missing": missing,
+        **_racks(gen, gpus),
+        **({"footprintSqft": round(sqft[0])} if scope == "building" and sqft[0] and sqft[1] is None else {}),
     }
+
+
+def _racks(gen: str | None, gpus: dict[str, float | None]) -> dict[str, Any]:
+    """Racks = GPUs / GPUs per rack for a rack-scale platform (GB200 / GB300 NVL72); omitted otherwise."""
+    per = GPUS_PER_RACK.get(gen or "")
+    if not per or gpus["base"] is None:
+        return {}
+    return {"racks": _r3(*(g / per if g is not None else None for g in (gpus["low"], gpus["base"], gpus["high"]))),
+            "gpusPerRack": per}
 
 
 def compute(conn: Conn, day: date, ids: list[str] | None = None) -> Batch:
     camps = conn.execute("SELECT id, name FROM campus ORDER BY id").fetchall()
     campuses = _grouped(pit.fact_rows(conn, day, "campus", [c["id"] for c in camps], list(CAMPUS_FIELDS)))
     mk, dens, plants = Market(conn, day, campuses), cm.densities(campuses), load_plants(conn, day)
-    v1 = {
-        r["campus_id"]
-        for r in conn.execute(
-            "SELECT sl.campus_id FROM site_link sl JOIN site s ON s.slug = sl.site_slug WHERE s.in_v1"
-        ).fetchall()
-    }
     blds = conn.execute(
-        """SELECT b.id, b.campus_id, b.label, ST_Area(b.footprint::geography) AS m2 FROM building b
-            WHERE b.campus_id = ANY(%s) ORDER BY b.id""",
-        (sorted(v1),),
+        """SELECT b.id, b.campus_id, b.label, ST_Area(b.footprint::geography) AS m2 FROM building b ORDER BY b.id"""
     ).fetchall()
+    bfacts = _grouped(pit.fact_rows(conn, day, "building", [b["id"] for b in blds], list(BUILDING_FIELDS)))
+    footprint_total: dict[str, float] = {}
+    for b in blds:
+        footprint_total[b["campus_id"]] = footprint_total.get(b["campus_id"], 0.0) + float(b["m2"] or 0)
     batch = Batch()
     for c in camps:
         if ids and c["id"] not in ids:
@@ -305,12 +340,14 @@ def compute(conn: Conn, day: date, ids: list[str] | None = None) -> Batch:
             dens,
             (num(sq["value"]) if sq else None, sq, "campus floor area"),
         )
-        if c["id"] not in v1:
-            out["missing"].append("buildings: estimated for campuses linked to a V1 site only")
         batch.add("campus", c["id"], out)
         for b in (b for b in blds if b["campus_id"] == c["id"]):
-            sqft = float(b["m2"]) * cm.SQFT_PER_M2 if b["m2"] else None
-            bdev = {"developer": cur["developer"]} if "developer" in cur else {}
+            own = bfacts.get(b["id"], {})
+            sq_row = own.get("sqft")
+            stated_sqft = num(sq_row["value"]) if sq_row else None
+            sqft = (stated_sqft, sq_row, "building floor area (stated)") if stated_sqft else (
+                float(b["m2"]) * cm.SQFT_PER_M2 if b["m2"] else None, None, "building footprint (polygon area)")
+            bcur = {**({"developer": cur["developer"]} if "developer" in cur else {}), **own}
             batch.add(
                 "building",
                 b["id"],
@@ -318,11 +355,13 @@ def compute(conn: Conn, day: date, ids: list[str] | None = None) -> Batch:
                     b["id"],
                     b["label"] or b["id"],
                     "building",
-                    bdev,
+                    bcur,
                     [],
                     mk,
                     dens,
-                    (sqft, None, "building footprint (polygon area)"),
+                    sqft,
+                    campus_cur={**cur, "_id": c["id"]},  # type: ignore[dict-item]
+                    share=(float(b["m2"]) if b["m2"] else None, footprint_total.get(c["id"])),
                 ),
             )
     batch.inputs = [len(campuses), [s for _, s in mk.samples]]

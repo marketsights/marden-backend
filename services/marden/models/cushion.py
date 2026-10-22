@@ -7,8 +7,10 @@ For every V1 site (or the slugs given): the eight critical-path milestones from 
 EIA-860M planned vs actual and the archive's dated plan revisions), 10,000 simulated schedules
 (cushion_sim) -> P10/P50/P90 rent-start months, the outside date (a year-only date is taken as Dec 31 and
 says so in `outsideDateAssumed`), cushionMonths = outside - P50, deltaWeek against the stored run 7 days
-earlier, oddsOfMissing ('odds v0', uncalibrated: 'model v0' label) and costPerMonthLate when rent is
-disclosed. Output: one `model_output` per site and as_of (model 'cushion', version 'cushion v0.1') =
+earlier, oddsOfMissing ('odds v0', uncalibrated: 'model v0' label) and costPerMonthLate with its parts in
+`lateCost` (marden.models.late_cost: construction interest on the site's debt, plus rent not collected while
+rent start is ahead; who bears each part as the site's structure terms state it). Output: one `model_output`
+per site and as_of (model 'cushion', version 'cushion v0.1') =
 {projection: CushionProjection, milestones: Milestone[], driver, missing, notApplicable, basis,
 inputsHash, leaseOutcomes, leasePosition (the Lease terms tab's 'what the terms mean' and 'today')}; a
 missing input gives null fields and a `missing` entry, never a guess.
@@ -35,7 +37,7 @@ from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
 from marden.core.queue import app
 from marden.models import cushion_output as out
-from marden.models import pit, runs, triggers
+from marden.models import late_cost, pit, runs, triggers
 from marden.models.cushion_history import SlipHistory, load_history
 from marden.models.cushion_inputs import PLANT_FIELDS, SITE_FIELDS, SiteInputs, load_sites
 from marden.models.cushion_power import build
@@ -55,14 +57,14 @@ def v1_sites(conn: Conn) -> list[str]:
 
 
 def project_site(site: SiteInputs, history: SlipHistory, prior: dict[str, Any] | None,
-                 history_hash: str) -> tuple[dict[str, Any], str]:
+                 history_hash: str, late: dict[str, Any] | None = None) -> tuple[dict[str, Any], str]:
     """One site's output and its inputs hash (the simulation seed, so equal inputs give equal outputs)."""
     milestones, mode = build(site)
     inputs_hash = hash_parts(MODEL, VERSION, canonical_json(site.fingerprint()), history_hash)
     sim = simulate(milestones, site.as_of, history, site.slug, seed=int(inputs_hash[:15], 16))
-    projection = out.projection_doc(site, sim, prior)
-    outcomes, position = out.lease_view(site, sim)
     rent = next(m for m in milestones if m.key == "rent_start")
+    projection = out.projection_doc(site, sim, prior, late, rent.is_done)
+    outcomes, position = out.lease_view(site, sim)
     basis: dict[str, Any] = {
         "label": out.LABEL,
         "methodVersion": VERSION,
@@ -114,7 +116,8 @@ def run(as_of: date | None = None, slugs: list[str] | None = None, *, trigger: s
             for site in sites:
                 week_ago = runs.output_on(conn, MODEL, "site", site.slug, day - timedelta(days=7))
                 prior = week_ago["output"] if week_ago is not None else None  # the run exactly 7 days earlier
-                output, inputs_hash = project_site(site, history, prior, history_hash)
+                late = late_cost.debt_part(conn, site.slug, day)
+                output, inputs_hash = project_site(site, history, prior, history_hash, late)
                 runs.write_output(conn, run_id, MODEL, VERSION, "site", site.slug, day, output)
                 if mark:
                     mark_dirty_for("site", site.slug, f"@model:{MODEL}", conn=conn, reason=f"model_run:{run_id}")
@@ -148,6 +151,9 @@ _OBLIGATION_SITES = via(
 )
 
 
+_INSTRUMENT_SITE = via("SELECT site_slug AS slug FROM instrument WHERE id = %s AND site_slug IS NOT NULL")
+
+
 def _install_triggers() -> None:
     for fld in SITE_FIELDS:
         triggers.model_depends(MODEL, "site", fld)
@@ -158,6 +164,8 @@ def _install_triggers() -> None:
         triggers.model_depends(MODEL, "plant", fld, _PLANT_SITES)
     triggers.model_depends(MODEL, "plant", "@event", _PLANT_SITES)
     triggers.model_depends(MODEL, "obligation", "outside_date", _OBLIGATION_SITES)
+    for fld in late_cost.INSTRUMENT_FIELDS:  # the month-late cost's interest part
+        triggers.model_depends(MODEL, "instrument", fld, _INSTRUMENT_SITE)
     for fld in ("planned_online", "operating_month"):
         triggers.model_depends(MODEL, "eia_generator", fld, triggers.everything)
     triggers.register_runner(MODEL, run_keys)

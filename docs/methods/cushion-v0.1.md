@@ -39,12 +39,23 @@ A site's own records are left out of its own pool. A category (build, power, per
 
 ## 5. Outputs (`handoff/api/types.ts`)
 
-- `projection` (CushionProjection): `p10`/`p50`/`p90` rent-start months; `outsideDate` (the lease value and its tag; a year-only date is taken as Dec 31 and `outsideDateAssumed` says so; coarser than a month: the window's last day); `cushionMonths` (null with no lease date); `deltaWeek` (against the stored run exactly 7 days earlier); `oddsOfMissing` = share of simulated rent starts after the outside month ('odds v0'); `costPerMonthLate` = monthly rent when disclosed.
+- `projection` (CushionProjection): `p10`/`p50`/`p90` rent-start months; `outsideDate` (the lease value and its tag; a year-only date is taken as Dec 31 and `outsideDateAssumed` says so; coarser than a month: the window's last day); `cushionMonths` (null with no lease date); `deltaWeek` (against the stored run exactly 7 days earlier); `oddsOfMissing` = share of simulated rent starts after the outside month ('odds v0'); `costPerMonthLate` and `lateCost`: the cost of each month late (section 5a).
 - `milestones` (Milestone[]) with `projected` p10/p50/p90 for simulated milestones.
 - `driver`: in each simulation the milestone that set rent start is charged that run's delay against the plan; the category charged most (Power, Build, Delivery, Permits). Funding is not modelled.
 - `missing`, `notApplicable`, `basis` (slip-history counts, binding shares, delay months, P50 change vs 7 days earlier, assumptions), `inputsHash`.
 - `leaseOutcomes` / `leasePosition` (Lease terms tab, when an outside date exists): the share of simulated schedules that start rent by and after the outside date ('odds v0'), and the P50 position against it.
 - Builders read `cushion_output.stored_output(conn, slug, day)` and `cushion_history(conn, slug, day)` (SiteSchedule.cushionHistory).
+
+## 5a. Cost of each month late ('late cost v0.1', `marden/models/late_cost.py`)
+
+A Marden model value (tag M) from stated terms only, in parts, shown on the Schedule cushion card with each part's formula and sources on hover:
+
+- **Construction interest** = for each instrument on the site: amount x all-in rate / 12. Amount: drawn (outstanding) when stated, else the instrument's amount (a bond is funded at issue). Rate: a fixed coupon as stated; floating = the newest SOFR fixing public by the as-of day (New York Fed, series `sofr`) + the stated spread. An instrument with no stated amount or rate (or a repaid / proposed one, or a floating one over another benchmark) is left out and named in `excluded`.
+- **Rent not yet collected** = the cushion model's rent input (lease annual rent / 12, else contract value / term), for each month rent start slips past its due date. Not counted once rent has started.
+- **Who bears it** only as a source states it: the site's `structure_term` facts on completion support and reserves (interest) and on delay terms such as delay credits or abatement (rent), quoted with their tag and source; otherwise the card says it is not public. Interest is paid by the borrower; rent not collected is the landlord's.
+- n/d always says why: rent started; no instrument states both an amount and a rate (which ones, and why); no debt linked.
+
+On 2026-10-22: 25 of 38 sites have a figure, e.g. Beacon Point $76.1M a month ($4.25B x 6.129% / 12 = $21.7M + rent $54.4M), Childress $166.4M ($413M drawn of $1.545B x (SOFR 3.88% + 225 bp) / 12 + $525M x 5.96% / 12 + rent), Jupiter $95.7M ($18B x (SOFR + 250 bp) / 12; no rent disclosed); n/d with the reason for Abilene, Frontier and Lighthouse (construction loan rates not public) and Polaris Forge 1 (rent started).
 
 ## 6. Runs
 

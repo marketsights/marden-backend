@@ -17,6 +17,7 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.readmodels.registry import builder
+from marden.readmodels.views import facilities_status
 from marden.readmodels.views.facilities_common import campus_buildings
 from marden.readmodels.views.sites_common import (
     Doc,
@@ -70,11 +71,15 @@ def _count(row: Row | None) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
+def _row_of(claim: facilities_status.Claim | None) -> Row | None:
+    return claim.row if claim is not None else None
+
+
 def building_count(conn: Conn, slug: str) -> Doc | None:
     """Sourced {built, total, campusId} over the site's linked campuses (sites_links.linked_campuses:
     approved links, else the proposed ones, as the Buildings tab). Each campus counts as its Data
-    centers row does (facilities_campus.building_counts): its building records known on the build date
-    (only the link's buildings when the link names them), Operating = built; a campus with no record
+    centers row does (facilities_campus.building_counts): its operating buildings as facilities_status decides
+    them from the strongest, newest record (only the link's buildings when the link names them); a campus with no record
     yet, its own `building_count` / `buildings_operational` facts. Sourced by the newest fact behind
     the count with the weakest tag among them; `campusId` is the first linked campus (the campus link).
     None (n/d) when no linked campus has a building."""
@@ -85,10 +90,14 @@ def building_count(conn: Conn, slug: str) -> Doc | None:
         ids = campus.get("building_ids")
         records = [b for b in campus_buildings(conn, campus["id"]) if not ids or b["id"] in ids]
         if records:
-            statuses = [known_facts(conn, "building", b["id"], ["status"]).get("status") for b in records]
-            built += sum(1 for s in statuses if s and s["value"] == "Operating")
+            res = facilities_status.load(conn, campus["id"])  # one decided status per building
+            if ids:
+                statuses = [res.buildings.get(b["id"]) or {} for b in records]
+                built += sum(1 for s in statuses if s.get("value") == "Operating")
+            else:
+                built += res.operating or 0
             total += len(records)
-            rows.extend(s for s in statuses if s)
+            rows.extend(r for r in (_row_of(res.winner),) if r)
             continue
         if ids:
             continue  # the link names buildings Marden has no record of yet

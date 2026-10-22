@@ -55,16 +55,13 @@ def test_in_service_is_the_recorded_construction_end_and_first_visible_the_start
 
 
 def test_a_building_under_construction_has_no_in_service_date():
+    """Each building shows the status decided from its strongest, newest record (facilities_status: Abilene's
+    TDLR registrations outrank Epoch AI's footprint marks); one still under construction has no in-service date."""
     copy_facilities()
-    docs = {d["id"]: d for d in build_buildings(ABILENE)}
-    building_rows = copied_rows(
-        """SELECT b.id FROM building b JOIN fact_current s ON s.subject_type = 'building' AND s.subject_id = b.id
-             AND s.field = 'status' AND s.value = '"Under construction"' WHERE b.campus_id = %s""",
-        (ABILENE,),
-    )
-    assert building_rows
-    for r in building_rows:
-        doc = docs[r["id"]]
-        assert doc["status"]["value"] == "Under construction"
+    docs = build_buildings(ABILENE)
+    under = [d for d in docs if d["status"]["value"] == "Under construction"]
+    assert under, "Abilene has buildings still under construction"
+    for doc in under:
         assert doc["inService"]["value"] is None
         assert doc["firstVisible"] is not None  # visible in imagery, not yet in service
+    assert all(d["status"]["value"] in ("Operating", "Under construction", None) for d in docs)

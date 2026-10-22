@@ -23,7 +23,13 @@ from marden.readmodels import business_today, rebuild_all
 from marden.readmodels.context import building
 from marden.readmodels.deps import targets
 from marden.readmodels.registry import get_builder
-from marden.readmodels.views import facilities_campus, facilities_campus_tabs, facilities_plant_debt, facilities_plants  # noqa: F401 (registers builders)  # noqa: F401
+from marden.readmodels.views import (  # noqa: F401 (registers builders)  # noqa: F401
+    facilities_campus,
+    facilities_campus_tabs,
+    facilities_plant_debt,
+    facilities_plants,
+    facilities_status,
+)
 
 ABILENE, JUPITER, FRONTIER, BARN = "stargate-abilene", "project-jupiter", "vantage-frontier", "related-the-barn"
 NAMED = (ABILENE, JUPITER, FRONTIER, BARN)
@@ -80,7 +86,6 @@ def test_campus_rows_show_the_current_facts(campuses):
             ("facilityMw", "facility_mw"),
             ("itMw", "it_mw"),
             ("developer", "developer"),
-            ("status", "status"),
             ("powerSource", "power_source"),
             ("onlineYear", "online_year"),
         ):
@@ -88,15 +93,18 @@ def test_campus_rows_show_the_current_facts(campuses):
             assert row[key]["value"] == (current["value"] if current else None), (cid, key)
             if current:
                 assert (row[key]["tag"], row[key]["asOf"]) == (current["tag"], current["valid_from"].isoformat())
-        buildings = copied_rows(
-            """SELECT count(*) AS total, count(*) FILTER (WHERE s.value = '"Operating"') AS built FROM building b
-                 LEFT JOIN fact_current s ON s.subject_type = 'building' AND s.subject_id = b.id AND s.field = 'status'
-                WHERE b.campus_id = %s""",
-            (cid,),
-        )[0]
-        if buildings["total"]:
-            assert row["buildings"] == {"built": buildings["built"], "total": buildings["total"]}
-        else:  # no building record yet: the campus's own stated count
+        total = copied_rows("SELECT count(*) AS n FROM building WHERE campus_id = %s", (cid,))[0]["n"]
+        if total:
+            # Status and the operating count are decided once from the strongest, newest record
+            # (facilities_status, tested on its own in test_facilities_status.py): the row shows that one decision.
+            with building(business_today()), db.transaction() as conn:
+                decided = facilities_status.load(conn, cid)
+            assert row["buildings"] == {"built": decided.operating, "total": total}
+            assert row["status"]["value"] == decided.status["value"]
+            assert (row["statusNote"] or {}).get("text") == decided.note
+        else:  # no building record yet: the campus's stated status and its own stated count
+            current = fact("campus", cid, "status")
+            assert row["status"]["value"] == (current["value"] if current else None)
             assert row["buildings"]["total"] == (fact("campus", cid, "building_count") or {"value": 0})["value"]
         serving = {r["plant_id"] for r in copied_rows("SELECT plant_id FROM plant_serves WHERE campus_id = %s", (cid,))}
         assert (row["plantId"] in serving) if serving else row["plantId"] is None

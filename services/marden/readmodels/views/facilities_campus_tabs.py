@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 from marden.core.db import Conn, Row
 from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.registry import builder
+from marden.readmodels.views.facilities_buildings import building_rows
 from marden.readmodels.views.facilities_common import (
     FIELD_LABELS,
     FIRST_SEEN,
@@ -40,7 +41,6 @@ from marden.readmodels.views.facilities_common import (
     subject_events,
 )
 from marden.readmodels.views.sites_common import Doc, day, event_evidence, fact_evidence, latest_output, nd, with_value
-from marden.readmodels.views.sites_links import building_doc
 from marden.readmodels.views.sites_text import text_of
 
 HISTORY_FIELDS = (
@@ -89,7 +89,8 @@ _TYPES: tuple[tuple[str, re.Pattern[str]], ...] = (
 CAPACITY_KEYS = frozenset({"facilityMw", "itMw", "gpus", "gpuValueB", "methods"})
 # Every CapacityEstimate field (types.ts); the model's own bookkeeping (`missing`, `basis`) stays out of the doc.
 CAPACITY_FIELDS = CAPACITY_KEYS | {"scope", "id", "name", "pue", "gpuGeneration", "kwPerGpu", "gpuShareOfIt"}
-CAPACITY_FIELDS |= {"confidence", "disagreement", "replacedByFiling", "methodVersion"}
+CAPACITY_FIELDS |= {"confidence", "disagreement", "replacedByFiling", "methodVersion", "racks", "gpusPerRack",
+                    "footprintSqft"}
 
 
 def doc_type(kind: str, *texts: str | None) -> str:
@@ -240,11 +241,8 @@ def in_service(conn: Conn, building_id: str) -> Doc:
 
 
 def building_docs(conn: Conn, campus_id: str) -> list[Doc]:
-    out = []
-    for b in campus_buildings(conn, campus_id):
-        if (doc := building_doc(conn, b)) is not None:
-            out.append({**doc, "inService": in_service(conn, b["id"])})
-    return out
+    """The campus's buildings with one decided status each and every extra (facilities_buildings)."""
+    return building_rows(conn, campus_buildings(conn, campus_id))
 
 
 def capacity_estimates(conn: Conn, campus: Row) -> list[Doc]:

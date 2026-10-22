@@ -5,7 +5,7 @@
     facilities link withdraw --site S --campus C --by claude-review --reason R   (an approved link found wrong)
     facilities note --campus C --kind owner_funded|not_found --note N --url U --quote Q [--owner O]
                     [--payer P] [--searched S ...]
-    facilities apply SPEC.json        sites, instruments, facts, notes and links from one file
+    facilities apply SPEC.json        sites, instruments, campus and building facts, notes and links from one file
 
 Every source is stored raw first (`agents ingest <url>`); a quote that is not in the stored copy is refused.
 """
@@ -94,7 +94,8 @@ def note_command(args: argparse.Namespace) -> int:
 
 
 def _apply_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("spec", type=Path, help="JSON: sites, instruments, notes, links, approve_by")
+    p.add_argument("spec", type=Path, help="JSON: sites, instruments, campuses, buildings, supersede, notes, links, "
+                                           "approve_by")
 
 
 @cli.action("facilities", "apply", help="Apply a curation spec (one transaction, then link approvals)",

@@ -32,7 +32,28 @@ export interface CushionProjection {
   cushionMonths: Sourced<number> | null;      // outsideDate − p50; null when no lease date
   deltaWeek: Sourced<number>;                 // change vs 7 days ago
   oddsOfMissing?: Sourced<number>;            // 0..1; methodVersion 'odds v0' until the backtest calibrates it
-  costPerMonthLate?: Sourced<number>;         // USD
+  costPerMonthLate?: Sourced<number>;         // USD a month: the sum of lateCost.parts (model 'late cost v0.1')
+  lateCost?: LateCost;                        // the month-late cost in parts, who bears each part, and why n/d
+}
+
+/** Cost of each month late, in parts (services/marden/models/late_cost.py). */
+export interface LateCostLine {
+  name: string; instrumentId: string; amountUsd: number; amountBasis: string;
+  ratePct: number; rateBasis: string; monthlyUsd: number; sources: Sourced<unknown>[];
+}
+export interface LateCostBearer extends Partial<Sourced<string>> { key: string; text: string }
+export interface LateCostPart {
+  kind: 'interest' | 'rent'; label: string; monthlyUsd: number; formula: string;
+  lines?: LateCostLine[];                     // interest: one line per instrument
+  source?: Sourced<number> | null;            // rent: the lease rent fact
+  condition?: string;
+  bearers: LateCostBearer[];                  // who bears it, only as a source states it (empty: not public)
+  paidBy: string;
+}
+export interface LateCost {
+  parts: LateCostPart[]; excluded: string[]; methodVersion: string;
+  why: string | null;                         // why there is no figure (null when there is one)
+  sofr?: Sourced<number>;
 }
 
 export interface Evidence {
@@ -319,6 +340,9 @@ export interface DataCenterRow {
   financing: Sourced<FinancingNote> | null; // why no debt is linked (owner-funded / not found); null = no note
   lastChange: Evidence;
   firstSeen: string;
+  // One plain line when records of another source or strength disagree with the decided status and
+  // operating count (facilities_status.py); null when nothing disagrees. `sources`: the records compared.
+  statusNote?: { text: string; sources: (Sourced<string> & { strength: string; building?: string })[] } | null;
 }
 export interface DataCenterPage { asOf: string; total: number; page: number; pageSize: number; rows: DataCenterRow[] }
 
@@ -337,6 +361,26 @@ export interface Building {
   status: Sourced<DcStatus>; buildingPermit: Sourced<string>; coDate: Sourced<string>;
   firstVisible: string | null; changeScore?: Sourced<number>;
   imageryStage?: BuildingImageryStage;     // Sentinel-2 construction stage (M); never an operating status
+  // Campus Buildings tab / expanded row / site Buildings tab extras (facilities_buildings.py)
+  statusNote?: string;                     // why this building's status is what it is, when records disagree
+  sqftBasis?: 'footprint';                 // sqft measured from the traced footprint (M), not stated
+  registration?: Sourced<string> & { status?: string; items: BuildingRegistration[] };   // state construction registration
+  estCompletion?: Sourced<string>;         // stated completion date (F/R) or the financed site's P50 (M)
+  gpuType?: Sourced<string>;               // stated for the building or campus, else the capacity model's assumption (M)
+  estimate?: BuildingEstimate;             // capacity model (M)
+  inService?: Sourced<string>;
+  firstVisibleSource?: Sourced<string>;   // Epoch AI's construction start (R), else the first imagery reading showing a structure (M)
+  why?: Record<string, string>;            // per field: why n/d, or how an estimate was made
+}
+export interface BuildingRegistration {
+  number: string; scope: string | null; status: string | null; registered: string | null; start: string | null;
+  completion: string | null; sqft: number | null; estimatedCost: string; sourceUrl: string | null;
+}
+export interface BuildingEstimate {
+  facilityMw?: Range3; itMw?: Range3; gpus?: Range3; racks?: Range3;
+  gpuGeneration: Sourced<string> | null; gpusPerRack?: number | null; kwPerGpu?: number | null;
+  gpuShareOfIt?: number | null; pue?: number | null; confidence?: string;
+  methods: { method: string; assumptions: string }[]; methodVersion?: string; asOf: string;
 }
 
 // GET /api/data-centers/:id
@@ -579,7 +623,7 @@ export interface ProjectFile {
 // ---------- Capacity and GPU estimate (spec 27) ----------
 export interface Range3 { low: number | null; base: number | null; high: number | null }
 export interface CapacityMethod {
-  method: 'Filed' | 'Utility load' | 'Prime generation' | 'Backup generators' | 'Cooling' | 'Footprint' | 'Disclosed GPU count' | 'Financed GPUs';
+  method: 'Filed' | 'Utility load' | 'Prime generation' | 'Backup generators' | 'Cooling' | 'Campus share' | 'Footprint' | 'Disclosed GPU count' | 'Financed GPUs';
   facilityMw: Range3; assumptions: string; evidence: Evidence[];
 }
 export interface CapacityEstimate {
@@ -589,4 +633,6 @@ export interface CapacityEstimate {
   confidence: 'High' | 'Medium' | 'Low'; methods: CapacityMethod[]; disagreement: boolean;
   replacedByFiling: { field: 'facilityMw' | 'itMw' | 'gpus'; value: Sourced<number> }[];
   methodVersion: string;
+  racks?: Range3; gpusPerRack?: number;    // rack-scale platforms (GB200 / GB300 NVL72): GPUs / 72
+  footprintSqft?: number;                  // building: traced footprint area, when no floor area is stated
 }

@@ -29,7 +29,7 @@ SITES = ["abilene", "childress", "frontier", "jupiter", "lighthouse", "the-barn"
 STATUSES = {"Done", "Denied", "Withdrawn", "Slipped", "Not started", "Early works", "Projected", "At risk"}
 DRIVERS = {"Power", "Build", "Delivery", "Permits", "Funding"}
 PROJECTION_KEYS = {"p10", "p50", "p90", "outsideDate", "outsideDateAssumed", "cushionMonths", "deltaWeek",
-                   "oddsOfMissing", "costPerMonthLate"}
+                   "oddsOfMissing", "costPerMonthLate", "lateCost"}
 YM = re.compile(r"^\d{4}-\d{2}$")
 
 
@@ -106,7 +106,7 @@ def _check_types(output: dict) -> None:
         assert all(YM.match(p[k]) for k in ("p10", "p50", "p90")) and p["p10"] <= p["p50"] <= p["p90"]
     for key in ("deltaWeek", "cushionMonths", "oddsOfMissing", "costPerMonthLate"):
         if p.get(key) is not None:
-            assert p[key]["tag"] == "M" and p[key]["methodVersion"] in ("cushion v0.1", "odds v0")
+            assert p[key]["tag"] == "M" and p[key]["methodVersion"] in ("cushion v0.1", "odds v0", "late cost v0.1")
     assert [m["key"] for m in output["milestones"]] == [k for k in KEYS if k not in output["notApplicable"]]
     for m in output["milestones"]:
         assert m["status"] in STATUSES and all(e["kind"] in {"done", "denied", "slipped"} for e in m["events"])
@@ -128,7 +128,14 @@ def test_today_run_matches_the_types_and_the_stored_lease_dates(real, committed)
     assert childress["outsideDate"]["value"] == "2027-04" and childress["outsideDate"]["tag"] == "R"
     y, m = (int(x) for x in childress["p50"].split("-"))
     assert childress["cushionMonths"]["value"] == cd.month_index(2027, 4) - cd.month_index(y, m)
-    assert childress["costPerMonthLate"]["value"] == round(9_700_000_000 / (5 * 12))
+    # Cost of each month late (late cost v0.1): the rent part is the contract's average monthly rent; the interest
+    # part is each instrument's amount x all-in rate / 12 (floating: SOFR + the stated spread); the total is their sum.
+    parts = {p["kind"]: p for p in childress["lateCost"]["parts"]}
+    assert parts["rent"]["monthlyUsd"] == round(9_700_000_000 / (5 * 12))
+    for line in parts.get("interest", {}).get("lines", []):  # instruments copied into the test db, if any
+        assert line["monthlyUsd"] == round(line["amountUsd"] * line["ratePct"] / 100 / 12)
+    assert childress["costPerMonthLate"]["value"] == sum(p["monthlyUsd"] for p in parts.values())
+    assert childress["costPerMonthLate"]["tag"] == "M"
     jupiter = sites["jupiter"]
     assert jupiter["projection"]["outsideDate"]["value"] == "2028"
     assert jupiter["projection"]["outsideDateAssumed"] == "2028-12-31"

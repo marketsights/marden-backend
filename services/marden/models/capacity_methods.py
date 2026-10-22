@@ -197,7 +197,27 @@ def gpu_implied(
     )
 
 
-RANK = ("Filed", "Utility load", "Prime generation", "Disclosed GPU count", "Footprint")
+def campus_share(campus_mw: float | None, row: Row | None, own_m2: float | None, total_m2: float | None,
+                 label: str) -> Method | None:
+    """A building's share of its campus's stated facility MW, in proportion to its traced footprint area
+    (not an even split: a building with a third of the footprint gets a third of the MW). An estimate, never
+    a per-building figure: the campus states only its total."""
+    if not campus_mw or row is None or not own_m2 or not total_m2 or own_m2 > total_m2:
+        return None
+    share = own_m2 / total_m2
+    mw = campus_mw * share
+    return Method(
+        "Campus share",
+        mw * 0.8,
+        mw,
+        mw * 1.2,
+        f"campus {campus_mw:,.0f} MW ({row['source_name']}) x {label}'s {share:.0%} of the campus's traced footprint "
+        "area (+/- 20%: halls of one campus differ in density)",
+        [row],
+    )
+
+
+RANK = ("Filed", "Utility load", "Prime generation", "Disclosed GPU count", "Campus share", "Footprint")
 
 
 def _rank(m: Method) -> int:

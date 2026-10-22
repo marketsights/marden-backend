@@ -22,8 +22,8 @@ from marden.readmodels import business_today, rebuild_all
 from marden.readmodels.context import building
 from marden.readmodels.deps import targets
 from marden.readmodels.registry import get_builder
+from marden.readmodels.views import facilities_status, sites_debt, sites_detail, sites_power, sites_project, sites_tabs  # noqa: F401
 from marden.readmodels.views import sites as _sites  # noqa: F401 (registers builders)
-from marden.readmodels.views import sites_debt, sites_detail, sites_power, sites_project, sites_tabs  # noqa: F401
 from marden.readmodels.views.sites_checklist import ITEMS
 
 NAMED = ("jupiter", "abilene", "frontier", "the-barn", "coreweave-ddtl-3", "southgate")
@@ -225,7 +225,8 @@ def test_power_and_buildings_follow_links_and_plants(sites):
 def _expected_buildings(slug: str) -> tuple[int, int, str] | None:
     """(built, total, first campus) as SQL reads it from the copied rows, independent of the builder:
     the approved links (else the proposed ones); per campus its building records (Operating = built),
-    else its building_count / buildings_operational facts."""
+    else its building_count / buildings_operational facts. A campus's operating count is the one decision
+    facilities_status makes from its records."""
     links = copied_rows("SELECT campus_id, building_ids, status FROM site_link WHERE site_slug = %s "
                         "AND status IN ('approved', 'proposed') ORDER BY campus_id", (slug,))
     links = [lk for lk in links if lk["status"] == "approved"] or links
@@ -237,7 +238,13 @@ def _expected_buildings(slug: str) -> tuple[int, int, str] | None:
                 WHERE b.campus_id = %s AND (%s::text[] IS NULL OR b.id = ANY(%s::text[]))""",
             (link["campus_id"], link["building_ids"], link["building_ids"]))
         if records:
-            built += sum(r["status"] == "Operating" for r in records)
+            # the operating count decided from the strongest, newest record (facilities_status; its own tests)
+            with building(business_today()), db.transaction() as conn:
+                decided = facilities_status.load(conn, link["campus_id"])
+            if link["building_ids"]:
+                built += sum((decided.buildings.get(r["id"]) or {}).get("value") == "Operating" for r in records)
+            else:
+                built += decided.operating or 0
             total += len(records)
             continue
         if link["building_ids"]:
@@ -271,13 +278,12 @@ def test_list_rows_count_the_linked_campus_buildings(sites):
     if copied_rows("SELECT 1 FROM site_link l JOIN building b ON b.campus_id = l.campus_id LIMIT 1"):
         assert counted > 0
     abilene = next((r for r in rows if r["slug"] == "abilene"), None)
-    if abilene and abilene["buildings"]:  # building records with Epoch's status (M) set the weakest tag
-        statuses = copied_rows(
-            "SELECT DISTINCT f.tag FROM building b JOIN fact_current f ON f.subject_type = 'building' "
-            "AND f.subject_id = b.id AND f.field = 'status' WHERE b.campus_id = 'stargate-abilene'")
-        if statuses:
-            rank = {"F": 0, "R": 1, "M": 2}
-            assert abilene["buildings"]["tag"] == max((s["tag"] for s in statuses), key=rank.__getitem__)
+    if abilene and abilene["buildings"]:  # the count is sourced by the record that decided it
+        with building(business_today()), db.transaction() as conn:
+            winner = facilities_status.load(conn, "stargate-abilene").winner
+        if winner is not None:
+            assert abilene["buildings"]["tag"] == winner.row["tag"]
+            assert abilene["buildings"].get("sourceName") == winner.row["source_name"]
 
 
 def test_opposition_and_event_lanes(sites):

@@ -24,6 +24,7 @@ from __future__ import annotations
 from marden.core.db import Conn, Row
 from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.registry import builder
+from marden.readmodels.views.facilities_buildings import building_rows
 from marden.readmodels.views.sites import building_count
 from marden.readmodels.views.sites_common import (
     Doc,
@@ -39,7 +40,6 @@ from marden.readmodels.views.sites_common import (
     with_value,
 )
 from marden.readmodels.views.sites_links import (
-    building_doc,
     campus_buildings,
     linked_campuses,
     read_doc,
@@ -266,7 +266,7 @@ def buildings_tab(conn: Conn, slug: str) -> Doc | None:
     if site_row(conn, slug) is None:
         return None
     campuses, approved = linked_campuses(conn, slug)
-    buildings = [d for b in campus_buildings(conn, campuses) if (d := building_doc(conn, b)) is not None]
+    buildings = building_rows(conn, campus_buildings(conn, campuses))
     doc: Doc = {"campuses": [{"id": c["id"], "name": c["name"]} for c in campuses], "buildings": buildings}
     plants = [(p, known_facts(conn, "plant", p["id"], PLANT_FACTS)) for p in site_plants(conn, slug, campuses)]
     main = main_plant(plants)

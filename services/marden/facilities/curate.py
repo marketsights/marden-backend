@@ -16,7 +16,10 @@ seed/sites_chain.py).
                    and why; the evidence fact stays as history
     upsert_site / upsert_instrument / set_chain_party / add_fact   a financed site and its debt
     add_financing_note   campus.financing_note (tag M): owner-funded / not found, with what was searched
-    apply_spec     all of the above from one JSON file (marden.facilities.commands `apply`)
+    apply_spec     all of the above from one JSON file (marden.facilities.commands `apply`), plus quoted
+                   campus and building facts (`campuses` / `buildings`: [{id, facts}], e.g. a building's floor area,
+                   state registration and stated completion date from a permit record), and `supersede`: published
+                   facts a corrected value replaces ([{fact_id, reason}]; never deleted)
 """
 
 from __future__ import annotations
@@ -42,7 +45,7 @@ NOTE_KINDS = frozenset({"owner_funded", "not_found"})
 CHAIN_ROLES = frozenset({"end_user", "tenant", "developer", "lenders"})
 SOURCE_NAMES = {"sec.gov": "SEC EDGAR", "epoch.ai": "Epoch AI", "dbrs.morningstar.com": "Morningstar DBRS",
                 "kbra.com": "KBRA", "bisnow.com": "Bisnow", "baxtel.com": "Baxtel",
-                "tdlr.texas.gov": "Texas Department of Licensing and Regulation"}
+                "tdlr.texas.gov": "Texas Department of Licensing and Regulation (TABS)"}
 
 
 def source_name(url: str) -> str:
@@ -247,6 +250,7 @@ def apply_spec(spec: dict[str, Any]) -> dict[str, Any]:
     """sites (+chain, facts) -> instruments (+facts) -> notes, in one transaction; then links proposed and,
     when the spec says who approves, approved through the review queue one by one."""
     out: dict[str, Any] = {"sites": 0, "instruments": 0, "facts": 0, "notes": 0, "links": []}
+    # campuses / buildings: [{"id": ..., "facts": [{field, value, tag, url, quote, valid_from, ...}]}]
     with db.transaction() as conn:
         for s in spec.get("sites", []):
             upsert_site(conn, s["slug"], s["name"], state=s.get("state"), county=s.get("county"), lat=s.get("lat"),
@@ -260,6 +264,14 @@ def apply_spec(spec: dict[str, Any]) -> dict[str, Any]:
                               site_slug=i.get("site_slug"), cusip=i.get("cusip"), isin=i.get("isin"))
             out["facts"] += _facts(conn, "instrument", i["id"], i.get("facts", []))
             out["instruments"] += 1
+        for kind, table in (("campus", "campus"), ("building", "building")):
+            for c in spec.get(f"{kind}es" if kind == "campus" else f"{kind}s", []):
+                if conn.execute(f"SELECT 1 FROM {table} WHERE id = %s", (c["id"],)).fetchone() is None:
+                    raise ValidationError(f"{kind} {c['id']!r} does not exist")
+                out["facts"] += _facts(conn, kind, c["id"], c.get("facts", []))
+        for item in spec.get("supersede", []):
+            out.setdefault("superseded", []).extend(
+                FactWriter(conn).supersede([item["fact_id"]], item["reason"], decided_by=PRODUCER))
         for n in spec.get("notes", []):
             add_financing_note(conn, n["campus"], kind=n["kind"], note=n["note"], url=n["url"], quote=n["quote"],
                                owner=n.get("owner"), payer_id=n.get("payer_id"), searched=n.get("searched", ()),
