@@ -101,6 +101,16 @@ describe('read-model routes', () => {
     expect((await get(`/api/instruments/${INSTRUMENT}/price-history?range=2w`)).statusCode).toBe(400);
   });
 
+  it('keeps the yields worked from each price on the price-history points (model yield)', async () => {
+    const priceHistory = [
+      { date: '2026-08-17', price: 98.671, ytm: 6.716, ytw: 6.585 }, { date: '2026-10-14', price: 97.734, ytm: 7.276, ytw: 7.033 },
+      { date: '2026-10-15', price: 97.5, ytm: null, ytw: null },
+    ];
+    await putReadModel(db, { view: 'instrument_detail', key: INSTRUMENT, asOf: '2026-10-15' }, { id: INSTRUMENT, priceHistory, fundMarks: null, holders: { count: 0, parMm: 0, rows: [] } });
+    expect((await get(`/api/instruments/${INSTRUMENT}/price-history?range=3m`)).json().points).toEqual(priceHistory);
+    expect((await get(`/api/instruments/${INSTRUMENT}/price-history?range=all`)).json().points[1]).toEqual({ date: '2026-10-14', price: 97.734, ytm: 7.276, ytw: 7.033 });
+  });
+
   it('answers 404 for collateral on an instrument whose detail is built without GPU collateral', async () => {
     await clearReadModels(db, ['instrument_detail', 'gpu_collateral']);
     const url = `/api/instruments/${INSTRUMENT}/collateral`;

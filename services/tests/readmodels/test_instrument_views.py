@@ -25,13 +25,15 @@ JUPITER, BARN, FRONTIER, ABILENE = "EX-JUPITER-190", "EX-SALINE-308", "EX-VANTAG
 DDTL3, DDTL5, CRWV31, ORACLE = "EX-CRWV-094", "EX-CRWV-096", "EX-CRWV-102", "EX-ORCL-239"
 NOT_V1 = "EX-VANTAGE_ORCL-367"
 SEEDED = (JUPITER, BARN, FRONTIER, ABILENE, DDTL3, DDTL5, CRWV31, ORACLE, NOT_V1)
-ROW_KEYS = {"id", "name", "type", "sizeB", "matures", "mardenPrice", "yieldPct", "change1w", "markGap", "chainStatus"}
+ROW_KEYS = {"id", "name", "type", "sizeB", "matures", "mardenPrice", "yieldPct", "ytw", "ytm", "change1w", "markGap",
+            "chainStatus"}
 DETAIL_KEYS = ROW_KEYS | {
     "facts",
     "fundMarks",
     "nextMarksPublic",
     "recovery",
     "priceHistory",
+    "yields",
     "holders",
     "stress",
     "terms",
@@ -358,7 +360,7 @@ def test_market_check_leads_with_the_named_cds_and_its_default_odds(seeded, inst
     assert "Issuer CDS (bond-implied)" not in doc["marketCheck"]
     for key, value in doc["marketCheck"].items():
         if key in ("Dealer quote", "Last trade", "Exchange quote", "Quote", "Fund marks (median)"):
-            assert re.fullmatch(r"-?\d+\.\d( \(yield -?\d+\.\d%\))?", value["value"]), (key, value)
+            assert re.fullmatch(r"-?\d+\.\d( \(reported yield -?\d+\.\d%\))?", value["value"]), (key, value)
     if doc["yieldPct"] is not None:
         assert re.fullmatch(r"-?\d+\.\d%", doc["yieldPct"]["value"])
 
@@ -455,6 +457,30 @@ def test_model_outputs_on_sites_and_all_refresh_instrument_views(seeded):
         assert held <= marked and BARN in marked
     everything = mark_dirty_for("series", "all", "@model")
     assert ("curve", "all") in everything and ("gpu_collateral", DDTL3) in everything
+
+
+def test_detail_yields_follow_the_yield_model_and_every_price_point(seeded):
+    _need(seeded, FRONTIER)
+    out = _output("yield", FRONTIER)
+    rebuild_all("instrument_detail")
+    rebuild_all("instruments")
+    doc = _doc("instrument_detail", FRONTIER)
+    row = next(r for r in _doc("instruments", "all") if r["id"] == FRONTIER)
+    assert row["ytw"] == doc["yields"]["ytw"] and row["ytm"] == doc["yields"]["ytm"]  # the list agrees with the page
+    if out is None:  # the model has not run on the source database: n/d with the reason, never a placeholder
+        assert doc["yields"]["ytw"]["value"] is None and doc["yields"]["why"]
+        assert all(p["ytm"] is None and p["ytw"] is None for p in doc["priceHistory"])
+        return
+    body = out["output"]
+    assert doc["yields"]["ytw"]["value"] == body["ytw"]["value"] and doc["yields"]["ytw"]["tag"] == "M"
+    assert doc["yields"]["ytw"]["methodVersion"] == "yield v0.1"
+    by_day = {p["date"]: p for p in body["points"]}
+    for p in doc["priceHistory"]:
+        got = by_day.get(p["date"])
+        if got is not None and abs(got["price"] - p["price"]) < 0.0005:
+            assert (p["ytm"], p["ytw"]) == (got["ytm"], got["ytw"])
+        else:  # a price re-run since the yields were worked: no stale yield on it
+            assert p["ytm"] is None and p["ytw"] is None
 
 
 # ---------------------------------------------------------------- shapes (handoff/api/types.ts)

@@ -193,7 +193,8 @@ export interface DebtBasis {
 // GET /api/instruments and /api/instruments/:id
 export interface InstrumentRow {
   id: string; name: string; type: string; sizeB: Sourced<number>;
-  matures: string | null; mardenPrice: Sourced<number>; yieldPct: Sourced<string> | null;
+  matures: string | null; mardenPrice: Sourced<number>; yieldPct: Sourced<string> | null;   // yieldPct: reported yield where it traded
+  ytw: Sourced<number>; ytm: Sourced<number>;  // calculated from the Marden price (model 'yield', M), %; null = n/d
   change1w: Sourced<number>; markGap: Sourced<number> | 'no fund' | 'traded' | 'private' | null;
   chainStatus: ChainStatus | null;           // null = n/d: no status judged for its site or issuer
 }
@@ -203,12 +204,39 @@ export interface Holder {
 }
 /** A lender, arranger or agent of a loan or bond, from a filing (F) or a report (R): `source.value` is its role. */
 export interface Lender { name: string; role: string | null; commitmentUsd?: number; source: Sourced<string> }
+/** A Marden daily price and the yields worked from it (model 'yield'; null = n/d, absent on a streamed point). */
+export interface PriceHistoryPoint { date: string; price: number; ytm?: number | null; ytw?: number | null }
+/** A date the debt may be redeemed on, worked by the yield model: stated maturity, an extension, a call, or prepayment at par. */
+export interface YieldWorkout {
+  kind: 'maturity' | 'extended' | 'call' | 'prepay';
+  date: string; price: number;                // redemption price per 100
+  label: string;                              // "Fully extended, Apr 15, 2032"
+  yieldPct: number | null; dmBp: number | null;   // dmBp: floating only
+  counted: boolean;                           // false: shown, left out of yield to worst (a call the archive only presumes)
+}
+/** The price yields are worked from: the latest Marden price, else the latest observed one. */
+export interface YieldBasis { price: number; date: string; kind: string; tag: Tag; sourceName: string; sourceUrl?: string; methodVersion?: string }
+/** Calculated yields (model 'yield', methodVersion 'yield v0.1'): percent, compounded twice a year. */
+export interface InstrumentYields {
+  ytw: Sourced<number>;                       // yield to worst; null = n/d (see why)
+  ytm: Sourced<number>;                       // yield to the stated maturity
+  dmBp: Sourced<number> | null;               // floating: discount margin over projected SOFR at the yield-to-worst date; null for fixed
+  ytwTo: YieldWorkout | null;
+  ytmTo: YieldWorkout | null;
+  basis: YieldBasis | null;
+  couponType: 'fixed' | 'floating' | null;
+  workouts: YieldWorkout[];                   // every date worked, in date order
+  observed: (YieldBasis & { ytm: number | null; ytw: number | null; reportedYieldPct: number | null }) | null;   // at the latest observed price
+  assumptions: string[];                      // plain words, one per line
+  why: string | null;                         // why the yields are n/d; null when worked
+}
 export interface InstrumentDetail extends InstrumentRow {
   facts: string;
   fundMarks: { low: number; high: number; filing: string; date: string } | null; // null = n/d: no fund filing reports it
   nextMarksPublic: string | null;             // null = n/d: no fund files marks for it
   recovery: Sourced<string>;
-  priceHistory: { date: string; price: number }[];
+  priceHistory: PriceHistoryPoint[];
+  yields: InstrumentYields;
   holders: { count: number; parMm: number; rows: Holder[] };
   stress: { scenario: string; priceAfter: number; change: number; holderNavHitMm: number }[];
   terms: Record<string, Sourced<string>>;

@@ -6,7 +6,8 @@ The row part is `instruments.instrument_row`, so the page agrees with the list. 
   kind 'fund_mark', tag F, not a cross-fund median) on the latest filing date;
 - holders: model 'mark_gap' rows (gap and NAV hit need the Marden price); without the output, the
   count and par of the funds whose latest filing lists the instrument, and no rows;
-- priceHistory: the Marden daily price (price_obs kind 'marden');
+- priceHistory: the Marden daily price (price_obs kind 'marden'), each with the yields worked from it;
+- yields: model 'yield' (yield to worst and to maturity, discount margin, dates worked; instrument_yields);
 - recovery: model 'recovery', else the price output's assumed recovery, else the recovery facts (M);
 - stress: model 'stress' rows; terms: the instrument's facts, with termsNotDisclosed (why a missing term is
   n/d) and lenders (the lender group named in filings and reports); payers: end-user share facts;
@@ -48,6 +49,7 @@ from marden.readmodels.views.instrument_text import (
     terms_not_disclosed,
     yield_text,
 )
+from marden.readmodels.views.instrument_yields import price_history
 from marden.readmodels.views.instruments import gap_rows, instrument_row
 from marden.readmodels.views.recovery_text import recovery_from_facts, recovery_from_output
 
@@ -215,7 +217,7 @@ def _median(marks: list[Row]) -> Row | None:
     return max((r for r in medians if r["obs_date"] == last), key=funds)
 
 
-YIELD_BEFORE = "Yield 3 months ago"
+YIELD_BEFORE = "Reported yield 3 months ago"  # the source's own yield on a trade, never a bare "Yield"
 YIELD_LOOKBACK = timedelta(days=91)
 
 
@@ -306,7 +308,7 @@ def market_check(
         if row is not None:
             text = price_text(row["price"])
             if num(row["yield_pct"]) is not None:
-                text = f"{text} (yield {yield_text(row['yield_pct'])})"
+                text = f"{text} (reported yield {yield_text(row['yield_pct'])})"
             out[label] = price_sourced(row, text)
     prior = yield_before(observed)
     if prior is not None:
@@ -361,7 +363,8 @@ def build_instrument_detail(conn: Conn, key: str) -> dict[str, Any] | None:
         "fundMarks": fund_marks(ctx["gap_out"], ctx["lines"]),
         "nextMarksPublic": next_marks_public(ctx["gap_out"]),
         "recovery": recovery(conn, key, ctx["price_out"], facts),
-        "priceHistory": [{"date": iso(r["obs_date"]), "price": round(float(r["price"]), 4)} for r in ctx["series"]],
+        "priceHistory": price_history(ctx["series"], ctx["yield_out"]),
+        "yields": ctx["yields"],
         "holders": holders(ctx["gap_out"], ctx["lines"]),
         "stress": stress_rows(conn, key),
         **terms_block(inst, facts),

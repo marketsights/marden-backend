@@ -2,7 +2,8 @@
 
 Every V1 instrument (instrument.in_v1) with its size, maturity, Marden price and 1w change (model
 'price', else the model's own 'marden' price_obs), the yield where it traded (latest observed trade,
-exchange, quote or dealer price that carries a yield), the mark gap (model 'mark_gap'; 'no fund'
+exchange, quote or dealer price that carries a yield), the calculated yield to worst and to maturity of the
+Marden price (model 'yield', instrument_yields), the mark gap (model 'mark_gap'; 'no fund'
 when no N-PORT or BDC filing lists it) and the status of the chain it sits on (model 'status' on its
 site). n/d values are null. `instrument_row` is shared with instrument_detail, so the list and the
 detail page show the same numbers.
@@ -40,6 +41,7 @@ from marden.readmodels.views.instrument_text import (
     type_label,
     yield_text,
 )
+from marden.readmodels.views.instrument_yields import yields_doc
 
 CHAIN_STATUSES = ("Broken", "Strained", "Holding", "No build")
 GAP_WORDS = ("no fund", "traded", "private")
@@ -151,6 +153,8 @@ def instrument_row(conn: Conn, inst: Row, facts: dict[str, Row]) -> tuple[dict[s
     lines = holder_lines(conn, iid)
     seniority = facts.get("seniority")
     price = marden_price(price_out, series)
+    yield_out = latest_output(conn, "yield", iid, "instrument")
+    yields = yields_doc(yield_out)
     row = {
         "id": iid,
         "name": display_name(inst),
@@ -159,6 +163,8 @@ def instrument_row(conn: Conn, inst: Row, facts: dict[str, Row]) -> tuple[dict[s
         "matures": maturity_text(facts),
         "mardenPrice": price,
         "yieldPct": traded_yield(observed),
+        "ytw": yields["ytw"],
+        "ytm": yields["ytm"],
         "change1w": change_1w(price_out, series, price),
         "markGap": mark_gap(gap_out, price, bool(lines or marks)),
         "chainStatus": chain_status(conn, inst),
@@ -170,6 +176,8 @@ def instrument_row(conn: Conn, inst: Row, facts: dict[str, Row]) -> tuple[dict[s
         "observed": observed,
         "marks": marks,
         "lines": lines,
+        "yield_out": yield_out,
+        "yields": yields,
     }
     return row, ctx
 
