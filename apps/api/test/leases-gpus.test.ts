@@ -14,7 +14,7 @@ const m = <T>(value: T | null) => ({ ...sourced(value, 'M'), methodVersion: 'lea
 
 function lease(id: string, lessee: string, extra: Record<string, unknown> = {}) {
   return {
-    id, lessee, lessor: sourced('Landlord', 'R'), siteSlug: null, campusId: null, kind: 'Lease', status: 'Signed, not commenced',
+    id, lessee, lessor: sourced('Landlord', 'R'), siteSlug: null, campusId: null, kind: 'Lease', status: 'Signed, not started',
     totalB: sourced(null, 'F'), annualB: sourced(null, 'F'), commencement: sourced(null, 'F'), termYears: sourced(null, 'F'),
     attribution: 'Filed', confidence: null, turnsAdded: m(null), headroomBeforeTurns: m(null), triggerLease: false,
     lesseeBand: m(null), priorityScore: m(null), dependentDebt: [], evidence: [], ...extra,
@@ -36,6 +36,8 @@ const LEASES = {
     lease('meta-direct', 'Meta', { campusId: 'lm-campus-b', totalB: sourced(10, 'R'), lesseeBand: m('Watch') }),
     lease('nowhere', 'Anthropic', { siteSlug: 'lm-no-campus' }),
     lease('unlinked', 'Nebius'),
+    // Several linked sites (siteSlug null): placed on every campus its sites sit on.
+    lease('multi', 'CoreWeave', { sites: [{ slug: 'lm-jupiter', name: 'Project Jupiter' }, { slug: 'lm-no-campus', name: 'No campus' }] }),
   ],
 };
 
@@ -117,12 +119,12 @@ describe('lease map and GPU index', () => {
   it('serves the lease map as published and places leases on their campuses for the map', async () => {
     expect((await get('/api/leases')).json()).toEqual(LEASES);
     const geo = (await get('/api/leases?format=geojson')).json();
-    expect(geo).toMatchObject({ type: 'FeatureCollection', asOf: AS_OF, total: 5, located: 3 });
+    expect(geo).toMatchObject({ type: 'FeatureCollection', asOf: AS_OF, total: 6, located: 4 });
     expect(geo.features.map((f: { id: string }) => f.id)).toEqual(['lm-campus-a', 'lm-campus-b']);
     const [a, b] = geo.features;
     expect(a.geometry.coordinates).toEqual([-100, 31.9]);
     expect(a.properties).toMatchObject({
-      name: 'Campus lm-campus-a', leaseIds: ['ora-jupiter', 'ms-jupiter'], facilityMw: { value: 2500, tag: 'R' },
+      name: 'Campus lm-campus-a', leaseIds: ['ora-jupiter', 'ms-jupiter', 'multi'], facilityMw: { value: 2500, tag: 'R' },
       sites: [{ slug: 'lm-jupiter', name: 'Project Jupiter', gw: { value: '2.46 GW', tag: 'R' } }],
     });
     expect(b.properties).toMatchObject({ leaseIds: ['meta-direct'], sites: [], facilityMw: { value: null } });
@@ -150,16 +152,18 @@ describe('lease map and GPU index', () => {
   }
 
   it('exports the lease table with the page filters, its columns and the evidence', async () => {
-    expect((await sheet('/api/export/leases.xlsx')).rows).toHaveLength(5);
+    expect((await sheet('/api/export/leases.xlsx')).rows).toHaveLength(6);
     const { rows, sources } = await sheet('/api/export/leases.xlsx?lessee=oracle,Meta&band=High');
     expect(rows.map((r) => r.id)).toEqual(['ora-jupiter']);
     expect(rows[0]).toMatchObject({ lessee: 'Oracle', totalB: 12.4, triggerLease: true, lesseeBand: 'High', debtExposedB: 18, holders: 10, evidence: '2026-10-01 · Lease signed' });
     expect(sources.some((l) => l[1] === 'ora-jupiter' && l[2] === 'evidence[0]' && l[6] === 'https://www.sec.gov/x')).toBe(true);
     expect((await sheet('/api/export/leases.xlsx?attribution=Inferred')).rows.map((r) => r.id)).toEqual(['ms-jupiter']);
     expect((await sheet('/api/export/leases.xlsx?trigger=1')).rows.map((r) => r.id)).toEqual(['ora-jupiter']);
-    // "Signed, not commenced" holds a comma: the status filter keys on the part before it.
+    // "Signed, not started" holds a comma: the status filter keys on the part before it.
     expect((await sheet('/api/export/leases.xlsx?status=signed&kind=Compute%20contract')).rows.map((r) => r.id)).toEqual(['ms-jupiter']);
-    expect((await sheet('/api/export/leases.xlsx?q=jupiter&band=n/d')).rows.map((r) => r.id)).toEqual(['ms-jupiter']);
+    expect((await sheet('/api/export/leases.xlsx?q=jupiter&band=n/d')).rows.map((r) => r.id)).toEqual(['ms-jupiter', 'multi']);
+    // Free text also finds a lease by any linked site's display name.
+    expect((await sheet('/api/export/leases.xlsx?q=no%20campus')).rows.map((r) => r.id)).toEqual(['multi']);
     expect((await get('/api/export/leases.xlsx?band=Severe')).statusCode).toBe(400);
   });
 
