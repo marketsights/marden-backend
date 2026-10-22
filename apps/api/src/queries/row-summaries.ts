@@ -11,14 +11,18 @@ import { filteredRows, type RowScope } from './rows.js';
 
 const COVERAGE_FIELDS = ['developer', 'tenant', 'status', 'facilityMw', 'itMw', 'powerSource', 'utility', 'iso', 'onlineYear'];
 /**
- * A campus's financed debt: the sum over every financed site on it (`financedSites`: Galaxy Helios I and II,
- * Polaris Forge 1 and its building 4), not only the primary `financed` link; n/d debts are skipped, and a
- * row without the list (built before it existed) counts its primary link.
+ * Financed debt over the filtered campuses: every financed site on each campus (`financedSites`: Galaxy Helios I
+ * and II, Polaris Forge 1 and its building 4), not only the primary `financed` link, counted once per site: a
+ * site whose debt secures several campuses (Core Scientific's notes on Denton, Dalton, Marble and Muskogee; one
+ * CMBS over two QTS campuses) adds its debt once. n/d debts are skipped, and a row without the list (built before
+ * it existed) counts its primary link.
  */
-const FINANCED_DEBT = `(CASE WHEN jsonb_typeof(r.doc -> 'financedSites') = 'array'
-  THEN (SELECT sum((s #>> '{debtB,value}')::float8) FROM jsonb_array_elements(r.doc -> 'financedSites') s
-        WHERE jsonb_typeof(s #> '{debtB,value}') = 'number')
-  ELSE ${numAt('financed,debtB,value')} END)`;
+const FINANCED_SITES = `(CASE WHEN jsonb_typeof(r.doc -> 'financedSites') = 'array' THEN r.doc -> 'financedSites'
+  WHEN jsonb_typeof(r.doc -> 'financed') = 'object' THEN jsonb_build_array(r.doc -> 'financed') ELSE '[]'::jsonb END)`;
+const FINANCED_DEBT = `(SELECT sum(d) FROM (
+  SELECT DISTINCT ON (s ->> 'siteSlug') (s #>> '{debtB,value}')::float8 AS d
+    FROM filtered r, jsonb_array_elements(${FINANCED_SITES}) s
+   WHERE jsonb_typeof(s #> '{debtB,value}') = 'number' ORDER BY s ->> 'siteSlug') per_site)`;
 
 /** Campuses with at least one building record (the footer's "buildings 11 of 16"). */
 const HAS_BUILDINGS = `coalesce(${numAt('buildings,total')}, 0) > 0`;
@@ -53,7 +57,7 @@ export async function dataCenterSummary(db: Db, scope: RowScope): Promise<Summar
         'newest', (SELECT jsonb_build_object('id', r.key, 'name', r.doc ->> 'name') FROM filtered r
                    WHERE ${isNew} ORDER BY ${txt('firstSeen')} DESC, r.key LIMIT 1)) AS "newThisWeek",
       (SELECT count(*) FROM filtered r WHERE jsonb_typeof(r.doc -> 'financed') = 'object')::int AS "financedCount",
-      (SELECT sum(${FINANCED_DEBT}) FROM filtered r)::float8 AS "financedDebt",
+      ${FINANCED_DEBT}::float8 AS "financedDebt",
       (SELECT jsonb_build_array(${coverage}) FROM filtered r) AS coverage`,
     params.values,
   );

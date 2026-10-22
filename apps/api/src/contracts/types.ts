@@ -222,6 +222,15 @@ export type PowerSource = 'Grid' | 'On-site gas' | 'Hybrid' | 'Unknown';
 export type DocType = 'Permit' | 'Zoning' | 'Filing' | 'Utility' | 'Court' | 'Press' | 'Imagery';
 
 export interface FinancedLink { siteSlug: string; siteName: string; chainStatus: ChainStatus; debtB: Sourced<number> }
+// Marden's note on a campus with no asset-level debt to link (a Sourced value, tag M): built on the owner's balance
+// sheet (the owner's filing is the source) or no asset-level debt found (what was searched, and when)
+export interface FinancingNote {
+  kind: 'owner_funded' | 'not_found';
+  owner: string | null;                   // whose balance sheet funds the campus (owner_funded)
+  payerId: string | null;                 // the owner's payer page, when Marden has one
+  note: string;                           // one line
+  searched: string[];                     // where asset-level debt was looked for
+}
 
 // GET /api/data-centers  (?state=&county=&status=&developer=&tenant=&utility=&iso=&powerSource=&mwMin=&mwMax=&firstSeenSince=&opposition=&financed=&watchlist=&q=&sort=&page=&format=json|geojson)
 export interface DataCenterRow {
@@ -236,6 +245,7 @@ export interface DataCenterRow {
   onlineYear: Sourced<number>;
   financed: FinancedLink | null;          // the primary financed site: the one with the most debt
   financedSites: FinancedLink[];          // every approved financed site on the campus, most debt first (financed = [0])
+  financing: Sourced<FinancingNote> | null; // why no debt is linked (owner-funded / not found); null = no note
   lastChange: Evidence;
   firstSeen: string;
 }
@@ -246,7 +256,7 @@ export interface DataCenterSummary {
   campuses: number; buildings: number;
   mwByStatus: { status: DcStatus; mw: number }[];
   newThisWeek: { count: number; newest?: { id: string; name: string } };
-  financed: { count: number; debtB: number };   // campuses with a financed site; debt summed over every financedSites entry
+  financed: { count: number; debtB: number };   // campuses with a financed site; debt summed once per financed site (a site securing several campuses counts once)
   coverage: { field: string; pct: number }[];   // fill rate per field, for the footer
 }
 

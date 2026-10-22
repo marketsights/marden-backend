@@ -7,7 +7,10 @@ ISO/RTO (as a code; the boundary join when the stated value names none), online 
 built / total count the campus's building records (Operating = built); a campus with no building
 record yet shows the building counts its own facts state. `plantId` is the largest generating plant
 serving the campus (fuel lines excluded). `financed` is the approved site link with the most debt and
-`financedSites` every approved financed site on the campus (facilities_common).
+`financedSites` every approved financed site on the campus (facilities_common). `financing` is Marden's
+financing note on a campus with no asset-level debt to link (campus fact `financing_note`, tag M, written by
+marden.facilities): owner-funded (the owner's filing its source) or not found (what was searched, and when);
+null when there is none.
 `lastChange` is the newest dated change (facilities_common.last_change): a History-tab change (value
 change, first status / MW, first seen), a record (event) or a large-load queue listing, by date, then
 learned_at; else the newest fact. Detail adds every displayed fact with its source, owner of record
@@ -73,7 +76,9 @@ ROW_FIELDS = (
     "online_year",
     "online_year_basis",
     "first_seen",
+    "financing_note",
 )
+NOTE_KINDS = ("owner_funded", "not_found")
 USER_CONFIDENCE = ("confident", "likely")
 # Shown elsewhere on the page, or not a campus value (imagery, links, attribution of other rows).
 NOT_IN_FACTS = frozenset(
@@ -89,6 +94,7 @@ NOT_IN_FACTS = frozenset(
         "state",
         "imagery_note",
         "grid_project",
+        "financing_note",
     }
 )
 
@@ -116,6 +122,22 @@ def _tenant(facts: dict[str, Row]) -> Doc:
 def _count(row: Row | None) -> int | None:
     value = row["value"] if row else None
     return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def financing_note(row: Row | None) -> Doc | None:
+    """Sourced<FinancingNote> (types.ts): the campus's financing note as known on the build date, else None."""
+    value = row["value"] if row else None
+    if not (isinstance(value, dict) and value.get("kind") in NOTE_KINDS and isinstance(value.get("note"), str)):
+        return None
+    assert row is not None
+    searched = value.get("searched")
+    return with_value(row, {
+        "kind": value["kind"],
+        "owner": value.get("owner") if isinstance(value.get("owner"), str) else None,
+        "payerId": value.get("payerId") if isinstance(value.get("payerId"), str) else None,
+        "note": value["note"],
+        "searched": [s for s in searched if isinstance(s, str)] if isinstance(searched, list) else [],
+    })
 
 
 def building_counts(conn: Conn, campus_id: str, facts: dict[str, Row]) -> dict[str, int]:
@@ -171,6 +193,7 @@ def row_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
         "onlineYear": number_value(facts.get("online_year"), "F"),
         "financed": financed[0] if financed else None,  # the primary site (most debt)
         "financedSites": financed,
+        "financing": financing_note(facts.get("financing_note")),
         "lastChange": last_change(changes, facts),
         "firstSeen": first_seen(facts, campus["first_seen_at"].date() if campus.get("first_seen_at") else None),
     }
