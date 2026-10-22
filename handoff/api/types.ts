@@ -221,8 +221,6 @@ export interface Holder {
   name: string; filing: 'N-PORT' | '10-Q'; filingUrl: string; filingDate: string;
   parMm: number; lastMark: number; gapPts: number; navHitMm: number; shareOfNav: number;
 }
-/** A lender, arranger or agent of a loan or bond, from a filing (F) or a report (R): `source.value` is its role. */
-export interface Lender { name: string; role: string | null; commitmentUsd?: number; source: Sourced<string> }
 /** A Marden daily price and the yields worked from it (model 'yield'; null = n/d, absent on a streamed point). */
 export interface PriceHistoryPoint { date: string; price: number; ytm?: number | null; ytw?: number | null }
 /** A date the debt may be redeemed on, worked by the yield model: stated maturity, an extension, a call, or prepayment at par. */
@@ -249,6 +247,8 @@ export interface InstrumentYields {
   assumptions: string[];                      // plain words, one per line
   why: string | null;                         // why the yields are n/d; null when worked
 }
+/** A lender, arranger or agent of a loan or bond, from a filing (F) or a report (R): `source.value` is its role. */
+export interface Lender { name: string; role: string | null; commitmentUsd?: number; source: Sourced<string> }
 export interface InstrumentDetail extends InstrumentRow {
   facts: string;
   fundMarks: { low: number; high: number; filing: string; date: string } | null; // null = n/d: no fund filing reports it
