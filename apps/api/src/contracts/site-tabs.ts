@@ -207,3 +207,38 @@ export interface SiteBuildingCount {
 export interface WithBuildingCount {
   buildings?: Sourced<SiteBuildingCount> | null;
 }
+
+// ---------- GET /api/sites/:slug/schedule additions (spec 04 Milestones) ----------
+/** A plan window a source states: first and last month ('YYYY-MM'), the source's wording, and the
+ * statement's source when the milestone's evidence row states it (read model sites_milestones). */
+export interface StatedWindow {
+  from: string;
+  to: string;
+  text: string;
+  tag?: 'F' | 'R' | 'M';
+  sourceName?: string;
+  asOf?: string;
+  sourceUrl?: string;
+}
+/** Dates the Schedule tab's milestone rows add to types.ts Milestone; a date no source states is absent
+ * and `dateNotes` says why. `controlsRent`: share of the cushion model's simulated schedules in which
+ * the milestone set the rent-start date; `rentPath`: on the critical path to rent start. */
+export interface MilestoneDates {
+  target?: StatedWindow;
+  originalTarget?: StatedWindow;
+  actual?: StatedWindow;
+  dateNotes?: { target?: string; originalTarget?: string; actual?: string };
+  rentPath?: boolean;
+  controlsRent?: number;
+}
+/** The cushion run the Schedule tab shows: its day, simulation count, method and power mode. */
+export interface CushionModelInfo {
+  runDate: string;
+  simulations: number | null;
+  methodVersion: string | null;
+  powerMode: string | null;
+}
+export type SiteScheduleDated = Omit<SiteSchedule, 'milestones'> & {
+  milestones: (SiteSchedule['milestones'][number] & MilestoneDates)[];
+  cushionModel?: CushionModelInfo;
+};

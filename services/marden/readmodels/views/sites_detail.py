@@ -45,6 +45,7 @@ from marden.readmodels.views.sites_common import (
     with_value,
 )
 from marden.readmodels.views.sites_links import imagery
+from marden.readmodels.views.sites_milestones import with_dates
 from marden.readmodels.views.sites_tabs import evidence_records, opposition_tab, site_event_log, story_key
 
 RECOVERY_FACTS = ("recovery_waterfall", "recovery_project", "recovery_gpu")
@@ -181,13 +182,17 @@ def site_schedule(conn: Conn, slug: str) -> Doc | None:
     cushion_out = latest_output(conn, "cushion", "site", slug)
     projection = output_field(cushion_out, "projection")
     milestones = output_field(cushion_out, "milestones")
-    return {
+    dated, model = with_dates(conn, slug, cushion_out, milestones if isinstance(milestones, list) else [])
+    doc: Doc = {
         "projection": projection if isinstance(projection, dict) and projection.get("p50") else None,
-        "milestones": milestones if isinstance(milestones, list) else [],
+        "milestones": dated,
         "cushionHistory": cushion_history(conn, slug),
         "imagery": imagery(conn, slug)[-3:],
         "documents": latest_documents(conn, slug),
     }
+    if model is not None:
+        doc["cushionModel"] = model  # run day, simulations, method (sites_milestones)
+    return doc
 
 
 @builder("site_schedule", keys=site_slugs)
