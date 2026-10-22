@@ -11,9 +11,9 @@ stored text of the cited document, in the forms filings print:
 
 - USD: "$18.0 billion", "$18bn", "$2.5875 billion" (for an archive figure rounded to $1M: 2,588), "775.0
   million", "$1,750,000,000", "18,000,000" in a thousands table and plain digits in N-PORT XML; a bare table
-  number ("750" under "in millions", "275,000" under "in thousands") counts only within WINDOW chars of
-  another of the instrument's terms (``anchors``: its coupon, maturity year, size or name). An amount in
-  another currency ("CHF 275,000", "EUR 500 million") does not state a USD value;
+  number ("750" under "in millions", "275,000" under "in thousands") counts only within WINDOW chars of the
+  instrument's name, or of two of its other terms (``anchors``: coupon, maturity, size), as in a debt table
+  row "$750, 4.50%, due May 2028". An amount in another currency ("CHF 275,000") does not state a USD value;
 - percents: "6.875%", "6.87500%", "6.875 percent", N-PORT ``annualizedRt`` 6.87500000; spreads also as
   "250 basis points" / "250 bps";
 - dates: "November 9, 2029", "Nov. 9, 2029", "9 November 2029", "11/09/2029", "11/9/29", "2029-11-09"; a
@@ -56,7 +56,7 @@ YEARS_FIELDS = frozenset({"term_years", "lease_term_years"})
 TEXT_FIELDS = frozenset({"coupon", "maturity_text", "rate_text", "amortization", "start", "outside_date"})
 CHECKED_FIELDS = USD_FIELDS | PCT_FIELDS | BP_FIELDS | BENCHMARK_FIELDS | DATE_FIELDS | YEARS_FIELDS | TEXT_FIELDS
 
-WINDOW = 400  # chars: a bare table amount counts as this instrument's when another of its terms is this close
+WINDOW = 150  # chars: a bare table amount counts as this instrument's when another of its terms is this close
 FAMILIES = (
     frozenset({"coupon", "coupon_type", "coupon_rate_pct", "coupon_spread_bp", "coupon_benchmark", "rate_text"}),
     frozenset({"maturity", "maturity_text"}),
@@ -212,20 +212,25 @@ def _tolerance(v: float) -> float:
     return 0.5e6 if v >= 1e7 and v % 1e6 == 0 else max(0.5, v * 1e-9)
 
 
-def _usd_states(text: str, v: float, anchors: Sequence[str], window: int) -> bool:
+Anchors = Mapping[str, Sequence[str]]  # kind ('name', 'coupon', 'maturity', 'amount') -> patterns
+
+
+def _usd_states(text: str, v: float, anchors: Anchors, window: int) -> bool:
     found = _amounts(text)
     tol = _tolerance(v)
     i = bisect_left(found.stated, v - tol)
     if i < len(found.stated) and found.stated[i] <= v + tol:
         return True
-    if not anchors:
-        return False
-    anchor_pos = _positions(text, list(anchors))
-    if not anchor_pos:
+    positions = {k: p for k, pats in anchors.items() if pats and (p := _positions(text, list(pats)))}
+    if not positions:
         return False
     for pos, x in found.bare:
-        if (abs(x * 1e6 - v) <= tol or abs(x * 1e3 - v) <= tol) and _near(pos, anchor_pos, window):
-            return True
+        if abs(x * 1e6 - v) > tol and abs(x * 1e3 - v) > tol:
+            continue
+        kinds = {k for k, p in positions.items() if _near(pos, p, window)}
+        if "name" in kinds or len(kinds) >= 2:  # a name, or two terms: this row of the table, not another's
+            if not _foreign(text, pos):
+                return True
     return False
 
 
@@ -339,7 +344,7 @@ def _text_states(text: str, value: str) -> bool | None:
             checks.append(_any(text, _pct_patterns(float(m[1]))))
     for m in _TOK_USD.finditer(v):
         amount = float(m[1].replace(",", "")) * _UNIT.get((m[2] or "").lower(), 1)
-        checks.append(_usd_states(text, amount, (), WINDOW))
+        checks.append(_usd_states(text, amount, {}, WINDOW))
     for m in _TOK_DATE.finditer(v):
         checks.append(_any(text, _date_patterns(m[1])))
     for m in _TOK_DAYS.finditer(v):
@@ -390,37 +395,38 @@ def value_patterns(field: str, value: Any) -> list[str]:
 
 
 def name_anchor(name: str | None) -> list[str]:
-    """The instrument's name as an anchor ("Finance lease liabilities" -> financ\\w* lease\\w* liabil\\w*)."""
-    words = [w for w in re.findall(r"[a-z]+", (name or "").lower()) if len(w) >= 3 and w not in _NAME_STOP]
+    """The instrument's name as an anchor: its first three words, each by its first four letters ("Finance
+    lease liabilities" -> fina.. leas.. liab..; "DDTL 2.0 Facility" -> ddtl 2.0); one word is not enough."""
+    words = [w for w in re.findall(r"[a-z]+|\d+(?:\.\d+)?[a-z]?", (name or "").lower())
+             if (len(w) >= 2 or w.isdigit()) and w not in _NAME_STOP]
     if len(words) < 2:
         return []
-    return [r"\b" + r"\W+".join(re.escape(w[:6]) + r"\w*" for w in words[:3])]
+    return [r"\b" + r"\W+".join(re.escape(w[:4]) + (r"\w*" if w[0].isalpha() else "") for w in words[:3])]
 
 
-def anchor_patterns(terms: Mapping[str, Any], field: str, *, name: str | None = None) -> list[str]:
-    """Patterns of the instrument's name and other terms (families other than ``field``'s): a bare table amount
-    counts only next to one of them. A maturity anchors by its year; an amount by its unit-bearing forms."""
+def anchor_patterns(terms: Mapping[str, Any], field: str, *, name: str | None = None) -> dict[str, list[str]]:
+    """The instrument's name and other terms (families other than ``field``'s) as anchors for bare table
+    amounts, by kind. A benchmark ('SOFR') or a bare year is on every page of a filing: neither anchors."""
     own = family(field)
-    out: list[str] = name_anchor(name)
+    out: dict[str, list[str]] = {"name": name_anchor(name)}
     for f, v in terms.items():
-        if f in own or v is None or v == "":
+        if f in own or v is None or v == "" or f in BENCHMARK_FIELDS or f == "coupon_type":
             continue
-        if f in DATE_FIELDS and re.match(r"\d{4}", str(v)):
-            out.append(rf"\b{str(v)[:4]}\b")
-        elif f in USD_FIELDS:
+        if f in USD_FIELDS:
             try:
                 x = float(v)
             except (TypeError, ValueError):
                 continue
             if x > 0:
-                out += [rf"\b{re.escape(f'{x / 1e6:,.0f}')}\s*(?:million|mm|m)\b",
-                        rf"\b{re.escape(f'{x / 1e9:g}')}\s*(?:billion|bn|b)\b"]
-        else:
-            out += value_patterns(f, v)
-    return out
+                out.setdefault("amount", []).extend([rf"\b{re.escape(f'{x / 1e6:,.0f}')}\s*(?:million|mm)\b",
+                                                     rf"\b{re.escape(f'{x / 1e9:g}')}\s*(?:billion|bn)\b"])
+            continue
+        kind = "maturity" if f in DATE_FIELDS or f == "maturity_text" else "coupon" if f in family("coupon") else f
+        out.setdefault(kind, []).extend(value_patterns(f, v))
+    return {k: v for k, v in out.items() if v}
 
 
-def states(text: str | None, field: str, value: Any, *, anchors: Sequence[str] = (),
+def states(text: str | None, field: str, value: Any, *, anchors: Anchors | None = None,
            window: int = WINDOW) -> bool | None:
     """Does ``text`` (``normalize_text`` form, N-PORT reports cut by ``scope``) state ``value`` for ``field``?
 
@@ -434,7 +440,7 @@ def states(text: str | None, field: str, value: Any, *, anchors: Sequence[str] =
             v = float(value)
         except (TypeError, ValueError):
             return None
-        return None if v <= 0 else _usd_states(text, v, anchors, window)
+        return None if v <= 0 else _usd_states(text, v, anchors or {}, window)
     pats = value_patterns(field, value)
     if pats:
         return _any(text, pats)
@@ -452,7 +458,8 @@ class Evidence:
 
 
 def first_stating(lookup: CitedDocs | TextLookup, urls: Sequence[str], field: str, value: Any, *,
-                  anchors: Sequence[str] = (), ids: Sequence[str] = (), names: Sequence[str] = ()) -> Evidence | None:
+                  anchors: Anchors | None = None, ids: Sequence[str] = (),
+                  names: Sequence[str] = ()) -> Evidence | None:
     """The first of ``urls`` whose stored text states the value (N-PORT reports cut to this instrument)."""
     for url in urls:
         if states(scope(lookup(url), ids=ids, names=names), field, value, anchors=anchors):
