@@ -21,7 +21,7 @@ from scipy.integrate import quad
 from marden.models import gpu_collateral, gpu_deployment, gpu_index, recovery
 from marden.models.gpu_facilities import range_text
 from marden.models.gpu_inputs import chip_key, provider_name, ship_date
-from marden.models.gpu_value import annuity
+from marden.models.gpu_value import HAIRCUT, annuity
 from marden.models.recovery_shell import rank_of
 
 DDTL1, DDTL2, DDTL3, DDTL55 = "EX-CRWV-091", "EX-CRWV-092", "EX-CRWV-094", "EX-CRWV-097"
@@ -174,6 +174,22 @@ def test_recovery_by_collateral_type(copied):
     assert out[WULF]["basis"]["grossMwBasis"].startswith("critical_it_mw x PUE")
     assert out[NOTE]["method"] is None and out[NOTE]["recovery"]["value"] is None and out[NOTE]["missing"]
     assert "model v0" in ab["recovery"]["methodVersion"]
+
+
+def test_recovery_basis_carries_its_arithmetic(copied):
+    """The basis shows how the number is made: shell value at the 25th / 50th / 75th comp and the cover
+    before the 0-100c cap, which give the range; a GPU pool names its haircut."""
+    out = recovery.run(instruments=[ABILENE1, DDTL1, NOTE], trigger="test")["outputs"]
+    b = out[ABILENE1]["basis"]
+    value = [b["grossMw"] * b["completion"] * q for q in b["compQuartilesUsdPerMw"]]
+    assert b["valueUsd"] == pytest.approx(value, rel=1e-3)
+    assert b["valueUsd"][1] / 1e9 == pytest.approx(out[ABILENE1]["valueB"]["value"], rel=1e-4)
+    ahead, pari = b["seniorClaimsB"] * 1e9, b["pariClaimsB"] * 1e9
+    assert b["coverCents"] == pytest.approx([(v - ahead) / pari * 100 for v in b["valueUsd"]], abs=0.5)
+    capped = [max(0.0, min(1.0, c / 100)) for c in b["coverCents"]]
+    assert out[ABILENE1]["recovery"]["value"] == range_text(capped[0], capped[2])
+    assert out[DDTL1]["basis"]["haircut"] == HAIRCUT
+    assert "valueUsd" not in out[NOTE]["basis"] and out[NOTE]["recovery"]["value"] is None
 
 
 def test_live_runs_mark_their_views(copied, committed):

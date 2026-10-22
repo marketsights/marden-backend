@@ -3,8 +3,9 @@
 What the loaders and collectors stored: every entity and site identity row, the chosen instruments and every
 bond of their issuers and of the chosen sites' tenants (identity rows, terms facts, price observations:
 N-PORT, BDC, TRACE, exchange quotes, dealer quotes), the chain parties, the Treasury / SOFR / equity / issue
-comp / GPU residual series, the issuers' XBRL debt and share facts, the chosen sites' power and permit facts
-and events, and the cushion outputs of those sites. Document references are cleared (the raw documents are
+comp / GPU residual series, the ICE BofA OAS series and their fund-OAS proxies (etf_oas_*), the issuers' XBRL
+debt and share facts, the chosen sites' power and permit facts and events, and the cushion outputs of those
+sites. Document references are cleared (the raw documents are
 not copied). Skips when the source database or the rows are not there.
 """
 
@@ -74,7 +75,7 @@ def copy_price_inputs(instruments: Sequence[str]) -> list[str]:
               OR (subject_type = 'series' AND (subject_id LIKE 'ust_par_%%' OR subject_id = 'sofr'
                   OR (subject_id LIKE 'equity:%%' AND field = 'close') OR subject_id LIKE 'issue_comp:%%'
                   OR subject_id LIKE 'gpu_residual:%%'
-                  OR subject_id LIKE 'ice_bofa_%%'))
+                  OR subject_id LIKE 'ice_bofa_%%' OR subject_id LIKE 'etf_oas_%%'))
               OR (subject_type = 'entity' AND subject_id = ANY(%(issuers)s) AND field = ANY(%(xbrl)s))
               OR (subject_type = 'site' AND subject_id = ANY(%(slugs)s) AND field = ANY(%(site_fields)s)))""",
               p, nulls=("document_id",))

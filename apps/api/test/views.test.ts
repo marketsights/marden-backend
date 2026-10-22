@@ -83,7 +83,7 @@ const READ_MODEL_ROUTES: Record<string, [string, ...Expect]> = {
 /** Export table -> expected 503 view and key (null: an app table, answered 200). */
 const EXPORTS: Record<string, Expect | null> = {
   'data-centers': ['dc_row', '*'], 'power-plants': ['plant_row', '*'], completion: ['completion', 'all'],
-  sites: ['sites', 'all'], site: ['site_schedule', SITE], instruments: ['instruments', 'all'], holders: ['instrument_detail', INST],
+  sites: ['sites', 'all'], site: ['site_schedule', SITE], 'data-center': ['dc_detail', CAMPUS], instruments: ['instruments', 'all'], holders: ['instrument_detail', INST],
   'risk-list': ['risk_list', 'latest'], payers: ['payers', 'all'], payer: ['payer', ENTITY], 'payer-exposed': ['payer_capacity', ENTITY],
   leases: ['leases', 'all'], 'lease-reconciliation': ['leases', 'all'],
   gpus: ['gpus', 'all'], 'gpu-models': ['gpus', 'all'], 'gpu-deployment': ['gpu_deployment', 'all'], 'gpu-model': ['gpu_model', 'H100'],
@@ -101,6 +101,8 @@ const APP_ROUTES = new Set([
   '/api/alert-delivery', '/api/email/unsubscribe',
   // staff document agents: app tables (agent_job, agent_upload, review_item), not read models
   '/api/documents', '/api/documents/:id', '/api/uploads/:id', '/api/agents/status', '/api/review', '/api/review/:id',
+  // Data centers map layer: ISO/RTO boundaries straight from grid_region (HIFLD), not a read model
+  '/api/grid/iso-rto',
 ]);
 
 describe('view/key contract', () => {
@@ -152,6 +154,7 @@ describe('view/key contract', () => {
     for (const [table, expected] of Object.entries(EXPORTS)) {
       const qs = table === 'holders' ? `?instrument=${INST}` : table === 'payer' || table === 'payer-exposed' ? `?slug=${ENTITY}`
         : table === 'site' ? `?slug=${SITE}`
+        : table === 'data-center' ? `?id=${CAMPUS}`
         : table === 'gpu-model' ? '?model=H100'
         : table === 'stress' ? '?scenario=power_delay&months=6' : '';
       const res = await app.inject({ method: 'GET', url: `/api/export/${table}.xlsx${qs}` });

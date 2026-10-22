@@ -313,6 +313,17 @@ def latest_ok_key() -> tuple[str, str, str] | None:
     return (row["bucket"], row["object_key"], row["sha256"]) if row else None
 
 
+def recorded_key(key: str) -> tuple[str, str] | None:
+    """(bucket, sha256) that backup_run recorded for this object key, or None if no ok run wrote it."""
+    with db.connection() as conn:
+        row = conn.execute(
+            "SELECT bucket, sha256 FROM backup_run WHERE status = 'ok' AND object_key = %s "
+            "ORDER BY started_at DESC LIMIT 1",
+            (key,),
+        ).fetchone()
+    return (row["bucket"], row["sha256"]) if row else None
+
+
 def verify_archive(path: Path) -> int:
     """pg_restore --list the archive; returns the number of entries (raises BackupError if unreadable)."""
     restore = shutil.which("pg_restore")
@@ -326,7 +337,11 @@ def verify_archive(path: Path) -> int:
 
 def fetch_backup(target: Path, *, key: str | None = None, settings: Settings | None = None,
                  client: Any = None) -> dict[str, Any]:
-    """Download a backup (default: the newest ok one) to `target`, check sha256, list it."""
+    """Download a backup (default: the newest ok one) to `target`, check sha256, list it.
+
+    The sha256 is checked against backup_run whenever an ok run recorded the key (always for 'latest');
+    `verified` in the result says whether it was. A key no run recorded (the database was lost and this is
+    a restore from R2 alone) is still fetched and listed, with `verified` False."""
     settings = settings or get_settings()
     missing = missing_r2(settings)
     if missing:
@@ -340,6 +355,13 @@ def fetch_backup(target: Path, *, key: str | None = None, settings: Settings | N
         bucket, key, expected = latest
     elif not _KEY.match(key):
         raise BackupError(f"not a backup key: {key!r}")
+    else:
+        try:
+            recorded = recorded_key(key)
+        except Exception:  # no reachable database: a disaster restore from R2 alone
+            recorded = None
+        if recorded is not None:
+            bucket, expected = recorded
     client = client or r2_client(settings)
     client.download_file(bucket, key, str(target))
     digest = hashlib.sha256()
@@ -348,4 +370,5 @@ def fetch_backup(target: Path, *, key: str | None = None, settings: Settings | N
             digest.update(chunk)
     if expected and digest.hexdigest() != expected:
         raise BackupError(f"sha256 of {key} does not match backup_run ({digest.hexdigest()} != {expected})")
-    return {"bucket": bucket, "key": key, "sha256": digest.hexdigest(), "entries": verify_archive(target)}
+    return {"bucket": bucket, "key": key, "sha256": digest.hexdigest(), "verified": expected is not None,
+            "entries": verify_archive(target)}

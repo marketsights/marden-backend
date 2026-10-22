@@ -16,6 +16,7 @@ import { PRODUCTS, type ProductRegistry } from './auth/products/index.js';
 import { assertDevAuthAllowed, type AppConfig } from './config.js';
 import { createDb, type Db } from './db.js';
 import { HttpError } from './errors.js';
+import { loggerOptions } from './lib/log-redact.js';
 import { asOfOf } from './lib/params.js';
 import { accountRoutes } from './routes/account.js';
 import { agentRoutes, uploadMaxBytes } from './routes/agents.js';
@@ -130,10 +131,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const db = deps.db ?? createDb(config.databaseUrl);
   const products = deps.products ?? PRODUCTS;
   const app = Fastify({
-    logger: config.logLevel === false ? false : {
-      level: config.logLevel,
-      redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["svix-signature"]'],
-    },
+    // Request URLs are logged with secret query values masked (?token= on unsubscribe links).
+    logger: config.logLevel === false ? false : loggerOptions(config.logLevel),
     genReqId: (req) => {
       const incoming = req.headers['x-request-id'];
       return typeof incoming === 'string' && REQUEST_ID.test(incoming) ? incoming : randomUUID();

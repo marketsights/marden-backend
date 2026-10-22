@@ -31,7 +31,7 @@ SHORT: dict[str, str] = {
     "M1": "Schedule slip", "M2": "Cushion below zero", "M3": "Power denied or withdrawn",
     "M4": "Tenant notice", "M5": "Lender action", "E1": "End user funding", "E2": "End user exits",
     "T1": "Tenant credit", "T2": "Tenant credit and power", "D1": "Developer slip", "D2": "Construction halted",
-    "L1": "Lenders: price 95\u201398", "L2": "Lenders: price below 95", "C3": "Cushion under 3 months",
+    "L1": "Lenders: price 95\u201398", "L2": "Lenders: credit price below 95", "C3": "Cushion under 3 months",
     "CX": "Cushion recovered", "PX": "Price threshold", "MK": "Fund mark filed", "RT": "Rating action",
     "OP": "Opposition",
 }

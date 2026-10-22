@@ -8,7 +8,8 @@ from the archive's own date (`document.doc_date`), not from the record date. Dat
 schedule changes, ready-for-service statements) are public on their own date. Tag M rows (the archive's
 legacy judgments and other models' estimates) are never inputs: only filed (F) and reported (R)
 statements can trip a status rule. The Marden price is the one model input, read from the price model's
-`model_output`.
+`model_output`; for a fixed coupon it comes with its rate-neutral reading (`status_credit`: the spread move
+since the reference day, on the reference day's Treasury curve), which rule L2 reads instead of the price.
 """
 
 from __future__ import annotations
@@ -20,7 +21,8 @@ from datetime import date
 from typing import Any
 
 from marden.core.db import Conn, Row
-from marden.models import pit
+from marden.models import pit, status_credit
+from marden.models.price_curve import CurveBook, load_curves
 
 ARCHIVE_SOURCES = ("seed_marden_data",)
 DATED_ITEM_FIELDS = frozenset({"risk_evidence", "schedule_change", "rfs_statement"})
@@ -34,6 +36,7 @@ ENTITY_FIELDS = ("funding_fact",)
 INSTRUMENT_FIELDS = ("research_terms", "status")
 EXCLUDED_EVENT_KINDS = ("catalyst",)  # scheduled future steps, not things that happened
 PRICE_MODEL = "price"
+CURVES_SINCE = date(2025, 1, 1)  # the Treasury curve archive starts 2025-01-02 (as the price model's)
 ROLES = ("end_user", "tenant", "developer", "lenders")
 GENERIC_WORDS = frozenset({
     "project", "projects", "stargate", "data", "center", "centre", "campus", "campuses", "phase", "phases",
@@ -93,9 +96,12 @@ class Party:
 class Price:
     instrument_id: str
     value: float
-    as_of: date
+    as_of: date  # the price output's day
     method_version: str | None
     source_url: str | None
+    coupon_type: str | None = None  # 'fixed' | 'floating' (the output's basis.terms)
+    credit: status_credit.CreditTest | None = None  # fixed coupon: the rate-neutral reading
+    credit_missing: str | None = None  # fixed coupon without a rate-neutral reading: what is missing
 
 
 @dataclass
@@ -227,11 +233,44 @@ def _prices(conn: Conn, as_of: date, instrument_ids: list[str]) -> dict[str, Pri
         (PRICE_MODEL, instrument_ids, as_of),
     ).fetchall()
     pit.note_outputs(PRICE_MODEL, "instrument", rows)
-    out = {}
-    for r in rows:
-        value, method, url = price_value(r["output"])
-        if value is not None:
-            out[r["subject_id"]] = Price(r["subject_id"], value, r["as_of"], method or r["version"], url)
+    return prices_from_outputs(conn, as_of, {r["subject_id"]: (r["as_of"], r["output"], r["version"]) for r in rows})
+
+
+def first_spreads(conn: Conn, as_of: date, instrument_ids: list[str]) -> dict[str, tuple[date, float]]:
+    """(day, spreadBp) of each instrument's first stored Marden price with a spread, on or before `as_of`:
+    the rate-neutral test's reference when the instrument has no issue date."""
+    if not instrument_ids:
+        return {}
+    rows = conn.execute(
+        """SELECT DISTINCT ON (subject_id) subject_id, as_of, (output->>'spreadBp')::float AS spread FROM model_output
+            WHERE model = %s AND subject_type = 'instrument' AND subject_id = ANY(%s) AND as_of <= %s
+              AND jsonb_typeof(output->'spreadBp') = 'number' AND jsonb_typeof(output->'price') = 'number'
+            ORDER BY subject_id, as_of, created_at DESC, id DESC""",
+        (PRICE_MODEL, instrument_ids, as_of),
+    ).fetchall()
+    pit.note_outputs(PRICE_MODEL, "instrument", rows)
+    return {r["subject_id"]: (r["as_of"], float(r["spread"])) for r in rows}
+
+
+def prices_from_outputs(conn: Conn, as_of: date, outputs: dict[str, tuple[date, Any, str | None]],
+                        book: CurveBook | None = None) -> dict[str, Price]:
+    """Price inputs from price-model outputs {instrument: (output day, output, version)}: the Marden price
+    and, for a fixed coupon, its rate-neutral reading (status_credit). The Treasury curves are read point
+    in time as of `as_of` (a curve is public on its date)."""
+    out: dict[str, Price] = {}
+    fixed = [i for i, (_, o, _) in outputs.items() if status_credit.coupon_type(o) == "fixed"]
+    firsts = first_spreads(conn, as_of, fixed)
+    if fixed and book is None:
+        book = load_curves(conn, as_of, since=CURVES_SINCE)
+    for iid, (day, output, version) in sorted(outputs.items()):
+        value, method, url = price_value(output)
+        if value is None:
+            continue
+        price = Price(iid, value, day, method or version, url, status_credit.coupon_type(output))
+        if price.coupon_type == "fixed":
+            assert book is not None
+            price.credit, price.credit_missing = status_credit.credit_test(iid, output, day, book, firsts.get(iid))
+        out[iid] = price
     return out
 
 

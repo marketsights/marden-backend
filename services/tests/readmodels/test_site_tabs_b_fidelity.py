@@ -5,8 +5,8 @@ database (site_rows).
 - Material events: every change of a link's status between two `status` runs is a row (link, rule
   codes, 'Green → amber'), every material cushion move is a row (M1 / M2, 'Cushion +4 → -1 months', true minus),
   and records are one row per story, later press coverage of the same rule counted on the first report.
-- Debt: the recovery card shows the recovery model's waterfall inputs; the stack's equity is a row of
-  the instruments table (first loss).
+- Debt: the stack's equity is a row of the instruments table (first loss); the recovery card is
+  test_site_recovery_card.py.
 - Lease: 'Force majeure accepted' is one of the outcomes; a lease with no filed term says it is not public.
 - Buildings: the totals are the header's count, from the campus facts while no building record exists.
 """
@@ -132,32 +132,6 @@ def test_records_are_one_row_per_story_with_later_coverage_counted(sites):
             assert not re.match(r"^sev\s*\d", e["ruleHit"] or ""), (slug, e["ruleHit"])
             assert e.get("reports", 1) >= 1
         assert build("site_detail", slug)["tabCounts"]["events"] == len(log), slug
-
-
-def test_recovery_card_reads_the_recovery_model(sites):
-    for slug in sites:
-        tab = build("site_tab:debt", slug)
-        if tab is None:
-            continue
-        for item in tab["recovery"]["inputs"]:
-            assert item["value"]["value"] is not None or item.get("pending"), (slug, item)
-            assert item.get("pending") != "recovery model" or item["value"]["value"] is None
-    if "jupiter" not in sites:
-        return
-    main = build("site_detail", "jupiter")["debtExposed"]
-    out = copied_rows("SELECT output FROM model_output WHERE model = 'recovery' AND subject_id = %s "
-                      "AND as_of <= %s ORDER BY as_of DESC, created_at DESC LIMIT 1",
-                      (main["instrumentId"], business_today()))
-    if not out or out[0]["output"].get("method") != "powered_shell":
-        pytest.skip("no powered-shell recovery output for Jupiter's loan")
-    basis = out[0]["output"]["basis"]
-    inputs = {i["label"]: i["value"] for i in build("site_tab:debt", "jupiter")["recovery"]["inputs"]}
-    if isinstance(basis.get("compMedianUsdPerMw"), int | float):
-        assert inputs["Value per MW of comparable sites"]["value"].startswith(
-            f"${basis['compMedianUsdPerMw'] / 1e6:,.1f}mm per gross MW, median of {len(basis['comps'])} sites")
-    if isinstance(basis.get("seniorClaimsB"), int | float):
-        assert inputs["Claims ahead of the loan"]["value"].endswith(f"${basis['pariClaimsB']:,.1f}B at the same rank")
-        assert inputs["Claims ahead of the loan"]["tag"] == "M"
 
 
 def test_equity_of_the_stack_is_a_first_loss_row(sites):

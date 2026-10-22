@@ -146,8 +146,10 @@ def null_cds(entity: str, why: str) -> dict[str, Any]:
 
 
 def _inputs(inst: Instrument, out: dict[str, Any], ch: Chain | None, curves: dict[str, IssuerCurve],
-            cds: dict[str, dict[str, Any]], book: CurveBook, as_of: date) -> list[dict[str, Any]]:
-    """The price output's inputs list (each a sourced value the read models can show)."""
+            cds: dict[str, dict[str, Any]], book: CurveBook, as_of: date,
+            tiers: price_tiers.TierFit | None = None) -> list[dict[str, Any]]:
+    """The price output's inputs list (each a sourced value; the read models show only the keys they pick, and
+    never an input marked displayAllowed false)."""
     items: list[dict[str, Any]] = []
 
     def add(key: str, label: str, value: Any, unit: str, tag: str = "M", source: str | None = None) -> None:
@@ -183,6 +185,8 @@ def _inputs(inst: Instrument, out: dict[str, Any], ch: Chain | None, curves: dic
     if odds is not None and inst.terms is not None:
         t = max(year_frac(as_of, inst.terms.maturity), 0.0)
         add("impliedDefaultOdds", f"Default odds to maturity ({t:.1f}y, risk-neutral, model v0)", odds, "share")
+    if basis.get("mode") == "tier curve" and tiers is not None and tiers.hy_input:
+        items.append(dict(tiers.hy_input))  # the tier curve's HY OAS (ICE, or its USHY proxy, labelled)
     return items
 
 
@@ -236,7 +240,7 @@ def run_day(conn: Conn, day: date, ids: Sequence[str] | None = None, *,
             out = _null([f"instrument {iid}: {type(exc).__name__}: {exc}"])
         out.pop("_week_ago_price", None)
         out.setdefault("basis", {"mode": None, "why": "not priced (see missing)"})
-        out["inputs"] = _inputs(inst, out, ch, curves, cds, book, day)
+        out["inputs"] = _inputs(inst, out, ch, curves, cds, book, day, tiers)
         out.update({"label": PRICE_LABEL, "methodVersion": VERSION, "sourceUrl": METHOD_URL,
                     "tier": None if issuer_bond else instrument_tier(inst, ch)})
         # InstrumentRow.mardenPrice (types.ts), ready for the builders to drop in (null = n/d)

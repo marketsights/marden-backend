@@ -37,7 +37,8 @@ Standard ($25/month, 2 GB, because the EIA/ERCOT spreadsheets, PDFs and QuantLib
 6. **Domains** (optional for the first demo): core-web → Settings → Custom Domains → `app.marden.ai`;
    core-api → `api.marden.ai`; add the CNAMEs Render shows at your DNS host; then update `WEB_ORIGIN`,
    `API_ORIGIN` (redeploy core-web) and `MARDEN_APP_URL`.
-7. **Smoke test**: `scripts/smoke.sh https://<core-web URL> https://<core-api URL>`.
+7. **Smoke test**: `scripts/smoke.sh --api https://<core-api URL> --web https://<core-web URL>` (add
+   `SMOKE_TOKEN='<token>'` for the signed-in checks; `DEPLOY.md` section 7, step 9).
 
 ## What changes compared with Railway
 

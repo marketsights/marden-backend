@@ -44,8 +44,9 @@ from marden.readmodels.views.instrument_text import short_name
 from marden.readmodels.views.instruments import INSTRUMENT_FACTS, instrument_row, size_b
 from marden.readmodels.views.monitor_common import Doc
 from marden.readmodels.views.sites import site_summary
-from marden.readmodels.views.sites_common import counts_toward_debt, last_evidence, site_events, site_instruments
+from marden.readmodels.views.sites_common import counts_toward_debt, site_events, site_instruments
 from marden.readmodels.views.sites_common import site_rows as all_sites
+from marden.readmodels.views.sites_evidence import last_evidence
 
 UNDER_MONTHS = 3.0
 MARK_GAP_PTS = -5.0  # fund marks 5+ points above the Marden price

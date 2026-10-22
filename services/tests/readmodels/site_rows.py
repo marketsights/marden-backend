@@ -1,7 +1,7 @@
 """Copy the real rows behind the financed sites from the local `marden` database into the test database.
 
 The site builders read sites, chain parties, entities, instruments, campuses, buildings, plants, units,
-site links, facts on all of those, site and plant events, prices and fund holdings of the site-linked
+site links, facts on all of those, site, campus and plant events, prices and fund holdings of the site-linked
 and V1 instruments, the `source` rows and model outputs. Everything is copied as stored by the loaders,
 collectors and models (not hand-made samples); references to raw documents, model runs and evidence
 facts are cleared (the raw documents are not copied). Skips when the source database has no sites.
@@ -44,7 +44,7 @@ def copy_sites() -> list[str]:
         _copy(src, dst, "fact", "subject_type = ANY(%(subjects)s)", p, nulls=("document_id",))
         _copy(src, dst, "site_link", "true", p, nulls=("evidence_fact_id",))
         _copy(src, dst, "plant_serves", "true", p, nulls=("evidence_fact_id",))
-        _copy(src, dst, "event", "subject_type IN ('site', 'plant')", p, nulls=("document_id", "fact_id"))
+        _copy(src, dst, "event", "subject_type IN ('site', 'campus', 'plant')", p, nulls=("document_id", "fact_id"))
         _copy(src, dst, "price_obs", INSTRUMENTS, p, nulls=("document_id",))
         _copy(src, dst, "holding", INSTRUMENTS, p, nulls=("document_id",))
         _copy(src, dst, "model_output", "subject_type IN ('site', 'instrument')", p, nulls=("run_id",))

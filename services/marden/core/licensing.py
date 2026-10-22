@@ -27,6 +27,28 @@ STATUSES: frozenset[str] = frozenset({"unlicensed-commercial", "licensed", "publ
 FINRA_TRACE = "FINRA TRACE (finra.org)"
 BOERSE_FRANKFURT = "Börse Frankfurt"
 YAHOO_FINANCE = "Yahoo Finance"
+BLACKROCK_TERMS_URL = "https://www.blackrock.com/corporate/compliance/terms-and-conditions"
+ISHARES_OAS_TICKERS = ("USHY", "HYBB", "USIG")  # collectors/etf_oas
+
+
+def ishares_oas_name(ticker: str) -> str:
+    """The exact source_name of an iShares fund's option-adjusted spread facts (collectors/etf_oas)."""
+    return f"iShares {ticker.upper()} fund OAS (BlackRock)"
+
+
+_ISHARES_OAS_NOTE = (
+    "Fund option-adjusted spreads read from iShares product pages (www.ishares.com/us/products/...), model "
+    "inputs standing in for the ICE BofA OAS series while FRED is unavailable (collectors/etf_oas). The pages' "
+    f"Terms & Conditions ({BLACKROCK_TERMS_URL}, checked 2026-10-21): content \"is solely for your personal, "
+    "non-commercial use\"; \"You may not distribute, modify, transmit, reuse, repost, or use the content of this "
+    "Website for public or commercial purposes, including all text, images, audio, and video, without BlackRock's "
+    "written permission\"; you may not \"Use any robot, spider, intelligent agent, other automatic device, or manual "
+    "process to search, monitor or copy this Website or the reports, data, information, content ... without "
+    "BlackRock's permission\". robots.txt (User-agent: *) does not disallow /us/products/. No BlackRock permission "
+    "has been obtained. Collected at the business owner's request of 2026-10-21 (find the ICE spreads elsewhere), "
+    "handled like the other unlicensed market data: model input only, never displayed (display_allowed = false). "
+    "Licensed route: BlackRock's written permission, or the ICE BofA indices under an ICE Data Indices licence."
+)
 
 SOURCE_LICENCE: dict[str, dict[str, str]] = {
     "ICE Data Indices, LLC via FRED": {
@@ -116,6 +138,8 @@ SOURCE_LICENCE: dict[str, dict[str, str]] = {
             "ISO\"."
         ),
     },
+    **{ishares_oas_name(t): {"status": "unlicensed-commercial", "note": _ISHARES_OAS_NOTE}
+       for t in ISHARES_OAS_TICKERS},
     "ERCOT": {
         "status": "public",
         "note": (

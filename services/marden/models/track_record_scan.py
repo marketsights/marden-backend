@@ -5,7 +5,8 @@ A scan day's state comes from the model's stored output when that output was wri
 (a live run: `created_at`, US Eastern, equals `as_of`), which is a snapshot taken at the time (spec 12).
 Otherwise it is reconstructed point in time by running the model code on the day with only what was
 public then (marden.models.pit): the price engine's `run_day`, the status rules on `status_inputs.load`
-with that day's Marden prices put in place of stored outputs, and the cushion simulation. Nothing is
+with that day's Marden price outputs put in place of stored outputs (with their rate-neutral reading for
+L2, `status_inputs.prices_from_outputs`), and the cushion simulation. Nothing is
 written for the scan days: a reconstruction is not a snapshot, so it never enters the price history or
 the status history.
 
@@ -36,6 +37,7 @@ from typing import Any
 from marden.core import db
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
+from marden.models.status_rules import PRICE_FINDINGS
 from marden.models.track_record_cases import PRICE_TRIGGER, WINDOW_START
 
 log = logging.getLogger(__name__)
@@ -81,7 +83,7 @@ def _stored(conn: Conn, model: str, subject_type: str, ids: Sequence[str], day: 
     return {r["subject_id"]: r["output"] for r in rows}
 
 
-PRICE_LABELS = ("L1 Marden price 95-98", "L2 Marden price below 95")  # status_rules' lenders findings
+PRICE_LABELS = PRICE_FINDINGS  # status_rules' lenders findings on the Marden price
 OTHER_LENDER_LABELS = ("Syndication stalled", "Default notice")
 
 
@@ -109,33 +111,37 @@ def _cushion_months(output: dict[str, Any] | None) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
-def _prices(conn: Conn, day: date, ids: list[str], live: bool, missing: list[str]) -> tuple[dict[str, Any], str]:
+def _prices(conn: Conn, day: date, ids: list[str], live: bool,
+            missing: list[str]) -> tuple[dict[str, Any], str, dict[str, Any], Any]:
+    """(price per instrument, basis, the price outputs, the run's Treasury curves or None)."""
     from marden.models import price
 
     if live:
-        return {i: o.get("price") for i, o in _stored(conn, "price", "instrument", ids, day).items()}, "snapshot"
+        stored = _stored(conn, "price", "instrument", ids, day)
+        return {i: o.get("price") for i, o in stored.items()}, "snapshot", stored, None
     try:
         result = price.run_day(conn, day, ids)
     except ValueError as exc:  # e.g. no Treasury curve public yet
         missing.append(f"price {day.isoformat()}: {exc}")
-        return {}, "missing"
-    return {i: o.get("price") for i, o in result["prices"].items()}, "reconstructed"
+        return {}, "missing", {}, None
+    return {i: o.get("price") for i, o in result["prices"].items()}, "reconstructed", result["prices"], result["book"]
 
 
-def _status(conn: Conn, day: date, slugs: list[str], prices: dict[str, Any], live: bool) -> tuple[dict, str]:
+def _status(conn: Conn, day: date, slugs: list[str], outputs: dict[str, Any], book: Any,
+            live: bool) -> tuple[dict, str]:
     from marden.models import status_inputs, status_rules
 
     if live:
         return {s: _status_doc(o) for s, o in _stored(conn, "status", "site", slugs, day).items()}, "snapshot"
     inputs = status_inputs.load(conn, day)  # every site: tenant ratings are pooled across sites
     pool = status_rules.rating_pool(inputs)
+    priced = status_inputs.prices_from_outputs(conn, day, {i: (day, o, None) for i, o in outputs.items()}, book)
     out = {}
     for slug in slugs:
         site = inputs.sites.get(slug)
         if site is None:
             continue
-        site.prices = [status_inputs.Price(i, float(prices[i]), day, "price v0.1", "docs/methods/pricing-v0.1.md")
-                       for i in site.instruments if isinstance(prices.get(i), int | float)]
+        site.prices = [priced[i] for i in site.instruments if i in priced]
         out[slug] = _status_doc(status_rules.evaluate(site, inputs, pool))
     return out, "reconstructed"
 
@@ -167,8 +173,8 @@ def compute_day(args: tuple[str, list[str], list[str], list[str]]) -> State:
     missing: list[str] = []
     with db.transaction() as conn:
         live = {m: day in live_days(conn, m, day, day) for m in ("price", "status", "cushion")}
-        prices, price_basis = _prices(conn, day, price_ids, live["price"], missing)
-        status, status_basis = _status(conn, day, status_slugs, prices, live["status"])
+        prices, price_basis, price_outputs, book = _prices(conn, day, price_ids, live["price"], missing)
+        status, status_basis = _status(conn, day, status_slugs, price_outputs, book, live["status"])
         cush, cushion_basis = _cushion(conn, day, cushion_slugs, live["cushion"], missing)  # reads only
     return {"day": day_iso, "basis": {"price": price_basis, "status": status_basis, "cushion": cushion_basis},
             "price": {i: (round(float(v), 3) if isinstance(v, int | float) else None) for i, v in prices.items()},

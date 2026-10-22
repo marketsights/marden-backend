@@ -31,7 +31,7 @@ from marden.agents.extract import Candidate, parse
 from marden.agents.linker import Mention, index, resolve
 from marden.agents.llm import Llm, LlmRequest, LlmResult, RunBudget
 from marden.agents.pipeline import enqueue_document, load_job, run_job
-from marden.agents.publish import materiality, recheck, store_candidate
+from marden.agents.publish import materiality, publish_candidates, recheck, store_candidate
 from marden.agents.review import decide
 from marden.agents.runner import sweep
 from marden.agents.validators import check_candidate
@@ -247,3 +247,27 @@ def test_new_checks_keep_every_recorded_answer_publishable():
         for x in cands:
             check_candidate(x, doc)
             assert not x.hard_fail, (case_id, x.field, {k: v for k, v in x.checks.items() if not v["ok"]})
+
+
+def test_a_withdrawn_value_read_again_waits_for_a_person_instead_of_failing_the_job():
+    # Live re-proof, 2026-10-21: TCEQ 182126 read again under prompt 0.2 gave the same emission limits, now with
+    # the table rows as the quote; the fact store already holds that value as the withdrawn (superseded) fact.
+    doc = store_case_document(PERMIT, source_id="agent_url", meta={"filed": True})
+    job = load_job(enqueue_document(doc.id))
+    valid_from = doc.doc_date or doc.fetched_at.date()
+    with db.transaction() as conn:
+        w = FactWriter(conn)
+        old = w.add("plant", "n-abilene-onsite", "emission_limits", LIMITS, tag="F", source_name=PERMIT,
+                    source_url=doc.url, valid_from=valid_from, producer="agent:permits", document_id=doc.id,
+                    quote=HEADING, method_version=f"{METHOD} permits").id
+        w.set_verifier(old, "agree")
+        w.publish([old])
+        conn.execute("UPDATE fact SET status = 'superseded' WHERE id = %s", (old,))
+    c = cand("permits", "emission_limits", LIMITS, ROWS, "plant", "Longhorn Data Center")
+    check_candidate(c, case(PERMIT).text())
+    c.subject_type, c.subject_id, c.link_status, c.verdict = "plant", "n-abilene-onsite", "accepted", "agree"
+    stats = publish_candidates(job, doc, [c])
+    assert stats["review"] == 1 and stats["published"] == 0
+    item = rows("SELECT reason FROM review_item WHERE ref_type = 'agent_candidate' AND ref_id = %s", (str(c.id),))[0]
+    assert f"withdrawn from fact {old}" in item["reason"]
+    assert rows("SELECT status FROM fact WHERE id = %s", (old,))[0]["status"] == "superseded"

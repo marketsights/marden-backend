@@ -1,5 +1,6 @@
-// Excel export (spec 00 "Exports"): a data sheet with the table's rows and columns as served, and a
-// sources sheet listing every Sourced value and evidence record in those rows (field, tag, URL, as-of).
+// Excel export (spec 00 "Exports"): a data sheet with the table's rows and columns as served, any
+// further table the export adds (the Data centers building sheet), and a sources sheet listing every
+// Sourced value and evidence record in those rows (field, tag, URL, as-of).
 import ExcelJS from 'exceljs';
 
 type Json = Record<string, unknown>;
@@ -97,15 +98,27 @@ export function columnsOf(rows: Json[]): string[] {
   return [...keys];
 }
 
-export async function buildWorkbook(meta: { table: string; view: string; asOf: string | null }, rows: Json[]): Promise<Buffer> {
+/** A further table in the same file (e.g. the Data centers building sheet), between Data and Sources. */
+export interface ExtraSheet { name: string; rows: Json[] }
+
+function addTable(wb: ExcelJS.Workbook, name: string, rows: Json[]): void {
+  const sheet = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
+  const columns = columnsOf(rows);
+  sheet.columns = columns.map((key) => ({ header: key, key, width: Math.min(Math.max(key.length + 2, 12), 40) }));
+  for (const row of rows) sheet.addRow(Object.fromEntries(columns.map((k) => [k, cellValue(row[k])])));
+  sheet.getRow(1).font = { bold: true };
+}
+
+export async function buildWorkbook(
+  meta: { table: string; view: string; asOf: string | null },
+  rows: Json[],
+  extra: ExtraSheet[] = [],
+): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Marden';
   wb.created = new Date();
-  const data = wb.addWorksheet('Data', { views: [{ state: 'frozen', ySplit: 1 }] });
-  const columns = columnsOf(rows);
-  data.columns = columns.map((key) => ({ header: key, key, width: Math.min(Math.max(key.length + 2, 12), 40) }));
-  for (const row of rows) data.addRow(Object.fromEntries(columns.map((k) => [k, cellValue(row[k])])));
-  data.getRow(1).font = { bold: true };
+  addTable(wb, 'Data', rows);
+  for (const sheet of extra) addTable(wb, sheet.name, sheet.rows);
 
   const sources = wb.addWorksheet('Sources', { views: [{ state: 'frozen', ySplit: 1 }] });
   sources.columns = [
@@ -114,7 +127,7 @@ export async function buildWorkbook(meta: { table: string; view: string; asOf: s
     { header: 'Source', key: 'source', width: 24 }, { header: 'URL', key: 'url', width: 48 },
     { header: 'As of', key: 'asOf', width: 12 }, { header: 'Method', key: 'method', width: 14 },
   ];
-  for (const line of collectSources(rows)) sources.addRow(line);
+  for (const line of collectSources([...rows, ...extra.flatMap((sheet) => sheet.rows)])) sources.addRow(line);
   sources.getRow(1).font = { bold: true };
   wb.title = `Marden ${meta.table} (${meta.view}) as of ${meta.asOf ?? 'latest'}`;
   return Buffer.from(await wb.xlsx.writeBuffer());

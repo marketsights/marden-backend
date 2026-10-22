@@ -231,7 +231,7 @@ describe('data centers and power plants', () => {
     expect(res.headers['content-disposition']).toContain('marden-data-centers-2026-10-15.xlsx');
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer);
-    expect(wb.worksheets.map((s) => s.name)).toEqual(['Data', 'Sources']);
+    expect(wb.worksheets.map((s) => s.name)).toEqual(['Data', 'Buildings', 'Sources']);
     const data = wb.getWorksheet('Data')!;
     expect(data.rowCount).toBe(3);
     const header = (data.getRow(1).values as unknown[]).slice(1);
@@ -244,6 +244,37 @@ describe('data centers and power plants', () => {
     const mw = lines.find((l) => l[1] === 'dc-a' && l[2] === 'facilityMw')!;
     expect(mw.slice(3)).toEqual([1200, 'F', 'Test record', 'https://example.test/doc', '2026-10-15', '']);
     expect(lines.some((l) => l[2] === 'financed.debtB' && l[4] === 'R')).toBe(true);
+  });
+
+  it('adds a building sheet for the exported campuses, in the table order, with their sources', async () => {
+    const building = (id: string, label: string, inService: string | null) => ({
+      id, label, footprint: { type: 'Polygon', coordinates: [[[-99.7, 32.4], [-99.6, 32.4], [-99.6, 32.5], [-99.7, 32.4]]] },
+      sqft: sourced(null, 'F'), facilityMw: sourced(null, 'F'), itMw: sourced(105, 'R'), status: sourced('Operating', 'M'),
+      buildingPermit: sourced(null, 'F'), coDate: sourced(null, 'F'), firstVisible: '2024-07-12', inService: sourced(inService, 'R'),
+    });
+    await putReadModel(db, { view: 'dc_tab:buildings', key: 'dc-a', asOf: '2026-10-15' }, [building('dc-a-b1', 'Building 1', '2025-06-28'), building('dc-a-b2', 'Building 2', null)]);
+    await putReadModel(db, { view: 'dc_tab:buildings', key: 'dc-c', asOf: '2026-10-15' }, [building('dc-c-b1', 'Hall 1', null)]);
+    try {
+      const load = async (qs: string) => {
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load((await app.inject({ method: 'GET', url: `/api/export/data-centers.xlsx?${qs}` })).rawPayload as unknown as ArrayBuffer);
+        return wb;
+      };
+      const tx = (await load('state=TX')).getWorksheet('Buildings')!;
+      const header = (tx.getRow(1).values as unknown[]).slice(1);
+      expect(header).toEqual(['id', 'campusId', 'campus', 'label', 'sqft', 'facilityMw', 'itMw', 'status', 'buildingPermit', 'coDate', 'firstVisible', 'inService']);
+      const rows = (tx.getSheetValues().slice(2) as unknown[][]).map((r) => r.slice(1));
+      expect(rows).toEqual([
+        ['dc-a-b1', 'dc-a', 'Campus dc-a', 'Building 1', 'n/d', 'n/d', 105, 'Operating', 'n/d', 'n/d', '2024-07-12', '2025-06-28'],
+        ['dc-a-b2', 'dc-a', 'Campus dc-a', 'Building 2', 'n/d', 'n/d', 105, 'Operating', 'n/d', 'n/d', '2024-07-12', 'n/d'],
+      ]); // dc-c is in NM: filtered out with its campus
+      const all = await load('sort=name');
+      expect((all.getWorksheet('Buildings')!.getSheetValues().slice(2) as unknown[][]).map((r) => r[1])).toEqual(['dc-a-b1', 'dc-a-b2', 'dc-c-b1']);
+      const sources = all.getWorksheet('Sources')!.getSheetValues().slice(2) as unknown[][];
+      expect(sources.find((l) => l[1] === 'dc-a-b1' && l[2] === 'inService')?.slice(3, 5)).toEqual(['2025-06-28', 'R']);
+    } finally {
+      await clearReadModels(db, ['dc_tab:buildings']);
+    }
   });
 
   it('answers 404 for an unknown export table and 503 when its read model is missing', async () => {

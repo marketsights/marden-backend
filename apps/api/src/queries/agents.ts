@@ -35,14 +35,23 @@ export async function subjectMissing(c: Queryable, links: Record<string, string>
   return null;
 }
 
-export interface AgentStatus { backend: string; detail: string | null; models: Record<string, string>; checkedAt: string | null }
+export interface AgentStatus {
+  backend: string; detail: string | null; models: Record<string, string>; checkedAt: string | null;
+  /** The worker writes agent_status on every sweep (30 s); older than STATUS_STALE_MS means it is not running. */
+  stale: boolean;
+}
 
-export async function agentStatus(c: Queryable): Promise<AgentStatus> {
+export const STATUS_STALE_MS = 10 * 60 * 1000;
+
+export async function agentStatus(c: Queryable, now: number = Date.now()): Promise<AgentStatus> {
   const res = await c.query<{ backend: string; detail: string | null; models: Record<string, string>; checked_at: string }>(
     `SELECT backend, detail, models, checked_at FROM agent_status LIMIT 1`);
   const row = res.rows[0];
-  if (!row) return { backend: 'not_configured', detail: 'the agent worker has not reported yet', models: {}, checkedAt: null };
-  return { backend: row.backend, detail: row.detail, models: row.models, checkedAt: row.checked_at };
+  if (!row) {
+    return { backend: 'not_configured', detail: 'the agent worker has not reported yet', models: {}, checkedAt: null, stale: true };
+  }
+  const stale = now - new Date(row.checked_at).getTime() > STATUS_STALE_MS;
+  return { backend: row.backend, detail: row.detail, models: row.models, checkedAt: row.checked_at, stale };
 }
 
 export async function upload(c: Queryable, id: string) {

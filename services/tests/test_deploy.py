@@ -8,6 +8,7 @@ import io
 import json
 import logging
 import os
+import shutil
 import subprocess
 import threading
 import uuid
@@ -133,6 +134,20 @@ def test_railway_config_builds_each_image_and_migrates_before_deploy():
     assert 'CMD ["python", "-m", "marden", "worker"]' in (REPO / "services/Dockerfile").read_text()
     # Railway kills after drainingSeconds: the worker must have finished draining by then.
     assert wk["deploy"]["drainingSeconds"] > worker.DEFAULT_SHUTDOWN_TIMEOUT_S
+
+
+def test_worker_image_installs_the_lockfile_only_when_it_matches_pyproject():
+    # `uv sync --frozen` installs a stale lock without complaint (a dependency added to pyproject.toml
+    # without `uv lock` would be missing from the image); --locked fails the build instead.
+    text = (REPO / "services/Dockerfile").read_text()
+    syncs = [line for line in text.splitlines() if line.startswith("RUN") and "uv sync" in line]
+    assert len(syncs) == 2 and all("--locked" in s and "--frozen" not in s for s in syncs)
+    uv = shutil.which("uv")
+    if uv is None:
+        pytest.skip("uv is not on PATH")
+    out = subprocess.run([uv, "lock", "--check", "--offline"], cwd=REPO / "services", capture_output=True, text=True,
+                         timeout=120)
+    assert out.returncode == 0, out.stderr[-1000:]
 
 
 def test_every_task_runs_on_a_declared_queue_and_the_worker_takes_all_queues():

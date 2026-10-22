@@ -13,8 +13,9 @@ every subject are marked dirty ('@model:price', '@model:cds', '@model:curve').
 Runs (spec 22 "What runs when"): daily 09:40 UTC (05:40 EDT, after the 09:35 cushion run whose
 projection sets completion dates, before the 09:53 status run that reads the price), and within a
 minute of any published input (marden.models.triggers): a price observation other than the model's
-own, a Treasury / SOFR / HY / equity series value, an issue comp, an instrument's terms, a site's
-power, permit or schedule facts and events, a cushion run, an issuer's XBRL debt or shares.
+own, a Treasury / SOFR / HY (ICE BofA, or its etf_oas fund-OAS proxy) / equity series value, an issue
+comp, an instrument's terms, a site's power, permit or schedule facts and events, a cushion run, an
+issuer's XBRL debt or shares.
 """
 
 from __future__ import annotations
@@ -124,7 +125,7 @@ def _observed_price(conn: Conn, instrument_id: str) -> list[str]:
 
 
 def _price_series(conn: Conn, subject_id: str) -> list[str]:
-    prefixes = ("ust_par_", "sofr", "ice_bofa_", "equity:", "issue_comp:", "gpu_residual:")
+    prefixes = ("ust_par_", "sofr", "ice_bofa_", "etf_oas_", "equity:", "issue_comp:", "gpu_residual:")
     return ["*"] if subject_id.startswith(prefixes) else []
 
 

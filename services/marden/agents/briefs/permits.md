@@ -49,4 +49,6 @@ TCEQ Plain Language Summary, air permit 182126 / GHGPSDTX263 / PSDTX1688, stored
 - quote "This permit will authorize additional power generation equipment for onsite consumption in data
   center buildings." -> no field (no units or MW stated).
 - the pollutant table ("NOx 760.33" under "Proposed Emissions (ton/yr)") -> emission_limits {"basis":
-  "proposed emissions, tons per year", "NOx": "760.33", ...}, quoting the table heading or one row.
+  "proposed emissions, tons per year", "NOx": "760.33", ...}, quoting the table rows that hold every number in
+  the value ("VOC 815.59 PM10 451.10 ... HAPs 49.77"). The table's heading or the sentence above it is never
+  the quote: code rejects a value whose numbers are not in its quote.

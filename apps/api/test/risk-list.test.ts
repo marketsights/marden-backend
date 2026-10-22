@@ -1,5 +1,6 @@
 // GET /api/risk-list (spec 10): the published weeks for the week picker, ?week= on any day of its week,
 // frozen past lists served as stored, and the snapshot date limiting which weeks exist.
+import ExcelJS from 'exceljs';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db.js';
@@ -67,6 +68,40 @@ describe('GET /api/risk-list', () => {
 
   it('answers 503 not_ready when no list is published yet', async () => {
     expect((await get('/api/risk-list?asOf=2026-10-01')).json()).toEqual({ error: 'not_ready', view: 'risk_list', key: 'latest' });
+  });
+
+  it('exports a week in the screen’s columns, with vs last wk as shown and each record in the sources sheet', async () => {
+    const why = [{ date: '2026-10-13', text: 'Pipeline now Feb 1 2027', tag: 'F', sourceName: 'FERC', sourceUrl: 'https://elibrary.ferc.gov/x' }];
+    const odds = { value: 0.4, tag: 'M', asOf: '2026-10-12', methodVersion: 'odds v0' };
+    const price = { value: 93.1, tag: 'M', asOf: '2026-10-12', methodVersion: 'price v0.1' };
+    const doc = {
+      ...list('2026-10-12', '2026-10-18', 'Second week'),
+      rows: [
+        { rank: 1, instrumentId: 'RL-A', name: 'Traded notes', size: '$2.0B', why, price, change1w: { ...price, value: -1.2 },
+          fundMark: 'traded', gap: null, odds, move: { kind: 'up', by: 2 } },
+        { rank: 2, instrumentId: 'RL-B', name: 'Marked notes', size: 'n/d', why: [], price: null, change1w: null,
+          fundMark: 99.3, gap: -6.2, odds, move: { kind: 'same' } },
+      ],
+    };
+    await putReadModel(db, { view: 'risk_list', key: '2026-10-12', asOf: '2026-10-12' }, doc);
+    try {
+      const res = await get('/api/export/risk-list.xlsx?week=2026-10-14');
+      expect(res.statusCode).toBe(200);
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer);
+      const data = wb.getWorksheet('Data')!;
+      const header = (data.getRow(1).values as unknown[]).slice(1);
+      expect(header).toEqual(['rank', 'instrumentId', 'name', 'size', 'why', 'price', 'change1w', 'fundMark', 'gap', 'odds', 'vsLastWeek']);
+      const row = (n: number) => Object.fromEntries(header.map((h, j) => [h, (data.getRow(n).values as unknown[]).slice(1)[j]]));
+      expect(row(2)).toMatchObject({ name: 'Traded notes', fundMark: 'traded', gap: '—', vsLastWeek: '▲ 2', price: 93.1, odds: 0.4 });
+      expect(String(row(2).why)).toContain('Pipeline now Feb 1 2027');
+      expect(row(3)).toMatchObject({ name: 'Marked notes', price: '—', fundMark: 99.3, gap: -6.2, vsLastWeek: '—' });
+      const sources = wb.getWorksheet('Sources')!;
+      const urls = Array.from({ length: sources.rowCount }, (_, i) => (sources.getRow(i + 1).values as unknown[]).join(' '));
+      expect(urls.some((line) => line.includes('https://elibrary.ferc.gov/x'))).toBe(true);
+    } finally {
+      await putReadModel(db, { view: 'risk_list', key: '2026-10-12', asOf: '2026-10-12' }, list('2026-10-12', '2026-10-18', 'Second week'));
+    }
   });
 
   it('finds the Monday of any day', () => {

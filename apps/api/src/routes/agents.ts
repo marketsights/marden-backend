@@ -119,7 +119,11 @@ function uploadRoutes(app: FastifyInstance, db: Db): void {
     const agents = await agentStatus(db);
     return reply.code(202).send({
       uploadId: row.id, status: 'pending', kind, size: parsed.data.length, sha256, links, createdAt: row.createdAt,
-      agents: { configured: agents.backend !== 'not_configured', backend: agents.backend, detail: agents.detail },
+      // Configured only while the worker reports: a stale status (worker down) is not a promise that it runs.
+      agents: {
+        configured: agents.backend !== 'not_configured' && !agents.stale, backend: agents.backend, detail: agents.detail,
+        stale: agents.stale, checkedAt: agents.checkedAt,
+      },
     });
   });
 }

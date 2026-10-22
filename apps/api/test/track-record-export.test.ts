@@ -55,11 +55,14 @@ describe('track record exports', () => {
   it('exports the backtest cases', async () => {
     const { rows } = await sheet('/api/export/track-record.xlsx');
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toMatchObject({ name: 'TR test loan', flagged: '2026-07-09', moved: '2026-09-18', leadDays: 71, flagBasis: 'reconstructed' });
+    expect(rows[0]).toMatchObject({ name: 'TR test loan', flagged: '2026-07-09', moved: '2026-09-18', leadDays: 71, flagBasis: 'reconstructed', status: 'published' });
+    // A case still being backtested is a row of its own, as on the chart, with "—" for what it does not have yet.
+    expect(rows[1]).toMatchObject({ name: 'TR running case', flagged: '—', moved: '—', leadDays: '—', status: 'backtest running' });
   });
 
   it('exports the models table', async () => {
-    const { rows } = await sheet('/api/export/models.xlsx');
+    const { header, rows } = await sheet('/api/export/models.xlsx');
+    expect(header.slice(0, 5)).toEqual(['output', 'version', 'builtFrom', 'cadence', 'lastRun']); // the screen's columns first
     expect(rows).toEqual([expect.objectContaining({ model: 'price', output: 'Marden price', version: 'price v0.1', cadence: 'Daily' })]);
   });
 

@@ -240,7 +240,8 @@ def _queue_links(kind: str) -> KeyFn:
     )
 
 
-RATE_SERIES_PREFIXES = ("ust_par_", "sofr", "ice_bofa_")  # collectors ust_par_curve, nyfed_sofr, fred
+# collectors ust_par_curve, nyfed_sofr, fred, etf_oas (the fund-OAS proxies for the ICE series)
+RATE_SERIES_PREFIXES = ("ust_par_", "sofr", "ice_bofa_", "etf_oas_")
 
 
 def _rate_series(conn: Conn, subject_id: str) -> list[str]:
@@ -355,6 +356,9 @@ def _install_site_deps() -> None:
     # The lists' "Bldgs" column (spec 16) counts the linked campuses' buildings and building facts.
     _many("campus", ("sites", "completion"), _any_linked(_CAMPUS_LINKED_SITES))
     _many("building", ("sites", "completion"), _any_linked(_BUILDING_LINKED_SITES))
+    # Completion's and Home's 'Last evidence' (sites_evidence) read the linked campuses' and plants' events.
+    _many("campus", ("home",), _any_linked(_CAMPUS_LINKED_SITES))
+    _many("plant", ("completion", "home"), _any_linked(_PLANT_LINKED_SITES))
     # The Power and Buildings tabs embed the main plant's `plant_row` (built with its own builder), whose
     # financed link shows the site's chain status and debt: the site's instruments refresh them too.
     _many("instrument", ("site_tab:power", "site_tab:buildings"), _INSTRUMENT_SITE)

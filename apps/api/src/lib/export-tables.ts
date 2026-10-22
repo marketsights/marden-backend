@@ -18,16 +18,23 @@ import { loadGpuModel } from './gpu-model-doc.js';
 import { filterLeases, leaseExportRow } from './lease-filters.js';
 import { completionExportRow, sitesExportRow } from './list-export.js';
 import { modelExportRow, riskListExportRow, trackCaseExportRow } from './monitor-export.js';
+import { obligationExportRows } from './obligation-export.js';
 import { first, isoDate, type Query } from './params.js';
 import { filterPayers, payerIndexRow, payerSiteRows } from './payer-filters.js';
 import type { RowViewDef } from './row-query.js';
 import { DC_ROWS, PLANT_ROWS } from './row-views.js';
+import { campusExport } from './campus-export.js';
+import { campusBuildingRows } from './dc-export.js';
 import { siteExport } from './site-export.js';
 import { stressExportRows } from './stress-export.js';
 import { toWatchItem } from './watch-items.js';
 
 export interface ExportCtx { db: Db; q: Query; orgId: string; asOf: string | null }
-export interface ExportData { view: string; asOf: string | null; rows: Record<string, unknown>[] }
+export interface ExportData {
+  view: string; asOf: string | null; rows: Record<string, unknown>[];
+  /** Further tables written between the data and sources sheets. */
+  sheets?: { name: string; rows: Record<string, unknown>[] }[];
+}
 type Loader = (ctx: ExportCtx) => Promise<ExportData>;
 
 const MAX_EXPORT_ROWS = 100_000;
@@ -46,8 +53,14 @@ const rowView = (def: RowViewDef): Loader => async (ctx) => {
 };
 
 export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
-  'data-centers': rowView(DC_ROWS),
+  // Spec 14: the campus sheet, a building sheet for the same campuses, then the sources.
+  'data-centers': async (ctx) => {
+    const data = await rowView(DC_ROWS)(ctx);
+    return { ...data, sheets: [{ name: 'Buildings', rows: await campusBuildingRows(ctx.db, data.rows, ctx.asOf) }] };
+  },
   'power-plants': rowView(PLANT_ROWS),
+  // One campus detail tab's table (?id=&tab=[&type=], spec 14): the campus header's Excel.
+  'data-center': (ctx) => campusExport(ctx),
   completion: async (ctx) => {
     const d = await doc<CompletionResponse>(ctx, 'completion', 'all');
     const watched = wantsWatchlist(ctx.q) ? await watchedSiteSlugs(ctx.db, ctx.orgId) : null;
@@ -120,9 +133,10 @@ export const EXPORT_TABLES: Readonly<Record<string, Loader>> = {
     if (!model) throw badRequest('model is required for the gpu-model export');
     return { view: 'gpu_model', asOf: ctx.asOf, rows: gpuModelPartRows(await loadGpuModel(ctx.db, model, ctx.asOf), ctx.q) };
   },
+  // The map's table (?type=&status=&minB=&company=, spec 18) in the screen's columns (lib/obligation-export.ts).
   obligations: async (ctx) => {
     const d = filterObligations(await doc<ObligationGraph>(ctx, 'obligations', 'all'), ctx.q);
-    return { view: 'obligations', asOf: d.asOf, rows: asRows(d.edges) };
+    return { view: 'obligations', asOf: d.asOf, rows: obligationExportRows(d) };
   },
   // ?scenario=&severity=&<param>= as on /stress: the run's debt-hit table (StressResult.rows, or
   // ContagionResult.instruments) in the screen's columns and order (lib/stress-export.ts), from the

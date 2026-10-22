@@ -6,13 +6,17 @@
 | tenant | T1 rated BBB- or lower, or must post contested collateral | T2 BBB- or lower and power denied or |
 | | | withdrawn, or force majeure filed |
 | developer | D1 in-service date slips 3+ months | D2 construction halted |
-| lenders | L1 Marden price 95-98, or syndication stalled | L2 Marden price below 95, or default notice |
+| lenders | L1 Marden price 95-98, or syndication stalled | L2 Marden price below 95 on credit alone, or |
+| | | default notice |
 
 Chain status = worst link: any red -> Broken, any amber -> Strained, else Holding; 'No build' when a
 statement says construction has not started. A link without a named party is 'none' (lenders are judged
 whenever the site has debt). Each tripped rule keeps the statement that tripped it (the ChainLink `fact`);
-when several statements trip one rule, the filed one first, then the earliest. Text rules:
-`marden.models.status_text`; dates: `marden.models.status_dates`; method: docs/methods/status-rules-v0.1.md.
+when several statements trip one rule, the filed one first, then the earliest. L2's price test is
+rate-neutral: a fixed-rate instrument trips it when its spread move since the reference day (issue, else
+the first Marden price) alone is worth 5+ points (`marden.models.status_credit`); a floating-rate loan
+when its Marden price is below 95. Text rules: `marden.models.status_text`; dates:
+`marden.models.status_dates`; method: docs/methods/status-rules-v0.1.md.
 """
 
 from __future__ import annotations
@@ -26,11 +30,16 @@ from typing import Any
 
 from marden.models import status_dates as dates
 from marden.models import status_text as tx
-from marden.models.status_inputs import Inputs, Item, Party, SiteInputs
+from marden.models.status_credit import LOSS_RED_POINTS
+from marden.models.status_inputs import Inputs, Item, Party, Price, SiteInputs
 
-METHOD_VERSION = "status v0.1"
+METHOD_VERSION = "status v0.2"
 PRICE_RED_BELOW = 95.0
 PRICE_AMBER_AT_OR_BELOW = 98.0
+L1_PRICE = "Marden price 95-98"
+L2_PRICE = "Marden price below 95"  # a floating-rate loan (or terms not on file)
+L2_SPREAD = "Marden spread loss of 5+ points"  # a fixed coupon: the spread move alone (status_credit)
+PRICE_FINDINGS = (f"L1 {L1_PRICE}", f"L2 {L2_PRICE}", f"L2 {L2_SPREAD}")  # as they open a link's reason
 SLIP_MONTHS = 3
 TAG_RANK = {"F": 0, "R": 1, "M": 2}
 SEVERITY = {"none": 0, "green": 1, "amber": 2, "red": 3}
@@ -243,6 +252,37 @@ def developer(site: SiteInputs, missing: list[str]) -> list[Finding]:
 
 
 # ---------------------------------------------------------------- lenders
+def _price_fact(p: Price, value: str, method: str | None = None) -> dict[str, Any]:
+    fact = {"value": value, "tag": "M", "asOf": p.as_of.isoformat(), "sourceName": "Marden model price",
+            "methodVersion": method or p.method_version or "price"}
+    if p.source_url:
+        fact["sourceUrl"] = p.source_url
+    return fact
+
+
+def credit_shortfall(p: Price) -> float | None:
+    """Points below par on credit alone: a fixed coupon's spread-only loss since its reference day, a
+    floating-rate loan's (or a price without terms) 100 - price. None when a fixed coupon has no reading."""
+    if p.coupon_type == "fixed":
+        return p.credit.loss if p.credit is not None else None
+    return 100.0 - p.value
+
+
+def _l2_price(p: Price) -> Finding:
+    if p.credit is None:  # floating rate: the price is already a credit price
+        kind = "floating rate" if p.coupon_type == "floating" else "coupon type n/d"
+        text = f"Marden price {p.value:.1f} ({p.instrument_id}, {kind})"
+        return Finding("L2", "red", L2_PRICE, detail=text, fact=_price_fact(p, text))
+    c = p.credit
+    text = (f"{p.instrument_id}: Marden spread {c.spread_bp:.0f} bp vs {c.ref.spread_bp:.0f} bp {c.ref.at}, "
+            f"{c.loss:.1f} points on spread alone (spread duration {c.spread_duration:.1f}; rate-neutral price "
+            f"{c.credit_price:.1f} vs {c.ref_price:.1f}); Marden price {p.value:.1f}")
+    fact = _price_fact(p, f"Marden spread loss {c.loss:.1f} points ({p.instrument_id}: {c.spread_bp:.0f} bp vs "
+                          f"{c.ref.spread_bp:.0f} bp {c.ref.at})",
+                       f"{METHOD_VERSION} on {p.method_version or 'price'}")
+    return Finding("L2", "red", L2_SPREAD, detail=text, fact=fact)
+
+
 def lenders(site: SiteInputs, missing: list[str]) -> list[Finding]:
     found = []
     debt_items = site.items + site.instrument_items
@@ -252,22 +292,31 @@ def lenders(site: SiteInputs, missing: list[str]) -> list[Finding]:
     if (pick := _pick(default)) is not None:
         found.append(Finding("L2", "red", "Default notice", pick[0], pick[1].clause))
     if site.prices:
+        for p in site.prices:
+            if p.coupon_type == "fixed" and p.credit is None:
+                missing.append(f"lenders: {p.credit_missing or p.instrument_id} (rate-neutral L2 test)")
+        red = [(loss, p) for p in site.prices if (loss := credit_shortfall(p)) is not None
+               and (loss >= LOSS_RED_POINTS if p.credit is not None else p.value < PRICE_RED_BELOW)]
         worst = min(site.prices, key=lambda p: p.value)
-        fact = {"value": f"Marden price {worst.value:.1f} ({worst.instrument_id})", "tag": "M",
-                "asOf": worst.as_of.isoformat(), "sourceName": "Marden model price",
-                "methodVersion": worst.method_version or "price"}
-        if worst.source_url:
-            fact["sourceUrl"] = worst.source_url
-        if worst.value < PRICE_RED_BELOW:
-            found.append(Finding("L2", "red", "Marden price below 95", detail=fact["value"], fact=fact))
-        elif worst.value <= PRICE_AMBER_AT_OR_BELOW:
-            found.append(Finding("L1", "amber", "Marden price 95-98", detail=fact["value"], fact=fact))
+        if red:
+            found.append(_l2_price(max(red, key=lambda r: (r[0], r[1].instrument_id))[1]))
+        elif PRICE_RED_BELOW <= worst.value <= PRICE_AMBER_AT_OR_BELOW:
+            text = f"Marden price {worst.value:.1f} ({worst.instrument_id})"
+            found.append(Finding("L1", "amber", L1_PRICE, detail=text, fact=_price_fact(worst, text)))
     else:
         missing.append("lenders: Marden price (price model output)")
     stalled = _pick(_scan(debt_items, tx.syndication_stalled, site=site, fields=DEBT_FIELDS))
     if stalled:
         found.append(Finding("L1", "amber", "Syndication stalled", stalled[0], stalled[1].clause))
     return found
+
+
+def _price_note(p: Price) -> str:
+    """The green lenders link's price clause: the lowest Marden price and, for a fixed coupon, its spread move."""
+    if p.credit is None:
+        return f"Marden price {p.value:.1f}"
+    return (f"Marden price {p.value:.1f} ({p.instrument_id}: spread-only loss {p.credit.loss:.1f} points "
+            f"{p.credit.ref.since})")
 
 
 # ---------------------------------------------------------------- links and chain
@@ -328,7 +377,7 @@ def evaluate(site: SiteInputs, inputs: Inputs, pool: dict[str, list[RatingEviden
         lend = parties.get("lenders")
         price = min(site.prices, key=lambda p: p.value) if site.prices else None
         green = "No lender rule met: no default notice or stalled syndication on file"
-        green += f"; Marden price {price.value:.1f}" if price else "; no Marden price yet"
+        green += f"; {_price_note(price)}" if price else "; no Marden price yet"
         chain.append(_link("lenders", lend.label if lend else "n/d", lenders(site, missing), green))
     else:
         chain.append(_none("lenders", "No debt is linked to this site"))

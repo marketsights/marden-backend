@@ -38,6 +38,7 @@ _CHALLENGE = re.compile(
     rb"|please enable cookies|are you a robot|unusual traffic",
     re.I,
 )
+CHALLENGE = _CHALLENGE  # for collectors of HTML pages, which check the body themselves (collectors/etf_oas)
 _LOGIN_HOSTS = ("login.", "consent.", "guce.", "signin.", "auth.", "accounts.")
 
 

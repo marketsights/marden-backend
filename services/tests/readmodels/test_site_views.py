@@ -345,28 +345,6 @@ def test_draws_vs_progress_follow_filed_draws_and_percent_complete(sites):
     assert pf["drawPaceFlag"] is None and all(e["late"] is None for e in pf["equipment"])
 
 
-def test_last_evidence_prefers_judged_records_over_unjudged_ones(sites):
-    rows = {r["slug"]: r for r in build("completion")["rows"]}
-    checked = 0
-    for slug, row in rows.items():
-        judged = copied_rows(
-            """SELECT 1 FROM event WHERE subject_type = 'site' AND subject_id = %(s)s AND status = 'published'
-                 AND event_date <= %(d)s AND (material OR severity IN ('red', 'amber'))
-               UNION SELECT 1 FROM fact_current WHERE subject_type = 'site' AND subject_id = %(s)s
-                 AND field = 'materiality_note'""", {"s": slug, "d": business_today()})
-        research = copied_rows(
-            """SELECT value->>'date' AS d, value->>'headline' AS h FROM fact
-                WHERE subject_type = 'site' AND subject_id = %s AND field = 'risk_evidence' AND status = 'published'
-                  AND value->>'date' <= %s ORDER BY 1 DESC""", (slug, business_today().isoformat()))
-        if judged or not research:
-            continue
-        # No material or flagged event: the case research's latest dated item, not an agenda line.
-        assert row["lastEvidence"]["date"] == research[0]["d"], slug
-        assert row["lastEvidence"]["text"] in {r["h"] for r in research if r["d"] == research[0]["d"]}
-        checked += 1
-    assert checked, "no site without judged events to check"
-
-
 def test_lease_today_tone_follows_the_cushion(sites):
     for slug in [s for s in NAMED if s in sites]:
         lease = build("site_tab:lease", slug)

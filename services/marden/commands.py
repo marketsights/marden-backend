@@ -146,6 +146,7 @@ def backup_fetch_command(args: argparse.Namespace) -> int:
     except BackupError as exc:
         print(f"fetch failed: {exc}")
         return 1
-    print(f"fetched r2://{info['bucket']}/{info['key']} -> {args.target}: sha256 {info['sha256']}, "
+    check = "matches backup_run" if info["verified"] else "NOT verified (no ok backup_run row records this key)"
+    print(f"fetched r2://{info['bucket']}/{info['key']} -> {args.target}: sha256 {info['sha256']} {check}, "
           f"{info['entries']} archive entries (restore with pg_restore; docs/DEPLOY.md)")
     return 0

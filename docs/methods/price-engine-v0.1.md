@@ -19,14 +19,14 @@ A run for a past day is a backtest: it reads only what was public that day.
 | Equity closes | `series` `equity:<TICKER>` `close` | close date |
 | Debt and shares | entity XBRL `total_debt_usd` (else `long_term_debt_usd` + `debt_current_usd`), `shares_outstanding` (else `common_shares_outstanding`) | period + 40 days |
 | Issue comps | `series` `issue_comp:<fid>` (`deal_terms`, `issue_date`, `issue_spread_bp`, `tier`) | issue date |
-| ICE BofA HY OAS | `series` `ice_bofa_us_hy_oas` | observation date |
+| ICE BofA HY OAS; on a day it has no value, its proxy the USHY fund OAS | `series` `ice_bofa_us_hy_oas`; `etf_oas_ushy` (collector `etf_oas`) | observation date (the fund page's as-of date) |
 | Terms | instrument `coupon`, `coupon_type`, `coupon_rate_pct`, `coupon_spread_bp`, `maturity`, `tenants`, `gpu_model`, `gpu_collateral`, `backstop` | from the instrument's issue date (the seed dated them by load day, though they were public at issue) |
 | Chain | `chain_party` tenant of the instrument's site; entity `parent_id` | identity rows |
 | Construction | model `cushion` P50 rent start of the site (latest on or before the day) | its as-of |
 | Site signals | site facts `risk_power`, `power_detail`, `power_contract`, `risk_evidence`, `schedule_change`, `risk_permits`, `issue`, `materiality_note`, `onsite_generation`; site events | record date |
 | GPU residual bands | `series` `gpu_residual:<chip>` `residual_pct_of_new` | as stored |
 
-With `MARDEN_SHOW_UNLICENSED_PRICES=false`, rows from unlicensed sources are dropped before any input is built: FINRA TRACE (finra.org), Börse Frankfurt, Yahoo Finance, and ICE via FRED. The `pit` fact reader and `price_marks` both apply this.
+With `MARDEN_SHOW_UNLICENSED_PRICES=false`, rows from unlicensed sources are dropped before any input is built: FINRA TRACE (finra.org), Börse Frankfurt, Yahoo Finance, ICE via FRED, and the iShares fund OAS proxies. The `pit` fact reader and `price_marks` both apply this.
 
 ## 2. Bond-implied CDS (`price_issuer`, `price_cds`)
 
@@ -51,6 +51,11 @@ Output `cds`: `{label: "Marden bond-implied CDS", spreadBp, upfrontPct, hazard, 
 Spread over Treasuries = tier level + b × (HY − its sample mean) + c × NS(T), with NS(T) = (1 − e^(−T/3))/(T/3).
 
 - **Fit.** Ridge regression on the comps issued from 2025-05-01 that were public on the day. Tier levels shrink toward the pooled mean (weight 1). b shrinks toward 33bp per point (weight 4), and c toward 0 (weight 1).
+- **HY input** ([pricing-v0.1.md](pricing-v0.1.md) "Inputs when FRED is unavailable"). HY is the ICE series on or within 7 days before the day; when it has none, the USHY fund OAS, recorded as a proxy. Three cases:
+  - Every comp has an HY value at issue: b and the mean are fitted (`hyMode: "fitted"`).
+  - Some comp has none, but the day has a value: the levels are fitted without the term, and b = 33bp per point against the methodology's stated 2.89% mean (`"fixed"`).
+  - The day has no value: the term is dropped and `missing` says so.
+- **HY in the outputs.** `curve_fit` carries `hyMode`, `hyBasis`, `hyProxyDeals` and `inputs` (the day's HY input: `{key: "hyOasPct", value, asOf, tag R, sourceName, series, proxy, proxyLabel, proxyFor, method, displayAllowed: false}`). A price read off the tier curve lists the same input.
 - **Floating deals.** These use margin + (SOFR − Treasury par yield at the tenor) on the issue date.
 - **Tier rules** (`tier_of`), on the comp's stored type, tenant tier and rating:
 
@@ -100,7 +105,7 @@ P = Σ CF·S·D + Σ R·N·(S(t−1) − S(t))·D, with D = Treasury × e^(−(l
 
 **Price and band.** Price = clean price at lp + r. The 80% band is the price at r ± 1.28 sd, with the tenant's intensity uncertainty added. `change1w` is measured against the stored output exactly 7 days earlier, else this run's filtered path.
 
-Output `price`: `{price, spreadBp (yield − Treasury par at maturity), yieldPct, recovery, change1w, inputs: [{key, label, value, unit, tag, asOf, methodVersion?, sourceName?}], band: {low, high, level, label: "model v0"}, missing: [...], basis, label: "Marden model price", methodVersion, tier}`. The input keys include `issuerCdsBp`, `tenantCdsBp`, `obligorCdsBp`, `permitDenials`, `powerDelays`, `liquidityPremiumBp`, `residualBp`, `treasuryYieldPct`, `sofrPct` and `impliedDefaultOdds`.
+Output `price`: `{price, spreadBp (yield − Treasury par at maturity), yieldPct, recovery, change1w, inputs: [{key, label, value, unit, tag, asOf, methodVersion?, sourceName?}], band: {low, high, level, label: "model v0"}, missing: [...], basis, label: "Marden model price", methodVersion, tier}`. The input keys include `issuerCdsBp`, `tenantCdsBp`, `obligorCdsBp`, `permitDenials`, `powerDelays`, `liquidityPremiumBp`, `residualBp`, `treasuryYieldPct`, `sofrPct`, `impliedDefaultOdds` and, for a price read off the tier curve, `hyOasPct` (`displayAllowed: false`: the read models never show it).
 
 Not priced in v0.1, each listed in `missing`: convertible notes (no equity-option model), non-USD notes, and instruments without maturity or coupon terms.
 
@@ -162,7 +167,7 @@ Run 2026-10-21 on the local database. The numbers move as more N-PORT filings lo
 
 ## 7. Known gaps
 
-- **ICE BofA HY OAS.** The FRED fetch returned FRED's "Site Maintenance" page for BAMLH0A0HYM2 on 2026-10-21, so no HY values are stored. The tier curves are fitted without the market term and do not move with HY.
+- **ICE BofA HY OAS.** On 2026-10-21 the FRED fetch got FRED's "Site Maintenance" page for BAMLH0A0HYM2, so no ICE values are stored. The curves now move with the USHY fund OAS proxy (`etf_oas_ushy`, 3.077% as of 2026-10-20). b is fixed at 33bp per point against the methodology's 2.89% mean, so the 5-year tier yields of the 2026-10-21 run rose 6.2bp. No instrument was priced off the tier curve that day, so no Marden price moved. The coefficient is fitted again once FRED serves the ICE history.
 - **CoreWeave equity moves.** CoreWeave has no XBRL `shares_outstanding` or `total_debt_usd` facts, so CreditGrades cannot run and its loading is 0.
 - **N-PORT before mid-2026.** Marks for Oct 2025 – Apr 2026 are not loaded (DERA 2025q4 and 2026q1 data sets). Two of the seven CoreWeave dates cannot be graded, and Oracle has no intensity before TRACE starts (2026-01-02).
 - **Tenants with no straight bonds.** Meta, Microsoft, Amazon, Google, OpenAI, Fluidstack and xAI have no straight bonds in the instrument table, so their legs and the Google backstops are not priced (named in `missing`).

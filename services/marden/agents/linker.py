@@ -186,10 +186,13 @@ def exact_name(kind: str, name: str) -> Record | None:
 
 
 def confirmed(kind: str, name: str) -> tuple[int, str] | None:
+    """A link a person accepted for this mention (not one the linker accepted on its own)."""
     with db.transaction() as conn:
         rows = conn.execute(
             """SELECT id, subject_id FROM agent_link WHERE mention_key = %s AND subject_type = %s
-               AND relation = 'is' AND status = 'accepted' ORDER BY decided_at DESC NULLS LAST, id DESC""",
+               AND relation = 'is' AND status = 'accepted' AND decided_by IS NOT NULL
+               AND decided_by NOT LIKE 'agent:%%'
+               ORDER BY decided_at DESC NULLS LAST, id DESC""",
             (mention_key(name), kind),
         ).fetchall()
     ids = {r["subject_id"] for r in rows}

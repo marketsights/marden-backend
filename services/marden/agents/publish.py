@@ -265,13 +265,29 @@ def publish_candidates(job: dict[str, Any], doc: Any, cands: list[Candidate]) ->
             if c.verdict:
                 facts.set_verifier(written.id, c.verdict)
             event_id = _event(events, c, written.id, doc, tag, source_name, source_url, valid_from, material)
-            if not reasons and written.status == "candidate":
+            if not reasons and written.status == "candidate" and _publishable(conn, written.id):
                 facts.publish([written.id])
                 if event_id is not None:
                     events.publish([event_id])
                 _outcome(conn, cid, "published", "verified routine filed fact", fact_id=written.id,
                          material=material, codes=codes)
                 stats["published"] += 1
+            elif written.status == "candidate" and not reasons:  # the stored candidate is material: a person
+                reasons.append("material: an earlier read marked this fact material")
+                facts.request_review(written.id, title=title[:200], reason="; ".join(reasons), payload=payload)
+                _outcome(conn, cid, "review", "; ".join(reasons), fact_id=written.id, material=True, codes=codes)
+                stats["review"] += 1
+            elif written.status == "superseded":  # the same value was withdrawn (recheck): only a person brings it back
+                reasons.append(f"the same value was withdrawn from fact {written.id}; a person re-publishes it "
+                               "(edit with this quote)")
+                conn.execute(
+                    """INSERT INTO review_item (kind, ref_type, ref_id, title, reason, payload)
+                       VALUES ('fact', 'agent_candidate', %s, %s, %s, %s)
+                       ON CONFLICT (kind, ref_type, ref_id) DO NOTHING""",
+                    (str(cid), title[:200], "; ".join(reasons)[:2000],
+                     jsonb({**payload, "withdrawn_fact_id": written.id})))
+                _outcome(conn, cid, "review", "; ".join(reasons), material=material, codes=codes)
+                stats["review"] += 1
             elif written.status == "published":  # a candidate that published itself on an earlier run keeps that
                 conn.execute(
                     """UPDATE agent_candidate SET outcome = 'duplicate', outcome_reason = %s, fact_id = %s
@@ -286,6 +302,13 @@ def publish_candidates(job: dict[str, Any], doc: Any, cands: list[Candidate]) ->
                 _outcome(conn, cid, "review", "; ".join(reasons), fact_id=written.id, material=material, codes=codes)
                 stats["review"] += 1
     return stats
+
+
+def _publishable(conn: db.Conn, fact_id: int) -> bool:
+    """The fact writer's own rule for automatic publishing (not material, verifier agreed), checked first so a
+    candidate stored by an earlier read as material goes to review instead of failing the job."""
+    row = conn.execute("SELECT material, verifier FROM fact WHERE id = %s", (fact_id,)).fetchone()
+    return bool(row) and not row["material"] and row["verifier"] == "agree"
 
 
 def _event(events: EventWriter, c: Candidate, fact_id: int, doc: Any, tag: str, source_name: str,

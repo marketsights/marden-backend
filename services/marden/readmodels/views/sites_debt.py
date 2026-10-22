@@ -5,10 +5,9 @@ Debt: the SPV (first tracking name), the capital stack from the case research's 
 every instrument that needs the site finished, the sponsor equity of the stack (first loss) and the
 tenant's own V1 notes exposed to the site (instrument `exposure_links`, role Tenant), each with its
 size (F/R/M as filed), the latest dealer quote (R), the Marden price and recovery (price / recovery
-models; n/d until they run), the inputs of the `recovery` model's waterfall for the main instrument
-(powered shell: shell value, comparable value per MW, claims ahead; GPU pool: collateral value, value
-per unit, claims ahead; what model v0 leaves out stays bracketed with where it will come from), the
-named lenders and filed holders.
+models; n/d until they run; the price model's recovery reads 'assumed 55c'), the recovery card (the
+`recovery` model's own number and its arithmetic: views/sites_recovery.py), the named lenders and
+filed holders.
 Lease: the terms as filed or reported (parties, rent start, outside date, force majeure, rent, term,
 termination, guarantee); a term nobody has sourced is n/d with where it will come from. What the
 terms mean for lenders (finished before / after the outside date: the cushion model; force majeure
@@ -30,7 +29,6 @@ from marden.readmodels.views.sites_common import (
     dealer_quote,
     holders,
     holders_note,
-    is_sourced,
     latest_output,
     main_instrument,
     msourced,
@@ -46,6 +44,7 @@ from marden.readmodels.views.sites_common import (
     with_value,
 )
 from marden.readmodels.views.sites_detail import marden_price, recovery_value
+from marden.readmodels.views.sites_recovery import recovery_card
 
 KIND_LABEL = {"bond": "Bond", "construction_loan": "Construction loan", "term_loan": "Term loan",
               "ddtl": "Delayed-draw term loan", "abs": "ABS", "facility": "Facility", "other": "Other"}
@@ -144,72 +143,6 @@ def tranche_holders(conn: Conn, slug: str) -> list[Doc]:
             rows.setdefault(holder, []).append(str(item.get("tranche") or "debt"))
     return [{"name": holder, "role": with_value(row, f"Holds the {', '.join(tranches)}"), "share": nd("F")}
             for holder, tranches in rows.items()]
-
-
-def _money_b(value: Any) -> str | None:
-    if not isinstance(value, int | float):
-        return None
-    return f"${value:,.1f}B" if abs(value) >= 1 else f"${value * 1000:,.0f}mm"
-
-
-def _model_value(out: Row | None, value: str | None) -> Doc:
-    """A recovery-model figure as Sourced<string>, carrying the output's own source and method."""
-    meta = output_field(out, "recovery")
-    if not is_sourced(meta):
-        return msourced(out, value)
-    return {**meta, "value": value}
-
-
-def _input(out: Row | None, label: str, value: str | None, pending: str) -> Doc:
-    item: Doc = {"label": label, "value": _model_value(out, value)}
-    if value is None:
-        item["pending"] = pending
-    return item
-
-
-def recovery_inputs(out: Row | None) -> list[Doc]:
-    """The recovery model's waterfall inputs for the instrument (marden.models.recovery basis)."""
-    method = output_field(out, "method")
-    basis = output_field(out, "basis") or {}
-    value_b = output_field(out, "valueB", "value")
-    ahead, pari = basis.get("seniorClaimsB"), basis.get("pariClaimsB")
-    claims = None
-    if isinstance(ahead, int | float):
-        claims = f"{_money_b(ahead) if ahead else '$0'} ahead"
-        if isinstance(pari, int | float) and pari:
-            claims += f"; {_money_b(pari)} at the same rank"
-    if method == "gpu_collateral":
-        units, per_unit, pool = basis.get("units"), basis.get("valuePerUnitUsd"), basis.get("poolBalanceB")
-        if claims and isinstance(pool, int | float):
-            claims += f"; pool balance {_money_b(pool)}"
-        return [
-            _input(out, "Collateral value", _money_b(value_b), "GPU units and value per unit"),
-            _input(out, "Value per GPU", f"${per_unit:,.0f} a unit" if isinstance(per_unit, int | float) else None,
-                   "rental index and depreciation"),
-            _input(out, "Units", f"{units:,.0f}" if isinstance(units, int | float) else None, "facility filings"),
-            _input(out, "Claims ahead of the loan", claims, "facility terms"),
-        ]
-    comps = [c for c in basis.get("comps") or [] if isinstance(c, dict)]
-    median = basis.get("compMedianUsdPerMw")
-    per_mw = (f"${median / 1e6:,.1f}mm per gross MW, median of {len(comps)} sites"
-              if isinstance(median, int | float) else None)
-    not_in_v0 = " ".join(str(x) for x in basis.get("notInV0") or []).lower()
-    return [
-        _input(out, "Powered shell value", _money_b(value_b),
-               "from comparable sites, once completion is known" if method == "powered_shell"
-               else "recovery model"),
-        _input(out, "Value per MW of comparable sites", per_mw, "from comparable sales"),
-        _input(out, "Equipment on site", None, "from invoices and liens"),
-        _input(out, "Re-letting time", None,
-               "months, by market; not in model v0" if "re-letting" in not_in_v0 else "months, by market"),
-        _input(out, "Claims ahead of the loan", claims, "county recorder lien search"),
-    ]
-
-
-def recovery_card(conn: Conn, parties: dict[str, Row], main: Doc | None) -> Doc:
-    out = latest_output(conn, "recovery", "instrument", main["id"]) if main else None
-    return {"ifWalks": party_label(parties, "tenant") or "n/d",
-            "range": recovery_value(conn, main["id"]) if main else nd("M"), "inputs": recovery_inputs(out)}
 
 
 def equity_rows(conn: Conn, slug: str, stack: list[Doc]) -> list[Doc]:

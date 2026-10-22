@@ -199,6 +199,13 @@ def yield_to_maturity(f: Flows, clean: float) -> float | None:
         return None
 
 
+def clean_at_yield(f: Flows, yield_pct: float) -> float:
+    """Clean price per 100 par at a semiannually compounded yield (percent): the inverse of
+    `yield_to_maturity`."""
+    y = yield_pct / 100.0
+    return float(np.sum(f.amounts / (1.0 + y / 2.0) ** (2.0 * f.times))) - f.accrued
+
+
 def g_spread_bp(f: Flows, curve: Curve, clean: float) -> float | None:
     """Yield minus the Treasury par yield at the same maturity (bp): the comps' 'spread at issue'."""
     y = yield_to_maturity(f, clean)

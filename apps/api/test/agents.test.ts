@@ -100,6 +100,23 @@ describe('agent routes', () => {
     expect(status.json()).toMatchObject({ status: 'pending', documentId: null });
   });
 
+  it('reports the agents as configured only while the worker keeps reporting', async () => {
+    const h = await auth(u.staff);
+    try {
+      await db.query(`INSERT INTO agent_status (id, backend, detail, models, checked_at)
+                      VALUES (true, 'api', 'Anthropic API (ANTHROPIC_API_KEY)', '{}', now() - interval '1 hour')`);
+      const stale = (await upload(app, u.staff, {}, { name: 'stale.txt', data: Buffer.from('Agenda item one') })).json();
+      expect(stale.agents).toMatchObject({ configured: false, backend: 'api', stale: true });
+      const status = (await app.inject({ method: 'GET', url: '/api/agents/status', headers: h })).json();
+      expect(status).toMatchObject({ backend: 'api', stale: true });
+      await db.query(`UPDATE agent_status SET checked_at = now()`);
+      const fresh = (await upload(app, u.staff, {}, { name: 'fresh.txt', data: Buffer.from('Agenda item two') })).json();
+      expect(fresh.agents).toMatchObject({ configured: true, backend: 'api', stale: false });
+    } finally {
+      await db.query(`DELETE FROM agent_status`);
+    }
+  });
+
   it('refuses unknown subjects, unsupported files, missing files and files over the limit', async () => {
     expect((await upload(app, u.staff, { site: 'no-such-site' }, { name: 'a.pdf', data: PDF })).statusCode).toBe(404);
     const bin = await upload(app, u.staff, {}, { name: 'a.bin', data: Buffer.from([0x00, 0x01, 0x02, 0xff]) });

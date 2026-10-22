@@ -125,8 +125,14 @@ export interface SiteDebtInstrument {
   /** Dealer quote, or a word: "traded", "private". null = not applicable. */
   quote: Sourced<string> | string | null;
   mardenPrice: Sourced<number> | null;
-  /** Recovery range, or a word: "first loss". */
+  /** Recovery range ("100c"; the price model's default reads "assumed 55c"), or a word: "first loss". */
   recovery: Sourced<string> | string | null;
+}
+/** One line of the recovery arithmetic; value null = n/d, with `reason` in plain words. */
+export interface SiteRecoveryLine {
+  label: string;
+  value: Sourced<string>;
+  reason?: string;
 }
 export interface SiteDebtTab {
   /** SPV that borrows, e.g. "Red Chiles A–D LLC". */
@@ -138,8 +144,14 @@ export interface SiteDebtTab {
   recovery: {
     /** Party whose exit the recovery assumes, e.g. "Oracle". */
     ifWalks: string;
+    /** The recovery model's own cents per dollar ("100c", "62–74c"); value null when it lacks an input. */
     range: Sourced<string>;
-    inputs: { label: string; value: Sourced<string>; pending?: string }[];
+    /** Why the range is n/d, in plain words. */
+    reason?: string;
+    /** Only when the range is n/d: the price model's recovery, a default ("assumed 55c (price model v0.1 default)"). */
+    assumed?: Sourced<string>;
+    /** Value basis, less claims ahead, over the claims at the loan's rank = cents; then what model v0 leaves out. */
+    inputs: SiteRecoveryLine[];
   };
   lenders: { name: string; role: Sourced<string>; share: Sourced<number> }[];
   holdersNote: string;

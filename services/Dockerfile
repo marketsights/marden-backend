@@ -21,11 +21,13 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/app/.venv
 WORKDIR /app/services
 COPY services/pyproject.toml services/uv.lock ./
-# Dependencies first (cached while only code changes), then the project itself. --frozen: the lockfile
-# is the contract; a pyproject change without `uv lock` fails the build instead of resolving anew.
-RUN uv sync --frozen --no-dev --no-install-project
+# Dependencies first (cached while only code changes), then the project itself. --locked: the lockfile
+# is the contract and is installed exactly as locked (like --frozen), and a pyproject change without
+# `uv lock` fails the build. (--frozen alone would not check: it installs the stale lock and the image
+# ships without the new dependency.)
+RUN uv sync --locked --no-dev --no-install-project
 COPY services/marden ./marden
-RUN uv sync --frozen --no-dev && /app/.venv/bin/python -m compileall -q marden
+RUN uv sync --locked --no-dev && /app/.venv/bin/python -m compileall -q marden
 
 # ---------------------------------------------------------------- runtime
 FROM ${PYTHON_IMAGE} AS runtime

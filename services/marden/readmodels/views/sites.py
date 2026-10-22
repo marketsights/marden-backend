@@ -28,7 +28,6 @@ from marden.readmodels.views.sites_common import (
     gw_value,
     is_us,
     known_facts,
-    last_evidence,
     latest_output,
     output_field,
     party_label,
@@ -39,6 +38,7 @@ from marden.readmodels.views.sites_common import (
     weakest_tag,
     with_value,
 )
+from marden.readmodels.views.sites_evidence import last_evidence
 from marden.readmodels.views.sites_links import linked_campuses
 
 SUMMARY_FACTS = ("gross_mw", "critical_it_mw")

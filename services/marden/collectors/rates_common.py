@@ -145,12 +145,13 @@ class SeriesWriter:
     def attribute(
         self, series_id: str, field_name: str, value: Any, *, valid_from: date, source_url: str,
         quote: str | None = None, quote_loc: str | None = None, document_id: int | None = None,
+        unit: str | None = None,
     ) -> bool:
-        """A non-observation fact about a series (licence notice, display permission)."""
+        """A non-observation fact about a series (licence notice, display permission, a fund statistic)."""
         res = self.facts.add(
             SERIES, series_id, field_name, value, tag=self.tag, source_name=self.source_name,
             source_url=source_url, valid_from=valid_from, producer=self.producer, status="published",
-            document_id=document_id, quote=quote, quote_loc=quote_loc,
+            document_id=document_id, quote=quote, quote_loc=quote_loc, unit=unit,
         )
         self._count(f"{series_id}.{field_name}", res.created)
         return res.created

@@ -150,6 +150,24 @@ def test_fetch_refuses_without_r2_unknown_keys_and_a_hash_mismatch(committed, tm
     bucket.objects[("core-backups", result.key)] = (data[:-1] + bytes([data[-1] ^ 1]), meta)  # one bit flipped
     with pytest.raises(backup.BackupError, match="sha256"):
         backup.fetch_backup(tmp_path / "y.dump", settings=_settings(), client=bucket)
+    # Naming the key explicitly is checked against backup_run the same way.
+    assert result.key is not None
+    with pytest.raises(backup.BackupError, match="sha256"):
+        backup.fetch_backup(tmp_path / "z.dump", key=result.key, settings=_settings(), client=bucket)
+
+
+def test_fetch_by_key_reports_whether_backup_run_vouched_for_the_hash(committed, tmp_path):
+    bucket = MemoryBucket()
+    result = backup.run_backup(_settings(), client=bucket, now=WHEN)
+    assert result.key is not None
+    info = backup.fetch_backup(tmp_path / "a.dump", key=result.key, settings=_settings(), client=bucket)
+    assert info["verified"] is True and info["sha256"] == result.sha256 and info["entries"] > 100
+    # An object no ok run recorded (a restore from R2 alone, after the database was lost): fetched and
+    # listed, but reported as not verified rather than as checked.
+    other = result.key.replace("072305Z", "072306Z")
+    bucket.objects[("core-backups", other)] = bucket.objects[("core-backups", result.key)]
+    info = backup.fetch_backup(tmp_path / "b.dump", key=other, settings=_settings(), client=bucket)
+    assert info["verified"] is False and info["key"] == other
 
 
 def test_a_run_left_running_by_a_killed_worker_is_closed_by_the_next_run(committed):

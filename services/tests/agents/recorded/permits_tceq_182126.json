@@ -13,12 +13,12 @@
     "value_text": null,
     "value_date": null,
     "value_bool": null,
-    "value_json": "{\"number\":\"182126 / GHGPSDTX263 / PSDTX1688\",\"agency\":\"TCEQ\",\"type\":\"NSR initial (PSD, GHG PSD)\",\"status\":\"initial application, pending\",\"date\":null}",
+    "value_json": "{\"number\":\"182126 / GHGPSDTX263 / PSDTX1688\",\"agency\":\"TCEQ\",\"type\":\"NSR initial (PSD, GHG PSD)\",\"status\":\"initial application submitted\",\"date\":null}",
     "as_of": null,
     "quote": "Crusoe Energy Systems LLC (CN606257079) has submitted an\napplication for an initial permit 182126, GHGPSDTX263, and PSDTX1688.",
     "page": 1,
     "confidence": 0.9,
-    "note": "Summary values may change during technical review."
+    "note": "Pending application, not issued; summary values may change during technical review."
    },
    {
     "subject_kind": "plant",
@@ -34,10 +34,18 @@
     "quote": "VOC\n815.59\nPM10\n451.10\nPM2.5\n313.20\nNOx\n760.33\nCO\n870.07\nSO2\n233.90\nHAPs\n49.77",
     "page": 1,
     "confidence": 0.8,
-    "note": "Proposed totals requested by applicant, not permit limits; may change during technical review."
+    "note": "Proposed by applicant, not permit limits; may change during technical review."
    }
   ],
   "subjects": [
+   {
+    "name": "Crusoe Energy Systems LLC",
+    "kind": "entity",
+    "identifiers": [
+     "CN606257079"
+    ],
+    "role": "applicant"
+   },
    {
     "name": "Longhorn Data Center",
     "kind": "plant",
@@ -50,14 +58,12 @@
     "role": "plant"
    },
    {
-    "name": "Crusoe Energy Systems LLC",
+    "name": "Taylor County",
     "kind": "entity",
-    "identifiers": [
-     "CN606257079"
-    ],
-    "role": "applicant"
+    "identifiers": [],
+    "role": "county"
    }
   ],
-  "summary": "TCEQ plain language summary: pending initial NSR/PSD/GHG PSD application for Longhorn Data Center with proposed annual emissions."
+  "summary": "TCEQ plain language summary of pending initial NSR/PSD application for Longhorn Data Center; proposed annual emissions listed."
  }
 }
