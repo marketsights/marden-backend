@@ -197,6 +197,8 @@ def run(*, today: date | None = None, now: datetime | None = None, llm: Llm | No
         outcomes: dict[str, int] = {}
         listed = []
         with db.transaction() as conn:
+            # one writer at a time (a CLI run beside the scheduled one): store() reads what is there under the lock
+            conn.execute("SELECT pg_advisory_xact_lock(hashtext('agents.watchdog.store'))")
             for i in issues:
                 title = phrased.get(f"{i.check}|{i.key}", i.title)
                 what, item_id = store(conn, i, title, "model" if title != i.title else "code", run_id)

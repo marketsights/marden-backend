@@ -15,8 +15,9 @@ rank, count, odds and every record.
 The draft is stored (weekly_note: figures, templates, checks, the filled note) and waits for a person in the
 review queue (review_item kind 'note'). Approving it makes it the note GET /api/risk-list serves for the week
 (read model `risk_list`); rejecting it keeps the list's code-written note until a new draft is approved.
-Idempotent: the same list and figures make no new draft; an approved week is never redrafted; a rejected
-draft is redrafted only when its inputs change, or with --redraft.
+Idempotent: the same list and figures make no new draft; an approved week is not redrafted while its list
+stands (a list recomputed with new figures gets a new draft, and the old approved note is no longer served
+for it); a rejected draft is redrafted only when its inputs change, or with --redraft.
 """
 
 from __future__ import annotations
@@ -262,7 +263,9 @@ def draft(week: date | None = None, *, llm: Llm | None = None, trigger: str = "m
         week_title = title(week)
         inputs_hash = hash_parts("weekly_note", week.isoformat(), out_row["id"],
                                  canonical_json(_figures_json(paragraphs)), note_prose.SYSTEM)
-        approved = next((n for n in notes if n["status"] == "approved"), None)
+        # an approved note covers the week only while the list it was drafted from is still the list (a list
+        # recomputed with --force after the approval gets a new draft; the old note is not served for it)
+        approved = next((n for n in notes if n["status"] == "approved" and covers(n, out_row)), None)
         same = next((n for n in notes if n["inputs_hash"] == inputs_hash and n["status"] in ("draft", "rejected")),
                     None)
         if approved is not None or (same is not None and (same["status"] == "draft" or not redraft)):
@@ -294,10 +297,13 @@ def draft(week: date | None = None, *, llm: Llm | None = None, trigger: str = "m
         raise
 
 
-def approved_note(conn: Conn, week: str, on_or_before: date | None = None) -> dict[str, Any] | None:
-    """The approved note for a week (RiskList.note), as approved by the given day (US Eastern)."""
-    row = conn.execute(
-        """SELECT note FROM weekly_note WHERE week = %s AND status = 'approved'
-             AND (%s::date IS NULL OR (decided_at AT TIME ZONE 'America/New_York')::date <= %s::date)
-           ORDER BY decided_at DESC LIMIT 1""", (week, on_or_before, on_or_before)).fetchone()
-    return row["note"] if row is not None else None
+def figures_of(output: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every figure the note writer fills from a risk list output, as stored on weekly_note.figures."""
+    return _figures_json(paragraphs_of(output))
+
+
+def covers(note_row: Row, out_row: Row) -> bool:
+    """Does this note hold exactly the figures this list gives? (A forced re-run rewrites the list's output in
+    place, so the output id alone does not say.)"""
+    body = out_row["output"] if isinstance(out_row["output"], dict) else {}
+    return figures_of(body) == note_row["figures"]

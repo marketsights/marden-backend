@@ -7,7 +7,10 @@ Code computes every check; each finding is an `Issue` with its evidence (the val
                     total against the sum of its sites' debt (the payer screen)
     contradiction   the value a screen shows is reported (R) while a filed (F) value of the same field and
                     type, dated no more than 180 days before it, says something else (filed beats reported:
-                    spec 22 layer 4); two producers publishing different values for the same as-of date
+                    spec 22 layer 4; numbers within 1% are rounding, and a text whose words all appear in the
+                    other one is the same statement, shorter: 'ERCOT' against 'Denton/Austin: ERCOT (municipal
+                    NOIEs); Dalton: ...', '2031-09' against '2031-09-15'); two producers publishing different
+                    values for the same as-of date
     screens         the same value on two screens of the same day: a site's status, cushion and debt on the
                     Sites list against Site detail; an instrument's Marden price, chain status and size on
                     the Instruments list against Instrument detail
@@ -15,6 +18,7 @@ Code computes every check; each finding is an `Issue` with its evidence (the val
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -46,6 +50,16 @@ def _num(v: Any) -> float | None:
 
 def _close(a: float, b: float, tol: float = SUM_TOLERANCE) -> bool:
     return abs(a - b) <= tol * max(abs(a), abs(b), 1.0)
+
+
+def _words(v: Any) -> set[str]:
+    return set(re.findall(r"[^\W_]+", v.casefold())) if isinstance(v, str) else set()
+
+
+def same_statement(a: Any, b: Any) -> bool:
+    """Two texts where every word of one is in the other: the shorter states part of the longer, no conflict."""
+    wa, wb = _words(a), _words(b)
+    return bool(wa and wb) and (wa <= wb or wb <= wa)
 
 
 def _b(usd: float) -> str:
@@ -134,6 +148,8 @@ def reported_vs_filed(conn: Conn) -> list[Issue]:
         a, b = _num(r["shown"]), _num(r["filed"])
         if a is not None and b is not None and _close(a, b, 0.01):
             continue  # a number within 1%: rounding, not a contradiction
+        if same_statement(r["shown"], r["filed"]):
+            continue  # 'ERCOT' within 'Denton/Austin: ERCOT (municipal NOIEs); ...': part of the same statement
         key = f"{r['subject_type']}:{r['subject_id']}:{r['field']}"
         if key in out:
             continue

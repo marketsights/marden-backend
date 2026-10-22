@@ -58,6 +58,12 @@ def day_end(day: date | None = None) -> datetime:
     return datetime.combine((day or build_date()) + timedelta(days=1), time.min, tzinfo=BUSINESS_TZ)
 
 
+def business_day(at: datetime) -> date:
+    """The US Eastern day an instant (learned_at, created_at, started_at ...) fell on. `at.date()` on a timestamptz
+    read in the UTC session is the UTC date: anything from 8 pm (EDT) or 7 pm (EST) on would be dated a day late."""
+    return at.astimezone(BUSINESS_TZ).date()
+
+
 def is_backfill() -> bool:
     """True while building a snapshot of a past day."""
     return build_date() < business_today()

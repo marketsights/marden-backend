@@ -4,14 +4,17 @@ Snapshots and as-of days are dated in US Eastern (`business_today`); the databas
 at 22:00 Eastern on 1 October (02:00 UTC on the 2nd) was known on 1 October, and one learned at 00:01 Eastern on
 the 2nd was not. Comparing with `day + 1` as a date (midnight UTC, 20:00 EDT) hid the evening's rows until the
 next day: facts (`known_facts` through `fact_asof`, `known_fact_rows`, the licence switch's own query, the
-models' `pit` reads), events, campus rows. The rows are real ones copied from the local database (Abilene's
-withdrawn-permit event and an SEC risk statement, Southgate's listing-deadline catalyst, the Stargate Abilene
-campus); only their learned / created instant is set.
+models' `pit` reads), events, campus rows, Home's week of filings and scheduled steps, the obligation map's
+"changed this month" edges. An instant shown or audited as a day (a model run's last run, the day a scheduled
+step became public in a backtest's input audit) is its Eastern day, not `.date()` in the UTC session. The rows
+are real ones copied from the local database (Abilene's withdrawn-permit event and an SEC risk statement,
+Southgate's listing-deadline catalyst, the Stargate Abilene campus, an Amazon-Cipher lease fact, a status model
+run that started at 22:03 New York time); only their learned / created instant is set.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import psycopg
 import pytest
@@ -23,9 +26,12 @@ from marden.models import pit
 from marden.readmodels import context
 from marden.readmodels.context import building, day_end, known_fact_rows, known_facts
 from marden.readmodels.views.facilities_common import campus_row, subject_events
+from marden.readmodels.views.home_parts import week_events
 from marden.readmodels.views.instrument_inputs import DAY_END_SQL
+from marden.readmodels.views.payers_common import edges_changed_since
 from marden.readmodels.views.sites_common import site_events
 from marden.readmodels.views.sites_evidence import linked_events
+from marden.readmodels.views.track_record import model_rows
 
 DAY = date(2026, 10, 1)  # a past business day (a backfill), Eastern daylight time
 EVENING = "2026-10-02 02:00+00"  # 22:00 EDT on 1 Oct: known on 1 Oct
@@ -34,6 +40,10 @@ CASES = [(EVENING, True), (AFTER_MIDNIGHT, False)]
 FACT_ID = 1080685  # site abilene, risk_evidence, SEC EDGAR, valid_from 2026-09-11
 EVENT_ID = 54595  # plant n-abilene-onsite, 'TCEQ air permit 182267: withdrawn (project 401169)', 2026-04-20
 CATALYST_ID = 35590  # site southgate, a listing deadline dated 2026-11-30 (after DAY: public once learned)
+LATER = date(2026, 10, 20)  # obligation facts start 2026-10-14
+LATER_CASES = [("2026-10-21 02:00+00", True), ("2026-10-21 04:01+00", False)]  # 22:00 / 00:01 EDT
+EDGE_FACT_ID = 15819  # obligation amazon-aws--cipher-digital-inc--lease, linked_sites, SEC EDGAR, valid_from 2026-10-14
+RUN_ID = 341  # model 'status' v0.4, started 2026-10-22 02:03:56 UTC = 22:03 EDT on 21 October
 
 
 def _real(table: str, row_id: int | str) -> dict:
@@ -111,3 +121,39 @@ def test_the_instrument_views_known_clause_ends_the_day_in_eastern_time(conn, le
     conn.execute("SET TIME ZONE 'UTC'")
     row = conn.execute(f"SELECT %(at)s::timestamptz < {DAY_END_SQL} AS known", {"at": learned_at, "day": DAY})
     assert row.fetchone()["known"] is seen
+
+
+@pytest.mark.parametrize(("learned_at", "seen"), CASES)
+def test_homes_week_counts_a_step_learned_in_the_eastern_evening(conn, learned_at, seen):
+    conn.execute("SET TIME ZONE 'UTC'")
+    catalyst = _real("event", CATALYST_ID)
+    _insert(conn, "event", catalyst, learned_at=learned_at, document_id=None, fact_id=None)
+    with building(DAY):
+        assert any(r["id"] == CATALYST_ID for r in week_events(conn, DAY - timedelta(days=6))) is seen
+    with pit.audit() as used:  # included on DAY and public on DAY, so not reported as look-ahead
+        assert any(r["id"] == CATALYST_ID for r in pit.event_rows(conn, DAY, "site", ["southgate"])) is seen
+    assert pit.late_inputs(used, DAY) == []
+
+
+@pytest.mark.parametrize(("learned_at", "seen"), LATER_CASES)
+def test_an_edge_amended_in_the_eastern_evening_changed_that_day(conn, learned_at, seen):
+    conn.execute("SET TIME ZONE 'UTC'")
+    fact = _real("fact", EDGE_FACT_ID)
+    _insert(conn, "fact", fact, learned_at=learned_at, document_id=None)
+    edge = fact["subject_id"]
+    with building(LATER):
+        assert (edge in edges_changed_since(conn, [edge], LATER.replace(day=1))) is seen
+    with building(LATER + timedelta(days=1)):
+        assert edge in edges_changed_since(conn, [edge], LATER.replace(day=1))
+
+
+def test_a_model_run_started_in_the_eastern_evening_ran_that_day(conn):
+    conn.execute("SET TIME ZONE 'UTC'")
+    run = _real("model_run", RUN_ID)
+    _insert(conn, "model_run", run)
+    ran = run["started_at"].astimezone(context.BUSINESS_TZ).date()
+    assert ran == date(2026, 10, 21) and run["started_at"].astimezone(UTC).date() == date(2026, 10, 22)
+    with building(ran):
+        assert {r["model"]: r["lastRun"] for r in model_rows(conn)}["status"] == "2026-10-21"
+    with building(ran - timedelta(days=1)):
+        assert "status" not in {r["model"] for r in model_rows(conn)}

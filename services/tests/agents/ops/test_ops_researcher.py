@@ -258,3 +258,56 @@ def test_large_files_and_report_forms_are_stored_not_queued(monkeypatch):
     assert report["queued"] == [] and report["finds"] == {"skipped": 3} and state["extract_state"] == "none"
     assert "more than the researcher queues" in finds[j1_url]["reason"]
     assert "periodic report form" in finds[j2_url]["reason"] and finds[j2_url]["document_id"] is None
+
+
+def test_a_refused_file_stops_edgar_before_the_next_fetch():
+    """sec.gov answering a filing with 403 (its 'undeclared automated tool' page) or 429 stops every EDGAR search
+    and fetch of the run: never a second request after a refusal."""
+    seed_sites()
+    _, hits = parse(GALAXY)
+    sec = FakeSec(GALAXY, {hits[0].url: 403, hits[1].url: page("Galaxy Helios I LLC commencement date.")})
+    report = researcher.run(TODAY, edgar=EdgarSearch(sec), ferc=ferc_search({}),  # type: ignore[arg-type]
+                            max_queries=5, max_ferc=0, collectors=False)
+    assert report["edgar"]["blocked"] and "403" in report["edgar"]["blocked"]
+    assert report["edgar"]["run"] == 1 and report["edgar"]["deferred"] == 1
+    assert [u for u, _ in sec.calls[1:]] == [hits[0].url]  # the search, the refused file, nothing after
+    with db.transaction() as conn:
+        finds = conn.execute("SELECT url, outcome, reason FROM research_find").fetchall()
+        src = conn.execute("SELECT last_error FROM source WHERE id = 'edgar_fts'").fetchone()
+        run_row = conn.execute("SELECT status FROM agent_ops_run").fetchone()
+    assert [(f["url"], f["outcome"]) for f in finds] == [(hits[0].url, "failed")]
+    assert "refused" in finds[0]["reason"] and "403" in src["last_error"] and run_row["status"] == "partial"
+
+
+def test_a_bot_check_on_an_elibrary_file_stops_the_ferc_searches():
+    seed_sites()
+    (j1, _), (j2, _), (j3, _) = main_files()
+    files: dict[str, bytes | int] = {j1: 403, j2: page("Project Jupiter in Doña Ana County."), j3: page("x")}
+    ferc = ferc_search(files)
+    report = researcher.run(TODAY, edgar=EdgarSearch(FakeSec(GALAXY, {})), ferc=ferc,  # type: ignore[arg-type]
+                            max_queries=0, max_ferc=1, collectors=False)
+    assert report["ferc"]["blocked"] and report["finds"] == {"failed": 1}
+    downloads = [b for b in ferc.client.fetcher.client.bodies if "fileidLst" in b]
+    assert [b["fileidLst"] for b in downloads] == [[j1]]  # nothing fetched after the refusal
+    with db.transaction() as conn:
+        run_row = conn.execute("SELECT status FROM agent_ops_run").fetchone()
+    assert run_row["status"] == "partial"
+
+
+def test_a_held_file_too_large_is_not_queued(monkeypatch):
+    """A stored file a collector never queued gets the same size rule as a new one."""
+    seed_sites()
+    monkeypatch.setattr(researcher, "MAX_QUEUE_BYTES", 100)
+    _, hits = parse(GALAXY)
+    from marden.agents.intake import ensure_intake_sources
+
+    ensure_intake_sources()
+    held = documents.record_document("upload", hits[0].url, page("Galaxy Helios I LLC commencement date."),
+                                     content_type="text/html", extract_state="none")
+    report = researcher.run(TODAY, edgar=EdgarSearch(FakeSec(GALAXY, {})), ferc=ferc_search({}),  # type: ignore[arg-type]
+                            max_queries=1, max_ferc=0, max_docs=0, collectors=False)
+    with db.transaction() as conn:
+        find = conn.execute("SELECT outcome, reason FROM research_find WHERE url = %s", (hits[0].url,)).fetchone()
+        state = conn.execute("SELECT extract_state FROM document WHERE id = %s", (held.id,)).fetchone()
+    assert report["queued"] == [] and find["outcome"] == "skipped" and "more than the researcher" in find["reason"]
+    assert state["extract_state"] == "none"

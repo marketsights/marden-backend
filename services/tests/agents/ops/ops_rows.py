@@ -74,9 +74,10 @@ def seed_sites(*, watch_helios: bool = True) -> None:
 
 
 class FakeSec:
-    """Stands in for the SEC hosts: the search answer for every query, and the files by URL."""
+    """Stands in for the SEC hosts: the search answer for every query, and the files by URL (an int: that HTTP
+    status, as sec.gov answers a refused file)."""
 
-    def __init__(self, answer: bytes, files: dict[str, bytes], status: int = 200):
+    def __init__(self, answer: bytes, files: dict[str, bytes | int], status: int = 200):
         self.answer, self.files, self.status = answer, files, status
         self.settings = get_settings()
         self.calls: list[tuple[str, dict[str, Any] | None]] = []
@@ -88,13 +89,14 @@ class FakeSec:
             if self.status != 200:
                 raise FetchError(url, self.status, f"HTTP {self.status}")
             return FetchResponse(url, url, 200, self.answer, {"content-type": "application/json"})
-        if url not in self.files:
-            raise FetchError(url, 404, "HTTP 404")
-        return FetchResponse(url, url, 200, self.files[url], {"content-type": "text/html"})
+        data = self.files.get(url, 404)
+        if isinstance(data, int):
+            raise FetchError(url, data, f"HTTP {data}")
+        return FetchResponse(url, url, 200, data, {"content-type": "text/html"})
 
 
 class _FercHttp:
-    def __init__(self, answer: bytes, files: dict[str, bytes]):
+    def __init__(self, answer: bytes, files: dict[str, bytes | int]):
         self.answer, self.files = answer, files
         self.bodies: list[dict[str, Any]] = []
 
@@ -108,12 +110,14 @@ class _FercHttp:
         data = self.files.get(file_id)
         if data is None:
             return httpx.Response(404, content=b"not found", request=request)
+        if isinstance(data, int):  # a refusal (403) on the file
+            return httpx.Response(data, content=b"Forbidden", request=request)
         return httpx.Response(200, content=data, headers={"content-type": "application/octet-stream"},
                               request=request)
 
 
 class FakeFercFetcher:
-    def __init__(self, answer: bytes, files: dict[str, bytes]):
+    def __init__(self, answer: bytes, files: dict[str, bytes | int]):
         self.client = _FercHttp(answer, files)
         self.settings = get_settings()
 

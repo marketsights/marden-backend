@@ -15,6 +15,7 @@ from marden.core.db import Row
 from marden.models import cushion_dates as cd
 from marden.models import cushion_milestones as cm
 from marden.models.cushion_inputs import Plant, SiteInputs, text_of
+from marden.readmodels.context import business_day
 
 AGREEMENT = re.compile(r"\besa\b|electric service agreement|interconnection agreement|\bppa\b|supply deal|"
                        r"service agreement|agreement with|contracts approved|\bia signed", re.I)
@@ -206,7 +207,7 @@ def air_permit(site: SiteInputs, onsite: cm.Milestone) -> cm.Milestone:
             if e["event_date"] > site.as_of:
                 future.append(cd.When(day, day, "day", 0, 0, e["event_date"].isoformat()))
             if PUSHED.search(title):
-                ms.add_event(min(e["event_date"], e["learned_at"].date(), site.as_of), "slipped")
+                ms.add_event(min(e["event_date"], business_day(e["learned_at"]), site.as_of), "slipped")
                 ms.status = "Slipped"
             elif CONTESTED.search(title) and ms.status == "Not started":
                 ms.status = "At risk"

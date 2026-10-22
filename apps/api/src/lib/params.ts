@@ -1,6 +1,7 @@
 // Query-string helpers. Multi-value filters accept repeated params or comma-separated lists.
 import type { FastifyRequest } from 'fastify';
 import { badRequest } from '../errors.js';
+import { businessToday } from './business-day.js';
 
 export type Query = Record<string, string | string[] | undefined>;
 
@@ -55,5 +56,5 @@ export function page(q: Query): number {
 /** Escape LIKE wildcards so user text matches literally. */
 export const likePattern = (s: string): string => `%${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
-/** The date a snapshot answers for: the asOf date, or today (UTC). */
-export const asOfDay = (asOf: string | null): string => asOf ?? new Date().toISOString().slice(0, 10);
+/** The date a snapshot answers for: the asOf date, or today in US Eastern (snapshots are dated Eastern). */
+export const asOfDay = (asOf: string | null): string => asOf ?? businessToday();

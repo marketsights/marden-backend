@@ -18,10 +18,11 @@ from datetime import date
 from typing import Any
 
 from marden.core.db import Conn, Row
+from marden.readmodels.context import day_end
 from marden.readmodels.views.instrument_inputs import day, num
 from marden.readmodels.views.instrument_text import short_name
 from marden.readmodels.views.monitor_common import Doc, is_iso_date, method_of, plain_sourced, when_label
-from marden.readmodels.views.sites_common import event_evidence, next_day
+from marden.readmodels.views.sites_common import event_evidence
 
 ROLE_LABELS = {"end_user": "End-user", "tenant": "Tenant", "developer": "Developer", "lenders": "Lenders"}
 LINK_RANK = {"red": 3, "amber": 2, "green": 1, "none": 0}
@@ -136,11 +137,11 @@ def week_events(conn: Conn, start: date) -> list[Row]:
     Marden knew them by the build day, oldest first."""
     return conn.execute(
         """SELECT * FROM event WHERE subject_type IN ('site', 'instrument') AND status = 'published'
-             AND learned_at < %(next)s::date
+             AND learned_at < %(day_end)s
              AND ((kind = 'filing' AND event_date BETWEEN %(start)s AND %(day)s)
                   OR (kind = 'catalyst' AND event_date > %(day)s))
            ORDER BY event_date, id""",
-        {"next": next_day(), "start": start, "day": day()},
+        {"day_end": day_end(), "start": start, "day": day()},
     ).fetchall()
 
 

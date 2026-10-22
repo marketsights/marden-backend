@@ -1,7 +1,8 @@
 // Builds SQL WHERE / ORDER BY clauses for row read models (dc_row, plant_row) from query params.
 // Filter expressions are constants in code; only values travel as bind parameters.
 import { badRequest } from '../errors.js';
-import { dayEnd, factSource } from './licensing.js';
+import { dayEnd } from './business-day.js';
+import { factSource } from './licensing.js';
 import { first, flag, isoDate, likePattern, list, num, type Query } from './params.js';
 
 export class SqlParams {

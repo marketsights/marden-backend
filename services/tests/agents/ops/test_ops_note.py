@@ -51,6 +51,18 @@ KNOWN = vocabulary("Project Jupiter Construction loans", *(f.text for f in FIGS.
     ("Ranked {{rank}} of {{count}}; Moody's sees {{odds}}.", "names the figures do not hold"),
     ("Ranked {{rank}} of {{count}}, {{yield}}.", "unknown placeholders"),
     ("Ranked {{rank}} of {{count}} {odds}.", "a brace outside"),
+    ("Ranked {{rank}} of {{count}}; ½ of it is {{odds}}.", "a numeral written in the prose"),
+    ("Ranked {{rank}} of {{count}}, Ⅲ tranches: {{odds}}.", "a numeral written in the prose"),
+    ("Ranked {{rank}} of {{count}}, with {{odds}}. See www.example.com for more.", "a link, address or markup"),
+    ("Ranked {{rank}} of {{count}}, with {{odds}} <b>now</b>.", "a link, address or markup"),
+    ("Ranked {{rank}} of {{count}}; several records give {{odds}}.", "number words"),
+    ("Ranked {{rank}} of {{count}}, first on the list: {{odds}}.", "number words"),
+    ("Ranked {{rank}} of {{count}}, its price declined: {{change}}.", "direction or size words"),
+    ("Ranked {{rank}} of {{count}}, a large position with {{odds}}.", "direction or size words"),
+    ("Ranked {{rank}} of {{count}}; Ørsted sees {{odds}}.", "names the figures do not hold"),
+    ("Ranked {{rank}} of {{count}}, with {{odds}}. " + "It is so. " * 50, "words of its own"),
+    ("Ranked {{rank}} of {{count}}, with {{odds}}; investors should sell.", "advice or forecast words"),
+    ("Ranked {{rank}} of {{count}}, with {{odds}}; it will likely reprice.", "advice or forecast words"),
 ])
 def test_prose_validator(template, problem):
     problems = check_prose(template, FIGS, KNOWN)
@@ -64,6 +76,13 @@ def test_filled_text_holds_only_figures():
     used = [FIGS["rank"], FIGS["count"]]
     assert check_filled("Ranked 1 of 15.", used) == []
     assert check_filled("Ranked 1 of 15, 63% odds.", used) == ["numbers that are not filled figures: 63"]
+    assert check_filled("Ranked 1 of 15, ½ the odds.", used) == ["numerals that are not filled figures: ½"]
+
+
+def test_accented_names_in_the_figures_pass():
+    figs = {**FIGS, "r1": Figure("r1", "STACK lateral in Doña Ana County (2026-09-01)", "record")}
+    known = vocabulary("Project Jupiter", *(f.text for f in figs.values()))
+    assert check_prose("Ranked {{rank}} of {{count}}, with {{odds}}. Doña Ana: {{r1}}.", figs, known) == []
 
 
 def test_figures_are_code_written_and_rounded_like_the_app():
@@ -201,3 +220,37 @@ def test_recorded_live_answers_replay_to_the_same_checked_note():
         assert check_filled(p["text"], [Figure("x", t, "") for t in texts], (p["lead"],)) == [], pid
     assert row["note"]["paragraphs"][0]["text"].startswith(
         "Ranked 1 of 15, Project Jupiter Construction loans carry 63%")
+
+
+def test_a_recomputed_list_drops_the_approved_note_and_gets_a_new_draft():
+    """An approved note is served only with the list it was drafted from (or one with the same figures)."""
+    import copy
+
+    import marden.readmodels.views.risk_list  # noqa: F401  (registers the builder)
+    from marden.readmodels.rebuild import rebuild_dirty
+
+    out_id = seed_list()
+    first = note.draft(WEEK)
+    assert decide(first["review_item_id"], "approve", "staff@marden.ai")["ok"]
+    changed = copy.deepcopy(LIST["output"])
+    changed["rows"][0]["price"] = {**changed["rows"][0]["price"], "value": 70.0}  # recomputed: other figures
+    with db.transaction() as conn:  # `model risk_list --force` on the same day rewrites the output in place
+        conn.execute("UPDATE model_output SET output = %s WHERE id = %s", (jsonb(changed), out_id))
+        from marden.readmodels.deps import mark_dirty
+
+        mark_dirty("risk_list", WEEK.isoformat(), conn=conn, reason="test: list recomputed")
+    assert not rebuild_dirty().errors
+    with db.transaction() as conn:
+        doc = conn.execute("SELECT doc FROM read_model WHERE view = 'risk_list' AND key = %s ORDER BY as_of DESC, "
+                           "built_at DESC LIMIT 1", (WEEK.isoformat(),)).fetchone()["doc"]
+    assert doc["note"]["paragraphs"][0]["text"] == changed["note"]["paragraphs"][0]["text"]  # the list's own note
+    second = note.draft(WEEK)
+    assert second["version"] == 2 and second["result"] == "draft waiting for approval"
+    with db.transaction() as conn:
+        figs = conn.execute("SELECT figures FROM weekly_note WHERE version = 2").fetchone()["figures"]
+    assert {"name": "price", "text": "Marden price 70.0"}.items() <= next(
+        f for f in figs[0]["figures"] if f["name"] == "price").items()
+    with db.transaction() as conn:
+        conn.execute("UPDATE model_output SET output = %s WHERE id = %s", (jsonb(LIST["output"]), out_id))
+    stale = decide(second["review_item_id"], "approve", "staff@marden.ai")
+    assert not stale["ok"] and "earlier risk list" in stale["error"]

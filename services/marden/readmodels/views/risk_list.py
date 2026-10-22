@@ -16,8 +16,8 @@ and note as they are and adds only what the output leaves out:
   rank change, or 'same';
 - `earlierCalls` from the backtest's published cases flagged before the week (model 'track_record');
 - `note`: the week's weekly note a person approved by the build day (`weekly_note`, drafted by the note
-  writer, marden.agents.ops.note: every figure filled by code), else the code-written note the list was
-  published with.
+  writer, marden.agents.ops.note: every figure filled by code) when its figures are the ones this list gives,
+  else the code-written note the list was published with.
 
 Rows are ordered by rank. No output, no document: the API answers 503 until the first list exists.
 """
@@ -151,15 +151,23 @@ def note_of(raw: Any) -> Doc:
     return {"title": raw["title"] if isinstance(raw.get("title"), str) else "", "paragraphs": paragraphs}
 
 
-def approved_note(conn: Conn, week: str) -> Any:
-    """The weekly note approved for the week by the build day (US Eastern), or None."""
+def approved_note(conn: Conn, week: str, out: Row) -> Any:
+    """The weekly note approved for the week by the build day (US Eastern), or None. Only a note whose figures
+    are the ones this list gives is served: a list recomputed after the approval (`model risk_list --force`
+    rewrites the output in place) keeps its own code-written note until a new draft is approved."""
     row = conn.execute(
-        """SELECT note FROM weekly_note WHERE week = %s::date AND status IN ('approved', 'superseded')
+        """SELECT note, figures FROM weekly_note WHERE week = %s::date
+             AND status IN ('approved', 'superseded')
              AND decided_at IS NOT NULL AND (decided_at AT TIME ZONE 'America/New_York')::date <= %s
            ORDER BY decided_at DESC, id DESC LIMIT 1""",
         (week, day()),
     ).fetchone()
-    return row["note"] if row is not None else None
+    if row is None:
+        return None
+    from marden.agents.ops.note import figures_of  # the figures the note writer would fill from this list
+
+    body = out["output"] if isinstance(out["output"], dict) else {}
+    return row["note"] if figures_of(body) == row["figures"] else None
 
 
 def earlier_call(raw: Any) -> Doc | None:
@@ -213,6 +221,6 @@ def build_risk_list(conn: Conn, key: str) -> Doc | None:
     return {
         "week": {"start": key, "end": week_end(key)},
         "rows": rows,
-        "note": note_of(approved_note(conn, key) or body.get("note")),
+        "note": note_of(approved_note(conn, key, out) or body.get("note")),
         "earlierCalls": earlier_calls(conn, out, key),
     }

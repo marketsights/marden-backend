@@ -1,7 +1,8 @@
 """Review-queue decisions on the operations agents' items (called from marden.agents.review.apply_decision).
 
     note   (ref_type 'weekly_note')   approve: the draft becomes the week's note (the risk_list read model is
-                                      marked dirty, so GET /api/risk-list serves it within seconds);
+                                      marked dirty, so GET /api/risk-list serves it within seconds); refused
+                                      when the week's list was recomputed with other figures since the draft;
                                       reject (reason required): the draft is closed and the list keeps its
                                       code-written note; the note writer drafts again when the figures change
                                       (or `agents note --redraft`), with the reason as guidance on wording
@@ -42,6 +43,12 @@ def _note(conn: Conn, note_id: int, action: str, by: str, reason: str | None) ->
                               "reason and the note writer drafts again")
     week = note["week"].isoformat()
     if action == "approve":
+        from marden.agents.ops.note import covers, source_output
+
+        current = source_output(conn, note["week"])
+        if current is None or not covers(note, current):
+            raise ValidationError("this draft was written from an earlier risk list whose figures have changed; "
+                                  "reject it and the note writer drafts from the current list")
         conn.execute("""UPDATE weekly_note SET status = 'superseded', reason = %s
                         WHERE week = %s AND status = 'approved'""", (f"superseded by version {note['version']}",
                                                                       note["week"]))

@@ -5,6 +5,7 @@
 // for search and the data-center / plant search box, the staff review queue) apply the same switch here:
 // with it false, rows whose source_name is 'unlicensed-commercial' are left out before fact_current /
 // fact_asof precedence picks, exactly as services/marden/core/facts.py does.
+import { dayEnd } from './business-day.js';
 
 /**
  * The exact source_name of every 'unlicensed-commercial' entry in services/marden/core/licensing.py
@@ -26,15 +27,6 @@ export const UNLICENSED_SOURCE_NAMES: readonly string[] = [
 /** The source names left out under the switch: none while it is true, every unlicensed name when false. */
 export function hiddenSources(showUnlicensed: boolean): readonly string[] {
   return showUnlicensed ? [] : UNLICENSED_SOURCE_NAMES;
-}
-
-/**
- * The instant a day ends in business time: midnight US Eastern after it (snapshots and ?asOf days are Eastern;
- * the session is UTC, so `(day + 1)::timestamptz` would be 8 pm EDT). fact_asof(day) uses the same instant
- * (db/migrations/20261022050000_fact_asof_business_day.sql; services/marden/readmodels/context.py day_end).
- */
-export function dayEnd(dayPh: string): string {
-  return `((${dayPh}::date + 1)::timestamp AT TIME ZONE 'America/New_York')`;
 }
 
 /** fact_current / fact_asof order after (subject, field): non-model first, newest valid_from, F over R, newest learned. */

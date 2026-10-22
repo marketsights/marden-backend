@@ -1,7 +1,8 @@
 // Source heartbeats (spec 12, 22): each source with its latest run. With ?asOf the last good run and
-// the latest run are read from source_run as they stood at the end of that day.
+// the latest run are read from source_run as they stood at the end of that day (midnight US Eastern after it).
 import type { SourceHealth, SourcesHealthResponse, SourceStatus } from '../contracts/app.js';
 import type { Db } from '../db.js';
+import { dayEnd, dayEndAt } from '../lib/business-day.js';
 
 interface SourceRow {
   id: string; name: string; kind: string; cadence_minutes: number | null; blocked: boolean; blocked_reason: string | null;
@@ -50,7 +51,7 @@ function toHealth(r: SourceRow, now: Date): SourceHealth {
 }
 
 export async function sourcesHealth(db: Db, asOf: string | null): Promise<SourcesHealthResponse> {
-  const now = asOf ? new Date(new Date(`${asOf}T00:00:00Z`).getTime() + 24 * 60 * MINUTE) : new Date();
+  const now = asOf ? dayEndAt(asOf) : new Date();
   const res = await db.query<SourceRow>(
     `SELECT s.id, s.name, s.kind, s.cadence_minutes, s.blocked, s.blocked_reason,
        CASE WHEN $1::date IS NULL THEN s.last_ok_at ELSE ok.at END AS last_ok_at,
@@ -60,12 +61,12 @@ export async function sourcesHealth(db: Db, asOf: string | null): Promise<Source
        lr.items_seen AS run_items_seen, lr.items_new AS run_items_new, lr.error AS run_error
      FROM source s
      LEFT JOIN LATERAL (SELECT * FROM source_run r WHERE r.source_id = s.id
-                        AND ($1::date IS NULL OR r.started_at < ($1::date + 1))
+                        AND ($1::date IS NULL OR r.started_at < ${dayEnd('$1')})
                         ORDER BY r.started_at DESC, r.id DESC LIMIT 1) lr ON true
      LEFT JOIN LATERAL (SELECT max(r.finished_at) AS at FROM source_run r WHERE r.source_id = s.id AND r.ok
-                        AND r.finished_at < ($1::date + 1)) ok ON $1::date IS NOT NULL
+                        AND r.finished_at < ${dayEnd('$1')}) ok ON $1::date IS NOT NULL
      LEFT JOIN LATERAL (SELECT coalesce(r.finished_at, r.started_at) AS at, r.error FROM source_run r
-                        WHERE r.source_id = s.id AND r.ok = false AND r.started_at < ($1::date + 1)
+                        WHERE r.source_id = s.id AND r.ok = false AND r.started_at < ${dayEnd('$1')}
                         ORDER BY r.started_at DESC, r.id DESC LIMIT 1) bad ON $1::date IS NOT NULL
      ORDER BY s.name, s.id`,
     [asOf],

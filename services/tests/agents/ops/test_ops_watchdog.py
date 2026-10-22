@@ -81,8 +81,15 @@ def test_reported_value_against_a_filed_one():
     fact("campus", "iren-childress", "it_mw", 652.0, tag="R", source="Mgrid", day="2026-10-19",
          producer="seed:facilities")  # within 1%: rounding
     with db.transaction() as conn:
+        conn.execute("INSERT INTO campus (id, name) VALUES ('core-scientific-denton', 'Core Scientific Denton')")
+    fact("campus", "core-scientific-denton", "iso",
+         "Denton/Austin: ERCOT (municipal NOIEs); Dalton: non-RTO (SERC); Marble: TVA + Duke; Muskogee: SPP")
+    fact("campus", "core-scientific-denton", "iso", "ERCOT", tag="R", source="Communityimpact", day="2026-10-19",
+         producer="seed:facilities")  # part of the filed statement, not against it
+    with db.transaction() as conn:
         found = wc.reported_vs_filed(conn)
     assert [i.key for i in found] == ["campus:iren-childress:utility"]
+    assert wc.same_statement("2031-09", "2031-09-15") and not wc.same_statement("ERCOT", "SPP")
     assert found[0].evidence["filed"]["value"] == "AEP connection agreement (750 MW campus)"
 
 
@@ -160,6 +167,29 @@ def test_unexplained_move_and_its_cause():
     assert report["status"] == {"compared": 2, "moved": 2, "unexplained": 1}
 
 
+def test_a_change_outside_the_moves_own_window_does_not_explain_it():
+    """helios-2's input changed before its own two outputs, though inside the-barn's longer window (which once
+    served for every move): only the-barn, whose input changed between its own outputs, is explained."""
+    with db.transaction() as conn:
+        conn.execute("INSERT INTO site (slug, name) VALUES ('the-barn', 'Saline'), ('helios-2', 'Helios Phase II')")
+    _status("helios-2", "2026-10-15", "Strained", NOW - timedelta(days=7))
+    _status("helios-2", "2026-10-16", "Strained", NOW - timedelta(days=6))
+    _status("helios-2", "2026-10-21", "Broken", NOW - timedelta(hours=2))
+    _status("the-barn", "2026-10-14", "Strained", NOW - timedelta(days=8))
+    _status("the-barn", "2026-10-21", "Broken", NOW - timedelta(hours=2))
+    fid = fact("site", "helios-2", "risk_evidence", "Construction halted", tag="R", source="Press", day="2026-10-13")
+    barn = fact("site", "the-barn", "risk_evidence", "Lender walked", tag="R", source="Press", day="2026-10-13")
+    with db.transaction() as conn:  # helios-2's evidence: learned 6.5 days ago, dated before both of its outputs
+        conn.execute("UPDATE fact SET learned_at = %s WHERE id = %s", (NOW - timedelta(days=6, hours=12), fid))
+        conn.execute("UPDATE fact SET learned_at = %s WHERE id = %s", (NOW - timedelta(days=3), barn))
+    with db.transaction() as conn:
+        found, report = unexplained_moves(conn, TODAY)
+    # helios-2 moved between Oct 16 and Oct 21 (outputs 6 days and 2 hours ago): its evidence came before that
+    assert sorted(i.key for i in found) == ["status:helios-2:2026-10-21"]
+    assert found[0].evidence["window"][0] == (NOW - timedelta(days=6)).isoformat()
+    assert report["status"]["unexplained"] == 1
+
+
 def test_title_validator():
     code = "abilene: debt tranches add to $9.40B, not the facility size $7.10B"
     assert check_title("Abilene debt tranches total $9.40B against a $7.10B facility size", code, "sums") == []
@@ -168,6 +198,9 @@ def test_title_validator():
     assert check_title("Abilene tranches total $9.40B", code, "sums")  # a number dropped
     assert check_title("Abilene: Oracle tranches add to $9.40B vs $7.10B", code, "sums")  # a name added
     assert check_title("Abilene debt jumped to $9.40B, not $7.10B", code, "sums")  # a claim added
+    assert check_title("Abilene: two tranches add to $9.40B, not $7.10B", code, "sums")  # a number word added
+    assert check_title("Abilene: tranches add to $9.40B, not $7.10B (½ drawn)", code, "sums")  # a numeral added
+    assert check_title("Abilene tranches $9.40B vs $7.10B, see sec.gov", code, "sums")  # a link added
 
 
 def test_run_is_idempotent_and_follows_decisions():

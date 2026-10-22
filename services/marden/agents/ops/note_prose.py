@@ -46,11 +46,13 @@ ranked the instruments and computed every figure. Your job is only the words bet
 
 Rules (code checks every one; a paragraph that breaks one is thrown away):
 1. Write each figure only as its placeholder, exactly {{name}} as given. Never write a digit, a date, a
-   percentage, a number word (one, two, half, twice, dozen, percent, second, third, ...) or a figure in words.
-2. Do not state a direction or size yourself (rose, fell, up, down, higher, lower, widened, sharply,
-   significantly, ...): each figure's own text already says it, so let the placeholder carry it.
+   percentage, a number word (one, two, half, twice, several, few, dozen, percent, first, second, ...) or a
+   figure in words.
+2. Do not state a direction or size yourself (rose, fell, up, down, high, higher, lower, large, small,
+   widened, declined, sharply, significantly, ...): each figure's own text already says it, so let the
+   placeholder carry it.
 3. Use only what the figures say. No outside knowledge, no names that are not in the lead or in a figure's
-   text, no forecasts, no advice to buy, sell or hold.
+   text, no forecasts (will, expect, likely), no advice (buy, sell, should), no links, addresses or markup.
 4. Each paragraph is about its own instrument, two to four plain sentences, at most 80 words of your own.
    Start with the ranking (rank, count, odds), then the records that explain it, most important first. Use
    each placeholder at most once. A record's text is a full clause: put it after a colon or as its own

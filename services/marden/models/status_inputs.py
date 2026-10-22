@@ -28,6 +28,7 @@ from typing import Any
 from marden.core.db import Conn, Row
 from marden.models import pit, status_credit
 from marden.models.price_curve import CurveBook, load_curves
+from marden.readmodels.context import business_day
 
 ARCHIVE_SOURCES = ("seed_marden_data",)
 DATED_ITEM_FIELDS = frozenset({"risk_evidence", "schedule_change", "rfs_statement"})
@@ -188,7 +189,7 @@ def _archive_days(conn: Conn, rows: list[Row]) -> dict[int, date]:
         "SELECT id, doc_date, fetched_at FROM document WHERE id = ANY(%s) AND source_id = ANY(%s)",
         (ids, list(ARCHIVE_SOURCES)),
     ).fetchall()
-    return {r["id"]: r["doc_date"] or r["fetched_at"].date() for r in found}
+    return {r["id"]: r["doc_date"] or business_day(r["fetched_at"]) for r in found}
 
 
 def fact_items(conn: Conn, as_of: date, subject_type: str, ids: list[str], fields: tuple[str, ...]) -> list[Item]:

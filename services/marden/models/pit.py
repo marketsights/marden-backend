@@ -39,7 +39,7 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.core.licensing import show_unlicensed_prices, unlicensed_source_names
-from marden.readmodels.context import business_today, day_end
+from marden.readmodels.context import business_day, business_today, day_end
 
 NPORT_LAG_DAYS = 60
 XBRL_LAG_DAYS = 40
@@ -93,8 +93,8 @@ def note(kind: str, subject: str, field: str, record_date: date | datetime, publ
     used = _AUDIT.get()
     if used is None:
         return
-    rd = record_date.date() if isinstance(record_date, datetime) else record_date
-    pub = public.date() if isinstance(public, datetime) else public
+    rd = business_day(record_date) if isinstance(record_date, datetime) else record_date
+    pub = business_day(public) if isinstance(public, datetime) else public  # a learned_at: its Eastern day
     used.append(Input(kind, subject, field, rd, pub, source or "", basis))
 
 

@@ -3,6 +3,7 @@
 import type { SavedStress } from '../contracts/app.js';
 import type { Db, Queryable } from '../db.js';
 import { badRequest } from '../errors.js';
+import { dayEnd } from '../lib/business-day.js';
 import { stressRequestSchema, type StressRunRequest } from '../lib/defaults.js';
 import { first, type Query } from '../lib/params.js';
 
@@ -116,7 +117,7 @@ export async function insertSaved(
 
 export async function listSaved(c: Queryable, orgId: string, asOf: string | null): Promise<SavedStress[]> {
   const res = await c.query<SavedRow>(
-    `SELECT ${COLUMNS} FROM stress_saved WHERE org_id = $1 AND ($2::date IS NULL OR created_at < ($2::date + 1))
+    `SELECT ${COLUMNS} FROM stress_saved WHERE org_id = $1 AND ($2::date IS NULL OR created_at < ${dayEnd('$2')})
      ORDER BY created_at DESC, id`,
     [orgId, asOf],
   );

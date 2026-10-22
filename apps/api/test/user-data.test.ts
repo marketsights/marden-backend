@@ -162,7 +162,7 @@ describe('user data', () => {
     await db.query(`UPDATE fact SET learned_at = '2025-12-13T00:00:00Z' WHERE dedupe_key = 'ud-permit'`);
     await db.query(
       `INSERT INTO fact (subject_type, subject_id, field, value, tag, source_name, valid_from, status, producer, dedupe_key, learned_at)
-       VALUES ('site', $1, 'air_permit_number', '"PSDTX1692M1"', 'F', 'TCEQ', '2026-06-01', 'published', 'test', 'ud-permit-2', '2026-06-02T00:00:00Z'),
+       VALUES ('site', $1, 'air_permit_number', '"PSDTX1692M1"', 'F', 'TCEQ', '2026-06-01', 'published', 'test', 'ud-permit-2', '2026-06-02T12:00:00Z'),
               ('site', $1, 'air_permit_number', '"PSDTX1692X"', 'F', 'TCEQ', '2026-07-01', 'candidate', 'test', 'ud-permit-3', '2026-07-02T00:00:00Z')`,
       [SITE],
     );
@@ -171,7 +171,7 @@ describe('user data', () => {
         .filter((r) => r.kind === 'permit').map((r) => r.label);
     expect(await labels('')).toEqual(['PSDTX1692M1']); // the current value; the candidate is not published
     expect(await labels('&asOf=2026-01-15')).toEqual(['PSDTX1692']); // what Marden knew then
-    expect(await labels('&asOf=2026-06-01')).toEqual(['PSDTX1692']); // amendment not learned until Jun 2
+    expect(await labels('&asOf=2026-06-01')).toEqual(['PSDTX1692']); // amendment not learned until Jun 2 (08:00 New York)
     expect(await labels('&asOf=2025-12-01')).toEqual([]);
   });
 });

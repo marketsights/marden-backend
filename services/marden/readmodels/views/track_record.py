@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from marden.core.db import Conn
-from marden.readmodels.context import day_end
+from marden.readmodels.context import business_day, day_end
 from marden.readmodels.registry import builder
 from marden.readmodels.views.instrument_inputs import day, num
 from marden.readmodels.views.monitor_common import Doc, is_iso_date, latest_output_any
@@ -124,7 +124,7 @@ def model_rows(conn: Conn) -> list[Doc]:
         output, built_from, cadence, page = info
         rows.append({"model": r["model"], "output": output, "version": _version_label(r["model"], str(r["version"])),
                      "builtFrom": built_from, "cadence": cadence, "methodUrl": f"docs/methods/{page}" if page else None,
-                     "lastRun": r["started_at"].date().isoformat()})
+                     "lastRun": business_day(r["started_at"]).isoformat()})
     order = list(MODEL_INFO)
     return sorted(rows, key=lambda row: order.index(row["model"]))
 

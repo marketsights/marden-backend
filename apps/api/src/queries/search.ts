@@ -4,6 +4,7 @@
 // (lib/licensing.ts factSource), never from `fact` directly.
 import type { SearchResult } from '../contracts/app.js';
 import type { Db } from '../db.js';
+import { dayEnd } from '../lib/business-day.js';
 import { factSource } from '../lib/licensing.js';
 
 // $1 = query text, $2 = ILIKE pattern, $3 = as-of date or null, $4 = rows per kind, $5 = limit,
@@ -12,7 +13,7 @@ const sim = (expr: string): string => `word_similarity($1, coalesce(${expr}, '')
 const hit = (expr: string): string => `(${expr} ILIKE $2 OR $1 <% coalesce(${expr}, ''))`;
 const anyHit = (arr: string): string => `EXISTS (SELECT 1 FROM unnest(${arr}) x WHERE x ILIKE $2 OR $1 <% x)`;
 const bestOf = (arr: string): string => `(SELECT coalesce(max(word_similarity($1, x)), 0) FROM unnest(${arr}) x)`;
-const known = (alias: string): string => `($3::date IS NULL OR ${alias}.created_at < ($3::date + 1))`;
+const known = (alias: string): string => `($3::date IS NULL OR ${alias}.created_at < ${dayEnd('$3')})`;
 const score = (...parts: string[]): string => `greatest(${parts.join(', ')})::float8`;
 const exact = (expr: string): string => `CASE WHEN ${expr} ILIKE $2 THEN 0.6 ELSE 0 END`;
 // Every word of the query appears in the text ("CoreWeave DDTL", "Oracle notes", "Jupiter loan").

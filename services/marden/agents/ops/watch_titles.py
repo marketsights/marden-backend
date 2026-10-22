@@ -4,7 +4,8 @@ Code writes every title from what it found ("abilene: debt tranches add to $9.40
 $7.10B"). With a model backend, the titles of new or changed issues go to the writer model in one call,
 which may only reword them for a credit analyst. `check_title` keeps a rewording only when it carries exactly
 the code title's numbers (none added, none dropped), no name the code title or the check does not hold, no
-direction or size word the code title lacks, and at most 140 characters; otherwise the code title stays.
+direction, size or number word ("two", "several") or other numeral the code title lacks, no link or markup,
+and at most 140 characters; otherwise the code title stays.
 """
 
 from __future__ import annotations
@@ -13,7 +14,18 @@ import json
 from typing import Any
 
 from marden.agents.llm import BudgetExceeded, Llm, LlmError, LlmRequest
-from marden.agents.ops.numbers import CLAIM_WORDS, NAME, QUOTES, WORD, _norm, number_set, vocabulary
+from marden.agents.ops.numbers import (
+    CLAIM_WORDS,
+    LINKISH,
+    NAME,
+    NUMBER_WORDS,
+    QUOTES,
+    WORD,
+    _norm,
+    number_set,
+    numerals,
+    vocabulary,
+)
 
 AGENT = "writer:watchdog"
 MAX_CHARS = 140
@@ -49,9 +61,16 @@ def check_title(new: str, code: str, check_label: str) -> list[str]:
     names = [m.group(0).rstrip("." + QUOTES) for m in NAME.finditer(new)]
     if strange := sorted({n for n in names if n and _norm(n) not in known and _norm(n) not in _first_words(new)}):
         problems.append(f"names the original does not hold: {', '.join(strange)}")
-    claims = {_norm(w) for w in WORD.findall(new)} & CLAIM_WORDS
-    if added := sorted(claims - {_norm(w) for w in WORD.findall(code)}):
+    code_words = {_norm(w) for w in WORD.findall(code)}
+    new_words = {_norm(w) for w in WORD.findall(new)}
+    if added := sorted((new_words & CLAIM_WORDS) - code_words):
         problems.append(f"direction or size words the original lacks: {', '.join(added)}")
+    if added := sorted((new_words & NUMBER_WORDS) - code_words):
+        problems.append(f"number words the original lacks: {', '.join(added)}")
+    if odd := [c for c in numerals(new) if c not in code]:
+        problems.append(f"numerals the original lacks: {', '.join(odd)}")
+    if (link := LINKISH.search(new)) and not LINKISH.search(code):
+        problems.append(f"a link, address or markup: {link.group(0)!r}")
     return problems
 
 

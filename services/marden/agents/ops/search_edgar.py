@@ -11,8 +11,9 @@ main document or a material exhibit (EX-10, EX-99, EX-4, EX-2, EX-1), from its p
 (/Archives/edgar/data/<cik>/<accession>/<file>, allowed by sec.gov's robots.txt) and stored raw.
 
 Every SEC host shares one bucket of at most 5 requests per second with the declared SEC_USER_AGENT
-(`marden.core.http`). A 401/403/407/429/451, or a page that is not JSON, stops every EDGAR search of the
-run and is recorded on the source; nothing is retried with other headers.
+(`marden.core.http`). A 401/403/407/429/451 (on a search or on a filing's file), or a search answer that is
+not JSON, stops every EDGAR search of the run and is recorded on the source; nothing is retried with other
+headers.
 """
 
 from __future__ import annotations
@@ -161,9 +162,15 @@ class EdgarSearch:
     def fetch(self, hit: Hit, meta: dict[str, Any]) -> DocumentRow:
         """The hit's file from the EDGAR archive, stored raw (the researcher queues it once it is checked)."""
         self.requests += 1
-        return http.fetch_document(
-            SOURCE_ID, hit.url, doc_type=hit.file_type or hit.form,
-            title=f"{hit.form} {hit.file_type} {hit.filer}"[:300],
-            doc_date=hit.filed, external_id=hit.accession, extract_state="none", fetcher=self.fetcher,
-            meta={"producer": "agent:researcher", "cik": hit.cik.lstrip("0"), "form": hit.form,
-                  "filename": hit.filename, **meta})
+        try:
+            return http.fetch_document(
+                SOURCE_ID, hit.url, doc_type=hit.file_type or hit.form,
+                title=f"{hit.form} {hit.file_type} {hit.filer}"[:300],
+                doc_date=hit.filed, external_id=hit.accession, extract_state="none", fetcher=self.fetcher,
+                meta={"producer": "agent:researcher", "cik": hit.cik.lstrip("0"), "form": hit.form,
+                      "filename": hit.filename, **meta})
+        except FetchError as exc:  # sec.gov refusing a file (403 'undeclared automated tool', 429) stops the run
+            if exc.status in STOP_STATUSES:
+                raise SearchBlocked(exc.url, exc.status, f"stopped: HTTP {exc.status} on a filing "
+                                                         "(no evasion attempted)") from None
+            raise

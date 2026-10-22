@@ -17,7 +17,8 @@ Extractor). Weekly on queue 'agents' (`agents.research`), or `python -m marden a
    (extract_state 'queued'; with the agents configured, an agent_job at priority 90 watched / 85 financed). A
    hit Marden holds but never queued is queued; one already read or waiting is recorded as such.
 4. The report (agent_ops_run, research_search, research_find) says what was searched, found and queued.
-No model is called. A refusal (401/403/429, a challenge page) stops that endpoint's searches for the run.
+No model is called. A refusal (401/403/429, a challenge page), on a search or on a file, stops that endpoint's
+searches and fetches for the run.
 """
 
 from __future__ import annotations
@@ -47,6 +48,15 @@ log = logging.getLogger(__name__)
 
 HITS_PER_QUERY = 3
 MAX_QUEUE_BYTES = 10_000_000  # larger files (a 22 MB FERC Form 1) are stored raw; a person decides to read them
+
+
+def size_check(doc: DocumentRow, why: str) -> tuple[bool, str]:
+    """A file larger than MAX_QUEUE_BYTES is stored raw but not queued by the researcher (a person decides)."""
+    size = doc.bytes or 0
+    if size > MAX_QUEUE_BYTES:
+        return False, (f"{size / 1e6:,.1f} MB is more than the researcher queues by itself "
+                       f"({MAX_QUEUE_BYTES / 1e6:,.0f} MB; a person can queue it: agents run --doc {doc.id})")
+    return True, why
 
 
 def _env_int(name: str, default: int) -> int:
@@ -90,9 +100,11 @@ class Run:
             held = store.held(conn, url)
         if held is not None:
             outcome, reason = store.outcome_for_held(held)
-            if outcome == "queued":  # stored but never queued: the same check as a new file first
+            if outcome == "queued":  # stored but never queued: the same checks as a new file first
                 stored = documents.get_document(int(held["id"]))
                 ok, why = relevance(doc_text(stored) if stored else None, q, filer_cik)
+                if ok and stored is not None:
+                    ok, why = size_check(stored, why)
                 if not ok:
                     self._record(search_id, url, "skipped", reason=f"held, not queued: {why}",
                                  document_id=held["id"], **info)
@@ -111,15 +123,17 @@ class Run:
             return
         try:
             doc = fetch()
+        except (SearchBlocked, Challenged) as exc:  # a refusal or bot check on a file: stop this endpoint
+            self._record(search_id, url, "failed", reason=f"refused: {exc}"[:300], **info)
+            raise
         except (FetchError, SourceError, OSError, ValueError) as exc:
             self.errors.append(f"{url}: {exc}"[:300])
             self._record(search_id, url, "failed", reason=str(exc)[:300], **info)
             return
         self.docs_left -= 1
         ok, why = relevance(doc_text(doc), q, filer_cik)
-        if ok and doc.bytes > MAX_QUEUE_BYTES:
-            ok, why = False, (f"{doc.bytes / 1e6:,.1f} MB is more than the researcher queues by itself "
-                              f"({MAX_QUEUE_BYTES / 1e6:,.0f} MB; a person can queue it: agents run --doc {doc.id})")
+        if ok:
+            ok, why = size_check(doc, why)
         if not ok:
             self._record(search_id, url, "skipped", reason=f"stored raw, not queued: {why}", document_id=doc.id,
                          **info)

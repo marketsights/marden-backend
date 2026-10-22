@@ -2,6 +2,7 @@
 // their read state, which is per member.
 import type { Alert, Tag } from '../contracts/types.js';
 import type { Db, Queryable } from '../db.js';
+import { dayEnd } from '../lib/business-day.js';
 
 interface AlertRow {
   id: string; at: Date; headline: string; tag: Tag; rule_label: string; ref_url: string;
@@ -27,7 +28,7 @@ export async function listAlerts(
 ): Promise<Alert[]> {
   const res = await db.query<AlertRow>(
     `SELECT id::text, at, headline, tag, rule_label, ref_url, read_at, emailed_at FROM alert
-     WHERE org_id = $1 AND user_id = $5 AND ($2::date IS NULL OR at < ($2::date + 1)) AND (NOT $3 OR read_at IS NULL)
+     WHERE org_id = $1 AND user_id = $5 AND ($2::date IS NULL OR at < ${dayEnd('$2')}) AND (NOT $3 OR read_at IS NULL)
      ORDER BY at DESC, id DESC LIMIT $4`,
     [orgId, opts.asOf, opts.unreadOnly, opts.limit, userId],
   );
@@ -39,7 +40,7 @@ export async function unreadAlerts(
 ): Promise<{ count: number; latestAt: string | null }> {
   const res = await db.query<{ count: number; latest: Date | null }>(
     `SELECT count(*)::int AS count, max(at) AS latest FROM alert
-     WHERE org_id = $1 AND user_id = $3 AND read_at IS NULL AND ($2::date IS NULL OR at < ($2::date + 1))`,
+     WHERE org_id = $1 AND user_id = $3 AND read_at IS NULL AND ($2::date IS NULL OR at < ${dayEnd('$2')})`,
     [orgId, asOf, userId],
   );
   const row = res.rows[0];

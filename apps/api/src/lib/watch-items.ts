@@ -2,6 +2,7 @@
 // anything the read model does not carry yet is null (n/d), never filled in.
 import type { ChainStatus, Sourced, WatchItem } from '../contracts/types.js';
 import type { ComingUpEntry, IssuerCandidateRow, WatchJoinRow } from '../queries/watchlist.js';
+import { businessToday } from './business-day.js';
 
 const BOND_KINDS = new Set(['bond', 'convert', 'abs', 'cmbs', 'muni']);
 
@@ -31,8 +32,8 @@ export type WatchItemOut = Omit<WatchItem, 'status' | 'nextCatalyst'> & {
   nextCatalystAt: string | null;
 };
 
-/** The day a catalyst must fall on or after: the as-of day asked, else today (UTC). */
-const fromDay = (asOf: string | null): string => asOf ?? new Date().toISOString().slice(0, 10);
+/** The day a catalyst must fall on or after: the as-of day asked, else today in US Eastern. */
+const fromDay = (asOf: string | null): string => asOf ?? businessToday();
 
 /** "CoreWeave 9.00% Sr Notes 2031: next N-PORT marks public" on that name's own row reads "Next N-PORT marks public". */
 function withoutName(what: string, name: string): string {

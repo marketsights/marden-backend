@@ -3,6 +3,7 @@
 // joined at read time so the row, the page, the /row refresh and the Excel export agree and stay as
 // fresh as the debt document. Plant debt is n/d, never zero, when no record states an amount.
 import type { PlantDebt, Sourced } from '../contracts/types.js';
+import { businessToday } from './business-day.js';
 
 /** Method of the plant-debt sum (a Marden roll-up of stated amounts, tag M). */
 export const PLANT_DEBT_SUM_METHOD = 'plant-debt-sum@0.1';
@@ -62,6 +63,6 @@ export function plantDebtColumns(debt: PlantDebt | null, asOf: string): PlantDeb
 /** A plant_row document with its spec 20 columns. `asOf` dates the n/d values (the row's own date). */
 export function withPlantDebt<T extends object>(row: T, debt: PlantDebt | null | undefined): T & PlantDebtColumns {
   const r = row as { permittedMw?: { asOf?: string }; status?: { asOf?: string } };
-  const asOf = r.status?.asOf ?? r.permittedMw?.asOf ?? new Date().toISOString().slice(0, 10);
+  const asOf = r.status?.asOf ?? r.permittedMw?.asOf ?? businessToday();
   return { ...row, ...plantDebtColumns(debt ?? null, asOf) };
 }
