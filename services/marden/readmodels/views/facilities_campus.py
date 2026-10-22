@@ -56,6 +56,7 @@ from marden.readmodels.views.facilities_common import (
     subject_events,
     text_value,
 )
+from marden.readmodels.views.imagery_context import image_items, imagery_campuses, naip_image
 from marden.readmodels.views.sites_common import Doc, day, nd, with_value
 from marden.readmodels.views.sites_text import text_of
 
@@ -292,12 +293,8 @@ def key_dates(conn: Conn, campus_id: str, facts: dict[str, Row]) -> list[Doc]:
 
 
 def campus_imagery(conn: Conn, campus_id: str) -> list[Doc]:
-    by_month: dict[str, Doc] = {}
-    for r in known_fact_rows(conn, "campus", campus_id, ["imagery"])["imagery"]:
-        v = r["value"] if isinstance(r["value"], dict) else {}
-        if isinstance(v.get("month"), str) and isinstance(v.get("url"), str) and r["valid_from"] <= day():
-            by_month.setdefault(v["month"], {"month": v["month"], "url": v["url"]})
-    return [by_month[m] for m in sorted(by_month)]
+    """Monthly Sentinel-2 images of the campus (oldest first), with caption, change score, box and day."""
+    return image_items(conn, "campus", campus_id)
 
 
 def detail_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
@@ -315,6 +312,7 @@ def detail_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
             "balancingAuthority": text_value(all_facts.get("balancing_authority"), "F"),
             "keyDates": key_dates(conn, cid, all_facts),
             "imagery": campus_imagery(conn, cid),
+            "imageryCampuses": imagery_campuses(conn, [cid]),
             "tabCounts": {
                 "buildings": len(building_docs(conn, cid)),
                 "records": len(campus_records(conn, cid)),
@@ -322,6 +320,8 @@ def detail_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
             },
         }
     )
+    if (naip := naip_image(conn, "campus", cid)) is not None:
+        doc["imageryNaip"] = naip
     if (load := large_load(conn, cid, all_facts)) is not None:
         doc["largeLoad"] = load
     if (gens := all_facts.get("backup_generator_count")) is not None:

@@ -57,6 +57,7 @@ HY_MAX_LAG_DAYS = 7
 RIDGE_LEVEL = 1.0
 RIDGE_HY = 4.0
 RIDGE_NS = 1.0
+FIT_YEARS = (0.5, 1, 2, 3, 4, 5, 6, 7, 8, 10)
 _JUNIOR = re.compile(r"junior|subordinat|mezz|second lien|2L\b|holdco|\bPIK\b|preferred", re.I)
 
 
@@ -302,6 +303,23 @@ def fit_deals(as_of: date, ds: list[Deal], excluded: list[dict[str, Any]], hy: H
     return TierFit(as_of, ds, levels, coef, float(beta[k]), mean, None if now is None or mode is None else now.value,
                    float(math.sqrt(np.sum(resid**2) / dof)), float(math.sqrt(np.mean(np.square(loo)))), excluded,
                    missing, mode, None if now is None or mode is None else hy_input(now))
+
+
+def curve_doc(tf: TierFit, book: CurveBook, points: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """CurveTier[] (types.ts): per tier its instrument points and the fitted yield curve."""
+    curve = book.curve(tf.as_of)
+    out = []
+    for tier in TIERS:
+        fit_pts = []
+        if curve is not None and tier in tf.levels:
+            for years in FIT_YEARS:
+                s = tf.spread(tier, years)
+                if s is not None:
+                    fit_pts.append({"years": years, "yieldPct": round(curve.par_yield(years) + s / 100.0, 3)})
+        pts = sorted(points.get(tier, []), key=lambda p: p["years"])
+        if fit_pts or pts:
+            out.append({"tier": tier, "points": pts, "fit": fit_pts})
+    return out
 
 
 HY_BASIS = {

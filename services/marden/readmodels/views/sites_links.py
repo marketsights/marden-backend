@@ -12,8 +12,9 @@ import json
 from typing import Any
 
 from marden.core.db import Conn, Row
-from marden.readmodels.context import known_fact_rows, known_facts
+from marden.readmodels.context import known_facts
 from marden.readmodels.registry import get_builder
+from marden.readmodels.views.imagery_context import building_stage, image_items, imagery_campuses
 from marden.readmodels.views.sites_common import Doc, day, day_end, src_or_nd, subjects_listing
 
 BUILDING_FACTS = ("status", "sqft", "facility_mw", "it_mw", "building_permit", "co_date", "construction_start",
@@ -72,6 +73,8 @@ def building_doc(conn: Conn, b: Row) -> Doc | None:
     }
     if facts.get("change_score"):
         doc["changeScore"] = src_or_nd(facts["change_score"], "M")
+    if (stage := building_stage(conn, b["id"])) is not None:
+        doc["imageryStage"] = stage  # Sentinel-2 construction stage (M): never an operating status
     return doc
 
 
@@ -122,24 +125,15 @@ def read_doc(conn: Conn, view: str, key: str) -> Any:
 
 
 def imagery(conn: Conn, slug: str) -> list[Doc]:
-    """Monthly Sentinel-2 images (oldest first) with the change score of the scene, when scored."""
-    rows = known_fact_rows(conn, "site", slug, ["imagery", "change_score"])
-    scores: dict[str, float] = {}
-    for r in rows["change_score"]:
-        scene = (r.get("quote_loc") or "").split(" vs ")[0].strip()
-        if scene and isinstance(r["value"], int | float):
-            scores.setdefault(scene, r["value"])
-    by_month: dict[str, Doc] = {}
-    for r in rows["imagery"]:
-        v = r["value"] if isinstance(r["value"], dict) else {}
-        month, url = v.get("month"), v.get("url")
-        if not (isinstance(month, str) and isinstance(url, str)) or month in by_month:
-            continue
-        item: Doc = {"month": month, "url": url, "caption": v.get("caption") or ""}
-        if v.get("scene_id") in scores:
-            item["changeScore"] = scores[v["scene_id"]]
-        by_month[month] = item
-    return [by_month[m] for m in sorted(by_month)]
+    """Monthly Sentinel-2 images (oldest first) with the change score of the scene, when scored, and the
+    box, day and comparison scene the markup needs (imagery_context.image_items)."""
+    return image_items(conn, "site", slug)
+
+
+def site_imagery_campuses(conn: Conn, slug: str) -> list[Doc]:
+    """The site's linked campuses (approved, else proposed) with what the image markup needs."""
+    campuses, _approved = linked_campuses(conn, slug)
+    return imagery_campuses(conn, [c["id"] for c in campuses])
 
 
 def last_visible_change(conn: Conn, slug: str) -> Doc | None:

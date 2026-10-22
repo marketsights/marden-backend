@@ -21,6 +21,9 @@ export interface SiteEvidenceTab {
   records: SiteRecord[];
   /** Monthly Sentinel-2 images, oldest first (same shape as SiteSchedule.imagery). */
   imagery: SiteSchedule['imagery'];
+  /** The linked campuses' buildings, plan and imagery read (same shape as SiteSchedule.imageryCampuses). */
+  imageryCampuses?: SiteSchedule['imageryCampuses'];
+  imageryNaip?: SiteSchedule['imageryNaip'];
   /** Finding from the change scores, e.g. "Little visible change since June" (M). */
   imageryFinding?: Sourced<string>;
 }

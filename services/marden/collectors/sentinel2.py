@@ -10,7 +10,9 @@ sentinel2_store), over a ~1.5 km box:
 2. Per month, the clearest scene in the box (SCL read in tile-cloud order; marden.collectors.
    sentinel2_stac). Its item JSON is stored raw with fetch_document; the imagery URL is the PC data
    API's true-colour rendering cropped to the box. A month whose pick every subject already has
-   is not re-ranked once the month has closed (FINAL_LAG_DAYS after its end).
+   is not re-ranked once the month has closed (FINAL_LAG_DAYS after its end). The stored image is rendered
+   over the view box (the 1.5 km box widened to the point's campus buildings; sentinel2_store.view_box);
+   a kept pick whose stored rendering is of another box is re-rendered, not re-ranked.
 3. change-score@0.1 against the pick ~3 months earlier, computed in code from rasterio windowed
    reads of B04/B08/B11/SCL (marden.collectors.sentinel2_raster). COG range reads are not stored
    (the files are ~100-200 MB each; the scene and box in quote_loc reproduce them); they are
@@ -51,6 +53,7 @@ from marden.collectors.sentinel2_stac import (
     base_months,
     candidates_by_month,
     choose_tile,
+    imagery_url,
     item_url,
     month_final,
     parse_item,
@@ -67,6 +70,7 @@ from marden.collectors.sentinel2_store import (
     by_point,
     load_prior,
     load_subjects,
+    view_box,
 )
 from marden.core import db, documents, http
 from marden.core.config import get_settings
@@ -212,12 +216,20 @@ def collect_point(subjects: list[Subject], ctx: Context) -> dict[str, Any]:
     box = Box.around(subjects[0].lon, subjects[0].lat)
     with db.transaction() as conn:
         prior = load_prior(conn, subjects)
+        view = view_box(conn, subjects, box)
     picks = choose_picks(box, subjects, prior, ctx)
     with db.transaction() as conn:
-        store = Store(conn, ctx.stats, subjects, box)
+        store = Store(conn, ctx.stats, subjects, box, view)
         for pick in picks.values():
             if not pick.reused:
                 store.imagery(pick)
+            elif not prior.rendered(pick.month, subjects, imagery_url(pick.scene_id, view)):
+                clear = prior.clear(pick.month, subjects)
+                if clear is None:
+                    ctx.count("rerender_skipped")
+                    continue
+                store.imagery(pick, clear=clear)
+                ctx.count("images_rerendered")
 
     scores: dict[str, float] = {}
     for month, pick in picks.items():
@@ -244,7 +256,7 @@ def collect_point(subjects: list[Subject], ctx: Context) -> dict[str, Any]:
         with db.transaction() as conn:
             Store(conn, ctx.stats, subjects, box).last_change(picks[last], scores[last])
     ctx.windows.clear()
-    return {"subjects": [s.key for s in subjects], "box": box.text(), "months": len(picks),
+    return {"subjects": [s.key for s in subjects], "box": box.text(), "view": view.text(), "months": len(picks),
             "scores": {m: scores[m] for m in sorted(scores)},
             "last_visible_change": picks[max(changed)].day.isoformat() if changed else None}
 

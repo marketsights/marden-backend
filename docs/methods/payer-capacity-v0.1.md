@@ -73,11 +73,11 @@ No rating fact was public then, so the call rests on the filings alone. On 2026-
 - **lesseeBand** = payer_capacity downgradeRisk.
 - **priorityScore** = P(cut | band) × dependent debt $B × (1.5 when that debt quotes a rating-linked term) ÷ (1 + years until commencement). P(cut): High 0.6, Watch 0.3, Low 0.1. These are uncalibrated v0 weights, shown in the basis.
 - **headroomBeforeTurns** is n/d and `triggerLease` is false until agency triggers are collected.
-- **Reconciliation**: one row per lessee whose latest 10-K/10-Q "leases not yet commenced" total is an entity fact (`leases_not_commenced_usd`, with form, period, commencement window and term range in `leases_not_commenced_filing`; us-gaap has no non-dimensional element, so the note is read from the filing text):
-  - attributed = the stated totals of the lessee's named leases (kind Lease, not started or terminated);
-  - not yet attributed = disclosed − attributed, linked to the filing; never estimated or spread across sites;
-  - when named totals exceed the filed figure (a lease partly started, or left out of the note) attribution is capped at the filed total and the row carries a `note`;
-  - a lessee without the fact has no row and is listed in `missing`.
+- **Reconciliation** needs each lessee's 10-K/10-Q "leases not yet commenced" total. us-gaap has no non-dimensional element for it, so it waits for the lease-note extraction. Until then:
+  - there are no reconciliation rows;
+  - disclosedB and unattributedB are 0;
+  - the attributed totals cover the mapped edges only.
+  - The residual is never estimated or spread across sites.
 - Inferred leases (the researcher's trail) are not built in v0.
 
 ## Runs

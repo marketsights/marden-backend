@@ -2,14 +2,12 @@
 one LeaseRecord from the same document).
 
 One LeaseRecord per lease or compute contract on the obligation map that Marden has a source for: lessee
-and lessor are the edge's two ends (the lessor Sourced by the edge's own type fact; a lessee no source
-names shows as "Tenant not disclosed", with the sources' description of it in `tenantNote`), amounts,
-start, term and contracted MW are the edge's facts, `sites` every linked site with its display name,
-`siteSlug` / `siteName` the single linked site (null when it spans several or none) and the campus the
-edge's own, else the one approved campus all its linked sites share (lease_common). Attribution follows
-the edge's sources: Filed if any is filed, Reported if any is reported, else Inferred. Dependent debt is the
-debt behind the edge (sizes, holders, whether its documents quote a rating-tied term); the lessee band is
-the payer_capacity model's downgradeRisk for the lessee.
+and lessor are the edge's two ends (the lessor Sourced by the edge's own type fact), amounts, start and
+term are the edge's facts, the site its single linked site (null when it spans several or none) and the
+campus the edge's own, else the site's one approved campus link. Attribution follows the edge's sources:
+Filed if any is filed, Reported if any is reported, else Inferred. Dependent debt is the debt behind the
+edge (sizes, holders, whether its documents quote a rating-tied term); the lessee band is the
+payer_capacity model's downgradeRisk for the lessee.
 
 The `leases` model (subject 'all') owns the rest and is read as is: `reconciliation` (LesseeReconciliation
 rows, each tying a lessee's filed not-yet-commenced total to filed + inferred + unattributed),
@@ -27,13 +25,6 @@ from typing import Any
 from marden.core.db import Conn, Row
 from marden.readmodels.registry import builder
 from marden.readmodels.views.instrument_inputs import latest_output as any_subject_output
-from marden.readmodels.views.lease_common import (
-    NOT_OUTSTANDING,
-    STATUS_LABELS,
-    lessee_label,
-    single_campus,
-    site_docs,
-)
 from marden.readmodels.views.payers_common import (
     LEASE_TYPES,
     Doc,
@@ -53,13 +44,21 @@ from marden.readmodels.views.payers_common import (
     number_of,
     obligation_rows,
     output_field,
-    site_names,
     text_of,
     with_value,
 )
 from marden.readmodels.views.payers_debt import instrument_info
 from marden.readmodels.views.sites_common import day_end, site_slugs
 
+STATUS_LABELS = {
+    "Started": "Commenced",
+    "Signed": "Signed, not commenced",
+    "Announced": "Announced",
+    "Amended": "Amended",
+    "Terminated": "Terminated",
+    "Disputed": "Disputed",
+}
+NOT_OUTSTANDING = ("Commenced", "Terminated")
 CONFIDENCE = ("High", "Medium", "Low")
 RISKS = ("Low", "Watch", "High", "n/d")
 
@@ -69,17 +68,15 @@ def _value(doc: Doc) -> float:
     return float(v) if isinstance(v, int | float) and not isinstance(v, bool) else 0.0
 
 
-def site_campuses(conn: Conn, slug: str) -> list[str]:
+def site_campus(conn: Conn, slug: str | None) -> str | None:
+    if slug is None:
+        return None
     rows = conn.execute(
-        """SELECT DISTINCT campus_id FROM site_link WHERE site_slug = %s AND status = 'approved'
+        """SELECT campus_id FROM site_link WHERE site_slug = %s AND status = 'approved'
              AND (approved_at IS NULL OR approved_at < %s)""",
         (slug, day_end()),
     ).fetchall()
-    return [r["campus_id"] for r in rows]
-
-
-def site_campus(conn: Conn, slug: str | None) -> str | None:
-    return single_campus(lambda s: site_campuses(conn, s), [slug] if slug else [])
+    return rows[0]["campus_id"] if len(rows) == 1 else None
 
 
 def attribution(facts: dict[str, Row], rows: dict[str, list[Row]]) -> str:
@@ -122,15 +119,10 @@ def lease_record(conn: Conn, ob: Row, ctx: dict[str, Any]) -> Doc | None:
     confidence = given.get("confidence") if given.get("confidence") in CONFIDENCE else None
     return {
         "id": ob["id"],
-        "lesseeId": ob["from_entity_id"],
-        "lessee": lessee_label(ob["from_entity_id"], {k: v["name"] for k, v in names.items()}),
-        "tenantNote": text_of(facts.get("tenant_description")),
+        "lessee": names[ob["from_entity_id"]]["name"],
         "lessor": with_value(facts["edge_type"], names[ob["to_entity_id"]]["name"]),
         "siteSlug": site,
-        "siteName": ctx["site_names"].get(site) if site else None,
-        "sites": site_docs(sites, ctx["site_names"]),
-        "campusId": ob.get("campus_id") or single_campus(lambda s: site_campuses(conn, s), sites),
-        "mw": number_of(facts.get("contracted_mw")),
+        "campusId": ob.get("campus_id") or site_campus(conn, site),
         "kind": "Compute contract" if ob["type"] == "Compute purchase" else "Lease",
         "status": STATUS_LABELS[edge_status(facts, rows)],
         "totalB": billions_of(facts.get("total_usd")),
@@ -156,7 +148,7 @@ def _is_sourced(value: Any) -> bool:
 def reconciliation(model_out: Row | None) -> list[Doc]:
     """The leases model's reconciliation rows (each already ties to its filing; passed through)."""
     rows = []
-    numbers = ("filedOrReportedB", "inferredB", "attributedB", "unattributedB", "attributedShare", "namedTotalB")
+    numbers = ("filedOrReportedB", "inferredB", "attributedB", "unattributedB", "attributedShare")
     for item in output_field(model_out, "reconciliation") or []:
         if not isinstance(item, dict) or not isinstance(item.get("lessee"), str):
             continue
@@ -167,20 +159,12 @@ def reconciliation(model_out: Row | None) -> list[Doc]:
             continue
         if not all(isinstance(item.get(k), int | float) for k in numbers):
             continue
-        def text(key: str, item: dict[str, Any] = item) -> str | None:
-            return item[key] if isinstance(item.get(key), str) else None
-
         rows.append(
             {
                 "lessee": item["lessee"],
-                "lesseeId": text("lesseeId"),
                 "filing": {k: filing[k] for k in ("form", "period", "url")},
-                "commencement": text("commencement"),
-                "terms": text("terms"),
                 "disclosedNotCommencedB": item["disclosedNotCommencedB"],
-                "namedLeases": item["namedLeases"] if isinstance(item.get("namedLeases"), int) else 0,
                 **{k: item[k] for k in numbers},
-                "note": text("note"),
             }
         )
     return rows
@@ -238,7 +222,6 @@ def build_leases(conn: Conn):
         ),
         "model": model_out,
         "sites": site_slugs(conn),
-        "site_names": site_names(conn),
         "bands": {},
     }
     leases = [r for ob in obligations if (r := lease_record(conn, ob, ctx)) is not None]

@@ -80,8 +80,57 @@ export interface SiteSchedule {
   projection: CushionProjection | null;       // null = n/d: the cushion model has not projected this site
   milestones: Milestone[];
   cushionHistory: { date: string; months: number; event?: string }[];
-  imagery: { month: string; url: string; caption: string; changeScore?: number }[];
+  imagery: ImageryImage[];
+  /** The linked campuses' buildings, plan and imagery read, for marking up the images. */
+  imageryCampuses?: ImageryCampus[];
+  /** Newest NAIP aerial photo (0.6 m, public domain) over the same box as the Sentinel-2 images. */
+  imageryNaip?: Sourced<NaipImage>;
   documents: Evidence[];
+}
+/** One monthly Sentinel-2 image (oldest first in every list). */
+export interface ImageryImage {
+  month: string; url: string; caption: string;
+  changeScore?: number;                       // Marden change score (M) vs the earlier image named by comparedWith
+  date?: string;                              // acquisition day
+  bbox?: [number, number, number, number];    // [west, south, east, north], WGS84: the image is a lon/lat grid over exactly this box
+  comparedWith?: string;                      // acquisition day of the earlier image the score compares with (~3 months before)
+  changeThreshold?: number;                   // score from which Marden records a visible change
+  changeMethod?: string;                      // method version of the score, e.g. "change-score@0.1"
+}
+/** A building outline for the image markup: footprint, status and construction dates as recorded. */
+export interface ImageryBuilding {
+  id: string; label: string; footprint: GeoJSON.Polygon;
+  status: Sourced<DcStatus>;
+  constructionStart: Sourced<string>;         // null = n/d
+  constructionEnd: Sourced<string>;           // null = n/d
+  imageryStage?: BuildingImageryStage;
+}
+/** What 10 m optical imagery shows on a footprint per capture (Marden model, M, building-stage@0.1).
+ * Construction progress only: optical imagery cannot show whether a hall is energized. */
+export type ImageryStageName = 'bare_ground' | 'under_construction' | 'roofed';
+export interface BuildingImageryStage {
+  latest: Sourced<{ stage: ImageryStageName; detail: string; confidence: number }>;
+  roofedBy: Sourced<string>;                  // first capture of a roofed run later captures uphold; null = not seen roofed
+  readings: { date: string; stage: ImageryStageName; confidence: number }[];   // oldest first
+}
+/** A NAIP aerial photo: one or more tiles, each a lon/lat image over its bbox. */
+export interface NaipImage {
+  date: string; gsd: number;                  // acquisition day; metres per pixel
+  bbox: [number, number, number, number];
+  tiles: { url: string; bbox: [number, number, number, number] }[];
+  caption: string;
+}
+/** A campus as the image markup needs it; every field is a stored row (n/d when none). */
+export interface ImageryCampus {
+  id: string; name: string; lat: number | null; lon: number | null;
+  buildings: ImageryBuilding[];
+  plan: Sourced<{ date: string; buildingsOperational: number }[]>;   // planned buildings operational by date
+  operational: Sourced<number>;               // newest dated count of buildings operational
+  buildingCount: Sourced<number>;             // buildings the campus is stated to have
+  originalSchedule: Sourced<string>;          // delivery schedule as originally stated
+  schedule: Sourced<string>;                  // delivery schedule as now stated
+  constructionNote: Sourced<string>;
+  read: Sourced<{ date: string | null; flag: string | null; text: string; roofHa: number | null }>;   // Marden's read of the imagery (M)
 }
 export interface SiteDetail extends SiteSummary {
   facts: string;                              // "2.2–2.45 GW · ~$18B construction loan"
@@ -145,25 +194,7 @@ export interface InstrumentDetail extends InstrumentRow {
 }
 
 // GET /api/curve
-export interface CurveSource { tag: Tag; asOf: string; sourceName: string; sourceUrl?: string; methodVersion?: string }
-export interface CurveObservation { date: string; price: number; tag: Tag; kind: string; sourceName: string; sourceUrl?: string }
-export interface CurveDot {
-  years: number; yieldPct: number; instrumentId: string;
-  spreadBp?: number | null;                   // yield minus the Treasury par yield at the same maturity (bp)
-  source?: CurveSource;                       // the yield's source: the Marden model price (M) on the run day
-  lastObservation?: CurveObservation | null;  // latest observed price behind it (TRACE, fund mark, quote)
-  excluded?: string | null;                   // why the dot is left out of its tier's fit (outlier, ...)
-}
-export interface CurveTier {
-  tier: string;
-  kind?: 'tier' | 'benchmark';                // 'benchmark': the Treasury par curve (no dots)
-  points: CurveDot[];
-  fit: { years: number; yieldPct: number; spreadBp?: number }[];
-  range?: [number, number] | null;            // maturities the fit covers with dots (solid); dashed beyond
-  robustSdBp?: number | null;                 // robust SD of the fitted dots around the curve (bp)
-  note?: string | null;                       // plain words: why no curve, or why its spread is flat
-  source?: CurveSource;
-}
+export interface CurveTier { tier: string; points: { years: number; yieldPct: number; instrumentId: string }[]; fit: { years: number; yieldPct: number }[] }
 
 // GET /api/risk-list?week=
 export interface RiskRow {
@@ -283,6 +314,7 @@ export interface Building {
   sqft: Sourced<number>; facilityMw: Sourced<number>; itMw: Sourced<number>;
   status: Sourced<DcStatus>; buildingPermit: Sourced<string>; coDate: Sourced<string>;
   firstVisible: string | null; changeScore?: Sourced<number>;
+  imageryStage?: BuildingImageryStage;     // Sentinel-2 construction stage (M); never an operating status
 }
 
 // GET /api/data-centers/:id
@@ -293,7 +325,9 @@ export interface DataCenterDetail extends DataCenterRow {
   largeLoad?: { request: Sourced<string>; queuePosition?: Sourced<string> };
   backupGenerators?: { count: Sourced<number>; mw: Sourced<number>; fuel: Sourced<string> };
   keyDates: { label: string; date: Sourced<string> }[];
-  imagery: { month: string; url: string }[];
+  imagery: ImageryImage[];
+  imageryCampuses?: ImageryCampus[];
+  imageryNaip?: Sourced<NaipImage>;
   tabCounts: { buildings: number; records: number; history: number };
 }
 // GET /api/data-centers/:id/records
@@ -463,17 +497,9 @@ export interface PayersPage { asOf: string; rows: PayerCapacity[] }
 
 // ---------- Off-balance-sheet lease map (spec 25) ----------
 export interface LeaseRecord {
-  id: string;
-  lesseeId: string;                           // entity id of the lessee ('unnamed-tenants' when no source names it)
-  lessee: string;                             // display name; "Tenant not disclosed" when no source names the tenant
-  tenantNote: Sourced<string>;                // the sources' own description of an unnamed tenant ("AA- or higher rated company")
-  lessor: Sourced<string>;
-  siteSlug: string | null; siteName: string | null;   // the single linked site (null when several or none)
-  sites: { slug: string; name: string }[];    // every linked site, with its display name
-  campusId: string | null;
-  mw: Sourced<number>;                        // contracted capacity of the lease (MW, critical IT unless the source says gross)
+  id: string; lessee: string; lessor: Sourced<string>; siteSlug: string | null; campusId: string | null;
   kind: 'Operating' | 'Finance' | 'Build-to-suit' | 'Compute contract' | string;
-  status: 'Signed, not started' | 'Started' | 'Announced' | 'Amended' | 'Terminated' | string;
+  status: 'Signed, not commenced' | 'Commenced' | 'Announced' | 'Amended' | 'Terminated' | string;
   totalB: Sourced<number>; annualB: Sourced<number>; commencement: Sourced<string>; termYears: Sourced<number>;
   attribution: 'Filed' | 'Reported' | 'Inferred'; confidence: 'High' | 'Medium' | 'Low' | null;  // confidence set for Inferred
   turnsAdded: Sourced<number>; headroomBeforeTurns: Sourced<number>; triggerLease: boolean;
@@ -482,12 +508,8 @@ export interface LeaseRecord {
   evidence: Evidence[];
 }
 export interface LesseeReconciliation {
-  lessee: string; lesseeId: string | null; filing: { form: string; period: string; url: string };
-  commencement: string | null; terms: string | null;  // the filing's commencement window and term range, as stated
-  disclosedNotCommencedB: Sourced<number>;
-  namedLeases: number; namedTotalB: number;            // the lessee's named leases with a stated total (uncapped sum)
-  filedOrReportedB: number; inferredB: number; attributedB: number; unattributedB: number; attributedShare: number;
-  note: string | null;                                 // why attribution was capped, when named totals exceed the filing
+  lessee: string; filing: { form: string; period: string; url: string };
+  disclosedNotCommencedB: Sourced<number>; filedOrReportedB: number; inferredB: number; attributedB: number; unattributedB: number; attributedShare: number;
 }
 // GET /api/leases
 export interface LeaseMapPage {

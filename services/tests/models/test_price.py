@@ -265,11 +265,8 @@ def test_full_run_writes_outputs_marks_views_and_does_not_retrigger_itself():
     assert n_marden >= 3 and dirty == 0  # the model's own prices never mark it dirty
     assert {"instrument_detail", "instruments", "curve"} <= views
     tiers = curve["output"]
-    assert isinstance(tiers, list) and tiers
-    assert all({"tier", "kind", "points", "fit", "note", "source"} <= set(t) for t in tiers)
-    assert tiers[0]["tier"] == "U.S. Treasury" and tiers[0]["kind"] == "benchmark" and tiers[0]["source"]["tag"] == "F"
-    assert all({"years", "yieldPct", "instrumentId", "spreadBp", "source", "lastObservation", "excluded"} == set(p)
-               for t in tiers for p in t["points"])
+    assert isinstance(tiers, list) and tiers and all(set(t) == {"tier", "points", "fit"} for t in tiers)
+    assert all({"years", "yieldPct", "instrumentId"} == set(p) for t in tiers for p in t["points"])
     again = price_run.run(day, trigger="test")  # a rerun replaces the day's own marden rows
     with db.transaction() as conn:
         n_again = conn.execute("SELECT count(*) n FROM price_obs WHERE kind = 'marden' AND obs_date = %s",

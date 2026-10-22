@@ -15,15 +15,11 @@ One output, subject ('series', 'all') = LeaseMapPage (types.ts) + `missing`, `ba
   rating-linked term, else 1) x proximity (1 / (1 + years until commencement));
 - headroomBeforeTurns and triggerLease need each agency's stated downgrade trigger, which is not collected
   yet: headroom is n/d and no lease is flagged as a trigger lease (the `missing` list says so);
-- reconciliation: one row per lessee whose latest 10-K/10-Q "leases not yet commenced" total is a fact
-  (`leases_not_commenced_usd` on the entity, read from the lease note; us-gaap has no non-dimensional element
-  for it): disclosed = filed or reported + inferred + not yet attributed (lease_common.reconciliation_rows).
-  The residual is never estimated or spread across sites; a lessee without that fact has no row and is
-  listed in `missing`. Inferred leases (spec 25 "Backing into the deals") come from the researcher agent's
-  trail; v0 builds none.
-- display: the lessee "Tenant not disclosed" when no source names it (with the sources' description of
-  the tenant), every linked site with its name, the campus all linked sites share, and the lease's
-  contracted MW (lease_common).
+- reconciliation: one row per lessee only once its latest 10-K/10-Q "leases not yet commenced" total is a
+  fact (lease notes are read by the extraction agents; us-gaap has no non-dimensional element for it).
+  Until then there are no rows: the residual is never estimated, and the totals cover the mapped leases
+  only (disclosedB and unattributedB 0, attributedShare 0). Inferred leases (spec 25 "Backing into the
+  deals") come from the researcher agent's trail; v0 builds none.
 
 Runs: daily 09:33 UTC (after payer_capacity) and within a minute of a lease edge's facts or a lessee's
 payer_capacity output. A past --as-of is a backtest.
@@ -45,21 +41,21 @@ from marden.models.credit_inputs import load_financials
 from marden.models.runs import latest_output
 from marden.models.sourced import Batch, fact_value, m_value, method_version, run_outputs
 from marden.readmodels.context import building
-from marden.readmodels.views.lease_common import (
-    NOT_OUTSTANDING,
-    RECON_FIELDS,
-    STATUS_LABELS,
-    lessee_label,
-    reconciliation_rows,
-    single_campus,
-    site_docs,
-)
-from marden.readmodels.views.payers_common import evidence_of, number_of, site_names, text_of, with_value
+from marden.readmodels.views.payers_common import evidence_of, number_of, text_of, with_value
 
 MODEL, VERSION = "leases", "0.1"
 METHOD = method_version(MODEL, VERSION)
 CRON_UTC = "33 9 * * *"
 LEASE_TYPES = ("Lease", "Compute purchase")
+STATUS_LABELS = {
+    "Started": "Commenced",
+    "Signed": "Signed, not commenced",
+    "Announced": "Announced",
+    "Amended": "Amended",
+    "Terminated": "Terminated",
+    "Disputed": "Disputed",
+}
+NOT_OUTSTANDING = ("Commenced", "Terminated")
 P_CUT = {"High": 0.6, "Watch": 0.3, "Low": 0.1}  # v0 weights, uncalibrated
 RATING_LINK_WEIGHT = 1.5
 _RATING_TERM = re.compile(r"rating|investment[- ]grade|\bIG\b|\bBBB|\bBaa", re.I)
@@ -84,18 +80,15 @@ def _attribution(edge: graph.Edge) -> str:
     return "Filed" if "F" in tags else "Reported" if "R" in tags else "Inferred"
 
 
-def _campus(conn: Conn, edge: graph.Edge, sites: list[str]) -> str | None:
-    """The edge's own campus, else the one campus all its linked sites' approved links point to."""
+def _campus(conn: Conn, edge: graph.Edge, site: str | None) -> str | None:
     if edge.ob.get("campus_id"):
         return edge.ob["campus_id"]
-
-    def campuses(slug: str) -> list[str]:
-        rows = conn.execute(
-            "SELECT DISTINCT campus_id FROM site_link WHERE site_slug = %s AND status = 'approved'", (slug,)
-        ).fetchall()
-        return [r["campus_id"] for r in rows]
-
-    return single_campus(campuses, sites)
+    if site is None:
+        return None
+    rows = conn.execute(
+        "SELECT campus_id FROM site_link WHERE site_slug = %s AND status = 'approved'", (site,)
+    ).fetchall()
+    return rows[0]["campus_id"] if len(rows) == 1 else None
 
 
 def lease_record(conn: Conn, edge: graph.Edge, day: date, ctx: dict[str, Any]) -> dict[str, Any]:
@@ -143,15 +136,10 @@ def lease_record(conn: Conn, edge: graph.Edge, day: date, ctx: dict[str, Any]) -
     attribution = _attribution(edge)
     return {
         "id": edge.id,
-        "lesseeId": edge.payer,
-        "lessee": lessee_label(edge.payer, ctx["names"]),
-        "tenantNote": text_of(edge.facts.get("tenant_description")),
+        "lessee": ctx["names"].get(edge.payer, edge.payer),
         "lessor": with_value(edge.facts["edge_type"], ctx["names"].get(edge.payee, edge.payee)),
         "siteSlug": site,
-        "siteName": ctx["site_names"].get(site) if site else None,
-        "sites": site_docs(sites, ctx["site_names"]),
-        "campusId": _campus(conn, edge, sites),
-        "mw": number_of(edge.facts.get("contracted_mw")),
+        "campusId": _campus(conn, edge, site),
         "kind": "Compute contract" if edge.type == "Compute purchase" else "Lease",
         "status": STATUS_LABELS.get(edge.status, edge.status),
         "totalB": doc["totalB"],
@@ -180,7 +168,6 @@ def compute(conn: Conn, day: date) -> Batch:
             "insts": stress_inputs.load(conn, day, ids),
             "linked": _rating_linked(conn, day, ids),
             "fins": load_financials(conn, day, sorted({e.payer for e in edges})),
-            "site_names": site_names(conn),
         }
         leases = [lease_record(conn, e, day, ctx) for e in edges]
         leases.sort(
@@ -197,34 +184,22 @@ def compute(conn: Conn, day: date) -> Batch:
         for r in leases:
             for d in r["dependentDebt"]:
                 debt.setdefault(d["instrumentId"], d["amountB"]["value"] or 0.0)
-        lessee_rows: dict[str, dict[str, Any]] = {}
-        for row in pit.fact_rows(conn, day, "entity", None, RECON_FIELDS):
-            lessee_rows.setdefault(row["subject_id"], {}).setdefault(row["field"], []).append(row)
-        lessee_facts = {
-            eid: {f: cur for f, rows in fields.items() if (cur := pit.current_of(rows)) is not None}
-            for eid, fields in lessee_rows.items()
-        }
-        recon, recon_notes = reconciliation_rows(lessee_facts, leases, ctx["names"], with_value)
-        reconciled = {r["lesseeId"] for r in recon}
-        lessees = sorted({r["lessee"] for r in leases if r["lesseeId"] not in reconciled})
-        disclosed = round(sum(r["disclosedNotCommencedB"]["value"] for r in recon), 3)
+        lessees = sorted({r["lessee"] for r in leases})
         batch = Batch()
         batch.add(
             "series",
             "all",
             {
                 "asOf": day.isoformat(),
-                "totals": {  # n/d (null) until a lessee's lease note and the agency triggers are collected, never 0
-                    "disclosedB": disclosed if recon else None,
+                "totals": {  # n/d (null) until the 10-K lease notes and agency triggers are collected, never 0
+                    "disclosedB": None,
                     "attributedB": round(sum(r["totalB"]["value"] or 0 for r in outstanding), 3),
-                    "unattributedB": round(sum(r["unattributedB"] for r in recon), 3) if recon else None,
-                    "attributedShare": (
-                        round(sum(r["attributedB"] for r in recon) / disclosed, 4) if recon and disclosed else None
-                    ),
+                    "unattributedB": None,
+                    "attributedShare": None,
                     "triggerLeases": None,
                     "debtExposedB": round(sum(debt.values()), 3),
                 },
-                "reconciliation": recon,
+                "reconciliation": [],
                 "leases": leases,
                 "missing": sorted(
                     {
@@ -233,7 +208,6 @@ def compute(conn: Conn, day: date) -> Batch:
                             f"{x}: latest 10-K/10-Q 'leases not yet commenced' total (lease note; extraction)"
                             for x in lessees
                         ),
-                        *recon_notes,
                         "agency-stated downgrade triggers: headroom n/d, no trigger leases flagged",
                         *(
                             [f"{n} outstanding leases with total n/d: left out of attributedB"]
@@ -273,8 +247,6 @@ def _run_keys(keys: list[str], trigger: str) -> dict[str, Any]:
 
 def _install_triggers() -> None:
     for fld in (
-        "contracted_mw",
-        "tenant_description",
         "edge_type",
         "evidence",
         "total_usd",
@@ -287,8 +259,6 @@ def _install_triggers() -> None:
     ):
         triggers.model_depends(MODEL, "obligation", fld, triggers.everything)
     triggers.model_depends(MODEL, "entity", "@model:payer_capacity", triggers.everything)
-    for fld in RECON_FIELDS:  # a lessee's filed not-commenced total (reconciliation)
-        triggers.model_depends(MODEL, "entity", fld, triggers.everything)
     triggers.model_depends(MODEL, "site", "site_link", triggers.everything)  # a lease's campus (_campus)
     triggers.register_runner(MODEL, _run_keys)
 

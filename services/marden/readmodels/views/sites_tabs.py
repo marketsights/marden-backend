@@ -34,6 +34,7 @@ from marden.core.db import Conn, Row
 from marden.models.status_labels import chain_label, link_label
 from marden.readmodels.context import business_day, known_fact_rows, known_facts
 from marden.readmodels.registry import builder
+from marden.readmodels.views.imagery_context import naip_image
 from marden.readmodels.views.sites_common import (
     ROLES,
     Doc,
@@ -51,7 +52,7 @@ from marden.readmodels.views.sites_common import (
     subjects_listing,
     weakest_tag,
 )
-from marden.readmodels.views.sites_links import imagery, last_visible_change
+from marden.readmodels.views.sites_links import imagery, last_visible_change, site_imagery_campuses
 
 COUNTY_WORDS = ("county", "parish", "city", "planning", "zoning", "commission", "board", "council", "township")
 OPPOSITION_TYPES = (("moratori", "Moratorium"), ("lawsuit", "Lawsuit"), ("suit", "Lawsuit"), ("petition", "Petition"),
@@ -97,7 +98,13 @@ def evidence_records(conn: Conn, slug: str) -> list[Doc]:
 
 
 def evidence_tab(conn: Conn, slug: str) -> Doc:
-    doc: Doc = {"records": evidence_records(conn, slug), "imagery": imagery(conn, slug)}
+    doc: Doc = {
+        "records": evidence_records(conn, slug),
+        "imagery": imagery(conn, slug),
+        "imageryCampuses": site_imagery_campuses(conn, slug),
+    }
+    if (naip := naip_image(conn, "site", slug)) is not None:
+        doc["imageryNaip"] = naip
     if (finding := last_visible_change(conn, slug)) is not None:
         doc["imageryFinding"] = finding
     return doc

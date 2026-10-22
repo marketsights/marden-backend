@@ -308,3 +308,35 @@ def test_live_search_item_and_window():
     assert item["hrefs"] == _item(SEP)["hrefs"]
     raw = sr.CogReader(marden_user_agent(get_settings())).read({"SCL": item["hrefs"]["SCL"]}, BOX)
     np.testing.assert_array_equal(raw["SCL"], _window(SEP)["SCL"])
+
+
+def test_image_is_rendered_over_the_campus_buildings_and_rerendered_when_they_widen_the_view(committed):
+    _jupiter(committed)
+    fetcher, _ = _transport()
+    reader = FixtureReader()
+    assert sentinel2.run(sites=["jupiter"], fetcher=fetcher, reader=reader, today=date(2025, 10, 20))["ok"]
+    # A building record east of the 1.5 km box (about 1 km from the point): the view widens to take it in.
+    lon0, lat0 = JUPITER
+    committed.execute(
+        """INSERT INTO building (id, campus_id, label, footprint) VALUES ('pj-b9', 'project-jupiter', 'Building 9',
+             ST_SetSRID(ST_MakeEnvelope(%s, %s, %s, %s), 4326))""",
+        (lon0 + 0.0085, lat0 - 0.001, lon0 + 0.0105, lat0 + 0.001),
+    )
+    calls = reader.calls
+    out = sentinel2.run(sites=["jupiter"], fetcher=fetcher, reader=reader, today=date(2025, 10, 20))
+    assert out["ok"] and out["picks_reused"] == 5 and out["scores_reused"] == 3
+    assert reader.calls == calls  # nothing re-ranked or re-scored
+    assert out["images_rerendered"] == 5
+    view = st.Box(*(float(x) for x in out["by_point"][0]["view"].split(",")))
+    assert view.west == BOX.west and view.south == BOX.south and view.north == BOX.north
+    assert view.east > lon0 + 0.0105  # the building plus the padding
+    live = committed.execute(
+        """SELECT value, status FROM fact WHERE producer = %s AND field = 'imagery' AND subject_type = 'site'
+            ORDER BY id""", (PRODUCER,)).fetchall()
+    published = [r["value"] for r in live if r["status"] == "published"]
+    assert len(published) == 5 and all(v["url"] == st.imagery_url(v["scene_id"], view) for v in published)
+    assert {r["status"] for r in live[:5]} == {"superseded"}
+    km = st.view_km(view)
+    assert published[-1]["caption"].startswith(f"Sentinel-2 L2A, 9 Sep 2025: {km:g} km view, 100% cloud-free")
+    again = sentinel2.run(sites=["jupiter"], fetcher=fetcher, reader=reader, today=date(2025, 10, 20))
+    assert again["facts_new"] == 0 and "images_rerendered" not in again

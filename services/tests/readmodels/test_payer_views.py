@@ -345,7 +345,7 @@ def test_lease_map_lists_every_lease_and_waits_for_the_leases_model(edges):
         ob = copied_rows("SELECT instrument_ids FROM obligation WHERE id = %s", (lease["id"],))[0]
         assert set(ob["instrument_ids"]) <= {d["instrumentId"] for d in lease["dependentDebt"]}
         assert lease["totalB"]["value"] == billions(fact("obligation", lease["id"], "total_usd"))
-    outstanding = [r for r in page["leases"] if r["status"] not in ("Started", "Terminated")]
+    outstanding = [r for r in page["leases"] if r["status"] not in ("Commenced", "Terminated")]
     assert page["totals"]["attributedB"] == round(sum(r["totalB"]["value"] or 0 for r in outstanding), 3)
     model = copied_rows("SELECT id FROM model_output WHERE model = 'leases' LIMIT 1")
     if not model:

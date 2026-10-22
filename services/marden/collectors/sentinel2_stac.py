@@ -138,9 +138,19 @@ def imagery_url(scene_id: str, box: Box) -> str:
     return f"{DATA_ROOT}/item/bbox/{box.text()}.png?{urlencode(params)}"
 
 
-def caption(day: date, clear_fraction: float) -> str:
-    return (f"Sentinel-2 L2A, {day.day} {day:%b %Y}: 1.5 km view, {clear_fraction:.0%} cloud-free. "
+def caption(day: date, clear_fraction: float, view_km: float = 1.5) -> str:
+    """The image's caption: its day, the view's size (its longer side) and how clear the scene is over the
+    ~1.5 km box the pick was ranked on."""
+    return (f"Sentinel-2 L2A, {day.day} {day:%b %Y}: {view_km:g} km view, {clear_fraction:.0%} cloud-free. "
             f"Contains modified Copernicus Sentinel data {day.year}")
+
+
+def view_km(box: Box) -> float:
+    """The box's longer side in km, to 0.1."""
+    lat = math.radians((box.south + box.north) / 2)
+    w = (box.east - box.west) * METERS_PER_DEG_LAT * math.cos(lat)
+    h = (box.north - box.south) * METERS_PER_DEG_LAT
+    return round(max(w, h) / 1000, 1)
 
 
 # ---------------------------------------------------------------- parse

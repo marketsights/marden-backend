@@ -19,6 +19,7 @@ from datetime import date
 from marden.core.db import Conn
 from marden.readmodels.context import known_facts
 from marden.readmodels.registry import builder
+from marden.readmodels.views.imagery_context import naip_image
 from marden.readmodels.views.instrument_detail import recovery as instrument_recovery
 from marden.readmodels.views.instrument_inputs import latest_output as instrument_output
 from marden.readmodels.views.instruments import marden_price as instrument_price
@@ -46,7 +47,7 @@ from marden.readmodels.views.sites_common import (
     with_value,
 )
 from marden.readmodels.views.sites_debt_basis import debt_basis
-from marden.readmodels.views.sites_links import imagery
+from marden.readmodels.views.sites_links import imagery, site_imagery_campuses
 from marden.readmodels.views.sites_milestones import with_dates
 from marden.readmodels.views.sites_stories import material_rows
 from marden.readmodels.views.sites_tabs import evidence_records, opposition_tab, site_event_log, story_key
@@ -184,8 +185,11 @@ def site_schedule(conn: Conn, slug: str) -> Doc | None:
         "milestones": dated,
         "cushionHistory": cushion_history(conn, slug),
         "imagery": imagery(conn, slug)[-3:],
+        "imageryCampuses": site_imagery_campuses(conn, slug),
         "documents": latest_documents(conn, slug),
     }
+    if (naip := naip_image(conn, "site", slug)) is not None:
+        doc["imageryNaip"] = naip
     if model is not None:
         doc["cushionModel"] = model  # run day, simulations, method (sites_milestones)
     return doc

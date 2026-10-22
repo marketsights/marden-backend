@@ -3,9 +3,16 @@
 Subjects: every V1 site with a point (site.geom) and every campus with a point linked to a V1 site
 (site_link not rejected). Subjects at the same point share one box and one set of scenes.
 
+Two boxes per point: the ~1.5 km box around the point, on which picks are ranked and change scores
+computed (unchanged), and the view box the stored image is rendered over: that box widened to the
+building footprints of the point's campuses (a site's linked campuses) within MAX_EXTENT_M of the point,
+padded by PAD_M, so a whole campus is in the picture. A view wider than MAX_SIDE_M on either side falls
+back to the 1.5 km box. When the view changes, a month's existing pick is re-rendered (a new imagery fact
+with the new URL and caption; the old one is superseded); nothing is re-ranked or re-scored.
+
 Facts (published; valid_from = the scene's acquisition date):
 - `imagery` (tag R): {month, url, caption, scene_id}, one per subject per month: the month's clearest
-  scene. While a month is open a clearer later pass adds a new fact for that month (later
+  scene, rendered over the view box. While a month is open a clearer later pass adds a new fact for that month (later
   valid_from); per month the newest fact is the current pick.
 - `change_score` (tag M, change-score@0.1, unit 'reflectance'): the month's pick against the pick
   ~3 months earlier; quote_loc names both scenes and the clear-pixel overlap.
@@ -15,6 +22,8 @@ Facts (published; valid_from = the scene's acquisition date):
 
 from __future__ import annotations
 
+import math
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
@@ -22,7 +31,7 @@ from typing import Any
 
 from marden.collectors.rates_common import RunStats
 from marden.collectors.sentinel2_raster import METHOD_VERSION, ChangeResult
-from marden.collectors.sentinel2_stac import Box, caption, imagery_url, item_url
+from marden.collectors.sentinel2_stac import METERS_PER_DEG_LAT, Box, caption, imagery_url, item_url, view_km
 from marden.core.db import Conn
 from marden.core.documents import DocumentRow
 from marden.core.facts import FactWriter
@@ -36,6 +45,10 @@ SCORE_UNIT = "reflectance"
 # change-score@0.1: a mean absolute B04/B08/B11 reflectance difference of 0.05 or more over the box
 # against the scene ~3 months earlier counts as visible change (see sentinel2_raster for the score).
 CHANGE_THRESHOLD = 0.05
+MAX_EXTENT_M = 3000.0  # buildings farther from the point belong to another place
+PAD_M = 150.0
+MAX_SIDE_M = 5000.0
+_CLEAR = re.compile(r"(\d+)% cloud-free")
 
 
 @dataclass(frozen=True)
@@ -82,6 +95,20 @@ class Prior:
         ids = {r["value"]["scene_id"] for r in rows if r}
         return rows[0] if len(ids) == 1 and rows[0] and rows[0]["document_id"] else None
 
+    def rendered(self, month: str, subjects: Iterable[Subject], url: str) -> bool:
+        """Every subject's stored image for the month is already this rendering."""
+        rows = [self.imagery.get(s.key, {}).get(month) for s in subjects]
+        return all(r is not None and r["value"].get("url") == url for r in rows)
+
+    def clear(self, month: str, subjects: Iterable[Subject]) -> float | None:
+        """The month's clear fraction as the stored caption states it (for re-rendering a kept pick)."""
+        for s in subjects:
+            row = self.imagery.get(s.key, {}).get(month)
+            m = _CLEAR.search((row or {}).get("value", {}).get("caption") or "")
+            if m:
+                return int(m[1]) / 100
+        return None
+
     def score(self, day: date, subjects: Iterable[Subject]) -> float | None:
         """The stored score for a pick day when every subject has the same one."""
         values = {self.scores.get(s.key, {}).get(day) for s in subjects}
@@ -114,6 +141,32 @@ def by_point(subjects: list[Subject]) -> dict[tuple[float, float], list[Subject]
     return out
 
 
+def view_box(conn: Conn, subjects: list[Subject], box: Box) -> Box:
+    """`box` widened to the footprints of the point's campuses near the point (module docstring)."""
+    campus_ids = [s.subject_id for s in subjects if s.subject_type == "campus"]
+    sites = [s.subject_id for s in subjects if s.subject_type == "site"]
+    if sites:
+        campus_ids += [r["campus_id"] for r in conn.execute(
+            "SELECT campus_id FROM site_link WHERE site_slug = ANY(%s) AND status <> 'rejected'", (sites,))]
+    if not campus_ids:
+        return box
+    lon, lat = subjects[0].lon, subjects[0].lat
+    row = conn.execute(
+        """SELECT ST_XMin(e) AS w, ST_YMin(e) AS s, ST_XMax(e) AS e, ST_YMax(e) AS n FROM (
+             SELECT ST_Extent(footprint) AS e FROM building
+              WHERE campus_id = ANY(%s) AND footprint IS NOT NULL
+                AND ST_DWithin(footprint::geography, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s)) x""",
+        (sorted(set(campus_ids)), lon, lat, MAX_EXTENT_M),
+    ).fetchone()
+    if row is None or row["w"] is None:
+        return box
+    dlat = PAD_M / METERS_PER_DEG_LAT
+    dlon = PAD_M / (METERS_PER_DEG_LAT * math.cos(math.radians(lat)))
+    view = Box(round(min(box.west, row["w"] - dlon), 5), round(min(box.south, row["s"] - dlat), 5),
+               round(max(box.east, row["e"] + dlon), 5), round(max(box.north, row["n"] + dlat), 5))
+    return view if view_km(view) * 1000 <= MAX_SIDE_M else box
+
+
 def load_prior(conn: Conn, subjects: list[Subject]) -> Prior:
     prior = Prior()
     keys = {(s.subject_type, s.subject_id): s.key for s in subjects}
@@ -137,13 +190,16 @@ def load_prior(conn: Conn, subjects: list[Subject]) -> Prior:
 class Store:
     """Published facts for one point's subjects, counted in the run stats."""
 
-    def __init__(self, conn: Conn, stats: RunStats, subjects: list[Subject], box: Box):
+    def __init__(self, conn: Conn, stats: RunStats, subjects: list[Subject], box: Box, view: Box | None = None):
+        self.conn = conn
         self.facts = FactWriter(conn)
         self.stats = stats
         self.subjects = subjects
         self.box = box
+        self.view = view or box
 
-    def _add(self, field_name: str, value: Any, pick: Pick, **extra: Any) -> None:
+    def _add(self, field_name: str, value: Any, pick: Pick, **extra: Any) -> list[tuple[Subject, int]]:
+        written = []
         for s in self.subjects:
             res = self.facts.add(
                 s.subject_type, s.subject_id, field_name, value, source_name=SOURCE_NAME,
@@ -154,13 +210,26 @@ class Store:
             if res.created:
                 self.stats.facts_new += 1
                 self.stats.new_by_series[field_name] = self.stats.new_by_series.get(field_name, 0) + 1
+            written.append((s, res.id))
+        return written
 
-    def imagery(self, pick: Pick) -> None:
-        if pick.clear is None:
+    def imagery(self, pick: Pick, clear: float | None = None) -> None:
+        """The month's image rendered over the view box; an earlier rendering of the same month (another
+        box) is superseded by it."""
+        frac = pick.clear if pick.clear is not None else clear
+        if frac is None:
             raise ValueError("imagery needs the pick's clear fraction")
-        value = {"month": pick.month, "url": imagery_url(pick.scene_id, self.box),
-                 "caption": caption(pick.day, pick.clear), "scene_id": pick.scene_id}
-        self._add(IMAGERY, value, pick, tag="R")
+        value = {"month": pick.month, "url": imagery_url(pick.scene_id, self.view),
+                 "caption": caption(pick.day, frac, view_km(self.view)), "scene_id": pick.scene_id}
+        for s, new_id in self._add(IMAGERY, value, pick, tag="R"):
+            old = self.conn.execute(
+                """SELECT id FROM fact WHERE subject_type = %s AND subject_id = %s AND field = %s
+                     AND status = 'published' AND value->>'month' = %s AND value->>'scene_id' = %s AND id <> %s""",
+                (s.subject_type, s.subject_id, IMAGERY, pick.month, pick.scene_id, new_id),
+            ).fetchall()
+            if old:
+                self.facts.supersede([r["id"] for r in old], "image re-rendered over the campus's building extent",
+                                     replaced_by={r["id"]: new_id for r in old})
 
     def change_score(self, pick: Pick, base: Pick, result: ChangeResult) -> None:
         loc = (f"{pick.scene_id} vs {base.scene_id}; {result.valid_pixels} px clear in both "

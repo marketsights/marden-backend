@@ -69,8 +69,6 @@ EDGE_FIELDS = (
     "term_years",
     "status",
     "outside_date",
-    "contracted_mw",
-    "tenant_description",
 )
 EDGE_ROW_FIELDS = ("evidence", "conditions")
 

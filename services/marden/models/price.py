@@ -12,9 +12,8 @@ was public that day, marden.models.pit / price_marks) writes, under model_run 'p
   {price, mardenPrice (InstrumentRow.mardenPrice: Sourced<number>), spreadBp, yieldPct, recovery, change1w,
   inputs: [...], band: {low, high}, missing: [...],
   basis} (price_facility); plus price_obs kind 'marden', tag M, method_version 'price v0.1';
-- model 'curve', subject series 'all': CurveTier[] (types.ts) for the Instruments curve card
-  (price_curve_card): the Treasury par curve, then per tier its priced instruments as dots and a curve
-  fitted to them (Treasury plus a robust fit of the tier's spreads).
+- model 'curve', subject series 'all': CurveTier[] (types.ts) from the tier fit (price_tiers) with the
+  priced instruments as points.
 
 A missing input gives null fields and a 'missing' entry, never a guess. Ranges and bands are not yet
 calibrated and carry the 'model v0' label (spec 00 "Model labels").
@@ -29,7 +28,7 @@ from typing import Any
 
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
-from marden.models import pit, price_curve_card, price_marks, price_signals, price_tiers, runs
+from marden.models import pit, price_marks, price_signals, price_tiers, runs
 from marden.models.price_chain import Chain, gpu_half_lives, resolve
 from marden.models.price_curve import CurveBook, load_curves, year_frac
 from marden.models.price_facility import Ctx, price
@@ -228,7 +227,7 @@ def run_day(conn: Conn, day: date, ids: Sequence[str] | None = None, *,
         cds.setdefault(e, null_cds(e, why))
     halves = gpu_half_lives(conn, day)
     prices: dict[str, dict[str, Any]] = {}
-    years: dict[str, float] = {}
+    points: dict[str, list[dict[str, Any]]] = {}
     for iid, inst in sorted(insts.items()):
         if iid not in priced:
             continue
@@ -249,17 +248,15 @@ def run_day(conn: Conn, day: date, ids: Sequence[str] | None = None, *,
                               "sourceUrl": METHOD_URL, "methodVersion": VERSION}
         prices[iid] = out
         if out["price"] is not None and out["tier"] and out["yieldPct"] is not None and inst.terms:
-            years[iid] = round(year_frac(day, inst.terms.maturity), 2)
+            points.setdefault(out["tier"], []).append({"years": round(year_frac(day, inst.terms.maturity), 2),
+                                                       "yieldPct": out["yieldPct"], "instrumentId": iid})
     for iid, inst in insts.items():  # the static terms behind every price and issuer curve (input audit)
         seen = obs.get(iid) or []
         if (iid in prices and prices[iid].get("price") is not None) or (inst.issuer in corp and seen):
             note_terms(inst, day, min((o.public for o in seen), default=None))
-    curve = book.curve(day)
-    assert curve is not None
-    curve_tiers, card_fit = price_curve_card.card(prices, years, obs, curve, day, VERSION, METHOD_URL)
-    return {"as_of": day, "cds": cds, "prices": prices, "curve": curve_tiers,
-            "fit": {**price_tiers.fit_doc(tiers), "card": card_fit}, "fit_missing": tiers.missing, "book": book,
-            "curves": curves}
+    curve_tiers = price_tiers.curve_doc(tiers, book, points)
+    return {"as_of": day, "cds": cds, "prices": prices, "curve": curve_tiers, "fit": price_tiers.fit_doc(tiers),
+            "fit_missing": tiers.missing, "book": book, "curves": curves}
 
 
 def week_change(conn: Conn, iid: str, day: date, px: float | None) -> float | None:
