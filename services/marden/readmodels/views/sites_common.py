@@ -18,6 +18,7 @@ from marden.core.db import Conn, Row
 from marden.core.facts import sourced
 from marden.core.jsonutil import jsonb
 from marden.core.licensing import hidden_source_names
+from marden.core.relevance import is_procedural
 from marden.readmodels.context import build_date, day_end, known_fact_rows, known_facts
 from marden.readmodels.views.sites_text import text_of
 
@@ -303,9 +304,38 @@ def subjects_listing(conn: Conn, subject_type: str, field: str, item: Any) -> li
 
 
 # ---------------------------------------------------------------- events and evidence
-def site_events(conn: Conn, slug: str, *, kinds: Sequence[str] | None = None, future: bool = False) -> list[Row]:
+SHARED_BY = 3  # a docket record filed on this many subjects of one type sits in a generic proceeding
+
+
+def shared_urls(conn: Conn, subject_type: str, rows: Sequence[Row]) -> set[str]:
+    """The records' documents that Marden files on SHARED_BY or more subjects of `subject_type` (the
+    same FERC or PUCT filing on six sites: a market-wide proceeding, not one about this site)."""
+    urls = sorted({r["source_url"] for r in rows if r.get("source_url")})
+    if not urls:
+        return set()
+    found = conn.execute(
+        """SELECT source_url FROM event WHERE subject_type = %s AND source_url = ANY(%s) AND status = 'published'
+             GROUP BY source_url HAVING count(DISTINCT subject_id) >= %s""",
+        (subject_type, urls, SHARED_BY),
+    ).fetchall()
+    return {r["source_url"] for r in found}
+
+
+def relevant_events(conn: Conn, subject_type: str, rows: Sequence[Row]) -> list[Row]:
+    """The records worth listing: procedural docket filings (service-list updates, appearances,
+    interventions, errata, proofs of service, comments in a generic proceeding: core/relevance) are
+    left out unless a reviewer approved them as material. The rows stay stored; only lists skip them."""
+    shared = shared_urls(conn, subject_type, rows)
+    return [r for r in rows if r.get("kind") in ("news", "catalyst", "filing", "capacity_auction")
+            or not is_procedural(r["title"], generic=r.get("source_url") in shared, material=bool(r.get("material")),
+                               url=r.get("source_url"))]
+
+
+def site_events(conn: Conn, slug: str, *, kinds: Sequence[str] | None = None, future: bool = False,
+                procedural: bool = False) -> list[Row]:
     """Published events on the site that Marden knew by the build date, newest first. Past-dated
-    only, unless `future` (hearings and deadlines still to come)."""
+    only, unless `future` (hearings and deadlines still to come). Procedural docket filings are left
+    out (`relevant_events`) unless `procedural`."""
     sql = """SELECT * FROM event WHERE subject_type = 'site' AND subject_id = %s AND status = 'published'
                AND learned_at < %s AND event_date {op} %s"""
     params: list[Any] = [slug, day_end(), day()]
@@ -314,7 +344,8 @@ def site_events(conn: Conn, slug: str, *, kinds: Sequence[str] | None = None, fu
         sql += " AND kind = ANY(%s)"
         params.append(list(kinds))
     sql += " ORDER BY event_date DESC, id DESC" if not future else " ORDER BY event_date, id"
-    return conn.execute(sql, params).fetchall()
+    rows = conn.execute(sql, params).fetchall()
+    return rows if procedural else relevant_events(conn, "site", rows)
 
 
 def event_evidence(ev: Row) -> Doc:

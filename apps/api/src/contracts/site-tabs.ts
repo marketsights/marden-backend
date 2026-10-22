@@ -67,13 +67,26 @@ export interface SitePowerTab {
 export interface OppositionItem {
   /** YYYY-MM-DD, or YYYY-MM when only the month is reported. */
   date: string;
+  /** What `date` is: the case's own date ('filed', 'entered', 'decided', 'voted'), the day the press
+   * reported it ('reported'), or only the day Marden recorded it ('found', never a filing date).
+   * Absent: the record's own date (a filed docket entry, a vote). */
+  dateKind?: 'filed' | 'entered' | 'decided' | 'voted' | 'reported' | 'found';
+  /** Hover on the date: which filing it is, what is not known. */
+  dateNote?: string;
   /** "County vote", "Moratorium", "Bond suit", "Ruling", "Petition" … */
   type: string;
+  /** Plain words: "Appeals of the MPSC approval of DTE's special contracts for the site". */
   text: string;
+  /** Sub-line: case numbers and who filed each. */
+  detail?: string;
   /** Court or body. */
   where: string;
   status: string;
   statusTone?: 'red' | 'amber' | 'green' | 'grey';
+  /** Hover on the status: what it rests on, or why it is n/d. */
+  statusNote?: string;
+  /** The record the status is quoted from, when it is not the row's evidence. */
+  statusEvidence?: Evidence;
   evidence: Evidence;
 }
 export interface SiteOppositionTab {
@@ -128,7 +141,7 @@ export interface SiteDebtInstrument {
   /** Dealer quote, or a word: "traded", "private". null = not applicable. */
   quote: Sourced<string> | string | null;
   mardenPrice: Sourced<number> | null;
-  /** Recovery range ("100c"; the price model's default reads "assumed 55c"), or a word: "first loss". */
+  /** Recovery ("100c (site collateral model)"; the price model's default reads "55c assumed (no site collateral model yet)"), or a word: "first loss". */
   recovery: Sourced<string> | string | null;
 }
 /** One line of the recovery arithmetic; value null = n/d, with `reason` in plain words. */
@@ -151,7 +164,7 @@ export interface SiteDebtTab {
     range: Sourced<string>;
     /** Why the range is n/d, in plain words. */
     reason?: string;
-    /** Only when the range is n/d: the price model's recovery, a default ("assumed 55c (price model v0.1 default)"). */
+    /** Only when the range is n/d: the price model's recovery, a default ("55c assumed (no site collateral model yet)"). */
     assumed?: Sourced<string>;
     /** Value basis, less claims ahead, over the claims at the loan's rank = cents; then what model v0 leaves out. */
     inputs: SiteRecoveryLine[];

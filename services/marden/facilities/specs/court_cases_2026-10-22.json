@@ -1,0 +1,508 @@
+{
+  "_about": "Court and docket proceedings on the Opposition tab: the cases' own dates, status, rulings and next meetings, quoted from stored documents (marden.facilities.proceedings). Researched 2026-10-22. The Michigan Court of Appeals and Washtenaw County dockets sit behind a captcha; dates come from the filings and the press that quote them.",
+  "entities": [
+    {
+      "id": "docket-mi-coa",
+      "facts": [
+        {
+          "field": "summary",
+          "tag": "F",
+          "valid_from": "2026-08-06",
+          "value": "Appeals of the Michigan PSC's approval, without a contested hearing, of DTE's special contracts to power the site (and of the related battery-storage contracts)",
+          "url": "https://www.michigan.gov/ag/-/media/Project/Websites/AG/releases/2026/August/U-21990_AG_Appeal-Brief_380362_380364_380878.pdf",
+          "quote": [
+            "issued an order in Case No. U-21990, conditionally approving Appellee, DTE Electric Company's (DTE), application for ex parte approval of special contracts with Green Chile Ventures LLC",
+            "approving DTE's second application for ex parte approval of battery contracts"
+          ]
+        },
+        {
+          "field": "case_numbers",
+          "tag": "F",
+          "valid_from": "2026-08-06",
+          "value": "Mich. Ct. App. Nos. 380334 (Michigan Environmental Council, NRDC, Sierra Club); 380362, 380364, 380878 (Attorney General; 380878 is the appeal of MPSC U-22054, battery contracts); 380462 (Great Lakes Renewable Energy Association). One caption; the Attorney General's three are consolidated.",
+          "url": "https://www.michigan.gov/ag/-/media/Project/Websites/AG/releases/2026/August/U-21990_AG_Appeal-Brief_380362_380364_380878.pdf",
+          "quote": [
+            "Court of Appeals No. 380334",
+            "Court of Appeals Nos. 380362, 380364, 380878",
+            "Court of Appeals No. 380462",
+            "This Court consolidated all three appeals because they are all related to the Commission's order in Case No. U-21990."
+          ]
+        },
+        {
+          "field": "court",
+          "tag": "F",
+          "valid_from": "2026-08-06",
+          "value": "Michigan Court of Appeals",
+          "url": "https://www.michigan.gov/ag/-/media/Project/Websites/AG/releases/2026/August/U-21990_AG_Appeal-Brief_380362_380364_380878.pdf",
+          "quote": "STATE OF MICHIGAN IN THE COURT OF APPEALS"
+        },
+        {
+          "field": "case_date",
+          "tag": "F",
+          "valid_from": "2026-08-06",
+          "value": {
+            "d": "2026-04-17",
+            "kind": "filed",
+            "note": "The Attorney General's claims of appeal (Nos. 380362, 380364) were filed Apr 17, 2026; No. 380878 on May 26, 2026. The filing dates of Nos. 380334 and 380462 are not in the documents found."
+          },
+          "url": "https://www.michigan.gov/ag/-/media/Project/Websites/AG/releases/2026/August/U-21990_AG_Appeal-Brief_380362_380364_380878.pdf",
+          "quote": [
+            "On April 17, 2026, the Attorney General filed her claim of appeal with this Court.",
+            "On May 26, 2026, the Attorney General filed her claim of appeal with this Court."
+          ]
+        },
+        {
+          "field": "status",
+          "tag": "F",
+          "valid_from": "2026-08-06",
+          "value": "Pending: appellants' briefs filed",
+          "url": "https://www.michigan.gov/ag/-/media/Project/Websites/AG/releases/2026/August/U-21990_AG_Appeal-Brief_380362_380364_380878.pdf",
+          "quote": [
+            "BRIEF OF APPELLANT ATTORNEY GENERAL",
+            "RECEIVED by MCOA 8/6/2026 9:40:55 PM"
+          ]
+        },
+        {
+          "field": "status_note",
+          "tag": "R",
+          "valid_from": "2026-08-07",
+          "value": "The Attorney General's brief was received by the Court on Aug 6, 2026; Michigan Environmental Council, NRDC and Sierra Club filed theirs on Aug 7, 2026. No appellee brief, argument date or decision appears in the public sources found (searched Oct 22, 2026); the Court's online docket is behind a captcha.",
+          "url": "https://earthjustice.org/press/2026/groups-ask-court-to-overturn-rushed-approval-of-dtes-oracle-data-center-contracts",
+          "quote": "filed their opening brief asking the Michigan Court of Appeals to overturn the Michigan Public Service Commission"
+        }
+      ]
+    },
+    {
+      "id": "docket-washtenaw-cc",
+      "facts": [
+        {
+          "field": "summary",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Related Digital's suit against Saline Township over the denied rezoning, settled by the consent judgment that lets the data center be built",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": [
+            "to settle a lawsuit filed by data center developer Related Digital",
+            "the settlement that allowed a $7-billion Oracle and OpenAI data center to move forward"
+          ]
+        },
+        {
+          "field": "case_numbers",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Related Digital v. Saline Township (case number not found). The residents' mandamus complaint is listed separately.",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "to settle a lawsuit filed by data center developer Related Digital"
+        },
+        {
+          "field": "court",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Washtenaw County Circuit Court",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "Washtenaw County Circuit Court Judge Julia Owdziej"
+        },
+        {
+          "field": "case_date",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": {
+            "d": "2025-10-15",
+            "kind": "entered",
+            "note": "The day the consent judgment was entered. Case number not found (the county's Odyssey portal sits behind a captcha)."
+          },
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": [
+            "several months after the consent judgement was signed by the court",
+            "The consent judgment was entered Oct. 15."
+          ]
+        },
+        {
+          "field": "status",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Settled by consent judgment",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "A Washtenaw County judge Friday denied a Saline Township resident's motion to intervene in the settlement"
+        },
+        {
+          "field": "status_note",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Judge Julia Owdziej denied a resident's motion to intervene on Feb 20, 2026 as untimely. Her lawyer said she had not decided whether to appeal; no appeal is reported in the sources found (searched Oct 22, 2026).",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "Haushalter has not decided if she will appeal the decision or file a motion for reconsideration"
+        },
+        {
+          "field": "rulings",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": [
+            {
+              "d": "2026-02-20",
+              "what": "Resident's motion to intervene in the consent judgment denied as untimely",
+              "short": "Intervention denied"
+            }
+          ],
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": [
+            "A Washtenaw County judge Friday denied a Saline Township resident's motion to intervene in the settlement",
+            "February 20, 2026"
+          ]
+        }
+      ]
+    },
+    {
+      "create": {
+        "key": "WASHTENAW_CC_MANDAMUS",
+        "aliases": [
+          "Haushalter mandamus complaint (Washtenaw County Circuit Court)"
+        ]
+      },
+      "facts": [
+        {
+          "field": "linked_sites",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": [
+            "the-barn"
+          ],
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "a permit for temporary structures and fencing for the data center"
+        },
+        {
+          "field": "proceeding_kind",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "court",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "filed a separate mandamus complaint Jan. 28 in Washtenaw County Circuit Court against the township"
+        },
+        {
+          "field": "proceeding",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Washtenaw County Circuit Court: residents' mandamus complaint against Saline Township (case no. not found)",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "filed a separate mandamus complaint Jan. 28 in Washtenaw County Circuit Court against the township"
+        },
+        {
+          "field": "summary",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Residents ask the court to make the township hold the zoning-board hearing it skipped on a site permit and publish notice of the rezoning",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": [
+            "alleging the Saline Township Zoning Board of Appeals failed to hold a required hearing on a permit for temporary structures and fencing for the data center",
+            "The complaint says the township clerk refused to publish a notice"
+          ]
+        },
+        {
+          "field": "case_numbers",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Haushalter and other residents v. Saline Township (mandamus; case number not found)",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "Haushalter and several other residents filed a separate mandamus complaint Jan. 28"
+        },
+        {
+          "field": "court",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Washtenaw County Circuit Court",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "filed a separate mandamus complaint Jan. 28 in Washtenaw County Circuit Court"
+        },
+        {
+          "field": "case_date",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": {
+            "d": "2026-01-28",
+            "kind": "filed",
+            "note": "Case number not found (the county's Odyssey portal sits behind a captcha)."
+          },
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "filed a separate mandamus complaint Jan. 28 in Washtenaw County Circuit Court"
+        },
+        {
+          "field": "status",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "No ruling reported",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "filed a separate mandamus complaint Jan. 28 in Washtenaw County Circuit Court"
+        },
+        {
+          "field": "status_note",
+          "tag": "R",
+          "valid_from": "2026-02-20",
+          "value": "Reported as filed and open on Feb 20, 2026. No ruling, hearing date or dismissal appears in the public sources found (searched Oct 22, 2026).",
+          "url": "https://planetdetroit.org/2026/02/judge-denies-data-center-intervention/",
+          "quote": "filed a separate mandamus complaint Jan. 28 in Washtenaw County Circuit Court"
+        }
+      ]
+    },
+    {
+      "id": "docket-saline-twp-pc",
+      "facts": [
+        {
+          "field": "next_dates",
+          "tag": "F",
+          "valid_from": "2026-10-22",
+          "value": [
+            {
+              "d": "2026-11-10",
+              "what": "Saline Township Planning Commission meeting, 7:00 pm"
+            }
+          ],
+          "url": "https://salinetownship.org/calendar/?month=11&yr=2026",
+          "quote": [
+            "November 2026",
+            "7:00 pm: Planning Commission Meeting 7:00 pm Nov 10"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "docket-saline-twp-board",
+      "facts": [
+        {
+          "field": "next_dates",
+          "tag": "F",
+          "valid_from": "2026-10-22",
+          "value": [
+            {
+              "d": "2026-11-11",
+              "what": "Saline Township Board of Trustees meeting, 7:00 pm"
+            }
+          ],
+          "url": "https://salinetownship.org/calendar/?month=11&yr=2026",
+          "quote": [
+            "November 2026",
+            "7:00 pm: Township Board Meeting 7:00 pm Nov 11"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "docket-nm-3jdc",
+      "facts": [
+        {
+          "field": "summary",
+          "tag": "R",
+          "valid_from": "2026-03-24",
+          "value": "Residents' suits asking the court to review and void the county ordinances that approved the $165B industrial revenue bonds and tax incentives for the project",
+          "url": "https://www.abqjournal.com/news/judge-project-jupiter-lawsuit-to-proceed/3007891",
+          "quote": "seeking a judicial review of county commissioners"
+        },
+        {
+          "field": "court",
+          "tag": "R",
+          "valid_from": "2025-10-24",
+          "value": "New Mexico Third Judicial District Court (Las Cruces)",
+          "url": "https://www.santafenewmexican.com/news/local_news/group-sues-to-stall-project-jupiter-data-center-complex-in-southern-new-mexico/article_594aeff2-2104-4e98-891c-2016f617ad4e.html",
+          "quote": "The complaint was filed Oct. 17 in the 3rd Judicial District Court."
+        },
+        {
+          "field": "case_date",
+          "tag": "R",
+          "valid_from": "2025-10-24",
+          "value": {
+            "d": "2025-10-17",
+            "kind": "filed",
+            "note": "The Empowerment Congress residents' complaint (D-307-CV-2025-02766). The filing date of Derrick Pacheco's suit (D-307-CV-2025-2764) is not in the sources found."
+          },
+          "url": "https://www.santafenewmexican.com/news/local_news/group-sues-to-stall-project-jupiter-data-center-complex-in-southern-new-mexico/article_594aeff2-2104-4e98-891c-2016f617ad4e.html",
+          "quote": [
+            "The complaint was filed Oct. 17 in the 3rd Judicial District Court.",
+            "Oct 24, 2025"
+          ]
+        },
+        {
+          "field": "status",
+          "tag": "R",
+          "valid_from": "2026-03-24",
+          "value": "Pending: motion to dismiss denied",
+          "url": "https://www.abqjournal.com/news/judge-project-jupiter-lawsuit-to-proceed/3007891",
+          "quote": "will move forward after a state judge dismissed a bid to have the case dropped"
+        },
+        {
+          "field": "status_note",
+          "tag": "R",
+          "valid_from": "2026-03-24",
+          "value": "Judge Jennifer DeLaney denied the county's motion to dismiss the residents' suit (reported Mar 24, 2026; the ruling's own date is not given). No decision on the merits is reported (searched Oct 22, 2026).",
+          "url": "https://www.abqjournal.com/news/judge-project-jupiter-lawsuit-to-proceed/3007891",
+          "quote": "The county asked state District Judge Jennifer DeLaney to dismiss the lawsuit"
+        },
+        {
+          "field": "rulings",
+          "tag": "R",
+          "valid_from": "2026-03-24",
+          "value": [
+            {
+              "d": "2026-03-24",
+              "what": "County's motion to dismiss the residents' suit denied (reported date)",
+              "short": "Motion to dismiss denied"
+            }
+          ],
+          "url": "https://www.abqjournal.com/news/judge-project-jupiter-lawsuit-to-proceed/3007891",
+          "quote": [
+            "will move forward after a state judge dismissed a bid to have the case dropped",
+            "Published March 24, 2026"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "docket-nm-supreme",
+      "facts": [
+        {
+          "field": "summary",
+          "tag": "R",
+          "valid_from": "2026-09-17",
+          "value": "Petitions to stop the air-permit hearing for the on-site power plant (New Energy Economy) and the emergency water well for construction (Center for Biological Diversity)",
+          "url": "https://www.abqjournal.com/business/new-mexico-supreme-court-lifts-stays-on-project-jupiter-dealing-setback-to-opponents/3124024",
+          "quote": [
+            "denied a petition from Santa Fe-based clean energy advocate New Energy Economy",
+            "the court denied a petition from the Center for Biological Diversity challenging the state"
+          ]
+        },
+        {
+          "field": "court",
+          "tag": "R",
+          "valid_from": "2026-09-17",
+          "value": "New Mexico Supreme Court",
+          "url": "https://www.abqjournal.com/business/new-mexico-supreme-court-lifts-stays-on-project-jupiter-dealing-setback-to-opponents/3124024",
+          "quote": "The New Mexico Supreme Court on Thursday dealt a major blow"
+        },
+        {
+          "field": "case_date",
+          "tag": "R",
+          "valid_from": "2026-09-17",
+          "value": {
+            "d": "2026-09-17",
+            "kind": "decided",
+            "note": "The day the Court denied both petitions and lifted its stays. The petitions' filing dates and case numbers are not in the sources found."
+          },
+          "url": "https://www.abqjournal.com/business/new-mexico-supreme-court-lifts-stays-on-project-jupiter-dealing-setback-to-opponents/3124024",
+          "quote": [
+            "Published September 17, 2026",
+            "The New Mexico Supreme Court on Thursday dealt a major blow"
+          ]
+        },
+        {
+          "field": "status",
+          "tag": "R",
+          "valid_from": "2026-09-17",
+          "value": "Decided: petitions denied, stays lifted",
+          "url": "https://www.abqjournal.com/business/new-mexico-supreme-court-lifts-stays-on-project-jupiter-dealing-setback-to-opponents/3124024",
+          "quote": "lifting stays that had paused an air quality permit application and blocked water pumping"
+        },
+        {
+          "field": "rulings",
+          "tag": "R",
+          "valid_from": "2026-09-17",
+          "value": [
+            {
+              "d": "2026-09-17",
+              "what": "Both petitions denied; stays on the air-permit hearing and the well lifted",
+              "short": "Petitions denied, stays lifted"
+            }
+          ],
+          "url": "https://www.abqjournal.com/business/new-mexico-supreme-court-lifts-stays-on-project-jupiter-dealing-setback-to-opponents/3124024",
+          "quote": [
+            "Published September 17, 2026",
+            "lifting stays that had paused an air quality permit application and blocked water pumping"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "docket-la-19jdc",
+      "facts": [
+        {
+          "field": "summary",
+          "tag": "R",
+          "valid_from": "2026-09-28",
+          "value": "Appeal of the Louisiana PSC's refusal to make Meta hand over information on the Hyperion data center in the Entergy gas-plant case",
+          "url": "https://www.ucs.org/about/news/advocates-appeal-lpscs-arbitrary-and-capricious-decision-let-meta-hook-its-data-center",
+          "quote": "requiring Meta to hand over critical information about its Hyperion data center project"
+        },
+        {
+          "field": "court",
+          "tag": "R",
+          "valid_from": "2026-09-28",
+          "value": "19th Judicial District Court (East Baton Rouge)",
+          "url": "https://www.ucs.org/about/news/advocates-appeal-lpscs-arbitrary-and-capricious-decision-let-meta-hook-its-data-center",
+          "quote": "Civil District Court for the 19th Judicial District"
+        },
+        {
+          "field": "case_date",
+          "tag": "R",
+          "valid_from": "2026-09-28",
+          "value": {
+            "d": "2026-09-25",
+            "kind": "filed",
+            "note": "The release dated Mon Sep 28, 2026 says the appeal was filed 'on Friday' (Sep 25, 2026). Case number not found."
+          },
+          "url": "https://www.ucs.org/about/news/advocates-appeal-lpscs-arbitrary-and-capricious-decision-let-meta-hook-its-data-center",
+          "quote": [
+            "according to an appeal filed by advocates on Friday",
+            "Published Sep 28, 2026"
+          ]
+        },
+        {
+          "field": "status",
+          "tag": "R",
+          "valid_from": "2026-09-28",
+          "value": "No ruling reported",
+          "url": "https://www.ucs.org/about/news/advocates-appeal-lpscs-arbitrary-and-capricious-decision-let-meta-hook-its-data-center",
+          "quote": "according to an appeal filed by advocates on Friday"
+        },
+        {
+          "field": "status_note",
+          "tag": "R",
+          "valid_from": "2026-09-28",
+          "value": "Filed by the Alliance for Affordable Energy and the Union of Concerned Scientists. The appeal targets the subpoena ruling, not the plant approval. No ruling or hearing date appears in the sources found (searched Oct 22, 2026).",
+          "url": "https://www.ucs.org/about/news/advocates-appeal-lpscs-arbitrary-and-capricious-decision-let-meta-hook-its-data-center",
+          "quote": "urging the Civil District Court for the 19th Judicial District to reverse the"
+        }
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "slug": "the-barn",
+      "facts": [
+        {
+          "field": "opposition_if_voided",
+          "tag": "M",
+          "valid_from": "2026-10-22",
+          "value": "Little direct effect on the build: the campus stands on the Oct 15, 2025 consent judgment, not on a township ordinance. The board reversed its own rezoning on Jan 28, 2026 and the developers said the project proceeds under the judgment. The notes are exposed only if the judgment itself falls; the one bid to reopen it was denied as untimely on Feb 20, 2026.",
+          "url": "https://www.clickondetroit.com/news/local/2026/01/29/saline-township-residents-frustrated-after-zoning-vote-blocks-referendum-on-ai-data-center/",
+          "quote": [
+            "The Saline Township Board voted Wednesday to maintain agricultural zoning for more than 500 acres slated for a massive AI data center, though developers say the project will proceed as planned under an existing consent judgment",
+            "A court cannot order a municipal entity to zone any particular way."
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "jupiter",
+      "facts": [
+        {
+          "field": "opposition_if_voided",
+          "tag": "M",
+          "valid_from": "2026-10-22",
+          "value": "Bond and tax deal would unwind: the county title-and-lease structure under the $165B bond ordinances, which the project and presumably the lenders' collateral sit on, would have to be rebuilt, and the property-tax abatement could be lost. The suits are past the motion to dismiss; no merits ruling yet.",
+          "url": "https://www.abqjournal.com/news/judge-project-jupiter-lawsuit-to-proceed/3007891",
+          "quote": [
+            "seeking a judicial review of county commissioners",
+            "will move forward after a state judge dismissed a bid to have the case dropped"
+          ]
+        }
+      ]
+    }
+  ]
+}
