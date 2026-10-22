@@ -5,11 +5,14 @@
 // 21 October, an alert the engine wrote, the Stingray site, HIFLD's SPP boundary; only the alert's, the site's
 // and the boundary's instant is set, to 22:00 New York time on 21 October (and the alert is unread again; the
 // boundary loses its parent link and, in its own test, its HIFLD as-of date). The saved scenario is one this
-// test saves through the API.
+// test saves through the API. A fact's end is a New York day too: Abilene's SEC risk statement, copied with a
+// valid_to of 22 October (no real fact has one yet), is current at 22:00 New York time on the 21st, when
+// CURRENT_DATE in the UTC session is already the 22nd, and not after midnight.
 import type { FastifyInstance } from 'fastify';
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { createDb, type Db } from '../src/db.js';
 import { businessDay, businessToday, dayEnd, dayEndAt } from '../src/lib/business-day.js';
+import { factSource } from '../src/lib/licensing.js';
 import { asOfDay } from '../src/lib/params.js';
 import { unreadAlerts } from '../src/queries/alerts.js';
 import { resetIsoBoundaryCache } from '../src/queries/grid.js';
@@ -23,6 +26,9 @@ const RUN_ID = 311; // FERC eLibrary's first researcher run: started 2026-10-22 
 const ALERT_KEY = 'model:cushion:site:jupiter:2026-10-21:a366c184a67a7a9b';
 const SITE = 'stingray';
 const BOUNDARY = 'iso:SPP';
+const FACT_ID = 1080685; // site abilene, risk_evidence, SEC EDGAR, valid_from 2026-09-11
+const ENDS = '2026-10-22'; // the valid_to set on its copy: current through 21 October in New York
+const AFTER_MIDNIGHT = '2026-10-22T04:01:00.000Z'; // 00:01 EDT on 22 October
 
 describe('US Eastern business-day cutoff', () => {
   let db: Db;
@@ -58,6 +64,7 @@ describe('US Eastern business-day cutoff', () => {
     });
     await copy('site', 'slug = $1', [SITE], { set: { created_at: [EVENING, 'timestamptz'] } });
     await copy('grid_region', 'id = $1', [BOUNDARY], { set: { updated_at: [EVENING, 'timestamptz'], parent_id: [null, 'text'] } });
+    await copy('fact', 'id = $1', [FACT_ID], { set: { valid_to: [ENDS, 'date'], document_id: [null, 'bigint'] }, skip: ['id'] });
   });
   afterEach(() => { vi.useRealTimers(); });
   afterAll(async () => {
@@ -65,6 +72,7 @@ describe('US Eastern business-day cutoff', () => {
     await db.query(`DELETE FROM alert WHERE dedupe_key = $1`, [ALERT_KEY]);
     await db.query(`DELETE FROM site WHERE slug = $1`, [SITE]);
     await db.query(`DELETE FROM grid_region WHERE id = $1`, [BOUNDARY]);
+    await db.query(`DELETE FROM ${inject('testSchema')}.fact WHERE dedupe_key = (SELECT dedupe_key FROM public.fact WHERE id = $1)`, [FACT_ID]);
     resetIsoBoundaryCache();
     await db.query(`DELETE FROM source_run WHERE source_id = $1`, [RUN_SOURCE]);
     await db.query(`DELETE FROM source WHERE id = $1`, [RUN_SOURCE]);
@@ -138,5 +146,38 @@ describe('US Eastern business-day cutoff', () => {
     resetIsoBoundaryCache();
     const fc = (await get('/api/grid/iso-rto')) as { features: { id: string; properties: { source: { asOf: string } } }[] };
     expect(fc.features.find((f) => f.id === BOUNDARY)?.properties.source.asOf).toBe(DAY); // not 2026-10-22 (UTC)
+  });
+
+  it('keeps a fact ending on the 22nd current at 22:00 New York time on the 21st, not after midnight', async () => {
+    // The licence switch's own query (factSource with sources hidden): its "today" is businessToday().
+    const current = async () => (await db.query(
+      `SELECT id FROM ${factSource(null, '$1')} f WHERE subject_type = 'site' AND subject_id = 'abilene' AND field = 'risk_evidence'`,
+      [['a source the licence switch hides']])).rowCount;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(EVENING));
+    expect(await current()).toBe(1);
+    vi.setSystemTime(new Date(AFTER_MIDNIGHT));
+    expect(await current()).toBe(0);
+  });
+
+  it('ends a fact in fact_current on the New York date of now(), whatever the session zone', async () => {
+    // CURRENT_DATE is the session zone's date: UTC+14 is a day ahead of New York from 6 am EDT on and UTC-11 a
+    // day behind before 7 am, so at any hour one of these zones catches a view that compares with it.
+    const fact = `${inject('testSchema')}.fact`;
+    for (const zone of ['UTC', 'Pacific/Kiritimati', 'Pacific/Pago_Pago']) {
+      await db.tx(async (c) => {
+        await c.query(`SET LOCAL TIME ZONE '${zone}'`);
+        const today = businessDay((await c.query<{ at: Date }>('SELECT now() AS at')).rows[0]!.at);
+        const current = async () => (await c.query(
+          `SELECT id FROM fact_current WHERE subject_type = 'site' AND subject_id = 'abilene' AND field = 'risk_evidence'`)).rowCount;
+        const end = `UPDATE ${fact} SET valid_to = $1::date + $2::int
+                      WHERE dedupe_key = (SELECT dedupe_key FROM public.fact WHERE id = $3)`;
+        await c.query(end, [today, 1, FACT_ID]);
+        expect(await current(), zone).toBe(1);
+        await c.query(end, [today, 0, FACT_ID]);
+        expect(await current(), zone).toBe(0);
+        await c.query(`UPDATE ${fact} SET valid_to = $1::date WHERE dedupe_key = (SELECT dedupe_key FROM public.fact WHERE id = $2)`, [ENDS, FACT_ID]);
+      });
+    }
   });
 });
