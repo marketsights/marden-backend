@@ -10,22 +10,30 @@ const NA = '—';
 
 type Row = Record<string, unknown>;
 
+/** Timeline (P10, P50, P90, outside date) · Cushion · Δ wk: "—" each without a projection. */
+function projectionColumns(p: CompletionRow['projection']): Row {
+  if (!p) return { p10: NA, p50: NA, p90: NA, outsideDate: NA, cushionMonths: NA, deltaWeek: NA };
+  const cushion: Sourced<number> | null = p.cushionMonths ?? null;
+  return {
+    p10: p.p10 ?? NA,
+    p50: p.p50 ?? NA,
+    p90: p.p90 ?? NA,
+    outsideDate: p.outsideDate ?? NA,
+    cushionMonths: cushion ?? NA,
+    deltaWeek: cushion && cushion.value !== null ? (p.deltaWeek ?? null) : NA,
+  };
+}
+
 /** Completion table: Site · Bldgs · Chain · Timeline (P10, P50, P90, outside date) · Cushion · Δ wk · Driver · Last evidence · Debt $B · Lenders. */
 export function completionExportRow(row: CompletionRow & WithBuildingCount): Row {
   const p = row.projection;
-  const cushion: Sourced<number> | null = p?.cushionMonths ?? null;
   return {
     slug: row.slug,
     name: row.name,
     state: row.state,
     buildings: row.buildings ?? 'n/d',
     chain: row.chain,
-    p10: p?.p10 ?? NA,
-    p50: p?.p50 ?? NA,
-    p90: p?.p90 ?? NA,
-    outsideDate: p?.outsideDate ?? NA,
-    cushionMonths: cushion ?? NA,
-    deltaWeek: cushion && cushion.value !== null ? (p?.deltaWeek ?? null) : NA,
+    ...projectionColumns(p),
     driver: row.driver ?? (p ? 'n/d' : NA),
     lastEvidence: row.lastEvidence ?? null,
     debtB: row.debtB,

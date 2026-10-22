@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Sequence
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
 from marden.core.db import Conn, Row
@@ -39,13 +39,6 @@ INSTRUMENT_FIELDS = (
 # ---------------------------------------------------------------- dates and Sourced values
 def day() -> date:
     return build_date()
-
-
-def next_day() -> date:
-    """The day after the build date, for dated columns. Timestamps (learned_at, created_at, approved_at)
-    compare with `day_end()`: midnight US Eastern, not this date read as midnight UTC."""
-    return build_date() + timedelta(days=1)
-
 
 
 def nd(tag: str = "R") -> Doc:

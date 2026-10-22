@@ -41,6 +41,8 @@ LA_PAGE = gzip.decompress((DATA / "ldeq_notices_entergy_louisiana.html.gz").read
 LA_EMPTY = b'<table><tbody id="pn-table-body"></tbody></table>'
 HOSTS = ("data.texas.gov", "records.tceq.texas.gov", "www.env.nm.gov", "service.web.env.nm.gov",
          "idnraqrr.iowadnr.gov", "programs.iowadnr.gov", "www.deq.louisiana.gov")
+CR_URL = "https://data.texas.gov/resource/5eqq-7nad.json?ref_num_txt=RN112029061&additional_id_text="
+FA_URL = "https://records.tceq.texas.gov/cs/idcplg?IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&dID=8600167&Rendition=Web&searchType=External"
 
 
 @pytest.fixture
@@ -243,16 +245,43 @@ def test_louisiana_run_ties_the_cited_station_only(committed, fast_rate):
     assert air_permits.run(states=["LA"], fetcher=fetcher([]))["totals"]["facts_new"] == 0
 
 
+def _tceq(number: str, kind: str, status: str, filed: str | None, issued: str | None, **extra: object) -> dict:
+    return {"agency": "TCEQ", "number": number, "type": kind, "status": status, "filed": filed, "issued": issued,
+            "url": CR_URL + number.removeprefix("O"), **extra}
+
+
 def test_plant_card_maps_dates_types_and_amendments():
-    row = {"value": {"agency": "TCEQ", "number": "177263", "type": "PSD", "status": "issued", "filed": "2024-08-15",
-                     "issued": "2024-08-21", "url": "https://data.texas.gov/x",
-                     "amendments": [{"date": "2025-01-22", "text": "Final Action", "url": "https://records/x"}]},
-           "valid_from": None, "tag": "F", "source_name": "TCEQ", "source_url": "https://data.texas.gov/q"}
-    card = facilities_plants.air_permit(None, {"air_permit": row})
-    assert card == {"agency": "TCEQ", "number": "177263", "type": "Major", "status": "Permitted",
-                    "filed": "2024-08-15", "decided": "2024-08-21", "url": "https://data.texas.gov/x",
-                    "amendments": [{"date": "2025-01-22", "text": "Final Action", "tag": "F", "sourceName": "TCEQ",
-                                    "sourceUrl": "https://records/x"}]}
+    # Abilene's permits as stored (local database, 2026-10-21), 177263 as main with write_plant's facility record.
+    amend = {"date": "2025-01-22", "text": "Final Action (Standard Permit Application)"}
+    main = _tceq("177263", "Standard", "issued", "2024-08-15", "2024-08-21", ids=["177263"],
+                 applicant="Crusoe Technologies Llc", facility={"key": "RN112029061", "name": "LONGHORN DATA CENTER"},
+                 amendments=[dict(amend, url=FA_URL)])
+    others = [("177262", "PBR", "issued", "2024-08-15", "2024-09-05"), ("182126", "PSD", "pending", None, None),
+              ("182267", "NSR", "withdrawn", "2025-11-20", None), ("O4721", "Title V", "issued", None, "2026-01-16")]
+    src = {"valid_from": None, "tag": "F", "source_name": "TCEQ", "source_url": main["url"]}
+    every = [dict(main, facility="RN112029061"), *(_tceq(*o) for o in others)]
+    card = facilities_plants.air_permit(None, {"air_permit": dict(src, value=main),
+                                               "air_permits": dict(src, value=every)})
+    related = [("177262", "Minor", "Permitted", "2024-08-15", "2024-09-05"),
+               ("182267", "Minor", "Withdrawn", "2025-11-20", None),
+               ("O4721", "Title V", "Permitted", None, "2026-01-16"), ("182126", "Major", "Permit pending", None, None)]
+    assert card == {
+        "agency": "TCEQ", "number": "177263", "type": "Standard", "status": "Permitted", "filed": "2024-08-15",
+        "decided": "2024-08-21", "url": CR_URL + "177263",
+        "amendments": [dict(amend, tag="F", sourceName="TCEQ", sourceUrl=FA_URL)],
+        "holder": "Crusoe Technologies Llc", "facility": {"id": "RN112029061", "name": "LONGHORN DATA CENTER"},
+        "otherIds": [], "limits": [],  # 177263's records state no limits
+        "related": [{"agency": "TCEQ", "number": n, "type": t, "status": st, "filed": f, "decided": d,
+                     "url": CR_URL + n.removeprefix("O")} for n, t, st, f, d in related],  # oldest filing first
+    }
+    # Project Jupiter's permit as stored from the NMED legal notice (same database): the limits it states, CO here.
+    lim = {"pollutant": "CO", "value": 161.2, "unit": "tpy", "basis": "estimated in the application (legal notice)",
+           "url": "https://service.web.env.nm.gov/urls/IzYCTYNY"}
+    permit = {"agency": "NMED", "number": "NSR 10883", "facility": {"key": "NSR 10883", "name": "YGI Microgrid"},
+              "applicant": "Yucca Growth Infrastructure, LLC", "emission_limits": [dict(lim, more_than=False)]}
+    card = facilities_plants.air_permit(None, {"air_permit": {"value": permit, "valid_from": None, "tag": "F"}})
+    assert (card["holder"], card["facility"]) == (permit["applicant"], {"id": "NSR 10883", "name": "YGI Microgrid"})
+    assert card["limits"] == [dict(lim, moreThan=False)]
 
 
 def test_systems_sources_schedule_and_cli():

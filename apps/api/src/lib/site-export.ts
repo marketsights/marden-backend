@@ -22,7 +22,7 @@ export const EVIDENCE_GROUPS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const groupOf = (type: unknown): string | undefined => {
-  const word = String(type ?? '').trim().toLowerCase();
+  const word = typeof type === 'string' ? type.trim().toLowerCase() : '';
   return Object.entries(EVIDENCE_GROUPS).find(([, words]) => words.includes(word))?.[0];
 };
 

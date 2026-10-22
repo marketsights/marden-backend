@@ -69,10 +69,10 @@ export async function queryRows<T>(
 }
 
 /** One row doc of a row view (the `/row` refresh), with its companion joined like a page row. */
-export async function rowDoc<T>(db: Db, def: RowViewDef, doc: T, key: string, asOf: string | null): Promise<T> {
-  if (!def.companion) return doc;
-  const other = await db.readModel(def.companion.view, key, asOf);
-  return def.companion.merge(doc as never, (other ?? null) as never) as T;
+export async function rowDoc<T>(db: Db, def: RowViewDef, row: { doc: T; key: string; asOf: string | null }): Promise<T> {
+  if (!def.companion) return row.doc;
+  const other = await db.readModel(def.companion.view, row.key, row.asOf);
+  return def.companion.merge(row.doc as never, (other ?? null) as never) as T;
 }
 
 /** Does the subject exist in its identity table? Separates "unknown id" (404) from "not built" (503). */

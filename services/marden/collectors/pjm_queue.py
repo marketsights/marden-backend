@@ -25,7 +25,7 @@ import io
 import json
 import re
 import time
-from datetime import UTC, date
+from datetime import date
 from email.utils import parsedate_to_datetime
 from typing import Any
 
@@ -115,11 +115,12 @@ def fetch_serial(fetcher: Fetcher | None = None) -> DocumentRow:
 
 
 def report_date(doc: DocumentRow) -> date:
-    """The file's Last-Modified day when PJM sends one, else the day it was fetched (Eastern)."""
+    """The US Eastern day of the file's Last-Modified when PJM sends one, else of its fetch (a Last-Modified
+    after 8 pm EDT / 7 pm EST is still that Eastern day, not the next UTC one)."""
     modified = (doc.meta.get("http") or {}).get("last_modified")
     if modified:
         try:
-            return parsedate_to_datetime(modified).astimezone(UTC).date()
+            return parsedate_to_datetime(modified).astimezone(ET).date()
         except (TypeError, ValueError):
             pass
     return doc.fetched_at.astimezone(ET).date()

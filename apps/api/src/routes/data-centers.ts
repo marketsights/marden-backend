@@ -57,7 +57,8 @@ export function powerPlantRoutes(app: FastifyInstance, db: Db): void {
   // One table row (PowerPlantRow), loaded on a `plant` stream event (see /api/data-centers/:id/row).
   app.get('/api/power-plants/:id/row', async (req) => {
     const id = param(req, 'id');
-    return rowDoc(db, PLANT_ROWS, await serveDoc<object>(db, PLANT_ROWS.view, keyed(PLANT, id), asOfOf(req)), id, asOfOf(req));
+    const asOf = asOfOf(req);
+    return rowDoc(db, PLANT_ROWS, { doc: await serveDoc<object>(db, PLANT_ROWS.view, keyed(PLANT, id), asOf), key: id, asOf });
   });
 
   app.get('/api/power-plants/:id/debt', async (req) => serveDoc(db, 'plant_debt', keyed(PLANT, param(req, 'id')), asOfOf(req)));

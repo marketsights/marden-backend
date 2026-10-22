@@ -12,7 +12,8 @@ import { clearReadModels, makeApp, putReadModel, sourced, testDb } from './helpe
 const AS_OF = '2026-10-15';
 const m = (value: number) => ({ ...sourced(value, 'M'), methodVersion: 'obligations v0.1' });
 const evidence = (text: string) => ({ date: '2026-10-13', text, tag: 'F', sourceName: 'SEC EDGAR', sourceUrl: 'https://example.test/10q' });
-const edge = (id: string, from: string, to: string, type: string, totalB: number | null, annual: { year: number; amountB: unknown }[]) => ({
+interface EdgeSpec { id: string; from: string; to: string; type: string; totalB: number | null; annual: { year: number; amountB: unknown }[] }
+const edge = ({ id, from, to, type, totalB, annual }: EdgeSpec) => ({
   id, from, to, type, status: 'Signed', totalB: sourced(totalB, totalB === null ? 'R' : 'F'), annual,
   start: sourced('2026-H2 (target)', 'R'), termYears: sourced(totalB === null ? null : 15, 'F'), conditions: [sourced('Outside date 2027', 'F')],
   linkedSites: ['abilene'], linkedInstruments: ['EX-1'], evidence: [evidence(`${from} owes ${to}`)],
@@ -26,9 +27,9 @@ const GRAPH = {
     { id: 'openai', name: 'OpenAI', type: 'AI lab', status: 'Strained', owedB: 0, owesB: 0 },
   ],
   edges: [
-    edge('oracle--applied-digital--lease', 'oracle', 'applied-digital', 'Lease', 5, [2026, 2027].map((year) => ({ year, amountB: m(0.333) }))),
-    edge('openai--oracle--compute-purchase', 'openai', 'oracle', 'Compute purchase', null, []),
-    edge('oracle--openai--warrant', 'oracle', 'openai', 'Warrant', 10, [{ year: 2029, amountB: m(2) }]),
+    edge({ id: 'oracle--applied-digital--lease', from: 'oracle', to: 'applied-digital', type: 'Lease', totalB: 5, annual: [2026, 2027].map((year) => ({ year, amountB: m(0.333) })) }),
+    edge({ id: 'openai--oracle--compute-purchase', from: 'openai', to: 'oracle', type: 'Compute purchase', totalB: null, annual: [] }),
+    edge({ id: 'oracle--openai--warrant', from: 'oracle', to: 'openai', type: 'Warrant', totalB: 10, annual: [{ year: 2029, amountB: m(2) }] }),
   ],
 };
 

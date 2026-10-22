@@ -3,6 +3,7 @@ reruns, terms, the schedule and a live POST of the cycle export (network)."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from marden.collectors import pjm_queue as pjm
 from marden.collectors.rates_common import ParseError, RunStats
 from marden.core import documents, sources
 from marden.core.queue import app
+from marden.readmodels.context import business_day
 
 DATA = Path(__file__).parent / "data" / "pjm_queue"
 SERIAL = DATA / "PlanningQueues_excerpt.xml"
@@ -80,7 +82,12 @@ def test_load_prefers_cycle_rows_links_a_plant_and_reruns_clean(committed):
     assert status["document_id"] == cycle.id and status["valid_from"] == date(2025, 1, 27)  # its LastUpdated
     a01 = committed.execute("SELECT valid_from, source_url FROM fact_current WHERE subject_id = 'pjm:A01' "
                             "AND field = 'status'").fetchone()
-    assert a01["valid_from"] == date(2026, 10, 21) and a01["source_url"] == pjm.SERIAL_URL  # Last-Modified day
+    # The report day: the later of the serial file's Last-Modified day and the cycle export's fetch day (the POST
+    # response carries no Last-Modified), both US Eastern.
+    assert a01["valid_from"] == max(date(2026, 10, 21), business_day(cycle.fetched_at))
+    assert a01["source_url"] == pjm.SERIAL_URL
+    late = replace(serial, meta={"http": {"last_modified": "Thu, 22 Oct 2026 01:30:00 GMT"}})
+    assert pjm.report_date(late) == date(2026, 10, 21)  # 9:30 pm EDT is still the 21st
     link = committed.execute("SELECT * FROM fact_current WHERE subject_id = 'pjm:AF2-126' AND field = 'linked_plant'"
                              ).fetchone()
     assert link["tag"] == "M" and [x["id"] for x in link["value"]] == ["juliet-energy"]

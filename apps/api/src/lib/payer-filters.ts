@@ -69,6 +69,14 @@ export function payerIndexRow(row: PayerCapacity): Record<string, unknown> {
 /** A Sourced value for a payer-site field the payer document carries plain, sourced like its KPI total. */
 const likeKpi = <T>(value: T | null, kpi: Sourced<unknown>): Sourced<T> => ({ ...kpi, value });
 
+/** The payer document's own GW and debt for a site, sourced like its KPI totals; its 0 and "n/d" read as n/d. */
+function payerDocValues(payer: Payer, s: Payer['sites'][number]): { gw: Sourced<string>; debtB: Sourced<number> } {
+  return {
+    gw: likeKpi(s.gw && s.gw !== 'n/d' ? s.gw : null, payer.kpis.gwLeased),
+    debtB: likeKpi(s.debtB ? s.debtB : null, payer.kpis.siteDebtB),
+  };
+}
+
 /**
  * The Payer page's sites table: one row per site the payer is on. GW, cushion, debt, tenant and
  * status come from the site's own row in the `sites` document (Sourced, n/d kept as n/d); when that
@@ -79,16 +87,17 @@ export function payerSiteRows(payer: Payer, sites: SiteSummary[] | null): Record
   const bySlug = new Map((sites ?? []).map((s) => [s.slug, s]));
   return payer.sites.map((s) => {
     const site = bySlug.get(s.slug);
+    const own = payerDocValues(payer, s);
     return {
       slug: s.slug,
       site: s.name,
       tenant: site?.tenant ?? null,
       endUser: site?.endUser ?? null,
-      gw: site?.gw ?? likeKpi(s.gw && s.gw !== 'n/d' ? s.gw : null, payer.kpis.gwLeased),
+      gw: site?.gw ?? own.gw,
       rentStartP50: site?.rentStartP50 ?? s.rentStartP50,
       outsideDate: s.outsideDate,
       cushionMonths: site ? site.cushionMonths : s.cushionMonths,
-      debtB: site?.debtB ?? likeKpi(s.debtB ? s.debtB : null, payer.kpis.siteDebtB),
+      debtB: site?.debtB ?? own.debtB,
       status: site?.status ?? s.status,
     };
   });

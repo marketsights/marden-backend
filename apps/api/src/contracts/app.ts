@@ -85,7 +85,7 @@ export interface SavedStress {
 export type SavedViewScreen = 'completion' | 'data-centers' | 'power';
 export interface SavedView {
   id: string;
-  screen: SavedViewScreen | string;
+  screen: string;                                      // a SavedViewScreen; the stored column is text
   name: string;
   query: string;                                       // the screen's URL query without '?', e.g. 'tenant=Oracle&sort=-debt'
   createdAt: string;

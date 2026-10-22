@@ -113,7 +113,7 @@ describe('last visit (Clerk mode, real tables)', () => {
     const t = await signToken(keys, { userId: user, orgId: org });
     const res = await app.inject({ method: 'GET', url: '/api/home', headers: bearer(t) });
     expect(res.statusCode).toBe(200);
-    return res.json() as { lastVisit: string | null };
+    return res.json<{ lastVisit: string | null }>();
   };
   const recent = (d: Date | null) => d !== null && Math.abs(Date.now() - d.getTime()) < 60_000;
 
