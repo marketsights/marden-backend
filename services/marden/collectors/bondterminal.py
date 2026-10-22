@@ -86,7 +86,7 @@ def parse_row(row: dict[str, Any]) -> tuple[str, Decimal, datetime | None, Decim
     price = _dec(_dig(row, "price", "lastPrice", "cleanPrice", "market.price", "pricing.cleanPrice"))
     if not isin or price is None or not (Decimal(1) < price < Decimal(300)):
         return None
-    ts = _dig(row, "priceTimestamp", "priceDate", "timestamp", "market.timestamp", "asOf", "updatedAt")
+    ts = _dig(row, "analyticsStatus.priceAsOf", "priceTimestamp", "priceDate", "market.timestamp", "asOf")
     at = None
     if isinstance(ts, str):
         try:
