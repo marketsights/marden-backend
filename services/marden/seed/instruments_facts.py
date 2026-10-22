@@ -76,6 +76,12 @@ def issuer_words(issuer: str | None) -> list[str]:
     return [w for w in core_name(name).split() if len(w) >= 3 or w.isdigit() or ROMAN.fullmatch(w)]
 
 
+def title_words(inst: str | None) -> list[str]:
+    """The instrument's own name words, to find its line in a fund report ('HYPER 2025-1 A2' -> hyper 2025 a2)."""
+    return [w for w in re.findall(r"[a-z]+\d*|\d{4}", re.sub(r"\(.*", "", inst or "").lower())
+            if len(w) >= 2 and w not in ("the", "of", "and")]
+
+
 def _source_terms(row: Mapping[str, Any], urls: list[str], primary: str, cited: CitedDocs | TextLookup | None,
                   terms: Mapping[str, Any], ids: Iterable[str], names: Iterable[str], also: Iterable[str]):
     """field, value -> (tag, source name, url, document id, flag) for a row whose primary URL is filed."""
@@ -87,6 +93,7 @@ def _source_terms(row: Mapping[str, Any], urls: list[str], primary: str, cited: 
         check_field, check_value = ("coupon", terms.get("coupon")) if field == "coupon_type" else (field, value)
         if cited is not None and check_value is not None:
             ev = first_stating(cited, filed, check_field, check_value, ids=ids, names=names,
+                               titles=title_words(row.get("inst")),
                                anchors=anchor_patterns(terms, check_field, name=row.get("inst")))
             if ev is not None:
                 return "F", source_name_for_url(ev.url), ev.url, ev.document_id, None

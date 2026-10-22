@@ -143,22 +143,60 @@ class CitedDocs:
         return normalize_text(doc.text)
 
 
-def scope(text: str | None, *, ids: Sequence[str] = (), names: Sequence[str] = ()) -> str | None:
-    """A fund holdings report (N-PORT XML) cut to this instrument's holdings: by CUSIP / ISIN, else by the
-    issuer's name words (``names``: every one must be in the holding's name or title, so 'qts issuer abs'
-    does not pick 'QTS Fayetteville' and 'vci asset holdings 2' does not pick holdings 3). Any other
-    document is returned whole; a report with no matching holding gives '' (it does not state the value)."""
-    if not text or "<invstorsec>" not in text:
-        return text
-    blocks = re.findall(r"<invstorsec>.*?</invstorsec>", text)
-    keys = [i.lower() for i in ids if i]
-    picked = [b for b in blocks if any(k in b for k in keys)] if keys else []
-    words = [n.lower().strip() for n in names if n and n.strip()]
-    if not picked and words:
-        def named(block: str) -> str:
-            return " ".join(re.findall(r"<(?:name|title)>([^<]*)", block))
+_SCHEDULE = re.compile(r"schedules? of investments")
+_ROW_BEFORE, _ROW_AFTER = 60, 360  # chars of a schedule-of-investments row kept around the holding's name
 
+
+def _words_pattern(words: Sequence[str]) -> str:
+    return r"\b" + r"\W+(?:\S+\W+){0,3}?".join(re.escape(w) for w in words) + r"\b"
+
+
+def scope(text: str | None, *, ids: Sequence[str] = (), names: Sequence[str] = (),
+          titles: Sequence[str] = ()) -> str | None:
+    """A fund's holdings report cut to this instrument's holdings, so another holding's 5.25% is not read as
+    its coupon. Other documents are returned whole.
+
+    - N-PORT XML: the ``invstorSec`` lines with its CUSIP / ISIN, else whose name or title has every issuer
+      name word (``names``: 'qts issuer abs ii' does not pick 'QTS Fayetteville', 'vci asset holdings 2' not
+      holdings 3; with no such line, the lines naming its first word, as funds spell issuers their own way),
+      plus the lines with every word of the instrument's own name (``titles``: 'hyper 2025 a2').
+    - A schedule of investments (BDC 10-Q / 10-K, fund N-CSR): the rows (a few hundred chars) that start with
+      the issuer's name words, else its first word, or the instrument's name words.
+
+    A report with no matching holding gives '' (it does not state the value).
+    """
+    if not text:
+        return text
+    words = [n.lower().strip() for n in names if n and n.strip()]
+    title_words = [t.lower() for t in titles if t]
+    if "<invstorsec>" in text:
+        return _scope_nport(text, [i.lower() for i in ids if i], words, title_words)
+    if not _SCHEDULE.search(text) or not (words or len(title_words) >= 2):
+        return text
+    spans: list[tuple[int, int]] = []
+    for pats in ([_words_pattern(words)] if words else [], [rf"\b{re.escape(words[0])}"] if words else []):
+        spans = [(m.start(), m.end()) for p in pats for m in re.finditer(p, text)]
+        if spans:
+            break
+    if len(title_words) >= 2:
+        spans += [(m.start(), m.end()) for m in re.finditer(_words_pattern(title_words), text)]
+    return " \f ".join(text[max(0, a - _ROW_BEFORE): b + _ROW_AFTER] for a, b in sorted(spans))
+
+
+def _scope_nport(text: str, keys: list[str], words: list[str], title_words: list[str]) -> str:
+    blocks = re.findall(r"<invstorsec>.*?</invstorsec>", text)
+    picked = [b for b in blocks if any(k in b for k in keys)] if keys else []
+
+    def named(block: str) -> str:
+        return " ".join(re.findall(r"<(?:name|title)>([^<]*)", block))
+
+    if not picked and words:
         picked = [b for b in blocks if all(re.search(rf"\b{re.escape(w)}\b", named(b)) for w in words)]
+        if not picked:  # the fund names the issuer its own way ('cologix canadian issuer'): its first word
+            picked = [b for b in blocks if re.search(rf"\b{re.escape(words[0])}", named(b))]
+    if not keys and len(title_words) >= 2:
+        picked += [b for b in blocks if b not in picked
+                   and all(re.search(rf"\b{re.escape(w)}\b", named(b)) for w in title_words)]
     return " ".join(picked)
 
 
@@ -463,10 +501,10 @@ class Evidence:
 
 
 def first_stating(lookup: CitedDocs | TextLookup, urls: Sequence[str], field: str, value: Any, *,
-                  anchors: Anchors | None = None, ids: Sequence[str] = (),
-                  names: Sequence[str] = ()) -> Evidence | None:
+                  anchors: Anchors | None = None, ids: Sequence[str] = (), names: Sequence[str] = (),
+                  titles: Sequence[str] = ()) -> Evidence | None:
     """The first of ``urls`` whose stored text states the value (N-PORT reports cut to this instrument)."""
     for url in urls:
-        if states(scope(lookup(url), ids=ids, names=names), field, value, anchors=anchors):
+        if states(scope(lookup(url), ids=ids, names=names, titles=titles), field, value, anchors=anchors):
             return Evidence(url, getattr(lookup, "document_ids", {}).get(url))
     return None
