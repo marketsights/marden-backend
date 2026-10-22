@@ -15,6 +15,8 @@ id)) and is n/d until that model runs: `ratings` (RatingState[] from agency rele
 `leaseCommencingB`, `computeCommitmentsB`, `fundingGapB`, `leaseAdjLeverage`, and guided `ocfB` /
 `capexB` for years not yet filed) and `exposed{instrumentId: {ratingTrigger, onTrip}}`. A value an output
 carries is a bare number/string (tag M, its as-of and method version) or a Sourced<T>, passed through.
+`ndReasons` {leveragePath, fundingGap, triggerHeadroom} passes the model's plain-words reasons for those n/d
+values through (omitted until the model writes them).
 """
 
 from __future__ import annotations
@@ -53,6 +55,7 @@ RISK_ORDER = {"High": 0, "Watch": 1, "Low": 2}
 CASH_FIELDS = {"ocfB": "operating_cash_flow_12m_usd", "capexB": "capex_12m_usd"}
 MODEL_YEAR_FIELDS = ("leaseCommencingB", "computeCommitmentsB", "fundingGapB", "leaseAdjLeverage")
 FILED_YEARS = 3
+ND_REASONS = ("leveragePath", "fundingGap", "triggerHeadroom")
 SCALARS = (
     "spreadBp",
     "leaseAdjLeverageToday",
@@ -219,6 +222,15 @@ def downgrade_risk(out: Row | None) -> Doc:
     return value if value["value"] in RISKS else nd("M")
 
 
+def nd_reasons(out: Row | None) -> Doc | None:
+    """The model's plain-words reasons for an n/d leverage path, funding gap or trigger headroom."""
+    raw = output_field(out, "ndReasons")
+    if not isinstance(raw, dict):
+        return None
+    got = {k: v for k in ND_REASONS if isinstance(v := raw.get(k), str) and v}
+    return got or None
+
+
 def capacity_doc(conn: Conn, entity: Row) -> Doc:
     out = latest_output(conn, "payer_capacity", "entity", entity["id"])
     doc: Doc = {
@@ -250,7 +262,10 @@ def capacity_doc(conn: Conn, entity: Row) -> Doc:
         "years",
         "exposed",
     )
-    return {k: doc[k] for k in order}
+    out_doc = {k: doc[k] for k in order}
+    if (reasons := nd_reasons(out)) is not None:
+        out_doc["ndReasons"] = reasons
+    return out_doc
 
 
 @builder("payer_capacity", keys=payer_ids)

@@ -219,3 +219,11 @@ def test_every_builder_read_of_facts_or_prices_applies_the_switch():
     unfiltered = sorted(k for k, body in reads.items()
                         if (k[0], "*") not in NOT_SERVED and not any(s in body for s in SWITCH))
     assert not unfiltered, f"builder reads of fact/price_obs that ignore MARDEN_SHOW_UNLICENSED_PRICES: {unfiltered}"
+
+
+def test_the_api_hides_exactly_the_same_source_names():
+    """apps/api/src/lib/licensing.ts keeps its own copy of the list (the API reads the same switch)."""
+    ts = (Path(__file__).resolve().parents[3] / "apps" / "api" / "src" / "lib" / "licensing.ts").read_text()
+    block = re.search(r"UNLICENSED_SOURCE_NAMES: readonly string\[\] = \[(.*?)\];", ts, re.S)
+    assert block, "UNLICENSED_SOURCE_NAMES not found in apps/api/src/lib/licensing.ts"
+    assert re.findall(r"'([^']+)'", block.group(1)) == licensing.unlicensed_source_names()

@@ -13,6 +13,8 @@ clouds, AI labs and neoclouds on the obligation map), subject ('entity', id) = P
 - leaseAdjLeverageToday = (debt + lease liabilities) / EBITDA (SEC XBRL, trailing twelve months);
   leaseAdjLeveragePeak, years[], fundingGap3yB: the forward path (payer_years);
 - triggerHeadroomTurns, breachYear: n/d until agency triggers are collected (listed in `missing`);
+- ndReasons: plain-words reasons for an n/d leverage path, 3-year funding gap and trigger headroom
+  (payer_years.path: the undisclosed inputs by name);
 - aiRevenueCoverage: for an AI lab, its reported annualized revenue (funding facts) / its contracted
   compute payments next year on the obligation map; n/d where AI revenue is not disclosed (never estimated);
 - topCounterparty: the filed customer concentration (`top_customers`, "Customer A 36%"), else the
@@ -217,7 +219,7 @@ def payer_doc(
     conn: Conn, eid: str, day: date, edges: list[graph.Edge], fin: Any, ent: dict[str, Any], names: dict[str, str]
 ) -> dict[str, Any]:
     rs = ratings(conn, day, eid)
-    p = path(fin, edges, day, METHOD)
+    p = path(fin, edges, day, METHOD, {**names, eid: ent["name"]})
     missing = list(p.missing)
     cds = latest_output(conn, "cds", "entity", eid, day)
     spread = num(cds["output"].get("spreadBp")) if cds is not None and isinstance(cds["output"], dict) else None
@@ -255,6 +257,11 @@ def payer_doc(
         "downgradeRisk": _m(band, day),
         "years": p.years,
         "exposed": exposed(conn, eid, edges, day),
+        "ndReasons": {
+            **p.reasons,
+            "triggerHeadroom": "n/d: no agency\u2019s stated downgrade trigger is collected yet (agency releases are "
+            "not ingested), so headroom and breach year cannot be measured",
+        },
         "missing": sorted(set(missing)),
         "basis": {
             "methodVersion": f"{METHOD} (model v0)",

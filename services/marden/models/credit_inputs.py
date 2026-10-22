@@ -205,8 +205,15 @@ class Financials:
         ends = [r["valid_from"] for f in fields for r in self.rows.get(f, []) if num(r["value"]) is not None]
         return max(ends) if ends else None
 
-    def debt(self) -> Figure | None:
-        end = self._latest_end("total_debt_usd", "long_term_debt_usd", "long_term_debt_noncurrent_usd")
+    def fiscal_year(self, base: str, end: date) -> Figure | None:
+        """The 12-month value of a duration line for the fiscal year ending `end` (as filed)."""
+        row = self._periods(base).get((end, 12))
+        return None if row is None else Figure(float(num(row["value"])), end, [row], f"{base}: fiscal year to {end}")
+
+    def debt(self, end: date | None = None) -> Figure | None:
+        """Debt at the newest period end, or at `end` (None when nothing is filed for that date)."""
+        if end is None:
+            end = self._latest_end("total_debt_usd", "long_term_debt_usd", "long_term_debt_noncurrent_usd")
         if end is None:
             return None
         if (total := self.instant("total_debt_usd", end)) is not None:
@@ -219,10 +226,12 @@ class Financials:
         short = self.instant("short_term_borrowings_usd", end) or self.instant("commercial_paper_usd", end)
         return _add(ltd, short, basis=f"long-term debt{' + short-term borrowings' if short else ''} at {end}")
 
-    def leases(self) -> Figure | None:
-        end = self._latest_end(
-            "operating_lease_liability_usd", "operating_lease_liability_noncurrent_usd", "lease_liability_usd"
-        )
+    def leases(self, end: date | None = None) -> Figure | None:
+        """Lease liabilities at the newest period end, or at `end`."""
+        if end is None:
+            end = self._latest_end(
+                "operating_lease_liability_usd", "operating_lease_liability_noncurrent_usd", "lease_liability_usd"
+            )
         if end is None:
             return None
         if (ifrs := self.instant("lease_liability_usd", end)) is not None:
@@ -256,6 +265,19 @@ class Financials:
             oi.rows + da.rows,
             f"EBITDA = operating income ({oi.basis}) + D&A ({da.basis})",
         )
+
+    def ebitda_fy(self, end: date) -> Figure | None:
+        """EBITDA for the fiscal year ending `end`: operating income + D&A as filed for that year."""
+        oi = self.fiscal_year("operating_income", end)
+        da = self.fiscal_year("depreciation_amortization", end) or _add(
+            self.fiscal_year("depreciation", end),
+            self.fiscal_year("amortization_intangibles", end),
+            basis="depreciation + intangible amortization",
+        )
+        if oi is None or da is None:
+            return None
+        basis = f"EBITDA FY to {end} = operating income + D&A ({da.basis})"
+        return Figure(oi.usd + da.usd, end, oi.rows + da.rows, basis)
 
     def backlog(self) -> Figure | None:
         return self.instant("remaining_performance_obligation_usd") or self.instant("backlog_rpo_usd")

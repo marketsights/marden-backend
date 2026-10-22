@@ -392,6 +392,9 @@ export interface PayerCapacity {
   topCounterparty: { name: string; share: Sourced<number> } | null;
   downgradeRisk: Sourced<DowngradeRisk>;
   years: PayerCapacityYear[]; exposed: ExposedInstrument[];
+  // Plain-words reasons for an n/d projected leverage path, 3-year funding gap or trigger headroom
+  // (the inputs not disclosed, by name); omitted until the capacity model writes them.
+  ndReasons?: { leveragePath?: string; fundingGap?: string; triggerHeadroom?: string };
 }
 // GET /api/payers
 export interface PayersPage { asOf: string; rows: PayerCapacity[] }

@@ -219,7 +219,7 @@ class FactWriter:
 # The ORDER BY of the `fact_current` view and the `fact_asof` function after (subject, field): model
 # values last, newest valid_from, filed over reported, newest learned. Used when rows of some sources are
 # left out (`hidden`), so the next value of the same field takes over as both views would pick it.
-# tests/test_fact_current.py checks it against the views on real rows.
+# tests/readmodels/test_licence_switch.py checks it against the views on real rows.
 PRECEDENCE = (
     "(tag = 'M'), valid_from DESC, (CASE tag WHEN 'F' THEN 0 WHEN 'R' THEN 1 ELSE 2 END), learned_at DESC, id DESC"
 )
