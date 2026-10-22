@@ -182,6 +182,53 @@ def test_payer_capacity_leverage_band_and_backtest(area):
     assert before["basis"]["ebitda"]["asOf"] <= "2026-02-20"  # the latest period public 40 days before Apr 1
 
 
+def _filed(field: str, end) -> float | None:
+    got = rows(
+        """SELECT value FROM fact WHERE subject_type = 'entity' AND subject_id = 'oracle' AND field = %s
+             AND valid_from = %s AND status = 'published' ORDER BY learned_at DESC, id DESC LIMIT 1""",
+        (field, end),
+    )
+    return float(got[0]["value"]) if got else None
+
+
+def test_payer_capacity_filed_years_carry_filed_leverage(area):
+    """FY2024-26 (the last three filed years) show (debt + lease liabilities at the year end) / that year's
+    EBITDA, each straight from the filed XBRL lines; projected years stay n/d while a lease is unsized, and
+    the output names those leases in plain words."""
+    o = payer_capacity.run(trigger="test")["outputs"]["oracle"]
+    assert_matches_types("PayerCapacity", [shape(o)])
+    ends = sorted(
+        {r["valid_from"] for r in rows("""SELECT DISTINCT valid_from FROM fact WHERE subject_type = 'entity'
+                AND subject_id = 'oracle' AND field = 'operating_cash_flow_12m_usd' AND status = 'published'""")}
+    )[-3:]
+    years = {y["fiscalYear"]: y for y in o["years"]}
+    assert [f"FY{e.year}" for e in ends] == list(o["basis"]["filedLeverage"])
+    for end in ends:
+        debt = _filed("total_debt_usd", end)
+        leases = (_filed("operating_lease_liability_usd", end) or 0.0) + (_filed("finance_lease_liability_usd", end) or 0.0)
+        parts = [_filed(f"{b}_12m_usd", end) for b in ("operating_income", "depreciation", "amortization_intangibles")]
+        lev = years[f"FY{end.year}"]["leaseAdjLeverage"]
+        assert lev["tag"] == "M" and lev["methodVersion"].startswith(payer_capacity.METHOD)
+        if debt is None or None in parts:
+            assert lev["value"] is None
+        else:
+            assert lev["value"] == round((debt + leases) / sum(parts), 2)
+    assert all(years[f"FY{e.year}"]["leaseAdjLeverage"]["value"] is not None for e in ends)  # Oracle files all three
+    unsized = rows("""SELECT e.name FROM obligation o JOIN entity e ON e.id = o.to_entity_id
+                       WHERE o.from_entity_id = 'oracle' AND o.type = 'Lease' AND NOT EXISTS (
+                         SELECT 1 FROM fact f WHERE f.subject_type = 'obligation' AND f.subject_id = o.id
+                           AND f.field IN ('total_usd', 'annual_usd') AND f.status = 'published')""")
+    projected = [y for label, y in years.items() if label not in o["basis"]["filedLeverage"]]
+    if unsized:  # an unsized lease leaves every projected year n/d, and the reason names it
+        assert projected and all(y["leaseAdjLeverage"]["value"] is None for y in projected)
+        assert all(r["name"] in o["ndReasons"]["leveragePath"] for r in unsized)
+        assert all(r["name"] in o["ndReasons"]["fundingGap"] for r in unsized)
+    floor = o["basis"].get("fundingGap3yFloorB")
+    if o["fundingGap3yB"]["value"] is None and floor and floor > 0:
+        assert f"${floor:.1f}B" in o["ndReasons"]["fundingGap"]
+    assert "trigger" in o["ndReasons"]["triggerHeadroom"]
+
+
 def test_lease_map_ranks_by_priority(area):
     payer_capacity.run(trigger="test")
     doc = lease_map.run(trigger="test")["outputs"]["all"]
