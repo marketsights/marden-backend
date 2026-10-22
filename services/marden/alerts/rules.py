@@ -128,14 +128,13 @@ def status_findings(name: str, slug: str, before: dict[str, Any], after: dict[st
         if chain_moved:
             lines.append(f"Site status {chain_label(chain_before)} {t.ARROW} {chain_label(chain_after)}.")
         lines.append(f"{'Why' if worse else 'Was'}: {(link if worse else prev).get('reason')}")
-        lines.append(f"Rule {code}: {t.rule_text(code)}.")
+        lines.append(f"Rule: {t.rule_text(code)}.")
         lines.append(_method_line("status", method))
         sources = [s for s in (_sourced_ref((link if worse else prev).get("fact"), f"status:{slug}:{role}"),) if s]
         sources.append(_model_source("Marden status model", method, as_of, "docs/methods/status-rules-v0.1.md"))
         out.append(Finding(
             codes=[code], severity=severity, tag="M", ref_url=f"/sites/{slug}",
             headline=f"{name}: {label.lower()} link now {LINK_CLAUSE.get(n, n)}"
-            + (f" ({code})" if code in t.SHORT else "")
             + (f"; site {CHAIN_CLAUSE.get(str(chain_after), str(chain_after))}" if chain_moved else ""),
             body="\n".join(lines), alert_types=[t.alert_type(code, role)], part=role,
             facts={"role": role, "party": link.get("party"), "before": o, "after": n, "ruleCode": code,
