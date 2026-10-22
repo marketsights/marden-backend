@@ -68,8 +68,8 @@ def funding(entity_id: str) -> list[dict[str, Any]]:
 
 def oracle_end_user_sites(end_user: str) -> set[str]:
     rows = copied_rows(
-        """SELECT eu.site_slug FROM chain_party eu JOIN chain_party t ON t.site_slug = eu.site_slug AND t.role = 'tenant'
-            WHERE eu.role = 'end_user' AND eu.entity_id = %s AND t.entity_id = 'oracle'""",
+        """SELECT eu.site_slug FROM chain_party eu JOIN chain_party t ON t.site_slug = eu.site_slug
+            WHERE t.role = 'tenant' AND eu.role = 'end_user' AND eu.entity_id = %s AND t.entity_id = 'oracle'""",
         (end_user,),
     )
     return {r["site_slug"] for r in rows}
@@ -78,9 +78,9 @@ def oracle_end_user_sites(end_user: str) -> set[str]:
 def test_who_pays_oracle_says_why_and_how_exposed(edges):
     doc = payer("oracle")
     above = {p["name"]: p for p in doc["paidBy"]}
-    users = {r["entity_id"] for r in copied_rows(
-        """SELECT DISTINCT eu.entity_id FROM chain_party eu JOIN chain_party t ON t.site_slug = eu.site_slug
-            WHERE t.entity_id = 'oracle' AND t.role = 'tenant' AND eu.role = 'end_user' AND eu.entity_id IS NOT NULL""")}
+    above_oracle = """SELECT DISTINCT eu.entity_id FROM chain_party eu JOIN chain_party t ON t.site_slug = eu.site_slug
+        WHERE t.entity_id = 'oracle' AND t.role = 'tenant' AND eu.role = 'end_user' AND eu.entity_id IS NOT NULL"""
+    users = {r["entity_id"] for r in copied_rows(above_oracle)}
     assert users, "no end user above Oracle in the copied chains"
     page_sites = {s["slug"] for s in doc["sites"]}
     for uid in users:
@@ -124,7 +124,8 @@ def test_openai_on_oracle_page_is_strained_by_its_funding_need(edges):
     if not any(x.get("ruleCode") == "E1" for x in mine):
         pytest.skip("the status model does not trip E1 on OpenAI in the copied outputs")
     party = next(p for p in payer("oracle")["paidBy"] if p["slug"] == "openai")
-    assert (party["status"], party["ruleCode"], party["rule"]) == ("Strained", "E1", "End user's plan needs new funding")
+    rule = (party["status"], party["ruleCode"], party["rule"])
+    assert rule == ("Strained", "E1", "End user's plan needs new funding")
     tripped = next(f for f in party["facts"] if f["tripped"])
     assert tripped["label"] in {r["value"]["label"] for r in funding("openai")}
     labels = [f["label"] for f in party["facts"]]

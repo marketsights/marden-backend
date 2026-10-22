@@ -65,7 +65,9 @@ sites it is a chain party of and the instruments it issues; a campus, building o
 it by an approved site link; an obligation, its site and instruments. A member qualifies when the firm's
 `marden` product is live (`org_product` active and within its dates) and they hold a role on it (the API's
 grant test), and their alert settings take one of the finding's types (price moves: at their threshold).
-The body ends with the watched names the alert reached them through.
+The body ends with the watched names the alert reached them through. Headlines (and so email subjects)
+start with the subject's name; an instrument is named with its site, else its issuer ("Lake Mariner ·
+7.75% Sr Secured Notes 2030"), because instrument names alone repeat across issuers.
 
 One alert row per (org, user, matter): `alert` is unique on `(org_id, user_id, dedupe_key)`; the key is the
 trigger key plus the link role or price threshold. A material event repeating a matter already alerted to

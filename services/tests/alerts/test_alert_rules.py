@@ -116,3 +116,19 @@ def test_opposition_events_take_the_collectors_grade():
     red = rules.event_finding({**event, "severity": "red"}, "Site", "/sites/site?tab=opposition")
     assert red.severity == "red" and red.sources[0]["eventId"] == 7
     assert rules.event_finding({**event, "kind": "news"}, "Site", "/sites/site") is None  # not material, not opposition
+
+
+def test_instrument_names_carry_their_site_or_issuer():
+    """Alert headlines start with the subject's name; an instrument's own name repeats across issuers."""
+    from marden.alerts.fanout import subject_name
+
+    copied = copy_sites(["jupiter"])
+    if not copied["instruments"]:
+        pytest.skip("jupiter's instruments are not in the source database")
+    with db.connection() as conn:
+        site = conn.execute("SELECT name FROM site WHERE slug = 'jupiter'").fetchone()["name"]
+        for iid in copied["instruments"]:
+            own = conn.execute("SELECT name FROM instrument WHERE id = %s", (iid,)).fetchone()["name"]
+            named = subject_name(conn, "instrument", iid)
+            assert named == (own if site.lower() in own.lower() else f"{site} · {own}")
+        assert subject_name(conn, "instrument", "no-such-instrument") == "no-such-instrument"

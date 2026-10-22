@@ -139,7 +139,6 @@ def live_members(conn: Conn) -> list[dict[str, Any]]:
 # ------------------------------------------------------------------ names and screen links
 NAME_SQL = {
     "site": "SELECT name FROM site WHERE slug = %s",
-    "instrument": "SELECT name FROM instrument WHERE id = %s",
     "entity": "SELECT name FROM entity WHERE id = %s",
     "campus": "SELECT name FROM campus WHERE id = %s",
     "building": "SELECT coalesce(label, id) AS name FROM building WHERE id = %s",
@@ -147,7 +146,23 @@ NAME_SQL = {
 }
 
 
+INSTRUMENT_NAME_SQL = """SELECT i.name, coalesce(s.name, e.name) AS qualifier FROM instrument i
+                           LEFT JOIN site s ON s.slug = i.site_slug
+                           LEFT JOIN entity e ON e.id = i.issuer_entity_id WHERE i.id = %s"""
+
+
 def subject_name(conn: Conn, subject_type: str, subject_id: str) -> str:
+    """The name alert headlines and email subjects start with. An instrument is named with its site (else its
+    issuer): instrument names alone repeat ('7.75% Sr Secured Notes 2030' is two issuers' notes, 'Project
+    bonds' says nothing on a phone's lock screen)."""
+    if subject_type == "instrument":
+        row = conn.execute(INSTRUMENT_NAME_SQL, (subject_id,)).fetchone()
+        if not row or not row.get("name"):
+            return subject_id
+        name, qualifier = str(row["name"]), row.get("qualifier")
+        if not qualifier or str(qualifier).lower() in name.lower():
+            return name
+        return f"{qualifier} · {name}"
     sql = NAME_SQL.get(subject_type)
     row = conn.execute(sql, (subject_id,)).fetchone() if sql else None
     return str(row["name"]) if row and row.get("name") else subject_id
