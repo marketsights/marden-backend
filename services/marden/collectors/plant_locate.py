@@ -47,6 +47,7 @@ from marden.collectors.eia_860m_parse import Report, parse_workbook
 from marden.collectors.eia_860m_store import report_date, served_campus_points
 from marden.collectors.rates_common import RunStats, collect, print_stats
 from marden.core import db
+from marden.core.business_day import business_today
 from marden.core.db import Conn, Row
 from marden.core.documents import DocumentRow
 from marden.core.facts import FactWriter
@@ -92,9 +93,9 @@ def _latest(conn: Conn, fields: tuple[str, ...], *, own: bool) -> dict[tuple[str
     rows = conn.execute(
         f"""SELECT DISTINCT ON (subject_id, field) * FROM fact
              WHERE subject_type = 'plant' AND status = 'published' AND field = ANY(%s)
-               AND (producer = %s) = %s AND (valid_to IS NULL OR valid_to > current_date)
+               AND (producer = %s) = %s AND (valid_to IS NULL OR valid_to > %s)
              ORDER BY subject_id, field, {order}""",
-        (list(fields), PRODUCER, own),
+        (list(fields), PRODUCER, own, business_today()),  # New York's today, as fact_current
     ).fetchall()
     return {(r["subject_id"], r["field"]): r for r in rows}
 

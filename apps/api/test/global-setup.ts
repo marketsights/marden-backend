@@ -16,10 +16,11 @@ declare module 'vitest' {
 const BASE_URL = process.env.DATABASE_URL ?? 'postgres://marden:marden@localhost:5432/marden?sslmode=disable';
 /** The migrations the API's tables come from, in order (core, grid regions for the ISO/RTO map layer,
  * per-product access, per-member alerts and stream_event.user_id, Marden-owned org roles, saved views,
- * agents, membership last active and last visit, fact_asof's US Eastern day end). */
+ * agents, membership last active and last visit, fact_asof's US Eastern day end, fact_current's US Eastern today). */
 const MIGRATIONS = ['20261021100000_core.sql', '20261021150000_grid_region.sql', '20261021180000_product_access.sql', '20261021223000_alert_engine.sql',
   '20261021234100_marden_org_roles.sql', '20261021235500_saved_view.sql', '20261022001000_agents.sql',
-  '20261022020000_member_last_active.sql', '20261022041700_member_last_visit.sql', '20261022050000_fact_asof_business_day.sql']
+  '20261022020000_member_last_active.sql', '20261022041700_member_last_visit.sql', '20261022050000_fact_asof_business_day.sql',
+  '20261022090000_fact_current_business_day.sql']
   .map((name) => fileURLToPath(new URL(`../../../db/migrations/${name}`, import.meta.url)));
 
 export function withSearchPath(url: string, schema: string): string {

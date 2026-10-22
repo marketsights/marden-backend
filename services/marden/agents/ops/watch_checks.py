@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from marden.core.business_day import business_today
 from marden.core.db import Conn
 
 SUM_TOLERANCE = 0.005
@@ -138,11 +139,11 @@ def reported_vs_filed(conn: Conn) -> list[Issue]:
                        AND f.subject_id = c.subject_id AND f.field = c.field AND f.value <> c.value
                        AND jsonb_typeof(f.value) = jsonb_typeof(c.value)
                        AND f.valid_from >= c.valid_from - {CONFLICT_DAYS}
-                       AND (f.valid_to IS NULL OR f.valid_to > current_date)
+                       AND (f.valid_to IS NULL OR f.valid_to > %s)
             WHERE c.tag = 'R' AND c.subject_type = ANY(%s)
               AND (jsonb_typeof(c.value) = 'number' OR (jsonb_typeof(c.value) = 'string' AND c.field = ANY(%s)))
             ORDER BY c.subject_type, c.subject_id, c.field, f.valid_from DESC""",
-        (list(SUBJECT_TYPES), list(KEY_FIELDS))).fetchall()
+        (business_today(), list(SUBJECT_TYPES), list(KEY_FIELDS))).fetchall()  # New York's today, as fact_current
     out: dict[str, Issue] = {}
     for r in rows:
         a, b = _num(r["shown"]), _num(r["filed"])
@@ -171,9 +172,9 @@ def same_day_conflicts(conn: Conn) -> list[Issue]:
                                                'producer', producer) ORDER BY id) AS facts
            FROM fact WHERE status = 'published' AND subject_type = ANY(%s)
              AND jsonb_typeof(value) IN ('number', 'string', 'boolean')
-             AND (valid_to IS NULL OR valid_to > current_date)
+             AND (valid_to IS NULL OR valid_to > %s)
            GROUP BY 1, 2, 3, 4 HAVING count(DISTINCT producer) > 1 AND count(DISTINCT value) > 1
-           ORDER BY 1, 2, 3, 4""", (list(SUBJECT_TYPES),)).fetchall()
+           ORDER BY 1, 2, 3, 4""", (list(SUBJECT_TYPES), business_today())).fetchall()
     out = []
     for r in rows:
         values = {str(f["value"]) for f in r["facts"]}

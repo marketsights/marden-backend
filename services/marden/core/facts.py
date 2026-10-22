@@ -18,6 +18,7 @@ from datetime import date
 from typing import Any
 
 from marden.core import checks
+from marden.core.business_day import business_today
 from marden.core.checks import ValidationError
 from marden.core.db import Conn, Row
 from marden.core.jsonutil import canonical_json, hash_parts, jsonb, to_jsonable
@@ -234,13 +235,14 @@ def current_facts(
     hidden: Sequence[str] = (),
 ) -> dict[str, Row]:
     """field -> current published fact row (fact_current precedence). Rows whose source_name is in
-    `hidden` are left out before the precedence picks (marden.core.licensing.hidden_source_names)."""
+    `hidden` are left out before the precedence picks (marden.core.licensing.hidden_source_names).
+    Current = not ended by New York's today (`business_today`), as fact_current."""
     params: list[Any] = [subject_type, subject_id]
     if hidden:
         sql = """SELECT DISTINCT ON (field) * FROM fact WHERE subject_type = %s AND subject_id = %s
-                   AND status = 'published' AND (valid_to IS NULL OR valid_to > CURRENT_DATE)
+                   AND status = 'published' AND (valid_to IS NULL OR valid_to > %s)
                    AND source_name <> ALL(%s)"""
-        params.append(list(hidden))
+        params += [business_today(), list(hidden)]
     else:
         sql = "SELECT * FROM fact_current WHERE subject_type = %s AND subject_id = %s"
     if fields is not None:

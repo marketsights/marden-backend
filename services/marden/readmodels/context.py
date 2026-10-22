@@ -19,20 +19,13 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import date, datetime, time, timedelta
-from zoneinfo import ZoneInfo
 
+from marden.core.business_day import BUSINESS_TZ, business_today  # re-exported: core's fact reads need them too
 from marden.core.db import Conn, Row
 from marden.core.facts import current_facts, facts_asof
 from marden.core.licensing import hidden_source_names
 
-BUSINESS_TZ = ZoneInfo("America/New_York")
-
 _BUILD_DATE: ContextVar[date | None] = ContextVar("marden_readmodel_build_date", default=None)
-
-
-def business_today() -> date:
-    """Snapshots are dated in US Eastern (spec 22: screens rebuilt 5-6 am Eastern)."""
-    return datetime.now(BUSINESS_TZ).date()
 
 
 def snapshot_date(as_of: date | None) -> date:
@@ -104,8 +97,8 @@ def known_fact_rows(conn: Conn, subject_type: str, subject_id: str, fields: Sequ
         params: tuple = (subject_type, subject_id, list(fields), day, day_end(day), day)
     else:
         sql = """SELECT * FROM fact WHERE subject_type = %s AND subject_id = %s AND field = ANY(%s)
-                   AND status = 'published' AND (valid_to IS NULL OR valid_to > CURRENT_DATE)"""
-        params = (subject_type, subject_id, list(fields))
+                   AND status = 'published' AND (valid_to IS NULL OR valid_to > %s)"""
+        params = (subject_type, subject_id, list(fields), business_today())  # New York's today, as fact_current
     if hidden:
         sql += " AND source_name <> ALL(%s)"
         params = (*params, hidden)

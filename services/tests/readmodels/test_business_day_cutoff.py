@@ -11,6 +11,9 @@ are real ones copied from the local database (Abilene's withdrawn-permit event a
 Southgate's listing-deadline catalyst, the Stargate Abilene campus, an Amazon-Cipher lease fact, a status model
 run that started at 22:03 New York time, Abernathy's ISO fact for a day in standard time); only their learned /
 created instant is set. Midnight Eastern is 04:00 UTC in daylight time and 05:00 UTC in standard time.
+A fact's end is a business day too: valid_to = D is current through D - 1 in New York, so at 22:00 Eastern on D - 1
+(02:00 UTC on D, when CURRENT_DATE in the UTC session is already D) it is still current; only valid_to is set on
+the copied fact (no real fact has one yet).
 """
 
 from __future__ import annotations
@@ -22,6 +25,8 @@ import pytest
 from conftest import BASE_URL
 from psycopg.rows import dict_row
 
+from marden.core import business_day as business_clock
+from marden.core.facts import current_facts
 from marden.core.jsonutil import jsonb
 from marden.models import pit
 from marden.readmodels import context
@@ -48,6 +53,8 @@ RUN_ID = 341  # model 'status' v0.4, started 2026-10-22 02:03:56 UTC = 22:03 EDT
 EST_DAY = date(2026, 3, 5)  # a past business day in Eastern standard time (daylight time starts 8 March)
 EST_CASES = [("2026-03-06 04:30+00", True), ("2026-03-06 05:01+00", False)]  # 23:30 EST on 5 / 00:01 EST on 6 March
 EST_FACT_ID = 1471381  # site abernathy, iso "SPP", SEC EDGAR, valid_from 2026-02-27
+ENDS = date(2026, 10, 22)  # valid_to set on FACT_ID: current through 21 October in New York
+ENDS_CASES = [("2026-10-22T02:00:00+00:00", True), ("2026-10-22T04:01:00+00:00", False)]  # 22:00 / 00:01 EDT
 
 
 def _real(table: str, row_id: int | str) -> dict:
@@ -190,3 +197,44 @@ def test_a_model_run_started_in_the_eastern_evening_ran_that_day(conn):
         assert {r["model"]: r["lastRun"] for r in model_rows(conn)}["status"] == "2026-10-21"
     with building(ran - timedelta(days=1)):
         assert "status" not in {r["model"] for r in model_rows(conn)}
+
+
+def _clock(monkeypatch, at: str) -> None:
+    """The business clock (marden.core.business_day's datetime.now) at instant `at`."""
+    instant = datetime.fromisoformat(at)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz)
+
+    monkeypatch.setattr(business_clock, "datetime", Clock)
+
+
+@pytest.mark.parametrize(("now", "current"), ENDS_CASES)
+def test_a_fact_ending_the_next_new_york_day_is_still_current_that_evening(conn, monkeypatch, now, current):
+    conn.execute("SET TIME ZONE 'UTC'")
+    _clock(monkeypatch, now)
+    assert context.business_today() == (ENDS - timedelta(days=1) if current else ENDS)
+    fact = _real("fact", FACT_ID)
+    _insert(conn, "fact", fact, valid_to=ENDS, document_id=None)
+    field = fact["field"]
+    assert not context.is_backfill()  # today's snapshot: the current reads
+    assert bool(known_fact_rows(conn, "site", "abilene", [field])[field]) is current
+    monkeypatch.setattr(context, "hidden_source_names", lambda: ["a source the licence switch hides"])
+    assert (field in known_facts(conn, "site", "abilene", [field])) is current  # the licence switch's query
+
+
+@pytest.mark.parametrize("zone", ["UTC", "Pacific/Kiritimati", "Pacific/Pago_Pago"])
+def test_fact_current_ends_a_fact_on_the_new_york_date_in_any_session_zone(conn, zone):
+    """fact_current's today is New York's date at now(), not CURRENT_DATE (the session zone's date). UTC+14 is a
+    day ahead of New York from 6 am EDT on and UTC-11 a day behind before 7 am, so at any hour one of these zones
+    catches a view that compares valid_to with CURRENT_DATE."""
+    conn.execute(f"SET TIME ZONE '{zone}'")
+    today = business_day(conn.execute("SELECT now() AS at").fetchone()["at"])  # the transaction's instant
+    fact = _real("fact", FACT_ID)
+    _insert(conn, "fact", fact, valid_to=today + timedelta(days=1), document_id=None)
+    field = fact["field"]
+    assert field in current_facts(conn, "site", "abilene", [field])  # fact_current
+    conn.execute("UPDATE fact SET valid_to = %s WHERE id = %s", (today, FACT_ID))
+    assert field not in current_facts(conn, "site", "abilene", [field])
