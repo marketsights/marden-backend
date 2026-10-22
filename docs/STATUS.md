@@ -76,6 +76,14 @@ If a new session starts: read this file, check `git log`, then re-run any workfl
 3. Extraction workers (Claude API; claude CLI fallback for local runs), alert engine + email (Postmark or Resend), weekly note, review queue UI.
 4. Remaining screens: Home, Customize Home, Payers, Payer, Stress, Risk list, Watchlist, Track record, Obligations, GPUs, Leases.
 5. Deploy: Dockerfiles + Railway config (`web`, `api`, `worker`), `dbmate up` on Neon (strip `channel_binding` for dbmate), smoke tests, then re-run `seed all` + collectors against Neon.
+6. Neon data load without R2 (2026-10-22): Neon answers over WebSocket on 443 through the agent proxy
+   (`@neondatabase/serverless` + `ws` + `https-proxy-agent`; COPY works via `pg-copy-streams`). Loader in the
+   scratchpad `neonload/` (`load.mjs pre|data|post` over `pg_dump -n public --no-owner --no-privileges`
+   sections; spatial_ref_sys skipped; dev user/org, their watchlist/alerts/saved views and the procrastinate
+   queue left out). Done 2026-10-22 02:13 UTC with the owner's go-ahead: pre-data, 1,274,876 facts and every
+   other table, then post-data and ANALYZE. Neon matches local on 158 indexes, 12 triggers, 77 FKs, the
+   fact id sequence and all 18 schema_migrations rows, so Render's `marden-migrate` finds nothing to apply
+   (later migrations apply normally).
 
 ## Owner decisions on record
 - Build directly (not factory.py); backend must run on real data; no demo data served.

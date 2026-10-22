@@ -51,11 +51,13 @@ def add_find(conn: Conn, search_id: int, *, url: str, outcome: str, title: str |
 
 
 def held(conn: Conn, url: str) -> dict[str, Any] | None:
-    """Marden's newest document for this URL (any source) and its newest agent job, or None."""
+    """Marden's newest copy of the file at this URL and its newest agent job, or None. Seed records that only
+    name the URL (source kind 'seed': the archive's own JSON row, not the file) are not copies."""
     return conn.execute(
         """SELECT d.id, d.source_id, d.extract_state, j.id AS job_id, j.state AS job_state
-           FROM document d LEFT JOIN LATERAL (SELECT id, state FROM agent_job WHERE document_id = d.id
-                                              ORDER BY id DESC LIMIT 1) j ON true
+           FROM document d JOIN source s ON s.id = d.source_id AND s.kind <> 'seed'
+           LEFT JOIN LATERAL (SELECT id, state FROM agent_job WHERE document_id = d.id
+                              ORDER BY id DESC LIMIT 1) j ON true
            WHERE d.url = %s ORDER BY d.id DESC LIMIT 1""", (url,)).fetchone()
 
 

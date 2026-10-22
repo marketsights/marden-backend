@@ -12,6 +12,10 @@
                  words around them; a validator rejects any number, number word or name the figures do not
                  hold; the draft waits for a person; the approved note is what GET /api/risk-list serves
 
-Modules: runs (agent_ops_run), numbers (the prose validator), gaps / search / researcher, watch_* / watchdog,
-note / note_prose, decisions (review-queue decisions on notes and issues), tasks, commands.
+Modules: runs (agent_ops_run); researcher with gaps (the worklist), research_plan (queries, windows, the
+relevance check), search_edgar / search_ferc (the endpoints), research_store, research_sources (collector
+coverage); watchdog with watch_checks (sums, contradictions, screens), watch_staleness (sources, read models,
+model backlogs), watch_moves (unexplained moves), watch_titles (the only model call: rewording titles); note
+with note_prose and numbers (the prose validator); decisions (review-queue decisions on notes and issues);
+tasks (schedules); commands (CLI).
 """

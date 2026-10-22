@@ -28,7 +28,15 @@ from typing import Any
 
 from marden.agents.llm import Llm
 from marden.agents.ops import note_prose, runs
-from marden.agents.ops.numbers import Figure, check_filled, check_prose, fill, used_figures, vocabulary
+from marden.agents.ops.numbers import (
+    Figure,
+    check_filled,
+    check_prose,
+    fill,
+    repeated_words,
+    used_figures,
+    vocabulary,
+)
 from marden.core import db
 from marden.core.db import Conn, Row
 from marden.core.jsonutil import canonical_json, hash_parts, jsonb
@@ -129,7 +137,7 @@ def code_template(figs: list[Figure]) -> str:
 def problems_of(template: str, p: dict[str, Any], week_title: str) -> list[str]:
     figs = {f.name: f for f in p["figures"]}
     known = vocabulary(p["lead"], week_title, *(f.text for f in p["figures"]), *(f.meaning for f in p["figures"]))
-    out = check_prose(template, figs, known)
+    out = check_prose(template, figs, known) + repeated_words(template, figs)
     used = {f.name for f in used_figures(template, figs)}
     must = [n for n in figs if n in REQUIRED or re.fullmatch(r"r\d+", n)]
     if missing := [n for n in must if n not in used]:

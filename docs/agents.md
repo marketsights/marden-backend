@@ -1,9 +1,23 @@
-# The document agents
+# The agents
 
 Spec 22 "The agents" and "How every number stays accurate", as built in `services/marden/agents/`.
 Documents from every source are read by Claude-based agents that know their area; code checks every value,
 an independent verifier re-reads the passage, a person approves what matters, and only then does a fact
 reach the screens. Agents read and check; code computes every number and decides what publishes.
+
+## The six roles
+
+| Role | Runs | What it does | Model | Its output, and who approves |
+| --- | --- | --- | --- | --- |
+| Extractor (router + specialists) | every minute on queued documents (`agents.work`) | the router (Haiku) picks areas and sections; one specialist per area (Sonnet) with its domain brief reads them into candidate facts with exact quotes | `router`, `extractor` | candidates; code checks every value against Marden's copy of the document |
+| Verifier | in the same job | a second, independent read (Opus, another prompt) of each candidate against its passage | `verifier` | agree / disagree / unsupported; anything but agree goes to review |
+| Linker | in the same job | exact identifiers accepted; names and model proposals with an evidence passage | `linker` | proposed links wait for a person |
+| Researcher | weekly, Saturdays 11:13 UTC (`agents.research`) | searches EDGAR full-text search and FERC eLibrary for fields still not disclosed on watched and financed subjects; stores what it finds raw and queues it for the extractor | none (code only) | new documents for the extractor; its report |
+| Watchdog | daily 10:41 UTC (`agents.watchdog`) | code checks: sums that do not add, contradictions between sources and between screens, stale sources, numbers that moved without a cause, screens older than their inputs | `writer` (only to reword titles) | review items of kind `issue` with evidence; a person resolves or dismisses |
+| Note writer | Mondays 04:07 UTC (`agents.note`, Sunday night ET) | drafts the weekly note: code fills every figure, the model writes only the words between them, a validator refuses any number or claim of its own | `writer` | a draft (review item kind `note`); once approved it is the note GET /api/risk-list serves |
+
+The document pipeline (extractor, verifier, linker) is described first; the operations agents (researcher,
+watchdog, note writer) have their own section below.
 
 ```
 collectors ─┐  document.extract_state='queued'  (trigger NOTIFY marden_agents)

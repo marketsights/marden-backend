@@ -8,7 +8,8 @@ figures only as `{{name}}`. A template is rejected when, outside its placeholder
 - a placeholder code did not give;
 - a word of direction or size ("rose", "fell", "sharply", ...): direction and size belong to the figures,
   whose texts code writes ("down 1.4 points on the week");
-- a capitalized name that none of the figures, the lead or the allowed words contain (no outside facts).
+- a capitalized name that none of the figures, the lead or the allowed words contain (no outside facts); a
+  capitalized word opening a sentence passes only if it is a common opening word ("The", "Its", "Both").
 
 After code fills the placeholders, every number in the text must be a number of one of the figures used
 (`check_filled`, the last line of defence). The watchdog's rephrased titles go through the same checks.
@@ -31,7 +32,14 @@ PLACEHOLDER = re.compile(r"\{\{\s*([a-z][a-z0-9_]{0,40})\s*\}\}")
 DIGITS = re.compile(r"\d+(?:[.,]\d+)*")
 WORD = re.compile(f"[A-Za-z][A-Za-z{QUOTES}-]*")
 NAME = re.compile(f"\\b[A-Z][A-Za-z0-9&{QUOTES}.-]*")
-SENTENCE_START = re.compile("(?:^|[.!?:;]\\s+|\\(\\s*|[\"\u201c]\\s*)$")
+SENTENCE_START = re.compile("(?:^|[.!?]\\s+|\\(\\s*|[\"\u201c]\\s*)$")
+# Words that may open a sentence without being a name. Any other capitalized word (at a sentence start too:
+# "Oracle sees ...", or after a colon or semicolon) must be in the figures, the lead or ALLOWED_NAMES.
+COMMON_STARTS = _words("""
+a an the this that these those it its their there here ranked behind records record lead main key another
+other latest recent both each also and but while over under after before since from for of on in at with
+by to as so yet then still plus further meanwhile separately elsewhere together alongside against besides
+however overall next why how what which where when all most some not only even""")
 NUMBER_WORDS = _words("""
 zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen
 seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred hundreds thousand
@@ -109,14 +117,29 @@ def check_prose(template: str, figures: dict[str, Figure], known: set[str]) -> l
         problems.append(f"direction or size words in the prose (the figures carry them): {', '.join(hits)}")
     names = []
     for m in NAME.finditer(own):
-        if SENTENCE_START.search(own[: m.start()]):
-            continue
         token = m.group(0).rstrip("." + QUOTES)
-        if token and _norm(token) not in known:
-            names.append(token)
+        if not token or _norm(token) in known:
+            continue
+        if SENTENCE_START.search(own[: m.start()]) and _norm(token) in COMMON_STARTS:
+            continue
+        names.append(token)
     if names:
         problems.append(f"names the figures do not hold: {', '.join(sorted(set(names)))}")
     return problems
+
+
+def repeated_words(template: str, figures: dict[str, Figure]) -> list[str]:
+    """A label that repeats the first word of the figure it introduces ("Cushion: {{r2}}" where r2 reads
+    "Cushion -2 months ...") would read twice once filled."""
+    out, start = [], 0
+    for m in PLACEHOLDER.finditer(template):
+        before = WORD.findall(template[start:m.start()])
+        start = m.end()
+        fig = figures.get(m.group(1))
+        first = WORD.findall(fig.text)[:1] if fig else []
+        if before and first and _norm(before[-1]) == _norm(first[0]):
+            out.append(f"the word before {{{{{m.group(1)}}}}} repeats its first word ({first[0]!r})")
+    return out
 
 
 def fill(template: str, figures: dict[str, Figure]) -> str:

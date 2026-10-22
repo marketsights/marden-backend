@@ -4,6 +4,7 @@ claim of its own, the draft waits for a person, and the approved note is what GE
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 
 import pytest
@@ -104,7 +105,7 @@ def _answers(req):
     out = []
     for p in body:
         names = [f["placeholder"] for f in p["figures"]]
-        records = " ".join(f"{n}." for n in names if n.startswith("{{r"))
+        records = " ".join(f"{n}." for n in names if re.fullmatch(r"\{\{r\d+\}\}", n))
         if p["id"] == "EX-JUPITER-190":
             t = f"Ranked {{{{rank}}}} of {{{{count}}}}, with {{{{odds}}}}. The records behind it: {records}"
         elif p["id"] == "EX-SALINE-308":
@@ -137,9 +138,11 @@ def test_draft_with_a_model_keeps_only_checked_words_then_approval_serves_it():
 
     out = decide(row["review_item_id"], "approve", "staff@marden.ai")
     assert out["ok"] and out["note"] == "approved"
+    import marden.readmodels.views.risk_list  # noqa: F401  (registers the builder)
     from marden.readmodels.rebuild import rebuild_dirty
 
-    rebuild_dirty()
+    stats = rebuild_dirty()
+    assert not stats.errors
     with db.transaction() as conn:
         doc = conn.execute("SELECT doc FROM read_model WHERE view = 'risk_list' AND key = %s ORDER BY as_of DESC "
                            "LIMIT 1", (WEEK.isoformat(),)).fetchone()["doc"]
@@ -177,3 +180,24 @@ def test_prompt_names_the_rules_and_only_placeholders():
     req = note_prose.request(paragraphs)
     assert req.role == "writer" and req.tool["name"] == "write_note"
     assert "{{rank}}" in req.content[0] and "Never write a digit" in req.system
+
+
+def test_recorded_live_answers_replay_to_the_same_checked_note():
+    """The live API answers (tests/agents/ops/recorded/note_writer_2026-10-19.json) through the same checks:
+    the first answer's templates for three paragraphs are refused, the re-ask passes, every figure is code's."""
+    rec = json.loads(recorded("note_writer_2026-10-19.json"))
+    answers = iter(rec["calls"])
+    seed_list()
+    llm, backend = fake_llm(lambda req: next(answers))
+    report = note.draft(WEEK, llm=llm)
+    assert len(backend.requests) == 2 and set(report["paragraph_writers"].values()) == {"model"}
+    asked_again = json.loads(backend.requests[1].content[0].removeprefix("<paragraphs>\n")
+                             .removesuffix("\n</paragraphs>"))
+    assert [p["id"] for p in asked_again] == ["EX-SALINE-308", "EX-GLXY-163", "EX-APLD-011"]
+    with db.transaction() as conn:
+        row = conn.execute("SELECT note, figures FROM weekly_note").fetchone()
+    figures = {p["id"]: [f["text"] for f in p["figures"]] for p in row["figures"]}
+    for p, (pid, texts) in zip(row["note"]["paragraphs"], figures.items(), strict=True):
+        assert check_filled(p["text"], [Figure("x", t, "") for t in texts], (p["lead"],)) == [], pid
+    assert row["note"]["paragraphs"][0]["text"].startswith(
+        "Ranked 1 of 15, Project Jupiter Construction loans carry 63%")

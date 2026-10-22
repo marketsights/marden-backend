@@ -183,8 +183,8 @@ def run(*, today: date | None = None, now: datetime | None = None, llm: Llm | No
         items = [{"id": f"{i.check}|{i.key}", "check": REASONS[i.check], "title": i.title} for i in fresh]
         phrased, title_report = watch_titles.phrase(model, items)
         report["titles"] = title_report
-        report["model_status"] = (status.kind if model is not None else
-                                  "not_used" if not use_model else "not_configured")
+        report["model_status"] = ("not_used" if not use_model or not items else
+                                  status.kind if model is not None else "not_configured")
         outcomes: dict[str, int] = {}
         listed = []
         with db.transaction() as conn:

@@ -11,7 +11,9 @@ Extractor). Weekly on queue 'agents' (`agents.research`), or `python -m marden a
    queries a run, the rest wait for the next run. Each query's window starts where its last good search ended
    (less a week of overlap), else a year back.
 3. Every answer is stored raw; each wanted hit Marden does not hold is fetched raw (at most
-   MARDEN_RESEARCH_MAX_DOCS a run), checked to name the subject phrase, and handed to the intake
+   MARDEN_RESEARCH_MAX_DOCS a run), checked to be about the subject (`research_plan.relevance`: it names the
+   phrase, and a project name also a party, the county or an SPV; at most 10 MB; no FERC report forms such
+   as Form 1), and handed to the intake
    (extract_state 'queued'; with the agents configured, an agent_job at priority 90 watched / 85 financed). A
    hit Marden holds but never queued is queued; one already read or waiting is recorded as such.
 4. The report (agent_ops_run, research_search, research_find) says what was searched, found and queued.
@@ -44,6 +46,7 @@ from marden.readmodels.context import business_today
 log = logging.getLogger(__name__)
 
 HITS_PER_QUERY = 3
+MAX_QUEUE_BYTES = 10_000_000  # larger files (a 22 MB FERC Form 1) are stored raw; a person decides to read them
 
 
 def _env_int(name: str, default: int) -> int:
@@ -114,6 +117,9 @@ class Run:
             return
         self.docs_left -= 1
         ok, why = relevance(doc_text(doc), q, filer_cik)
+        if ok and doc.bytes > MAX_QUEUE_BYTES:
+            ok, why = False, (f"{doc.bytes / 1e6:,.1f} MB is more than the researcher queues by itself "
+                              f"({MAX_QUEUE_BYTES / 1e6:,.0f} MB; a person can queue it: agents run --doc {doc.id})")
         if not ok:
             self._record(search_id, url, "skipped", reason=f"stored raw, not queued: {why}", document_id=doc.id,
                          **info)
@@ -197,6 +203,11 @@ class Run:
             if main is None:
                 self._record(sid, url, "skipped", reason=f"no public main file ({why})", title=filing.title,
                              form=filing.category, filed=filing.day)
+                continue
+            if any(c == "Report/Form" for c, _ in filing.class_types):
+                self._record(sid, url, "skipped", title=filing.title, form=filing.category, filed=filing.day,
+                             reason="a periodic report form (Form 1, 714, 715 ...): a utility's annual statistics, "
+                                    "not a filing about the project")
                 continue
             meta = {"research": self.research_meta(q)}
             self.take(sid, q, url, filing.title, filing.category, filing.day,

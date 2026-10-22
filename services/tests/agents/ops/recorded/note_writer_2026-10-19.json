@@ -1,0 +1,42 @@
+{
+ "recorded": "live Anthropic API answers of the note writer for the week of 2026-10-19 (agent_call 203, 204; 2026-10-22, run 5): the first call's templates, then the re-ask for the paragraphs the checks refused",
+ "model": "claude-sonnet-5-5",
+ "calls": [
+  {
+   "paragraphs": [
+    {
+     "id": "EX-JUPITER-190",
+     "template": "Ranked {{rank}} of {{count}}, Project Jupiter Construction loans carry {{odds}}. The loans are sized at {{size}}, with {{price}}, {{change}}, and {{marks}}. The position is {{move}}. Main record: {{r1}}. Also: {{r2}}. Further: {{r3}}."
+    },
+    {
+     "id": "EX-SALINE-308",
+     "template": "Ranked {{rank}} of {{count}}, the Saline bonds carry {{odds}}. They are sized at {{size}}, with {{price}}, {{change}}, and {{move}}. Lead record: {{r1}}. Also, {{marks}}. Besides that, {{r2}}. Further: {{r3}}."
+    },
+    {
+     "id": "EX-GLXY-163",
+     "template": "Ranked {{rank}} of {{count}}, the Galaxy Digital notes carry {{odds}}. They are sized at {{size}}, with {{price}}, {{change}}, and {{move}}. Lead record: {{r1}}. Also, {{marks}}. Besides that, {{r2}}. Further: {{r3}}."
+    },
+    {
+     "id": "EX-APLD-011",
+     "template": "Ranked {{rank}} of {{count}}, the Applied Digital notes carry {{odds}}. They are sized at {{size}}, with {{price}}, {{change}}, and {{move}}. Lead record: {{r1}}. Also, {{marks}}. Besides that, {{r3}}. Further: {{r2}}."
+    }
+   ]
+  },
+  {
+   "paragraphs": [
+    {
+     "id": "EX-SALINE-308",
+     "template": "Ranked {{rank}} of {{count}}, the bonds carry {{odds}}. The size is {{size}}, and the {{price}}, {{change}}. Key records: {{r1}}. Also, {{r2}}. Another: {{r3}}. On the list, the bonds are {{move}}, and marks show {{marks}}."
+    },
+    {
+     "id": "EX-GLXY-163",
+     "template": "Ranked {{rank}} of {{count}}, the notes carry {{odds}}. The size is {{size}}, and the {{price}}, {{change}}. Key records: {{r1}}. Also, {{r2}}. Another: {{r3}}. On the list, the notes are {{move}}, and marks show {{marks}}."
+    },
+    {
+     "id": "EX-APLD-011",
+     "template": "Ranked {{rank}} of {{count}}, the notes carry {{odds}}. The size is {{size}}, and the {{price}}, {{change}}. Key records: {{r1}}. Also, {{r2}}. Another: {{r3}}. On the list, the notes are {{move}}, and marks show {{marks}}."
+    }
+   ]
+  }
+ ]
+}

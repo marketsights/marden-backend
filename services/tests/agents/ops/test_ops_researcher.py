@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 
 import pytest
@@ -219,3 +220,41 @@ def test_collector_items_are_checked_not_searched():
     out = check_collectors(found, run=False)
     assert out[0]["state"] == "TX" and out[0]["source"] == "tceq_cr_open_data"
     assert "missed its cadence" in out[0]["action"]  # never ran here, and run=False
+
+
+def test_a_seed_record_naming_the_url_is_not_the_file():
+    """The seed archive stores a JSON row per exhibit under the exhibit's URL; the researcher fetches the file."""
+    seed_sites()
+    _, hits = parse(GALAXY)
+    with db.transaction() as conn:
+        conn.execute("""INSERT INTO source (id, name, kind, terms_note) VALUES ('seed_marden_data', 'Seed', 'seed', 't')
+                        ON CONFLICT (id) DO NOTHING""")
+    stub = documents.record_document("seed_marden_data", hits[0].url, b'{"exhibit": "EX-99.1"}',
+                                     content_type="application/json")
+    files = {hits[0].url: page("Galaxy Helios I LLC: the commencement date of the lease.")}
+    report = researcher.run(TODAY, edgar=EdgarSearch(FakeSec(GALAXY, files)), ferc=ferc_search({}),  # type: ignore[arg-type]
+                            max_queries=1, max_ferc=0, max_docs=1, collectors=False)
+    first = report["queued"][0]
+    assert first["url"] == hits[0].url and first["fetched"] and first["document_id"] != stub.id
+
+
+def test_large_files_and_report_forms_are_stored_not_queued(monkeypatch):
+    seed_sites(watch_helios=False)
+    monkeypatch.setattr(researcher, "MAX_QUEUE_BYTES", 1000)
+    (j1, j1_url), (j2, j2_url), (j3, _) = main_files()
+    answer = json.loads(ferc_answer())
+    for hit in answer["searchHits"]:
+        if any(t["fileId"] == j2 for t in hit["transmittals"]):
+            hit["classTypes"] = [{"documentClass": "Report/Form",
+                                  "documentType": "Form 1 - Annual Rpt. for Major Electric Utilities"}]
+    files = {j: page("STACK supports the lateral to Project Jupiter in Doña Ana County.") for j in (j1, j3)}
+    client = ElibraryClient("ferc_fts", fetcher=FakeFercFetcher(json.dumps(answer).encode(), files),  # type: ignore[arg-type]
+                            bucket=TokenBucket(1000.0), sleep=lambda s: None)
+    report = researcher.run(TODAY, edgar=EdgarSearch(FakeSec(GALAXY, {})), ferc=FercSearch(client),  # type: ignore[arg-type]
+                            max_queries=0, max_ferc=1, collectors=False)
+    with db.transaction() as conn:
+        finds = {r["url"]: r for r in conn.execute("SELECT * FROM research_find")}
+        state = conn.execute("SELECT extract_state FROM document WHERE url = %s", (j1_url,)).fetchone()
+    assert report["queued"] == [] and report["finds"] == {"skipped": 3} and state["extract_state"] == "none"
+    assert "more than the researcher queues" in finds[j1_url]["reason"]
+    assert "periodic report form" in finds[j2_url]["reason"] and finds[j2_url]["document_id"] is None
