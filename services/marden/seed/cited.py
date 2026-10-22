@@ -351,7 +351,7 @@ def _text_states(text: str, value: str) -> bool | None:
 
 def _range_states(text: str, value: str) -> bool | None:
     """'2027-2029' (a maturity range): stated as a range ('2027 - 2029', '2027 through 2029', '2027 to 2029')."""
-    m = re.fullmatch(r"\s*(\d{4})\s*[-–/]\s*(\d{4})\s*", value)
+    m = re.fullmatch(r"\s*(\d{4})\s*[-\u2013/]\s*(\d{4})\s*", value)
     if not m:
         return None
     return bool(re.search(rf"\b{m[1]}\s*(?:-|/|to|through|and)\s*{m[2]}\b", text))
