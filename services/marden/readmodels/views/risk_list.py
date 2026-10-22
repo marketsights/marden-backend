@@ -14,7 +14,10 @@ and note as they are and adds only what the output leaves out:
 - `odds` without a value is n/d under 'odds v0' (spec 00-global: uncalibrated until the backtest);
 - `move` against the previous published week when the output has none: 'new', 'up' / 'down' by the
   rank change, or 'same';
-- `earlierCalls` from the backtest's published cases flagged before the week (model 'track_record').
+- `earlierCalls` from the backtest's published cases flagged before the week (model 'track_record');
+- `note`: the week's weekly note a person approved by the build day (`weekly_note`, drafted by the note
+  writer, marden.agents.ops.note: every figure filled by code), else the code-written note the list was
+  published with.
 
 Rows are ordered by rank. No output, no document: the API answers 503 until the first list exists.
 """
@@ -148,6 +151,17 @@ def note_of(raw: Any) -> Doc:
     return {"title": raw["title"] if isinstance(raw.get("title"), str) else "", "paragraphs": paragraphs}
 
 
+def approved_note(conn: Conn, week: str) -> Any:
+    """The weekly note approved for the week by the build day (US Eastern), or None."""
+    row = conn.execute(
+        """SELECT note FROM weekly_note WHERE week = %s::date AND status IN ('approved', 'superseded')
+             AND decided_at IS NOT NULL AND (decided_at AT TIME ZONE 'America/New_York')::date <= %s
+           ORDER BY decided_at DESC, id DESC LIMIT 1""",
+        (week, day()),
+    ).fetchone()
+    return row["note"] if row is not None else None
+
+
 def earlier_call(raw: Any) -> Doc | None:
     if not isinstance(raw, dict) or not isinstance(raw.get("name"), str):
         return None
@@ -199,6 +213,6 @@ def build_risk_list(conn: Conn, key: str) -> Doc | None:
     return {
         "week": {"start": key, "end": week_end(key)},
         "rows": rows,
-        "note": note_of(body.get("note")),
+        "note": note_of(approved_note(conn, key) or body.get("note")),
         "earlierCalls": earlier_calls(conn, out, key),
     }

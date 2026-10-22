@@ -6,7 +6,8 @@ else the compute users Epoch names), status (DcStatus), facility / IT MW, power 
 ISO/RTO (as a code; the boundary join when the stated value names none), online year. Buildings
 built / total count the campus's building records (Operating = built); a campus with no building
 record yet shows the building counts its own facts state. `plantId` is the largest generating plant
-serving the campus (fuel lines excluded). `financed` is the approved site link (facilities_common).
+serving the campus (fuel lines excluded). `financed` is the approved site link with the most debt and
+`financedSites` every approved financed site on the campus (facilities_common).
 `lastChange` is the newest dated change (facilities_common.last_change): a History-tab change (value
 change, first status / MW, first seen), a record (event) or a large-load queue listing, by date, then
 learned_at; else the newest fact. Detail adds every displayed fact with its source, owner of record
@@ -39,7 +40,7 @@ from marden.readmodels.views.facilities_common import (
     enum_value,
     event_changes,
     field_label,
-    financed_link,
+    financed_sites,
     first_seen,
     is_fuel_line,
     is_us,
@@ -148,6 +149,7 @@ def row_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
     cid = campus["id"]
     changes = campus_changes(conn, cid) + event_changes(subject_events(conn, "campus", cid))
     changes += queue_changes(conn, "campus", cid)
+    financed = financed_sites(conn, [cid])
     return {
         "id": cid,
         "name": campus["name"],
@@ -167,7 +169,8 @@ def row_doc(conn: Conn, campus: Row, facts: dict[str, Row]) -> Doc:
         "iso": iso_value(conn, "campus", cid, facts.get("iso")),
         "plantId": main_plant_id(conn, cid),
         "onlineYear": number_value(facts.get("online_year"), "F"),
-        "financed": financed_link(conn, [cid]),
+        "financed": financed[0] if financed else None,  # the primary site (most debt)
+        "financedSites": financed,
         "lastChange": last_change(changes, facts),
         "firstSeen": first_seen(facts, campus["first_seen_at"].date() if campus.get("first_seen_at") else None),
     }

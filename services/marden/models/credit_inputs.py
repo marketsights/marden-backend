@@ -145,6 +145,11 @@ def _add(*figs: Figure | None, basis: str) -> Figure | None:
     return Figure(sum(f.usd for f in got), min(f.as_of for f in got), [r for f in got for r in f.rows], basis)
 
 
+# The lines that date a debt figure and a lease-liability figure (Financials.debt / leases).
+DEBT_ENDS = ("total_debt_usd", "long_term_debt_usd", "long_term_debt_noncurrent_usd")
+LEASE_ENDS = ("operating_lease_liability_usd", "operating_lease_liability_noncurrent_usd", "lease_liability_usd")
+
+
 @dataclass
 class Financials:
     entity_id: str
@@ -164,8 +169,11 @@ class Financials:
                     out[(end, n)] = cur
         return out
 
-    def ttm(self, base: str) -> Figure | None:
+    def ttm(self, base: str, end: date | None = None) -> Figure | None:
+        """Trailing twelve months to the newest period end, or to the newest one on or before `end`."""
         per = self._periods(base)
+        if end is not None:
+            per = {k: v for k, v in per.items() if k[0] <= end}
         if not per:
             return None
         latest = max(e for e, _ in per)
@@ -201,9 +209,18 @@ class Financials:
         assert cur is not None
         return Figure(float(num(cur["value"])), newest, [cur], fld)
 
+    def _ends(self, *fields: str) -> set[date]:
+        return {r["valid_from"] for f in fields for r in self.rows.get(f, []) if num(r["value"]) is not None}
+
     def _latest_end(self, *fields: str) -> date | None:
-        ends = [r["valid_from"] for f in fields for r in self.rows.get(f, []) if num(r["value"]) is not None]
+        ends = self._ends(*fields)
         return max(ends) if ends else None
+
+    def balance_sheet_end(self) -> date | None:
+        """The newest period end with both debt and lease liabilities filed, so leverage reads one balance
+        sheet (a 10-Q that files leases but no debt total is not mixed with the 10-K's debt)."""
+        common = self._ends(*DEBT_ENDS) & self._ends(*LEASE_ENDS)
+        return max(common) if common else None
 
     def fiscal_year(self, base: str, end: date) -> Figure | None:
         """The 12-month value of a duration line for the fiscal year ending `end` (as filed)."""
@@ -213,7 +230,7 @@ class Financials:
     def debt(self, end: date | None = None) -> Figure | None:
         """Debt at the newest period end, or at `end` (None when nothing is filed for that date)."""
         if end is None:
-            end = self._latest_end("total_debt_usd", "long_term_debt_usd", "long_term_debt_noncurrent_usd")
+            end = self._latest_end(*DEBT_ENDS)
         if end is None:
             return None
         if (total := self.instant("total_debt_usd", end)) is not None:
@@ -229,9 +246,7 @@ class Financials:
     def leases(self, end: date | None = None) -> Figure | None:
         """Lease liabilities at the newest period end, or at `end`."""
         if end is None:
-            end = self._latest_end(
-                "operating_lease_liability_usd", "operating_lease_liability_noncurrent_usd", "lease_liability_usd"
-            )
+            end = self._latest_end(*LEASE_ENDS)
         if end is None:
             return None
         if (ifrs := self.instant("lease_liability_usd", end)) is not None:
@@ -248,13 +263,14 @@ class Financials:
         )
         return _add(op, fin, basis=f"operating + finance lease liabilities at {end}")
 
-    def ebitda(self) -> Figure | None:
-        oi = self.ttm("operating_income")
-        da = self.ttm("depreciation_amortization")
+    def ebitda(self, end: date | None = None) -> Figure | None:
+        """Trailing-twelve-month EBITDA to the newest period end, or to `end`."""
+        oi = self.ttm("operating_income", end)
+        da = self.ttm("depreciation_amortization", end)
         if da is None:
             da = _add(
-                self.ttm("depreciation"),
-                self.ttm("amortization_intangibles"),
+                self.ttm("depreciation", end),
+                self.ttm("amortization_intangibles", end),
                 basis="depreciation + intangible amortization",
             )
         if oi is None or da is None:

@@ -183,6 +183,8 @@ def test_payer_capacity_leverage_band_and_backtest(area):
     b = o["basis"]
     expected = (b["debt"]["b"] + b["leaseLiabilities"]["b"]) / b["ebitda"]["b"]  # (debt + leases) / EBITDA
     assert o["leaseAdjLeverageToday"]["value"] == pytest.approx(expected, abs=0.01)
+    # one balance sheet: debt, lease liabilities and the twelve months of EBITDA all end on the same date
+    assert b["debt"]["asOf"] == b["leaseLiabilities"]["asOf"] == b["ebitda"]["asOf"]
     xbrl = rows(
         """SELECT field, value FROM fact WHERE subject_type = 'entity' AND subject_id = 'oracle'
                      AND field = 'operating_lease_liability_usd' AND valid_from = %s AND status = 'published'""",

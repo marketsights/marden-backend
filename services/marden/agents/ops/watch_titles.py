@@ -56,9 +56,9 @@ def check_title(new: str, code: str, check_label: str) -> list[str]:
 
 
 def _first_words(text: str) -> set[str]:
-    """A capital at the start of a sentence is not a name."""
+    """A capital at the start of a sentence is not a name (after a colon it may be one)."""
     out = set()
-    for part in text.replace(":", ".").split("."):
+    for part in text.split(". "):
         words = WORD.findall(part)
         if words:
             out.add(_norm(words[0]))

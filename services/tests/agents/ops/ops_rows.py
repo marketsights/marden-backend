@@ -125,3 +125,30 @@ def ferc_answer() -> bytes:
 def ferc_file_ids() -> list[str]:
     hits = json.loads(ferc_answer())["searchHits"]
     return [h["transmittals"][0]["fileId"] for h in hits]
+
+
+class FakeWriter:
+    """A model backend for the writer role: answers each request with `answer(request)`; counts calls."""
+
+    name = "cli"
+    view = "text"
+
+    def __init__(self, answer):
+        self.answer = answer
+        self.requests = []
+
+    def complete(self, req, model, effort):
+        from marden.agents.llm import LlmResult
+
+        self.requests.append(req)
+        return LlmResult(self.answer(req), "tool_use", model, self.name,
+                         {"input_tokens": 900, "output_tokens": 120, "cache_read_tokens": 0, "cache_write_tokens": 0})
+
+
+def fake_llm(answer):
+    from marden.agents.config import AgentSettings
+    from marden.agents.llm import Llm, RunBudget
+
+    backend = FakeWriter(answer)
+    settings = AgentSettings()
+    return Llm(backend, settings, budget=RunBudget(settings.run_tokens)), backend

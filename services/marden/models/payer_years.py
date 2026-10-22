@@ -100,7 +100,11 @@ def path(
         by_id = {e.id: e for e in edges}
         return _listed(sorted({names.get(by_id[i].payee, by_id[i].payee) for i in ids if i in by_id}))
 
-    debt, leases, ebitda = fin.debt(), fin.leases(), fin.ebitda()
+    # Leverage reads one balance sheet: debt and lease liabilities at the same period end, over the twelve
+    # months of EBITDA to that end. Cash flow and capex stay at the newest twelve months.
+    bs_end = fin.balance_sheet_end()
+    debt, leases = fin.debt(bs_end), fin.leases(bs_end)
+    ebitda = fin.ebitda(bs_end) if bs_end is not None else fin.ebitda()
     ocf = fin.ttm("operating_cash_flow")
     capex = fin.ttm("capex") or fin.ttm("productive_asset_payments")
     for name, fig in (
@@ -113,7 +117,9 @@ def path(
         if fig is None:
             p.missing.append(f"entity {fin.entity_id}: {name} (SEC XBRL)")
     # Lease-adjusted leverage needs both debt and lease liabilities: a missing one is n/d, never 0.
-    base_liab = debt.usd + leases.usd if debt is not None and leases is not None else None
+    base_liab = debt.usd + leases.usd if debt is not None and leases is not None and bs_end is not None else None
+    if debt is not None and leases is not None and bs_end is None:
+        p.missing.append(f"entity {fin.entity_id}: debt and lease liabilities filed for the same period end")
     if base_liab is not None and ebitda is not None and ebitda.usd > 0:
         p.leverage_today = round(base_liab / ebitda.usd, 2)
     elif ebitda is not None and ebitda.usd <= 0:

@@ -205,7 +205,8 @@ export interface DataCenterRow {
   powerSource: Sourced<PowerSource>; utility: Sourced<string>; iso: Sourced<string>;
   plantId: string | null;
   onlineYear: Sourced<number>;
-  financed: FinancedLink | null;
+  financed: FinancedLink | null;          // the primary financed site: the one with the most debt
+  financedSites: FinancedLink[];          // every approved financed site on the campus, most debt first (financed = [0])
   lastChange: Evidence;
   firstSeen: string;
 }
@@ -216,7 +217,7 @@ export interface DataCenterSummary {
   campuses: number; buildings: number;
   mwByStatus: { status: DcStatus; mw: number }[];
   newThisWeek: { count: number; newest?: { id: string; name: string } };
-  financed: { count: number; debtB: number };
+  financed: { count: number; debtB: number };   // campuses with a financed site; debt summed over every financedSites entry
   coverage: { field: string; pct: number }[];   // fill rate per field, for the footer
 }
 

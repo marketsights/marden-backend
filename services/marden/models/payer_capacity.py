@@ -10,7 +10,8 @@ clouds, AI labs and neoclouds on the obligation map), subject ('entity', id) = P
   R as reported). `triggers` stays empty: the agencies' stated downgrade thresholds are not collected yet,
   and a threshold is never taken from memory;
 - spreadBp: the price engine's bond-implied CDS (model 'cds') for the payer;
-- leaseAdjLeverageToday = (debt + lease liabilities) / EBITDA (SEC XBRL, trailing twelve months);
+- leaseAdjLeverageToday = (debt + lease liabilities) / EBITDA (SEC XBRL): one balance sheet, the newest
+  period end that files both debt and lease liabilities, over the twelve months of EBITDA to that end;
   leaseAdjLeveragePeak, years[], fundingGap3yB: the forward path (payer_years);
 - triggerHeadroomTurns, breachYear: n/d until agency triggers are collected (listed in `missing`);
 - ndReasons: plain-words reasons for an n/d leverage path, 3-year funding gap and trigger headroom

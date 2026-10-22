@@ -1,0 +1,985 @@
+{
+ "model_output_id": 6217,
+ "version": "0.1",
+ "as_of": "2026-10-21",
+ "note": "the risk_list model output for the week of 2026-10-19 as published on the local DB, 2026-10-21",
+ "output": {
+  "note": {
+   "title": "Risk list, week of Oct 19, 2026",
+   "paragraphs": [
+    {
+     "lead": "Project Jupiter Construction loans",
+     "refs": [
+      "https://news.bloombergtax.com/artificial-intelligence/oracle-cites-force-majeure-to-shield-itself-on-big-data-center",
+      "model:cushion@site:jupiter:2026-10-21",
+      "fact:1082016"
+     ],
+     "text": "Ranked 1 of 15, with 63% odds of a 3-point move in 90 days (odds v0, uncalibrated). Oracle (tenant, T2): Oracle sent force majeure notice to developer (Blue Owl unit); could give Oracle a 3-year rent delay once payments begin if FM event agreed (2026-09-24). Cushion -2 months: rent start P50 2029-02 against outside date 2028; -6 months on the week (2026-10-21). Effect: extends lower development-stage rent; Blue Owl's ~$3bn equity earns 9% in construction vs ~11% levered when complete (2026-09-24)."
+    },
+    {
+     "lead": "Saline \"The Barn\" Project bonds",
+     "refs": [
+      "docs/methods/pricing-v0.1.md",
+      "model:mark_gap@instrument:EX-SALINE-308:2026-10-21",
+      "model:payer_capacity@entity:oracle:2026-10-21"
+     ],
+     "text": "Ranked 2 of 15, with 57% odds of a 3-point move in 90 days (odds v0, uncalibrated). Bank of America (lenders, L2): Marden spread loss 8.7 points (EX-SALINE-308: 376 bp vs 281 bp at issue 2026-04-24) (2026-10-21). Fund marks 14.3 pts above the Marden price (345 holder lines, N-PORT 2026-07-31) (2026-10-21). Tenant Oracle downgrade risk High (Marden view, not a rating): Moody's outlook negative (2026-10-21)."
+    },
+    {
+     "lead": "Galaxy Digital 9.875% Sr Sec Notes 2031",
+     "refs": [
+      "docs/methods/pricing-v0.1.md",
+      "model:mark_gap@instrument:EX-GLXY-163:2026-10-21",
+      "model:payer_capacity@entity:coreweave:2026-10-21"
+     ],
+     "text": "Ranked 3 of 15, with 54% odds of a 3-point move in 90 days (odds v0, uncalibrated). Lenders (not named, L2): Marden spread loss 6.6 points (EX-GLXY-163: 748 bp vs 564 bp at issue 2026-07-28) (2026-10-21). Fund marks 9.4 pts above the Marden price (70 holder lines, N-PORT 2026-07-31) (2026-10-21). Tenant CoreWeave downgrade risk Watch (Marden view, not a rating): 3-year funding gap at least $43.5B (unsized contracts excluded), over a quarter of 3 years' operating cash flow (2026-10-21)."
+    },
+    {
+     "lead": "Applied Digital 6.75% Sr Secured Notes 2031",
+     "refs": [
+      "https://commercialobserver.com/2025/05/7b-oracle-leased-texas-data-center-development/",
+      "fact:1080917",
+      "model:mark_gap@instrument:EX-APLD-011:2026-10-21"
+     ],
+     "text": "Ranked 4 of 15, with 50% odds of a 3-point move in 90 days (odds v0, uncalibrated). Oracle (tenant, T1): Baa2 (neg) / BBB- (S&P, cut 2026-07-09) / BBB (2026-10-20). Initial operations targeted by end of CY2026 (2026-10-07). Fund marks 4.5 pts above the Marden price (329 holder lines, N-PORT 2026-07-31) (2026-10-21)."
+    }
+   ]
+  },
+  "rows": [
+   {
+    "gap": null,
+    "why": [
+     {
+      "tag": "R",
+      "date": "2026-09-24",
+      "text": "Oracle (tenant, T2): Oracle sent force majeure notice to developer (Blue Owl unit); could give Oracle a 3-year rent delay once payments begin if FM event agreed",
+      "sourceUrl": "https://news.bloombergtax.com/artificial-intelligence/oracle-cites-force-majeure-to-shield-itself-on-big-data-center",
+      "sourceName": "Bloombergtax"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Cushion -2 months: rent start P50 2029-02 against outside date 2028; -6 months on the week",
+      "sourceUrl": "docs/methods/cushion-v0.1.md",
+      "sourceName": "Marden cushion model"
+     },
+     {
+      "tag": "R",
+      "date": "2026-09-24",
+      "text": "Effect: extends lower development-stage rent; Blue Owl's ~$3bn equity earns 9% in construction vs ~11% levered when complete",
+      "sourceUrl": "https://datacenterdynamics.com/en/news/oracle-issues-force-majeure-notice-to-blue-owl-following-series-of-setbacks-at-project-jupiter-data-center-campus-report",
+      "sourceName": "DCD"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant Oracle downgrade risk High (Marden view, not a rating): Moody's outlook negative",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     }
+    ],
+    "move": {
+     "kind": "same"
+    },
+    "name": "Project Jupiter Construction loans",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.625,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 1,
+    "size": "$18.0B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 85.781,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -1.437,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": "no fund holds it",
+    "instrumentId": "EX-JUPITER-190"
+   },
+   {
+    "gap": -14.34,
+    "why": [
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Bank of America (lenders, L2): Marden spread loss 8.7 points (EX-SALINE-308: 376 bp vs 281 bp at issue 2026-04-24)",
+      "sourceUrl": "docs/methods/pricing-v0.1.md",
+      "sourceName": "Marden model price"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 14.3 pts above the Marden price (345 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant Oracle downgrade risk High (Marden view, not a rating): Moody's outlook negative",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Marden price 85.2, -3.1 on the week",
+      "sourceUrl": "docs/methods/pricing-v0.1.md",
+      "sourceName": "Marden model price"
+     }
+    ],
+    "move": {
+     "by": 1,
+     "kind": "up"
+    },
+    "name": "Saline \"The Barn\" Project bonds",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.571,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 2,
+    "size": "$14.0B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 85.244,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -3.099,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 96.8,
+    "instrumentId": "EX-SALINE-308"
+   },
+   {
+    "gap": -9.36,
+    "why": [
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Lenders (not named, L2): Marden spread loss 6.6 points (EX-GLXY-163: 748 bp vs 564 bp at issue 2026-07-28)",
+      "sourceUrl": "docs/methods/pricing-v0.1.md",
+      "sourceName": "Marden model price"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 9.4 pts above the Marden price (70 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant CoreWeave downgrade risk Watch (Marden view, not a rating): 3-year funding gap at least $43.5B (unsized contracts excluded), over a quarter of 3 years' operating cash flow",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Marden price 90.9, -2.2 on the week",
+      "sourceUrl": "docs/methods/pricing-v0.1.md",
+      "sourceName": "Marden model price"
+     }
+    ],
+    "move": {
+     "by": 6,
+     "kind": "up"
+    },
+    "name": "Galaxy Digital 9.875% Sr Sec Notes 2031",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.538,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 3,
+    "size": "$3.5B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 90.949,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -2.21,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 100.41,
+    "instrumentId": "EX-GLXY-163"
+   },
+   {
+    "gap": -4.5,
+    "why": [
+     {
+      "tag": "R",
+      "date": "2026-10-20",
+      "text": "Oracle (tenant, T1): Baa2 (neg) / BBB- (S&P, cut 2026-07-09) / BBB",
+      "sourceUrl": "https://commercialobserver.com/2025/05/7b-oracle-leased-texas-data-center-development/",
+      "sourceName": "Commercialobserver"
+     },
+     {
+      "tag": "F",
+      "date": "2026-10-07",
+      "text": "Initial operations targeted by end of CY2026",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000057/apldq127earningsrelease.htm",
+      "sourceName": "SEC EDGAR"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 4.5 pts above the Marden price (329 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant Oracle downgrade risk High (Marden view, not a rating): Moody's outlook negative",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     }
+    ],
+    "move": {
+     "by": 2,
+     "kind": "down"
+    },
+    "name": "Applied Digital 6.75% Sr Secured Notes 2031",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.5,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 4,
+    "size": "$2.1B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 95.089,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -0.805,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 97.82,
+    "instrumentId": "EX-APLD-011"
+   },
+   {
+    "gap": -6.27,
+    "why": [
+     {
+      "tag": "R",
+      "date": "2026-10-20",
+      "text": "CoreWeave (tenant, T1): CoreWeave, Inc.: S&P B+ (sub-investment grade) per press citing CNBC (Oct 2026); Moody's/Fitch issuer ratings not verified here",
+      "sourceUrl": "https://investinglive.com/stocks/coreweave-bonds-trade-like-distressed-debt-as-ai-spending-outpaces-balance-sheets/",
+      "sourceName": "Investinglive"
+     },
+     {
+      "tag": "F",
+      "date": "2026-10-07",
+      "text": "Guidance wording broadened from \"middle of calendar year 2027\" (10-K, 7/29/26) to \"calendar year 2027\" (10-Q); not stated as a delay",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000059/apld-20260831.htm",
+      "sourceName": "SEC EDGAR"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 6.3 pts above the Marden price (223 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant CoreWeave downgrade risk Watch (Marden view, not a rating): 3-year funding gap at least $43.5B (unsized contracts excluded), over a quarter of 3 years' operating cash flow",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     }
+    ],
+    "move": {
+     "by": 2,
+     "kind": "up"
+    },
+    "name": "Applied Digital 7.00% Sr Secured Notes 2031",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.5,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 5,
+    "size": "$1.6B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 92.535,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -0.902,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 97.49,
+    "instrumentId": "EX-APLD-012"
+   },
+   {
+    "gap": -7.27,
+    "why": [
+     {
+      "tag": "R",
+      "date": "2026-10-20",
+      "text": "CoreWeave (tenant, T1): CoreWeave, Inc.: S&P B+ (sub-investment grade) per press citing CNBC (Oct 2026); Moody's/Fitch issuer ratings not verified here",
+      "sourceUrl": "https://investinglive.com/stocks/coreweave-bonds-trade-like-distressed-debt-as-ai-spending-outpaces-balance-sheets/",
+      "sourceName": "Investinglive"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 7.3 pts above the Marden price (287 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant CoreWeave downgrade risk Watch (Marden view, not a rating): 3-year funding gap at least $43.5B (unsized contracts excluded), over a quarter of 3 years' operating cash flow",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     }
+    ],
+    "move": {
+     "by": 2,
+     "kind": "up"
+    },
+    "name": "Core Scientific 7.75% Sr Sec Notes 2031",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.455,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 6,
+    "size": "$3.3B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 93.033,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -1.155,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 98.05,
+    "instrumentId": "EX-CORZ-065"
+   },
+   {
+    "gap": -5.9,
+    "why": [
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "MUFG; Morgan Stanley; Goldman Sachs and JPMorgan (lenders, L2): Marden price 94.3 (EX-CRWV-095, floating rate)",
+      "sourceUrl": "docs/methods/pricing-v0.1.md",
+      "sourceName": "Marden model price"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 5.9 pts above the Marden price (19 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     }
+    ],
+    "move": {
+     "kind": "new"
+    },
+    "name": "CoreWeave DDTL 4.0",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.455,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 7,
+    "size": "$2.8B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 94.341,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -1.726,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 99.88,
+    "instrumentId": "EX-CRWV-095"
+   },
+   {
+    "gap": null,
+    "why": [
+     {
+      "tag": "F",
+      "date": "2026-04-20",
+      "text": "Oracle (tenant, T2): TCEQ air permit 182267: withdrawn (project 401169)",
+      "sourceUrl": "https://records.tceq.texas.gov/cs/idcplg?IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&dID=9689008&Rendition=Web&searchType=External",
+      "sourceName": "TCEQ"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant Oracle downgrade risk High (Marden view, not a rating): Moody's outlook negative",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     }
+    ],
+    "move": {
+     "by": 4,
+     "kind": "down"
+    },
+    "name": "Stargate Abilene Phase 1 construction loan",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.455,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 8,
+    "size": "$2.3B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 99.407,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -0.109,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": "no fund holds it",
+    "instrumentId": "EX-ABILENE-000"
+   },
+   {
+    "gap": null,
+    "why": [
+     {
+      "tag": "R",
+      "date": "2026-10-20",
+      "text": "OpenAI (end user, E1): OpenAI projected cash burn ~$278bn negative free cash flow 2026–2030, OpenAI projections reported by the FT (18 Sep 2026)",
+      "sourceUrl": "https://www.thestar.com.my/tech/tech-news/2026/09/19/openai-forecasts-cash-burn-near-280-billion-by-2030-ft-reports",
+      "sourceName": "Com"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant Oracle downgrade risk High (Marden view, not a rating): Moody's outlook negative",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     }
+    ],
+    "move": {
+     "by": 3,
+     "kind": "down"
+    },
+    "name": "Vantage Frontier Construction debt (TX + WI)",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.4,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 9,
+    "size": "$38.0B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 97.324,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -0.41,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": "no fund holds it",
+    "instrumentId": "EX-VANTAGE_ORCL-366"
+   },
+   {
+    "gap": -7.48,
+    "why": [
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Lenders (not named, L1): Marden spread loss 3.6 points (EX-HUT-172: 164 bp vs 128 bp at issue 2026-06-09)",
+      "sourceUrl": "docs/methods/pricing-v0.1.md",
+      "sourceName": "Marden model price"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 7.5 pts above the Marden price (255 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     }
+    ],
+    "move": {
+     "kind": "new"
+    },
+    "name": "Hut 8 6.129% Sr Sec Notes due 2042 (Beacon Point, 07367AAA7)",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.4,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 10,
+    "size": "$4.2B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 91.89,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -0.436,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 95.87,
+    "instrumentId": "EX-HUT-172"
+   },
+   {
+    "gap": -4.59,
+    "why": [
+     {
+      "tag": "R",
+      "date": "2026-10-20",
+      "text": "CoreWeave (tenant, T1): CoreWeave, Inc.: S&P B+ (sub-investment grade) per press citing CNBC (Oct 2026); Moody's/Fitch issuer ratings not verified here",
+      "sourceUrl": "https://investinglive.com/stocks/coreweave-bonds-trade-like-distressed-debt-as-ai-spending-outpaces-balance-sheets/",
+      "sourceName": "Investinglive"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 4.6 pts above the Marden price (306 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant CoreWeave downgrade risk Watch (Marden view, not a rating): 3-year funding gap at least $43.5B (unsized contracts excluded), over a quarter of 3 years' operating cash flow",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     }
+    ],
+    "move": {
+     "kind": "same"
+    },
+    "name": "Applied Digital 9.25% Sr Secured Notes 2030",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.4,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 11,
+    "size": "$2.4B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 102.713,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -0.607,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 106.31,
+    "instrumentId": "EX-APLD-010"
+   },
+   {
+    "gap": null,
+    "why": [
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Lenders (not named, L2): Marden price 89.8 (EX-CRWV-094, floating rate)",
+      "sourceUrl": "docs/methods/pricing-v0.1.md",
+      "sourceName": "Marden model price"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Marden price 89.8, -3.1 on the week",
+      "sourceUrl": "docs/methods/pricing-v0.1.md",
+      "sourceName": "Marden model price"
+     }
+    ],
+    "move": {
+     "kind": "new"
+    },
+    "name": "CoreWeave DDTL 3.0",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.4,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 12,
+    "size": "$2.2B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 89.795,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -3.078,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": "no fund holds it",
+    "instrumentId": "EX-CRWV-094"
+   },
+   {
+    "gap": -3.99,
+    "why": [
+     {
+      "tag": "F",
+      "date": "2026-10-20",
+      "text": "Cipher Digital (developer, D1): 2027-03 (data halls 1-2 Q4 2026; halls 3-4 Q4 2026-Q1 2027; hall 5 Q1 2027)",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325012168/dp234624_8k.htm",
+      "sourceName": "SEC EDGAR"
+     },
+     {
+      "tag": "F",
+      "date": "2026-10-13",
+      "text": "Company claims no rent credits incurred to date",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1819989/000119312526419743/d134900dex991.htm",
+      "sourceName": "SEC EDGAR"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 4.0 pts above the Marden price (369 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     }
+    ],
+    "move": {
+     "by": 8,
+     "kind": "down"
+    },
+    "name": "Cipher Digital 7.125% Sr Secured Notes 2030",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.4,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 13,
+    "size": "$1.7B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 99.3,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -0.795,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 102.03,
+    "instrumentId": "EX-CIFR-027"
+   },
+   {
+    "gap": -2.64,
+    "why": [
+     {
+      "tag": "R",
+      "date": "2026-10-20",
+      "text": "CoreWeave (tenant, T1): CoreWeave, Inc.: S&P B+ (sub-investment grade) per press citing CNBC (Oct 2026); Moody's/Fitch issuer ratings not verified here",
+      "sourceUrl": "https://investinglive.com/stocks/coreweave-bonds-trade-like-distressed-debt-as-ai-spending-outpaces-balance-sheets/",
+      "sourceName": "Investinglive"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 2.6 pts above the Marden price (2 holder lines, 10-Q 2026-06-30)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Tenant CoreWeave downgrade risk Watch (Marden view, not a rating): 3-year funding gap at least $43.5B (unsized contracts excluded), over a quarter of 3 years' operating cash flow",
+      "sourceUrl": "docs/methods/payer-capacity-v0.1.md",
+      "sourceName": "Marden payer capacity"
+     }
+    ],
+    "move": {
+     "kind": "new"
+    },
+    "name": "Galaxy Digital Senior secured term loan (DB lead)",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.4,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 14,
+    "size": "$1.3B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 95.135,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": -0.033,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 98.17,
+    "instrumentId": "EX-GLXY-162"
+   },
+   {
+    "gap": -9.99,
+    "why": [
+     {
+      "tag": "R",
+      "date": "2026-09-23",
+      "text": "Bond hit record low ~94.4 vs par issue (peak ~110); PIMCO (~$18bn) marks at 94.5",
+      "sourceUrl": "https://protos.com/metas-ai-bond-just-hit-a-record-low-as-its-stock-soared/",
+      "sourceName": "Protos"
+     },
+     {
+      "tag": "M",
+      "date": "2026-10-21",
+      "text": "Fund marks 10.0 pts above the Marden price (378 holder lines, N-PORT 2026-07-31)",
+      "sourceUrl": "docs/methods/mark-gap-v0.1.md",
+      "sourceName": "Marden mark gap"
+     }
+    ],
+    "move": {
+     "by": 3,
+     "kind": "down"
+    },
+    "name": "Meta Hyperion 6.581% Sr Secured Notes due 2049",
+    "odds": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.333,
+     "sourceName": "Marden risk ranking",
+     "methodVersion": "odds v0"
+    },
+    "rank": 15,
+    "size": "$27.3B",
+    "price": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 91.791,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "change1w": {
+     "tag": "M",
+     "asOf": "2026-10-21",
+     "value": 0.087,
+     "sourceName": "Marden model price",
+     "methodVersion": "price v0.1"
+    },
+    "fundMark": 96.86,
+    "instrumentId": "EX-BEIGNET-022"
+   }
+  ],
+  "week": {
+   "end": "2026-10-25",
+   "start": "2026-10-19"
+  },
+  "basis": {
+   "odds": "score / (score + 6)",
+   "points": {
+    "EX-HUT-171": 2,
+    "EX-HUT-172": 4,
+    "EX-APLD-010": 4,
+    "EX-APLD-011": 6,
+    "EX-APLD-012": 6,
+    "EX-CIFR-027": 4,
+    "EX-CIFR-028": 2,
+    "EX-CORZ-065": 5,
+    "EX-CRWV-091": 2,
+    "EX-CRWV-092": 3,
+    "EX-CRWV-093": 1,
+    "EX-CRWV-094": 4,
+    "EX-CRWV-095": 5,
+    "EX-CRWV-096": 2,
+    "EX-CRWV-097": 3,
+    "EX-CRWV-102": 2,
+    "EX-CRWV-103": 2,
+    "EX-CRWV-104": 3,
+    "EX-GLXY-162": 4,
+    "EX-GLXY-163": 7,
+    "EX-IREN-184": 1,
+    "EX-IREN-185": 1,
+    "EX-NBIS-204": 0,
+    "EX-ORCL-228": 2,
+    "EX-ORCL-239": 3,
+    "EX-ORCL-240": 2,
+    "EX-ORCL-261": 3,
+    "EX-ORCL-262": 3,
+    "EX-WULF-369": 3,
+    "EX-NSCALE-210": 0,
+    "EX-NSCALE-211": 0,
+    "EX-SALINE-308": 8,
+    "EX-ABILENE-000": 5,
+    "EX-BEIGNET-022": 3,
+    "EX-JUPITER-190": 10,
+    "EX-VANTAGE-361": 1,
+    "EX-XAI_VCI-388": 0,
+    "EX-XAI_VCI-389": 0,
+    "EX-XAI_VCI-390": 0,
+    "EX-FLUIDSTACK-156": 1,
+    "EX-SOPAIPILLA-309": 2,
+    "EX-VANTAGE_ORCL-366": 4,
+    "MAN-EDGED-75SeniorSecuredGreenNote": 3
+   },
+   "scored": 43,
+   "methodVersion": "risk_list v0.1 (model v0)"
+  },
+  "missing": [
+   "instrument EX-ABILENE-001: no price model output on or before 2026-10-21",
+   "instrument EX-CRWV-105: no price model output on or before 2026-10-21",
+   "instrument EX-CRWV-106: no price model output on or before 2026-10-21",
+   "instrument EX-CRWV-107: no price model output on or before 2026-10-21",
+   "instrument EX-CRWV-108: no price model output on or before 2026-10-21",
+   "instrument EX-NSCALE-212: no price model output on or before 2026-10-21",
+   "instrument EX-XAI_VCI-383: no price model output on or before 2026-10-21"
+  ],
+  "earlierCalls": [
+   {
+    "name": "CoreWeave DDTL 2.0",
+    "moved": "2026-10-21",
+    "flagged": "2026-10-12",
+    "leadDays": 9
+   },
+   {
+    "name": "CoreWeave DDTL 2.1",
+    "moved": "2026-10-21",
+    "flagged": "2026-10-12",
+    "leadDays": 9
+   },
+   {
+    "name": "Saline \"The Barn\" Project bonds",
+    "moved": "2026-10-14",
+    "flagged": "2026-09-28",
+    "leadDays": 16
+   },
+   {
+    "name": "Core Scientific 7.75% Sr Sec Notes 2031",
+    "moved": "2026-10-21",
+    "flagged": "2026-09-28",
+    "leadDays": 23
+   },
+   {
+    "name": "Galaxy Digital 9.875% Sr Sec Notes 2031",
+    "moved": "2026-10-21",
+    "flagged": "2026-09-28",
+    "leadDays": 23
+   },
+   {
+    "name": "Oracle 5.95% due Sep-2055 Sr Notes",
+    "moved": "2026-10-21",
+    "flagged": "2026-09-28",
+    "leadDays": 23
+   },
+   {
+    "name": "Oracle 6.70% due Feb-2056 Sr Notes",
+    "moved": "2026-10-21",
+    "flagged": "2026-09-28",
+    "leadDays": 23
+   }
+  ]
+ }
+}

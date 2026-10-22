@@ -142,6 +142,35 @@ describe('data centers and power plants', () => {
     expect(tx.campuses).toBe((await json('/api/data-centers?state=TX')).total);
   });
 
+  it('sums the debt of every financed site on a campus and watches each of them', async () => {
+    // Galaxy Helios finances two sites (Helios I and II): the summary counts the campus once and both debts.
+    const two = {
+      ...dcRow('dc-d', { state: 'TX', status: 'Under construction', mw: 800, dev: 'Galaxy', firstSeen: '2025-02-01', last: '2026-10-01' }),
+      financed: { siteSlug: 'dc-site-big', siteName: 'Big', chainStatus: 'Broken', debtB: sourced(1.59, 'F') },
+      financedSites: [
+        { siteSlug: 'dc-site-big', siteName: 'Big', chainStatus: 'Broken', debtB: sourced(1.59, 'F') },
+        { siteSlug: 'dc-site-small', siteName: 'Small', chainStatus: 'Strained', debtB: sourced(1.27, 'F') },
+        { siteSlug: 'dc-site-nd', siteName: 'No debt yet', chainStatus: 'Holding', debtB: sourced(null, 'R') },
+      ],
+    };
+    await db.query(`INSERT INTO campus (id, name, state) VALUES ('dc-d', $1, 'TX')`, [two.name]);
+    await putReadModel(db, { view: 'dc_row', key: 'dc-d', asOf: '2026-10-15' }, two);
+    try {
+      const all = await json('/api/data-centers/summary');
+      expect(all.financed.count).toBe(2);  // dc-a (one site, 9.4) and dc-d (three sites)
+      expect(all.financed.debtB).toBeCloseTo(9.4 + 1.59 + 1.27, 6);
+      expect((await json('/api/data-centers/summary?state=TX&mwMin=500&developer=galaxy')).financed)
+        .toEqual({ count: 1, debtB: expect.closeTo(2.86, 6) });
+      // a campus whose second site is watched is on the watchlist
+      await db.query(`INSERT INTO watchlist_item (org_id, kind, ref_id) VALUES ('dev', 'site', 'dc-site-small')`);
+      expect(await ids('watchlist=true')).toEqual(['dc-d']);
+    } finally {
+      await db.query(`DELETE FROM watchlist_item WHERE org_id = 'dev' AND ref_id = 'dc-site-small'`);
+      await db.query(`DELETE FROM read_model WHERE view = 'dc_row' AND key = 'dc-d'`);
+      await db.query(`DELETE FROM campus WHERE id = 'dc-d'`);
+    }
+  });
+
   it('counts built buildings and the campuses behind each coverage rate', async () => {
     const all = await json('/api/data-centers/summary');
     expect(all).toMatchObject({ buildings: 6, buildingsBuilt: 3 });

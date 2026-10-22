@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from marden.agents.llm import Llm
@@ -32,6 +33,7 @@ from marden.core import db
 from marden.core.db import Conn, Row
 from marden.core.jsonutil import canonical_json, hash_parts, jsonb
 from marden.models.risk_list import week_of
+from marden.models.risk_note import percent
 from marden.readmodels.context import business_today
 
 NOTE_PARAGRAPHS = 4
@@ -58,26 +60,31 @@ def _num(v: Any) -> float | None:
     return float(v) if isinstance(v, int | float) and not isinstance(v, bool) else None
 
 
+def one_decimal(x: float) -> str:
+    """'85.8': half up, as the web app and the risk model's own note round (85.25 -> 85.3, not 85.2)."""
+    return str(Decimal(str(x)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+
 def row_figures(row: dict[str, Any], count: int, refs: list[str]) -> list[Figure]:
     """The figures of one ranked row, each written by code, with the record reference it rests on."""
     figs = [Figure("rank", str(int(row["rank"])), "the instrument's rank on this week's list"),
             Figure("count", str(count), "how many instruments this week's list ranks")]
     odds = _num(row.get("odds"))
-    odds_text = (f"{round(odds * 100)}% odds of a 3-point move in 90 days (odds v0, uncalibrated)"
+    odds_text = (f"{percent(odds)}% odds of a 3-point move in 90 days (odds v0, uncalibrated)"
                  if odds is not None else "odds n/d")
     figs.append(Figure("odds", odds_text, "the ranking model's odds of a 3-point price move in 90 days"))
     if isinstance(row.get("size"), str) and row["size"] != "n/d":
         figs.append(Figure("size", row["size"], "the instrument's size"))
     if (price := _num(row.get("price"))) is not None:
-        figs.append(Figure("price", f"Marden price {price:.1f}", "Marden's model price, in points of par"))
+        figs.append(Figure("price", f"Marden price {one_decimal(price)}", "Marden's model price, in points of par"))
     if (change := _num(row.get("change1w"))) is not None:
-        text = ("unchanged on the week" if abs(change) < 0.05 else
-                f"{'down' if change < 0 else 'up'} {abs(change):.1f} points on the week")
+        text = ("unchanged on the week" if one_decimal(abs(change)) == "0.0" else
+                f"{'down' if change < 0 else 'up'} {one_decimal(abs(change))} points on the week")
         figs.append(Figure("change", text, "the Marden price's change over the week"))
     gap, mark = _num(row.get("gap")), row.get("fundMark")
     if gap is not None:
         side = "above" if gap < 0 else "below"
-        figs.append(Figure("marks", f"fund marks {abs(gap):.1f} points {side} the Marden price",
+        figs.append(Figure("marks", f"fund marks {one_decimal(abs(gap))} points {side} the Marden price",
                            "where the funds that hold it mark it, against the Marden price"))
     elif isinstance(mark, str) and mark:
         figs.append(Figure("marks", {"traded": "a traded instrument (no fund marks compared)",

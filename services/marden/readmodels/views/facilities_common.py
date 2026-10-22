@@ -9,7 +9,9 @@ buildings, plants and units as Marden knew them on the build date.
 - A value nobody has sourced is n/d: `nd(tag)` for a Sourced<T>, `None` for a plain field.
 - `financed` (FinancedLink) is the campus's approved site link only (spec 16: no link without an
   approved evidence record): the site's chain status from the `status` model and the debt of the
-  instruments that need the site finished. Proposed links never show.
+  instruments that need the site finished. Proposed links never show. A campus with several financed
+  sites lists them all in `financedSites` (most debt first; `financed` is the first, kept for the
+  readers that show one link), so its debt is the sum over the list.
 - `lastChange` (campus and plant rows) is the newest material dated change (`Change`): the History
   tab's entries (value changes, first values, first seen), records (events) and large-load queue
   listings on one scale, by date (valid_from / event date), then learned_at, then kind, field order
@@ -245,9 +247,11 @@ def approved_sites(conn: Conn, campus_ids: Iterable[str]) -> list[Row]:
     ).fetchall()
 
 
-def financed_link(conn: Conn, campus_ids: Iterable[str]) -> Doc | None:
-    """FinancedLink of the campus's approved financed site (the one with the most debt when several)."""
-    best: tuple[float, Doc] | None = None
+def financed_sites(conn: Conn, campus_ids: Iterable[str]) -> list[Doc]:
+    """FinancedLink of every approved financed site on the campus, the most debt first (a site with no
+    disclosed debt after those with some; then by slug). A campus can finance several sites (Galaxy Helios
+    I and II; Polaris Forge 1 and its building 4), each with its own instruments and chain."""
+    found: list[tuple[float, str, Doc]] = []
     for site in approved_sites(conn, campus_ids):
         debt = debt_value(site_instruments(conn, site["slug"]))
         doc = {
@@ -257,9 +261,14 @@ def financed_link(conn: Conn, campus_ids: Iterable[str]) -> Doc | None:
             "debtB": debt,
         }
         size = debt["value"] if isinstance(debt["value"], int | float) else -1.0
-        if best is None or size > best[0]:
-            best = (size, doc)
-    return best[1] if best else None
+        found.append((-size, site["slug"], doc))
+    return [doc for *_, doc in sorted(found, key=lambda f: f[:2])]
+
+
+def financed_link(conn: Conn, campus_ids: Iterable[str]) -> Doc | None:
+    """FinancedLink of the campus's primary financed site: the one with the most debt when several."""
+    sites = financed_sites(conn, campus_ids)
+    return sites[0] if sites else None
 
 
 # ---------------------------------------------------------------- events, history, last change

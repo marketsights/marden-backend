@@ -6,9 +6,13 @@ import { arrAt, inList, low, numAt, txt, type FilterCtx, type FilterDef, type Ro
 
 const PERMIT_FIELD = 'air_permit_number';
 
-/** Watchlist only: the row's financed site is on the caller's org watchlist. */
-const watchlistPred: FilterDef['pred'] = (_p, ctx) =>
-  `${txt('financed,siteSlug')} IN (SELECT w.ref_id FROM watchlist_item w WHERE w.org_id = ${ctx.org()} AND w.kind = 'site')`;
+/** Watchlist only: one of the row's financed sites (a campus can finance several) is on the caller's org watchlist. */
+const watchlistPred: FilterDef['pred'] = (_p, ctx) => {
+  const watched = `(SELECT w.ref_id FROM watchlist_item w WHERE w.org_id = ${ctx.org()} AND w.kind = 'site')`;
+  return `(${txt('financed,siteSlug')} IN ${watched}
+    OR (jsonb_typeof(r.doc -> 'financedSites') = 'array'
+        AND EXISTS (SELECT 1 FROM jsonb_array_elements(r.doc -> 'financedSites') s WHERE s ->> 'siteSlug' IN ${watched})))`;
+};
 
 const financedPred: FilterDef['pred'] = () => `jsonb_typeof(r.doc -> 'financed') = 'object'`;
 
