@@ -145,7 +145,25 @@ export interface InstrumentDetail extends InstrumentRow {
 }
 
 // GET /api/curve
-export interface CurveTier { tier: string; points: { years: number; yieldPct: number; instrumentId: string }[]; fit: { years: number; yieldPct: number }[] }
+export interface CurveSource { tag: Tag; asOf: string; sourceName: string; sourceUrl?: string; methodVersion?: string }
+export interface CurveObservation { date: string; price: number; tag: Tag; kind: string; sourceName: string; sourceUrl?: string }
+export interface CurveDot {
+  years: number; yieldPct: number; instrumentId: string;
+  spreadBp?: number | null;                   // yield minus the Treasury par yield at the same maturity (bp)
+  source?: CurveSource;                       // the yield's source: the Marden model price (M) on the run day
+  lastObservation?: CurveObservation | null;  // latest observed price behind it (TRACE, fund mark, quote)
+  excluded?: string | null;                   // why the dot is left out of its tier's fit (outlier, ...)
+}
+export interface CurveTier {
+  tier: string;
+  kind?: 'tier' | 'benchmark';                // 'benchmark': the Treasury par curve (no dots)
+  points: CurveDot[];
+  fit: { years: number; yieldPct: number; spreadBp?: number }[];
+  range?: [number, number] | null;            // maturities the fit covers with dots (solid); dashed beyond
+  robustSdBp?: number | null;                 // robust SD of the fitted dots around the curve (bp)
+  note?: string | null;                       // plain words: why no curve, or why its spread is flat
+  source?: CurveSource;
+}
 
 // GET /api/risk-list?week=
 export interface RiskRow {
