@@ -4,7 +4,7 @@ reruns, terms, the schedule and a live POST of the cycle export (network)."""
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -59,6 +59,26 @@ def test_terms_note_quotes_pjm():
         assert part in legal and part in pjm.TERMS_NOTE
     robots = (DATA / "robots.txt").read_text()
     assert "Disallow: /xsl/" in robots and "pjmfiles" not in robots and "Disallow: /m/" not in robots
+
+
+def test_report_date_is_the_eastern_day_in_edt_and_est():
+    def doc(last_modified: str | None, fetched_at: datetime) -> documents.DocumentRow:
+        return documents.DocumentRow(
+            id=1, source_id=pjm.SOURCE_ID, url=pjm.SERIAL_URL, sha256="", fetched_at=fetched_at, content_type=None,
+            bytes=None, storage_key="", title=None, doc_type=None, doc_date=None, external_id=None,
+            meta={"http": {"last_modified": last_modified}} if last_modified else {}, extract_state="")
+
+    noon = datetime(2026, 12, 15, 17, 0, tzinfo=UTC)
+    # EDT (UTC-4): the day turns at 04:00 GMT; a fixed UTC-5 would date 04:30 GMT the 21st.
+    assert pjm.report_date(doc("Thu, 22 Oct 2026 03:59:00 GMT", noon)) == date(2026, 10, 21)
+    assert pjm.report_date(doc("Thu, 22 Oct 2026 04:30:00 GMT", noon)) == date(2026, 10, 22)
+    # EST (UTC-5): the day turns at 05:00 GMT; a fixed UTC-4 (or UTC) would date 04:30 GMT the 15th.
+    assert pjm.report_date(doc("Tue, 15 Dec 2026 04:30:00 GMT", noon)) == date(2026, 12, 14)
+    assert pjm.report_date(doc("Tue, 15 Dec 2026 05:00:00 GMT", noon)) == date(2026, 12, 15)
+    # No (or an unreadable) Last-Modified: the Eastern day of the fetch, 11:30 pm EST here.
+    late = datetime(2026, 12, 15, 4, 30, tzinfo=UTC)
+    assert pjm.report_date(doc(None, late)) == date(2026, 12, 14)
+    assert pjm.report_date(doc("not a date", late)) == date(2026, 12, 14)
 
 
 def _store(committed) -> tuple[documents.DocumentRow, documents.DocumentRow]:

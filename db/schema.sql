@@ -105,6 +105,19 @@ CREATE TYPE public.procrastinate_job_to_defer_v1 AS (
 
 
 --
+-- Name: agent_notify(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.agent_notify() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  PERFORM pg_notify('marden_agents', TG_TABLE_NAME || ':' || NEW.id::text);
+  RETURN NEW;
+END $$;
+
+
+--
 -- Name: audit_log_immutable(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -165,7 +178,7 @@ CREATE FUNCTION public.fact_asof(as_of date) RETURNS SETOF public.fact
   FROM fact f
   WHERE f.status IN ('published', 'superseded')
     AND f.valid_from <= as_of
-    AND f.learned_at < (as_of + 1)::timestamptz
+    AND f.learned_at < ((as_of + 1)::timestamp AT TIME ZONE 'America/New_York')
     AND (f.valid_to IS NULL OR f.valid_to > as_of)
   ORDER BY subject_type, subject_id, field,
            (tag = 'M'), valid_from DESC,
@@ -775,6 +788,387 @@ $$;
 
 
 --
+-- Name: agent_batch; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_batch (
+    id text NOT NULL,
+    stage text NOT NULL,
+    request_count integer NOT NULL,
+    custom_ids jsonb NOT NULL,
+    status text DEFAULT 'in_progress'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    ended_at timestamp with time zone,
+    applied_at timestamp with time zone,
+    error text,
+    CONSTRAINT agent_batch_status_check CHECK ((status = ANY (ARRAY['in_progress'::text, 'ended'::text, 'applied'::text, 'failed'::text])))
+);
+
+
+--
+-- Name: agent_call; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_call (
+    id bigint NOT NULL,
+    request_hash text NOT NULL,
+    agent text NOT NULL,
+    backend text NOT NULL,
+    model text NOT NULL,
+    prompt_version text NOT NULL,
+    job_id bigint,
+    document_sha256 text,
+    section text,
+    response jsonb,
+    stop_reason text,
+    input_tokens integer DEFAULT 0 NOT NULL,
+    output_tokens integer DEFAULT 0 NOT NULL,
+    cache_read_tokens integer DEFAULT 0 NOT NULL,
+    cache_write_tokens integer DEFAULT 0 NOT NULL,
+    cost_usd numeric,
+    batch_id text,
+    error text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT agent_call_backend_check CHECK ((backend = ANY (ARRAY['api'::text, 'cli'::text, 'batch'::text])))
+);
+
+
+--
+-- Name: agent_call_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.agent_call_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: agent_call_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.agent_call_id_seq OWNED BY public.agent_call.id;
+
+
+--
+-- Name: agent_candidate; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_candidate (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    document_id bigint NOT NULL,
+    area text NOT NULL,
+    section text,
+    subject_kind text NOT NULL,
+    subject_mention text NOT NULL,
+    subject_type text,
+    subject_id text,
+    link_id bigint,
+    field text NOT NULL,
+    value jsonb NOT NULL,
+    unit text,
+    as_of date,
+    quote text NOT NULL,
+    quote_loc text,
+    page integer,
+    confidence real,
+    checks jsonb DEFAULT '{}'::jsonb NOT NULL,
+    verdict text,
+    verdict_reason text,
+    material boolean DEFAULT false NOT NULL,
+    material_codes text[] DEFAULT '{}'::text[] NOT NULL,
+    fact_id bigint,
+    outcome text DEFAULT 'pending'::text NOT NULL,
+    outcome_reason text,
+    dedupe_key text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT agent_candidate_outcome_check CHECK ((outcome = ANY (ARRAY['pending'::text, 'published'::text, 'review'::text, 'rejected'::text, 'duplicate'::text]))),
+    CONSTRAINT agent_candidate_verdict_check CHECK ((verdict = ANY (ARRAY['agree'::text, 'disagree'::text, 'unsupported'::text])))
+);
+
+
+--
+-- Name: agent_candidate_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.agent_candidate_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: agent_candidate_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.agent_candidate_id_seq OWNED BY public.agent_candidate.id;
+
+
+--
+-- Name: agent_decision; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_decision (
+    id bigint NOT NULL,
+    review_item_id bigint NOT NULL,
+    action text NOT NULL,
+    decided_by text NOT NULL,
+    reason text,
+    edit jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    applied_at timestamp with time zone,
+    result jsonb,
+    error text,
+    CONSTRAINT agent_decision_action_check CHECK ((action = ANY (ARRAY['approve'::text, 'reject'::text, 'edit'::text])))
+);
+
+
+--
+-- Name: agent_decision_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.agent_decision_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: agent_decision_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.agent_decision_id_seq OWNED BY public.agent_decision.id;
+
+
+--
+-- Name: agent_file; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_file (
+    sha256 text NOT NULL,
+    file_id text NOT NULL,
+    bytes bigint NOT NULL,
+    uploaded_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: agent_inbox; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_inbox (
+    key text NOT NULL,
+    etag text NOT NULL,
+    document_id bigint,
+    seen_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: agent_job; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_job (
+    id bigint NOT NULL,
+    document_id bigint NOT NULL,
+    sha256 text NOT NULL,
+    source_id text NOT NULL,
+    prompt_version text NOT NULL,
+    state text DEFAULT 'queued'::text NOT NULL,
+    stage text DEFAULT 'queued'::text NOT NULL,
+    mode text DEFAULT 'live'::text NOT NULL,
+    priority integer DEFAULT 50 NOT NULL,
+    priority_reason text,
+    attempts integer DEFAULT 0 NOT NULL,
+    route jsonb,
+    areas text[] DEFAULT '{}'::text[] NOT NULL,
+    links jsonb DEFAULT '{}'::jsonb NOT NULL,
+    stats jsonb DEFAULT '{}'::jsonb NOT NULL,
+    error text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    CONSTRAINT agent_job_mode_check CHECK ((mode = ANY (ARRAY['live'::text, 'batch'::text]))),
+    CONSTRAINT agent_job_stage_check CHECK ((stage = ANY (ARRAY['queued'::text, 'routed'::text, 'extracted'::text, 'verified'::text, 'linked'::text, 'published'::text]))),
+    CONSTRAINT agent_job_state_check CHECK ((state = ANY (ARRAY['queued'::text, 'dispatched'::text, 'running'::text, 'published'::text, 'needs_review'::text, 'failed'::text, 'skipped'::text, 'budget'::text])))
+);
+
+
+--
+-- Name: agent_job_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.agent_job_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: agent_job_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.agent_job_id_seq OWNED BY public.agent_job.id;
+
+
+--
+-- Name: agent_link; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_link (
+    id bigint NOT NULL,
+    document_id bigint,
+    job_id bigint,
+    mention text NOT NULL,
+    mention_key text NOT NULL,
+    subject_type text NOT NULL,
+    subject_id text NOT NULL,
+    relation text DEFAULT 'is'::text NOT NULL,
+    related_type text,
+    related_id text,
+    evidence text,
+    method text NOT NULL,
+    score real,
+    status text DEFAULT 'proposed'::text NOT NULL,
+    decided_by text,
+    decided_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT agent_link_method_check CHECK ((method = ANY (ARRAY['identifier'::text, 'upload'::text, 'confirmed'::text, 'name'::text, 'fuzzy'::text, 'agent'::text]))),
+    CONSTRAINT agent_link_status_check CHECK ((status = ANY (ARRAY['proposed'::text, 'accepted'::text, 'rejected'::text])))
+);
+
+
+--
+-- Name: agent_link_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.agent_link_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: agent_link_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.agent_link_id_seq OWNED BY public.agent_link.id;
+
+
+--
+-- Name: agent_ops_run; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_ops_run (
+    id bigint NOT NULL,
+    role text NOT NULL,
+    trigger text DEFAULT 'manual'::text NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    finished_at timestamp with time zone,
+    status text DEFAULT 'running'::text NOT NULL,
+    model_status text,
+    detail text,
+    report jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT agent_ops_run_role_check CHECK ((role = ANY (ARRAY['researcher'::text, 'watchdog'::text, 'note_writer'::text]))),
+    CONSTRAINT agent_ops_run_status_check CHECK ((status = ANY (ARRAY['running'::text, 'ok'::text, 'partial'::text, 'failed'::text])))
+);
+
+
+--
+-- Name: agent_ops_run_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.agent_ops_run_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: agent_ops_run_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.agent_ops_run_id_seq OWNED BY public.agent_ops_run.id;
+
+
+--
+-- Name: agent_status; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_status (
+    id boolean DEFAULT true NOT NULL,
+    backend text NOT NULL,
+    detail text,
+    models jsonb DEFAULT '{}'::jsonb NOT NULL,
+    checked_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT agent_status_backend_check CHECK ((backend = ANY (ARRAY['api'::text, 'cli'::text, 'not_configured'::text]))),
+    CONSTRAINT agent_status_id_check CHECK (id)
+);
+
+
+--
+-- Name: agent_upload; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agent_upload (
+    id bigint NOT NULL,
+    filename text NOT NULL,
+    content_type text NOT NULL,
+    kind text NOT NULL,
+    size bigint NOT NULL,
+    sha256 text NOT NULL,
+    data bytea,
+    uploaded_by text NOT NULL,
+    org_id text,
+    links jsonb DEFAULT '{}'::jsonb NOT NULL,
+    filed boolean DEFAULT false NOT NULL,
+    source_url text,
+    title text,
+    doc_date date,
+    status text DEFAULT 'pending'::text NOT NULL,
+    document_id bigint,
+    error text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    stored_at timestamp with time zone,
+    CONSTRAINT agent_upload_kind_check CHECK ((kind = ANY (ARRAY['pdf'::text, 'docx'::text, 'html'::text, 'txt'::text, 'xlsx'::text]))),
+    CONSTRAINT agent_upload_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'stored'::text, 'failed'::text])))
+);
+
+
+--
+-- Name: agent_upload_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.agent_upload_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: agent_upload_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.agent_upload_id_seq OWNED BY public.agent_upload.id;
+
+
+--
 -- Name: alert; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -791,9 +1185,18 @@ CREATE TABLE public.alert (
     subject_type text NOT NULL,
     subject_id text NOT NULL,
     event_id bigint,
-    severity text,
+    severity text NOT NULL,
     read_at timestamp with time zone,
     emailed_at timestamp with time zone,
+    user_id text NOT NULL,
+    body text NOT NULL,
+    facts jsonb DEFAULT '{}'::jsonb NOT NULL,
+    sources jsonb DEFAULT '[]'::jsonb NOT NULL,
+    occurred_on date NOT NULL,
+    trigger_key text NOT NULL,
+    dedupe_key text NOT NULL,
+    backfill boolean DEFAULT false NOT NULL,
+    CONSTRAINT alert_severity_check CHECK ((severity = ANY (ARRAY['red'::text, 'amber'::text, 'green'::text]))),
     CONSTRAINT alert_tag_check CHECK ((tag = ANY (ARRAY['F'::bpchar, 'R'::bpchar, 'M'::bpchar])))
 );
 
@@ -825,6 +1228,40 @@ CREATE TABLE public.alert_settings (
     org_id text NOT NULL,
     user_id text NOT NULL,
     settings jsonb NOT NULL
+);
+
+
+--
+-- Name: alert_state; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.alert_state (
+    model text NOT NULL,
+    subject_type text NOT NULL,
+    subject_id text NOT NULL,
+    as_of date NOT NULL,
+    output_hash text NOT NULL,
+    state jsonb NOT NULL,
+    evaluated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: alert_trigger; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.alert_trigger (
+    trigger_key text NOT NULL,
+    kind text NOT NULL,
+    subject_type text NOT NULL,
+    subject_id text NOT NULL,
+    occurred_on date NOT NULL,
+    material boolean NOT NULL,
+    codes text[] DEFAULT '{}'::text[] NOT NULL,
+    alerts integer DEFAULT 0 NOT NULL,
+    dry_run boolean DEFAULT false NOT NULL,
+    evaluated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT alert_trigger_kind_check CHECK ((kind = ANY (ARRAY['event'::text, 'fact'::text, 'model'::text])))
 );
 
 
@@ -874,6 +1311,48 @@ CREATE SEQUENCE public.audit_log_id_seq
 --
 
 ALTER SEQUENCE public.audit_log_id_seq OWNED BY public.audit_log.id;
+
+
+--
+-- Name: backup_run; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.backup_run (
+    id bigint NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    finished_at timestamp with time zone,
+    status text NOT NULL,
+    database text,
+    bucket text,
+    object_key text,
+    bytes bigint,
+    sha256 text,
+    pg_dump_version text,
+    detail text,
+    CONSTRAINT backup_run_bytes_check CHECK (((bytes IS NULL) OR (bytes >= 0))),
+    CONSTRAINT backup_run_check CHECK (((status <> 'ok'::text) OR ((object_key IS NOT NULL) AND (bytes IS NOT NULL) AND (sha256 IS NOT NULL) AND (finished_at IS NOT NULL)))),
+    CONSTRAINT backup_run_sha256_check CHECK (((sha256 IS NULL) OR (sha256 ~ '^[0-9a-f]{64}$'::text))),
+    CONSTRAINT backup_run_status_check CHECK ((status = ANY (ARRAY['running'::text, 'ok'::text, 'failed'::text, 'not_configured'::text])))
+);
+
+
+--
+-- Name: backup_run_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.backup_run_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: backup_run_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.backup_run_id_seq OWNED BY public.backup_run.id;
 
 
 --
@@ -960,6 +1439,69 @@ CREATE SEQUENCE public.document_id_seq
 --
 
 ALTER SEQUENCE public.document_id_seq OWNED BY public.document.id;
+
+
+--
+-- Name: email_outbox; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_outbox (
+    id bigint NOT NULL,
+    org_id text NOT NULL,
+    user_id text NOT NULL,
+    kind text NOT NULL,
+    idempotency_key text NOT NULL,
+    to_email text NOT NULL,
+    subject text NOT NULL,
+    html text,
+    text_body text,
+    headers jsonb DEFAULT '{}'::jsonb NOT NULL,
+    alert_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
+    status text DEFAULT 'queued'::text NOT NULL,
+    provider text,
+    provider_message_id text,
+    attempts integer DEFAULT 0 NOT NULL,
+    next_attempt_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_error text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    sent_at timestamp with time zone,
+    CONSTRAINT email_outbox_kind_check CHECK ((kind = ANY (ARRAY['instant'::text, 'daily_digest'::text, 'weekly_digest'::text]))),
+    CONSTRAINT email_outbox_status_check CHECK ((status = ANY (ARRAY['queued'::text, 'sent'::text, 'failed'::text, 'not_configured'::text, 'cancelled'::text])))
+);
+
+
+--
+-- Name: email_outbox_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.email_outbox_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: email_outbox_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.email_outbox_id_seq OWNED BY public.email_outbox.id;
+
+
+--
+-- Name: email_provider_state; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_provider_state (
+    id text NOT NULL,
+    provider text,
+    configured boolean NOT NULL,
+    from_email text,
+    reason text,
+    checked_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 
 --
@@ -1055,7 +1597,7 @@ CREATE VIEW public.fact_current AS
     material,
     dedupe_key
    FROM public.fact
-  WHERE ((status = 'published'::text) AND ((valid_to IS NULL) OR (valid_to > CURRENT_DATE)))
+  WHERE ((status = 'published'::text) AND ((valid_to IS NULL) OR (valid_to > ((now() AT TIME ZONE 'America/New_York'::text))::date)))
   ORDER BY subject_type, subject_id, field, (tag = 'M'::bpchar), valid_from DESC,
         CASE tag
             WHEN 'F'::bpchar THEN 0
@@ -1202,8 +1744,27 @@ CREATE TABLE public.membership (
     org_id text NOT NULL,
     user_id text NOT NULL,
     role text NOT NULL,
-    CONSTRAINT membership_role_check CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text, 'viewer'::text])))
+    role_source text DEFAULT 'system'::text NOT NULL,
+    last_active_at timestamp with time zone,
+    session_started_at timestamp with time zone,
+    last_visit_at timestamp with time zone,
+    CONSTRAINT membership_role_check CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text, 'viewer'::text]))),
+    CONSTRAINT membership_role_source_check CHECK ((role_source = ANY (ARRAY['clerk'::text, 'first_member'::text, 'invitation'::text, 'default'::text, 'changed'::text, 'system'::text])))
 );
+
+
+--
+-- Name: COLUMN membership.role; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.membership.role IS 'Marden org role (owner/admin/member/viewer), owned by Marden: set on creation (first member owner, invitation role, else viewer), changed only by PATCH /api/account/members/:id. Never from Clerk.';
+
+
+--
+-- Name: COLUMN membership.role_source; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.membership.role_source IS 'Where role came from: clerk (mirrored from a Clerk org role before Marden owned roles), first_member, invitation, default (joined without a Marden invitation), changed (an org owner or admin), system (dev, seeds).';
 
 
 --
@@ -1324,6 +1885,28 @@ CREATE TABLE public.org (
 --
 
 COMMENT ON COLUMN public.org.plan IS 'Deprecated: plans live on org_product (per product). Kept for now; nothing reads it.';
+
+
+--
+-- Name: org_invitation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.org_invitation (
+    id text NOT NULL,
+    org_id text NOT NULL,
+    email text NOT NULL,
+    role text NOT NULL,
+    invited_by text,
+    status text DEFAULT 'pending'::text NOT NULL,
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    accepted_by text,
+    accepted_at timestamp with time zone,
+    CONSTRAINT org_invitation_check CHECK (((status = 'accepted'::text) = (accepted_at IS NOT NULL))),
+    CONSTRAINT org_invitation_email_check CHECK (((email = lower(email)) AND (email <> ''::text))),
+    CONSTRAINT org_invitation_role_check CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text, 'viewer'::text]))),
+    CONSTRAINT org_invitation_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'revoked'::text])))
+);
 
 
 --
@@ -1593,6 +2176,87 @@ CREATE TABLE public.read_model_dirty (
 
 
 --
+-- Name: research_find; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_find (
+    id bigint NOT NULL,
+    search_id bigint NOT NULL,
+    url text NOT NULL,
+    title text,
+    form text,
+    filed date,
+    outcome text NOT NULL,
+    reason text,
+    document_id bigint,
+    job_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT research_find_outcome_check CHECK ((outcome = ANY (ARRAY['queued'::text, 'already_stored'::text, 'already_read'::text, 'skipped'::text, 'failed'::text])))
+);
+
+
+--
+-- Name: research_find_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_find_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_find_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_find_id_seq OWNED BY public.research_find.id;
+
+
+--
+-- Name: research_search; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_search (
+    id bigint NOT NULL,
+    run_id bigint,
+    endpoint text NOT NULL,
+    query text NOT NULL,
+    window_from date,
+    window_to date,
+    subjects jsonb DEFAULT '[]'::jsonb NOT NULL,
+    gaps jsonb DEFAULT '[]'::jsonb NOT NULL,
+    document_id bigint,
+    hits integer,
+    status text NOT NULL,
+    error text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT research_search_endpoint_check CHECK ((endpoint = ANY (ARRAY['edgar_fts'::text, 'ferc_elibrary'::text]))),
+    CONSTRAINT research_search_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'failed'::text, 'blocked'::text])))
+);
+
+
+--
+-- Name: research_search_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_search_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_search_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_search_id_seq OWNED BY public.research_search.id;
+
+
+--
 -- Name: review_item; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1608,7 +2272,7 @@ CREATE TABLE public.review_item (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     decided_by text,
     decided_at timestamp with time zone,
-    CONSTRAINT review_item_kind_check CHECK ((kind = ANY (ARRAY['fact'::text, 'event'::text, 'link'::text, 'merge'::text, 'note'::text, 'source'::text]))),
+    CONSTRAINT review_item_kind_check CHECK ((kind = ANY (ARRAY['fact'::text, 'event'::text, 'link'::text, 'merge'::text, 'note'::text, 'source'::text, 'issue'::text]))),
     CONSTRAINT review_item_status_check CHECK ((status = ANY (ARRAY['open'::text, 'approved'::text, 'rejected'::text])))
 );
 
@@ -1630,6 +2294,23 @@ CREATE SEQUENCE public.review_item_id_seq
 --
 
 ALTER SEQUENCE public.review_item_id_seq OWNED BY public.review_item.id;
+
+
+--
+-- Name: saved_view; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.saved_view (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    org_id text NOT NULL,
+    user_id text NOT NULL,
+    screen text NOT NULL,
+    name text NOT NULL,
+    query text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT saved_view_name_check CHECK (((length(name) >= 1) AND (length(name) <= 80))),
+    CONSTRAINT saved_view_query_check CHECK ((length(query) <= 2000))
+);
 
 
 --
@@ -1739,7 +2420,8 @@ CREATE TABLE public.stream_event (
     id bigint NOT NULL,
     at timestamp with time zone DEFAULT now() NOT NULL,
     org_id text,
-    payload jsonb NOT NULL
+    payload jsonb NOT NULL,
+    user_id text
 );
 
 
@@ -1812,6 +2494,103 @@ CREATE TABLE public.watchlist_item (
 
 
 --
+-- Name: weekly_note; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.weekly_note (
+    id bigint NOT NULL,
+    week date NOT NULL,
+    version integer NOT NULL,
+    status text DEFAULT 'draft'::text NOT NULL,
+    writer text NOT NULL,
+    note jsonb NOT NULL,
+    figures jsonb NOT NULL,
+    template jsonb NOT NULL,
+    checks jsonb DEFAULT '{}'::jsonb NOT NULL,
+    source_output_id bigint,
+    inputs_hash text NOT NULL,
+    model text,
+    call_id bigint,
+    run_id bigint,
+    review_item_id bigint,
+    decided_by text,
+    decided_at timestamp with time zone,
+    reason text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT weekly_note_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'approved'::text, 'rejected'::text, 'superseded'::text]))),
+    CONSTRAINT weekly_note_writer_check CHECK ((writer = ANY (ARRAY['model'::text, 'code'::text])))
+);
+
+
+--
+-- Name: weekly_note_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.weekly_note_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: weekly_note_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.weekly_note_id_seq OWNED BY public.weekly_note.id;
+
+
+--
+-- Name: agent_call id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_call ALTER COLUMN id SET DEFAULT nextval('public.agent_call_id_seq'::regclass);
+
+
+--
+-- Name: agent_candidate id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_candidate ALTER COLUMN id SET DEFAULT nextval('public.agent_candidate_id_seq'::regclass);
+
+
+--
+-- Name: agent_decision id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_decision ALTER COLUMN id SET DEFAULT nextval('public.agent_decision_id_seq'::regclass);
+
+
+--
+-- Name: agent_job id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_job ALTER COLUMN id SET DEFAULT nextval('public.agent_job_id_seq'::regclass);
+
+
+--
+-- Name: agent_link id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_link ALTER COLUMN id SET DEFAULT nextval('public.agent_link_id_seq'::regclass);
+
+
+--
+-- Name: agent_ops_run id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_ops_run ALTER COLUMN id SET DEFAULT nextval('public.agent_ops_run_id_seq'::regclass);
+
+
+--
+-- Name: agent_upload id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_upload ALTER COLUMN id SET DEFAULT nextval('public.agent_upload_id_seq'::regclass);
+
+
+--
 -- Name: alert id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1826,10 +2605,24 @@ ALTER TABLE ONLY public.audit_log ALTER COLUMN id SET DEFAULT nextval('public.au
 
 
 --
+-- Name: backup_run id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backup_run ALTER COLUMN id SET DEFAULT nextval('public.backup_run_id_seq'::regclass);
+
+
+--
 -- Name: document id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.document ALTER COLUMN id SET DEFAULT nextval('public.document_id_seq'::regclass);
+
+
+--
+-- Name: email_outbox id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_outbox ALTER COLUMN id SET DEFAULT nextval('public.email_outbox_id_seq'::regclass);
 
 
 --
@@ -1896,6 +2689,20 @@ ALTER TABLE ONLY public.procrastinate_periodic_defers ALTER COLUMN id SET DEFAUL
 
 
 --
+-- Name: research_find id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_find ALTER COLUMN id SET DEFAULT nextval('public.research_find_id_seq'::regclass);
+
+
+--
+-- Name: research_search id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_search ALTER COLUMN id SET DEFAULT nextval('public.research_search_id_seq'::regclass);
+
+
+--
 -- Name: review_item id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1917,11 +2724,130 @@ ALTER TABLE ONLY public.stream_event ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
--- Name: alert alert_org_id_kind_subject_type_subject_id_event_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: weekly_note id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.alert
-    ADD CONSTRAINT alert_org_id_kind_subject_type_subject_id_event_id_key UNIQUE (org_id, kind, subject_type, subject_id, event_id);
+ALTER TABLE ONLY public.weekly_note ALTER COLUMN id SET DEFAULT nextval('public.weekly_note_id_seq'::regclass);
+
+
+--
+-- Name: agent_batch agent_batch_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_batch
+    ADD CONSTRAINT agent_batch_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_call agent_call_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_call
+    ADD CONSTRAINT agent_call_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_call agent_call_request_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_call
+    ADD CONSTRAINT agent_call_request_hash_key UNIQUE (request_hash);
+
+
+--
+-- Name: agent_candidate agent_candidate_dedupe_key_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_candidate
+    ADD CONSTRAINT agent_candidate_dedupe_key_key UNIQUE (dedupe_key);
+
+
+--
+-- Name: agent_candidate agent_candidate_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_candidate
+    ADD CONSTRAINT agent_candidate_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_decision agent_decision_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_decision
+    ADD CONSTRAINT agent_decision_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_file agent_file_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_file
+    ADD CONSTRAINT agent_file_pkey PRIMARY KEY (sha256);
+
+
+--
+-- Name: agent_inbox agent_inbox_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_inbox
+    ADD CONSTRAINT agent_inbox_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: agent_job agent_job_document_id_prompt_version_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_job
+    ADD CONSTRAINT agent_job_document_id_prompt_version_key UNIQUE (document_id, prompt_version);
+
+
+--
+-- Name: agent_job agent_job_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_job
+    ADD CONSTRAINT agent_job_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_link agent_link_mention_key_subject_type_subject_id_relation_rel_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_link
+    ADD CONSTRAINT agent_link_mention_key_subject_type_subject_id_relation_rel_key UNIQUE NULLS NOT DISTINCT (mention_key, subject_type, subject_id, relation, related_type, related_id);
+
+
+--
+-- Name: agent_link agent_link_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_link
+    ADD CONSTRAINT agent_link_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_ops_run agent_ops_run_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_ops_run
+    ADD CONSTRAINT agent_ops_run_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_status agent_status_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_status
+    ADD CONSTRAINT agent_status_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_upload agent_upload_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_upload
+    ADD CONSTRAINT agent_upload_pkey PRIMARY KEY (id);
 
 
 --
@@ -1941,6 +2867,30 @@ ALTER TABLE ONLY public.alert_settings
 
 
 --
+-- Name: alert_state alert_state_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alert_state
+    ADD CONSTRAINT alert_state_pkey PRIMARY KEY (model, subject_type, subject_id);
+
+
+--
+-- Name: alert_trigger alert_trigger_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alert_trigger
+    ADD CONSTRAINT alert_trigger_pkey PRIMARY KEY (trigger_key);
+
+
+--
+-- Name: alert alert_user_dedupe; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alert
+    ADD CONSTRAINT alert_user_dedupe UNIQUE (org_id, user_id, dedupe_key);
+
+
+--
 -- Name: app_user app_user_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1954,6 +2904,14 @@ ALTER TABLE ONLY public.app_user
 
 ALTER TABLE ONLY public.audit_log
     ADD CONSTRAINT audit_log_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: backup_run backup_run_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backup_run
+    ADD CONSTRAINT backup_run_pkey PRIMARY KEY (id);
 
 
 --
@@ -1994,6 +2952,30 @@ ALTER TABLE ONLY public.document
 
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_source_id_url_sha256_key UNIQUE (source_id, url, sha256);
+
+
+--
+-- Name: email_outbox email_outbox_idempotency_key_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_outbox
+    ADD CONSTRAINT email_outbox_idempotency_key_key UNIQUE (idempotency_key);
+
+
+--
+-- Name: email_outbox email_outbox_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_outbox
+    ADD CONSTRAINT email_outbox_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: email_provider_state email_provider_state_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_provider_state
+    ADD CONSTRAINT email_provider_state_pkey PRIMARY KEY (id);
 
 
 --
@@ -2133,6 +3115,14 @@ ALTER TABLE ONLY public.obligation
 
 
 --
+-- Name: org_invitation org_invitation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.org_invitation
+    ADD CONSTRAINT org_invitation_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: org org_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2269,6 +3259,30 @@ ALTER TABLE ONLY public.read_model
 
 
 --
+-- Name: research_find research_find_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_find
+    ADD CONSTRAINT research_find_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_find research_find_search_id_url_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_find
+    ADD CONSTRAINT research_find_search_id_url_key UNIQUE (search_id, url);
+
+
+--
+-- Name: research_search research_search_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_search
+    ADD CONSTRAINT research_search_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: review_item review_item_kind_ref_type_ref_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2282,6 +3296,22 @@ ALTER TABLE ONLY public.review_item
 
 ALTER TABLE ONLY public.review_item
     ADD CONSTRAINT review_item_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: saved_view saved_view_org_id_user_id_screen_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.saved_view
+    ADD CONSTRAINT saved_view_org_id_user_id_screen_name_key UNIQUE (org_id, user_id, screen, name);
+
+
+--
+-- Name: saved_view saved_view_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.saved_view
+    ADD CONSTRAINT saved_view_pkey PRIMARY KEY (id);
 
 
 --
@@ -2373,10 +3403,124 @@ ALTER TABLE ONLY public.watchlist_item
 
 
 --
--- Name: alert_org; Type: INDEX; Schema: public; Owner: -
+-- Name: weekly_note weekly_note_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-CREATE INDEX alert_org ON public.alert USING btree (org_id, at DESC);
+ALTER TABLE ONLY public.weekly_note
+    ADD CONSTRAINT weekly_note_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: weekly_note weekly_note_week_version_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_note
+    ADD CONSTRAINT weekly_note_week_version_key UNIQUE (week, version);
+
+
+--
+-- Name: agent_call_day; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_call_day ON public.agent_call USING btree (created_at);
+
+
+--
+-- Name: agent_call_job; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_call_job ON public.agent_call USING btree (job_id);
+
+
+--
+-- Name: agent_candidate_fact; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_candidate_fact ON public.agent_candidate USING btree (fact_id) WHERE (fact_id IS NOT NULL);
+
+
+--
+-- Name: agent_candidate_job; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_candidate_job ON public.agent_candidate USING btree (job_id);
+
+
+--
+-- Name: agent_decision_one_open; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX agent_decision_one_open ON public.agent_decision USING btree (review_item_id) WHERE (applied_at IS NULL);
+
+
+--
+-- Name: agent_decision_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_decision_pending ON public.agent_decision USING btree (created_at) WHERE (applied_at IS NULL);
+
+
+--
+-- Name: agent_job_ready; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_job_ready ON public.agent_job USING btree (priority DESC, created_at) WHERE (state = 'queued'::text);
+
+
+--
+-- Name: agent_job_sha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_job_sha ON public.agent_job USING btree (sha256);
+
+
+--
+-- Name: agent_job_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_job_state ON public.agent_job USING btree (state, updated_at DESC);
+
+
+--
+-- Name: agent_link_mention; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_link_mention ON public.agent_link USING btree (mention_key) WHERE (status = 'accepted'::text);
+
+
+--
+-- Name: agent_ops_run_role; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_ops_run_role ON public.agent_ops_run USING btree (role, started_at DESC);
+
+
+--
+-- Name: agent_upload_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agent_upload_pending ON public.agent_upload USING btree (created_at) WHERE (status = 'pending'::text);
+
+
+--
+-- Name: alert_matter; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX alert_matter ON public.alert USING btree (org_id, user_id, subject_type, subject_id, rule_code, occurred_on DESC);
+
+
+--
+-- Name: alert_trigger_subject; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX alert_trigger_subject ON public.alert_trigger USING btree (subject_type, subject_id, occurred_on DESC);
+
+
+--
+-- Name: alert_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX alert_user ON public.alert USING btree (org_id, user_id, at DESC);
 
 
 --
@@ -2384,6 +3528,20 @@ CREATE INDEX alert_org ON public.alert USING btree (org_id, at DESC);
 --
 
 CREATE INDEX audit_org ON public.audit_log USING btree (org_id, at DESC);
+
+
+--
+-- Name: backup_run_object_key_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX backup_run_object_key_idx ON public.backup_run USING btree (bucket, object_key) WHERE (object_key IS NOT NULL);
+
+
+--
+-- Name: backup_run_started_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX backup_run_started_idx ON public.backup_run USING btree (started_at DESC);
 
 
 --
@@ -2426,6 +3584,20 @@ CREATE INDEX document_external ON public.document USING btree (source_id, extern
 --
 
 CREATE INDEX document_extract ON public.document USING btree (extract_state) WHERE (extract_state = 'queued'::text);
+
+
+--
+-- Name: email_outbox_due; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX email_outbox_due ON public.email_outbox USING btree (next_attempt_at) WHERE (status = 'queued'::text);
+
+
+--
+-- Name: email_outbox_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX email_outbox_user ON public.email_outbox USING btree (org_id, user_id, created_at DESC);
 
 
 --
@@ -2583,6 +3755,13 @@ CREATE INDEX obligation_to ON public.obligation USING btree (to_entity_id);
 
 
 --
+-- Name: org_invitation_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX org_invitation_pending ON public.org_invitation USING btree (org_id, email) WHERE (status = 'pending'::text);
+
+
+--
 -- Name: org_product_product; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2667,10 +3846,38 @@ CREATE INDEX read_model_latest ON public.read_model USING btree (view, as_of DES
 
 
 --
+-- Name: research_find_url; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX research_find_url ON public.research_find USING btree (url);
+
+
+--
+-- Name: research_search_query; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX research_search_query ON public.research_search USING btree (endpoint, query, created_at DESC);
+
+
+--
+-- Name: research_search_run; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX research_search_run ON public.research_search USING btree (run_id);
+
+
+--
 -- Name: review_open; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX review_open ON public.review_item USING btree (status, created_at) WHERE (status = 'open'::text);
+
+
+--
+-- Name: saved_view_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX saved_view_owner ON public.saved_view USING btree (org_id, user_id, screen, created_at DESC);
 
 
 --
@@ -2695,10 +3902,45 @@ CREATE INDEX us_county_state ON public.us_county USING btree (stusps);
 
 
 --
+-- Name: weekly_note_one_approved; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX weekly_note_one_approved ON public.weekly_note USING btree (week) WHERE (status = 'approved'::text);
+
+
+--
+-- Name: weekly_note_one_draft; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX weekly_note_one_draft ON public.weekly_note USING btree (week) WHERE (status = 'draft'::text);
+
+
+--
+-- Name: agent_decision agent_decision_notify; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER agent_decision_notify AFTER INSERT ON public.agent_decision FOR EACH ROW EXECUTE FUNCTION public.agent_notify();
+
+
+--
+-- Name: agent_upload agent_upload_notify; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER agent_upload_notify AFTER INSERT ON public.agent_upload FOR EACH ROW EXECUTE FUNCTION public.agent_notify();
+
+
+--
 -- Name: audit_log audit_log_no_update; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_log_no_update BEFORE DELETE OR UPDATE ON public.audit_log FOR EACH ROW EXECUTE FUNCTION public.audit_log_immutable();
+
+
+--
+-- Name: document document_agent_notify; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER document_agent_notify AFTER INSERT OR UPDATE OF extract_state ON public.document FOR EACH ROW WHEN ((new.extract_state = 'queued'::text)) EXECUTE FUNCTION public.agent_notify();
 
 
 --
@@ -2758,11 +4000,99 @@ CREATE TRIGGER stream_event_notify AFTER INSERT ON public.stream_event FOR EACH 
 
 
 --
+-- Name: agent_call agent_call_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_call
+    ADD CONSTRAINT agent_call_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.agent_job(id) ON DELETE SET NULL;
+
+
+--
+-- Name: agent_candidate agent_candidate_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_candidate
+    ADD CONSTRAINT agent_candidate_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
+
+
+--
+-- Name: agent_candidate agent_candidate_fact_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_candidate
+    ADD CONSTRAINT agent_candidate_fact_id_fkey FOREIGN KEY (fact_id) REFERENCES public.fact(id);
+
+
+--
+-- Name: agent_candidate agent_candidate_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_candidate
+    ADD CONSTRAINT agent_candidate_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.agent_job(id) ON DELETE CASCADE;
+
+
+--
+-- Name: agent_decision agent_decision_review_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_decision
+    ADD CONSTRAINT agent_decision_review_item_id_fkey FOREIGN KEY (review_item_id) REFERENCES public.review_item(id);
+
+
+--
+-- Name: agent_inbox agent_inbox_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_inbox
+    ADD CONSTRAINT agent_inbox_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
+
+
+--
+-- Name: agent_job agent_job_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_job
+    ADD CONSTRAINT agent_job_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
+
+
+--
+-- Name: agent_link agent_link_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_link
+    ADD CONSTRAINT agent_link_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
+
+
+--
+-- Name: agent_link agent_link_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_link
+    ADD CONSTRAINT agent_link_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.agent_job(id) ON DELETE SET NULL;
+
+
+--
+-- Name: agent_upload agent_upload_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agent_upload
+    ADD CONSTRAINT agent_upload_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
+
+
+--
 -- Name: alert alert_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.alert
     ADD CONSTRAINT alert_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.event(id);
+
+
+--
+-- Name: alert alert_member; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alert
+    ADD CONSTRAINT alert_member FOREIGN KEY (org_id, user_id) REFERENCES public.membership(org_id, user_id) ON DELETE CASCADE;
 
 
 --
@@ -2787,6 +4117,14 @@ ALTER TABLE ONLY public.alert_settings
 
 ALTER TABLE ONLY public.alert_settings
     ADD CONSTRAINT alert_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.app_user(id) ON DELETE CASCADE;
+
+
+--
+-- Name: alert alert_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alert
+    ADD CONSTRAINT alert_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.app_user(id) ON DELETE CASCADE;
 
 
 --
@@ -2819,6 +4157,22 @@ ALTER TABLE ONLY public.chain_party
 
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.source(id);
+
+
+--
+-- Name: email_outbox email_outbox_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_outbox
+    ADD CONSTRAINT email_outbox_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.org(id) ON DELETE CASCADE;
+
+
+--
+-- Name: email_outbox email_outbox_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_outbox
+    ADD CONSTRAINT email_outbox_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.app_user(id) ON DELETE CASCADE;
 
 
 --
@@ -2998,6 +4352,30 @@ ALTER TABLE ONLY public.obligation
 
 
 --
+-- Name: org_invitation org_invitation_accepted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.org_invitation
+    ADD CONSTRAINT org_invitation_accepted_by_fkey FOREIGN KEY (accepted_by) REFERENCES public.app_user(id) ON DELETE SET NULL;
+
+
+--
+-- Name: org_invitation org_invitation_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.org_invitation
+    ADD CONSTRAINT org_invitation_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.app_user(id) ON DELETE SET NULL;
+
+
+--
+-- Name: org_invitation org_invitation_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.org_invitation
+    ADD CONSTRAINT org_invitation_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.org(id) ON DELETE CASCADE;
+
+
+--
 -- Name: org_product org_product_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3086,6 +4464,62 @@ ALTER TABLE ONLY public.procrastinate_periodic_defers
 
 
 --
+-- Name: research_find research_find_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_find
+    ADD CONSTRAINT research_find_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
+
+
+--
+-- Name: research_find research_find_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_find
+    ADD CONSTRAINT research_find_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.agent_job(id) ON DELETE SET NULL;
+
+
+--
+-- Name: research_find research_find_search_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_find
+    ADD CONSTRAINT research_find_search_id_fkey FOREIGN KEY (search_id) REFERENCES public.research_search(id) ON DELETE CASCADE;
+
+
+--
+-- Name: research_search research_search_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_search
+    ADD CONSTRAINT research_search_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
+
+
+--
+-- Name: research_search research_search_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_search
+    ADD CONSTRAINT research_search_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.agent_ops_run(id) ON DELETE SET NULL;
+
+
+--
+-- Name: saved_view saved_view_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.saved_view
+    ADD CONSTRAINT saved_view_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.org(id) ON DELETE CASCADE;
+
+
+--
+-- Name: saved_view saved_view_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.saved_view
+    ADD CONSTRAINT saved_view_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.app_user(id) ON DELETE CASCADE;
+
+
+--
 -- Name: site_link site_link_campus_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3150,6 +4584,38 @@ ALTER TABLE ONLY public.watchlist_item
 
 
 --
+-- Name: weekly_note weekly_note_call_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_note
+    ADD CONSTRAINT weekly_note_call_id_fkey FOREIGN KEY (call_id) REFERENCES public.agent_call(id) ON DELETE SET NULL;
+
+
+--
+-- Name: weekly_note weekly_note_review_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_note
+    ADD CONSTRAINT weekly_note_review_item_id_fkey FOREIGN KEY (review_item_id) REFERENCES public.review_item(id);
+
+
+--
+-- Name: weekly_note weekly_note_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_note
+    ADD CONSTRAINT weekly_note_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.agent_ops_run(id) ON DELETE SET NULL;
+
+
+--
+-- Name: weekly_note weekly_note_source_output_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_note
+    ADD CONSTRAINT weekly_note_source_output_id_fkey FOREIGN KEY (source_output_id) REFERENCES public.model_output(id) ON DELETE SET NULL;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -3169,4 +4635,14 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261021180000'),
     ('20261021190000'),
     ('20261021200000'),
-    ('20261021210000');
+    ('20261021210000'),
+    ('20261021223000'),
+    ('20261021233000'),
+    ('20261021234100'),
+    ('20261021235500'),
+    ('20261022001000'),
+    ('20261022020000'),
+    ('20261022030000'),
+    ('20261022041700'),
+    ('20261022050000'),
+    ('20261022090000');

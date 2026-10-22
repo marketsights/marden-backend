@@ -117,11 +117,12 @@ def test_permit_card_names_holder_facility_ids_and_stated_limits(plants):
         facility = permit.get("facility")
         if isinstance(facility, dict):
             assert card["facility"] == {"id": facility["key"], "name": facility.get("name")}
-        assert card["otherIds"] == [i for i in permit.get("ids") or [] if i != permit["number"]]
+        shown = {permit["number"], *permit["number"].replace(",", " ").split()}  # 'NSR 10883' shows '10883'
+        assert card["otherIds"] == list(dict.fromkeys(i for i in permit.get("ids") or [] if i not in shown))
         limits = [lim for lim in permit.get("emission_limits") or [] if isinstance(lim.get("value"), int | float)]
-        assert [(lim["pollutant"], lim["value"]) for lim in card["limits"]] == [
-            (lim["pollutant"], lim["value"]) for lim in limits
-        ]  # listed only when the permit states them (spec 15)
+        assert [(lim["pollutant"], lim["value"], lim["lessThan"]) for lim in card["limits"]] == [
+            (lim["pollutant"], lim["value"], lim.get("less_than") is True) for lim in limits
+        ]  # listed only when the permit states them (spec 15); a stated bound stays a bound
         others = [p["number"] for p in (fact("plant", pid, "air_permits") or {}).get("value") or []
                   if p.get("number") and p["number"] != permit["number"]]
         assert sorted(r["number"] for r in card["related"]) == sorted(others)  # the plant's other permits

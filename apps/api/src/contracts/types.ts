@@ -269,7 +269,8 @@ export interface PowerPlantRow {
   airPermit: Pick<AirPermit, 'agency' | 'number' | 'type' | 'status' | 'decided' | 'url'> | null; // null = n/d: no air permit found yet
   fuelSupply: Sourced<string>;
   gridMode: 'Islanded' | 'Grid-tied' | 'Unknown';
-  financed: FinancedLink | null;
+  financed: FinancedLink | null;          // the primary financed site: the one with the most debt
+  financedSites: FinancedLink[];          // every approved financed site of the campuses it serves, most debt first (financed = [0])
   lastChange: Evidence;
 }
 export interface PowerPlantPage { asOf: string; total: number; page: number; pageSize: number; rows: PowerPlantRow[] }

@@ -265,12 +265,6 @@ def financed_sites(conn: Conn, campus_ids: Iterable[str]) -> list[Doc]:
     return [doc for *_, doc in sorted(found, key=lambda f: f[:2])]
 
 
-def financed_link(conn: Conn, campus_ids: Iterable[str]) -> Doc | None:
-    """FinancedLink of the campus's primary financed site: the one with the most debt when several."""
-    sites = financed_sites(conn, campus_ids)
-    return sites[0] if sites else None
-
-
 # ---------------------------------------------------------------- events, history, last change
 def subject_events(conn: Conn, subject_type: str, subject_id: str) -> list[Row]:
     """Published past-dated events on the subject that Marden knew by the build date, newest first."""

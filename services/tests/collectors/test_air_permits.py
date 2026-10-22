@@ -278,10 +278,15 @@ def test_plant_card_maps_dates_types_and_amendments():
     lim = {"pollutant": "CO", "value": 161.2, "unit": "tpy", "basis": "estimated in the application (legal notice)",
            "url": "https://service.web.env.nm.gov/urls/IzYCTYNY"}
     permit = {"agency": "NMED", "number": "NSR 10883", "facility": {"key": "NSR 10883", "name": "YGI Microgrid"},
-              "applicant": "Yucca Growth Infrastructure, LLC", "emission_limits": [dict(lim, more_than=False)]}
+              "applicant": "Yucca Growth Infrastructure, LLC", "emission_limits": [dict(lim, more_than=False)],
+              "ids": ["10883"]}
     card = facilities_plants.air_permit(None, {"air_permit": {"value": permit, "valid_from": None, "tag": "F"}})
     assert (card["holder"], card["facility"]) == (permit["applicant"], {"id": "NSR 10883", "name": "YGI Microgrid"})
-    assert card["limits"] == [dict(lim, moreThan=False)]
+    assert card["limits"] == [dict(lim, moreThan=False, lessThan=False)] and card["otherIds"] == []
+    h2s = {"pollutant": "H2S", "value": 0.01, "unit": "tpy", "less_than": True}  # TCEQ 181009 review: "H2S < 0.01"
+    tx = _tceq("181009", "PSD", "pending", None, None, ids=["181009", "GHGPSDTX254"], emission_limits=[h2s])
+    card = facilities_plants.air_permit(None, {"air_permit": {"value": tx, "valid_from": None, "tag": "F"}})
+    assert (card["limits"][0]["lessThan"], card["otherIds"]) == (True, ["GHGPSDTX254"])  # a bound stays a bound
 
 
 def test_systems_sources_schedule_and_cli():

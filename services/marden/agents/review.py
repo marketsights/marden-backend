@@ -12,7 +12,6 @@ transaction and screens and alerts update.
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 from marden.agents.extract import Candidate
@@ -27,6 +26,7 @@ from marden.agents.validators import (
     value_number_checks,
 )
 from marden.core import checks, db, documents
+from marden.core.business_day import business_today
 from marden.core.checks import ValidationError
 from marden.core.facts import FactWriter
 from marden.core.jsonutil import jsonb
@@ -106,7 +106,7 @@ def edit_fact(conn: db.Conn, item: dict[str, Any], fact: dict[str, Any] | None, 
         if failed:
             raise ValidationError("the edit fails the code checks: " + "; ".join(failed))
     tag = (fact or {}).get("tag") or "R"
-    as_of = edit.get("as_of") or ((fact or {}).get("valid_from") or doc.doc_date or date.today())
+    as_of = edit.get("as_of") or ((fact or {}).get("valid_from") or doc.doc_date or business_today())
     writer = FactWriter(conn)
     new = writer.add(subject_type, str(subject_id), field, edit["value"], tag=tag,
                      source_name=(fact or {}).get("source_name") or doc.source_id,

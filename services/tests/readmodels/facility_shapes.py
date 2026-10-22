@@ -37,7 +37,7 @@ export type UnitDoc = Over<T.PowerUnit, {
 type PlantOver = {
   county: N<string>; lat: N<number>; lon: N<number>; technology: N<T.PlantTech>;
   units: { count: number; byModel: { oem: N<string>; model: N<string>; count: number }[] };
-  airPermit: N<RowPermit>; financed: N<Financed>; lastChange: N<T.Evidence> };
+  airPermit: N<RowPermit>; financed: N<Financed>; financedSites: Financed[]; lastChange: N<T.Evidence> };
 export type PlantRowDoc = Over<T.PowerPlantRow, PlantOver>;
 type Fuel = Over<NonNullable<T.PowerPlantDetail['fuel']>, { regulator: N<string>; docket: N<string> }>;
 type Served = Over<NonNullable<T.PowerPlantDetail['servedCampus']>, { status: N<T.DcStatus> }>;
@@ -45,7 +45,9 @@ type Served = Over<NonNullable<T.PowerPlantDetail['servedCampus']>, { status: N<
 // ids and emission limits as the record states them, and the units' fuel as stated.
 type PermitExtra = {
   holder: N<string>; facility: N<{ id: string; name: N<string> }>; otherIds: string[];
-  limits: { pollutant: string; value: number; unit: string; basis: string; moreThan: boolean; url: string }[];
+  limits: {
+    pollutant: string; value: number; unit: string; basis: string; moreThan: boolean; lessThan: boolean; url: string;
+  }[];
   related: { agency: string; number: string; type: N<string>; status: N<T.PlantStatus>; filed: N<string>;
     decided: N<string>; url: string }[] };
 export type PlantDetailDoc = Over<T.PowerPlantDetail, PlantOver & {

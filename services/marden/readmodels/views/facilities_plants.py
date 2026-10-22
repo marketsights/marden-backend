@@ -23,7 +23,8 @@ and summarises these docs) and `plant_detail` (PowerPlantDetail).
   when it is one: its FERC / state docket and the planned in-service dates as stated.
 - Grid mode from the served campus's power source (On-site gas -> Islanded, Grid / Hybrid -> Grid-tied).
 - Location: the plant's own point and county; n/d (null) until a permit or EIA record places it.
-- `financed`: the approved site link of the campus the plant serves (facilities_common).
+- `financedSites`: every approved financed site of the campuses the plant serves, most debt first;
+  `financed` is the first of them (facilities_common).
 """
 
 from __future__ import annotations
@@ -43,7 +44,7 @@ from marden.readmodels.views.facilities_common import (
     enum_value,
     event_changes,
     fact_changes,
-    financed_link,
+    financed_sites,
     history_entries,
     is_fuel_line,
     last_change,
@@ -284,16 +285,28 @@ def air_permit(conn: Conn, facts: dict[str, Row]) -> Doc | None:
         ],
         "holder": v["applicant"] if isinstance(v.get("applicant"), str) and v["applicant"].strip() else None,
         "facility": _facility(v.get("facility")),
-        "otherIds": [str(i) for i in v.get("ids") or [] if str(i) != str(v["number"])],
+        "otherIds": other_ids(str(v["number"]), v.get("ids")),
         "limits": [
             {"pollutant": str(lim["pollutant"]), "value": lim["value"], "unit": str(lim.get("unit") or ""),
              "basis": str(lim.get("basis") or ""), "moreThan": lim.get("more_than") is True,
+             "lessThan": lim.get("less_than") is True,
              "url": lim.get("url") or v.get("url") or row.get("source_url") or ""}
             for lim in v.get("emission_limits") or []
             if isinstance(lim, dict) and lim.get("pollutant") and isinstance(lim.get("value"), int | float)
         ],
         "related": related_permits(facts.get("air_permits"), str(v["number"])),
     }
+
+
+def other_ids(number: str, ids: Any) -> list[str]:
+    """Other numbers the permit goes by, without the ones its number already shows ('10883' beside 'NSR 10883',
+    each of '26-A-117, 26-A-118')."""
+    shown = {number, *re.split(r"[,\s]+", number)}
+    out: list[str] = []
+    for i in ids if isinstance(ids, list) else []:
+        if str(i) not in shown and str(i) not in out:
+            out.append(str(i))
+    return out
 
 
 def related_permits(row: Row | None, main: str) -> list[Doc]:
@@ -415,6 +428,7 @@ def row_parts(conn: Conn, plant: Row, facts: dict[str, Row]) -> tuple[Doc, dict[
     history = history_entries(changes)
     permit = air_permit(conn, facts)
     lines = fuel_lines(conn, plant, facts, campuses)
+    financed = financed_sites(conn, [c["id"] for c in campuses])
     tech = (facts.get("technology") or {}).get("value")
     doc = {
         "id": pid,
@@ -432,7 +446,8 @@ def row_parts(conn: Conn, plant: Row, facts: dict[str, Row]) -> tuple[Doc, dict[
         "airPermit": row_permit(permit),
         "fuelSupply": fuel_supply(lines),
         "gridMode": grid_mode(conn, campuses),
-        "financed": financed_link(conn, [c["id"] for c in campuses]),
+        "financed": financed[0] if financed else None,  # the primary site (most debt)
+        "financedSites": financed,
         "lastChange": last_change(changes, facts),
     }
     return doc, {"units": units, "campuses": campuses, "history": history, "permit": permit, "lines": lines}
