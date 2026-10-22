@@ -25,6 +25,8 @@ One `model_output` row per financed site and as-of day: model `status`, version 
 
 Chain status = worst link: any red → Broken, any amber → Strained, else Holding. `No build` when a filed or reported statement says construction has not started. A link with no named party (`chain_party`) is `none` with party `—`; the lenders link is judged whenever the site has debt, with party `n/d` if no lender is named. When no rule trips, the link is green and `missing` lists what was not on file: green means "no rule met on the statements Marden holds", not "checked and clear".
 
+Display words (screens, alerts, exports; stored values, API contracts and rule codes unchanged): Broken → **At risk**, Strained → **Watch**, Holding → **No flags** (no rule tripped on the statements Marden holds, not checked and clear), No build → **Not started**; links red → **Red flag**, amber → **Warning**, green → **No flags**, none → **No data** (`marden.models.status_labels`, web `src/lib/status-labels.ts`, API `apps/api/src/lib/status-labels.ts`).
+
 How each rule reads the record:
 
 - **E1**: a funding-need statement (cash burn, negative free cash flow, funding gap, needs to raise) in the end user's `funding_fact` rows, or a site statement naming the end user.

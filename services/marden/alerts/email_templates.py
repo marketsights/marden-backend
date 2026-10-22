@@ -37,7 +37,7 @@ def subject_for(kind: str, alerts: list[dict[str, Any]], day: datetime) -> str:
     n = len(alerts)
     noun = "alert" if n == 1 else "alerts"
     if kind == "instant":
-        return f"[Marden] {alerts[0]['headline']}" if n == 1 else f"[Marden] {n} red alerts on your watchlist"
+        return f"[Marden] {alerts[0]['headline']}" if n == 1 else f"[Marden] {n} red-flag alerts on your watchlist"
     if kind == "daily_digest":
         return f"Marden daily digest: {n} {noun} on your watchlist, {t.day(day.date())}"
     return f"Marden weekly summary: {n} {noun} on your watchlist, week to {t.day(day.date())}"
@@ -45,7 +45,9 @@ def subject_for(kind: str, alerts: list[dict[str, Any]], day: datetime) -> str:
 
 def _intro(kind: str, n: int) -> str:
     if kind == "instant":
-        return "A name on your watchlist turned red." if n == 1 else f"{n} red alerts on names on your watchlist."
+        if n == 1:
+            return "A name on your watchlist has a new red flag."
+        return f"{n} red-flag alerts on names on your watchlist."
     if kind == "daily_digest":
         return f"{n} alert{'s' if n != 1 else ''} on your watchlist since yesterday's digest."
     return f"{n} alert{'s' if n != 1 else ''} on your watchlist this week."

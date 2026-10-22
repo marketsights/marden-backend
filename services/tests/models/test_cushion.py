@@ -123,7 +123,9 @@ def test_today_run_matches_the_types_and_the_stored_lease_dates(real, committed)
     for output in sites.values():
         _check_types(output)
     childress = sites["childress"]["projection"]
-    assert childress["outsideDate"]["value"] == "2027-04" and childress["outsideDate"]["tag"] == "F"
+    # The archive's '2027-04 (approx.)' is not stated by the 8-K it cited: since the 2026-10-22 tag audit it is
+    # an R "unverified archive figure", not a filed value.
+    assert childress["outsideDate"]["value"] == "2027-04" and childress["outsideDate"]["tag"] == "R"
     y, m = (int(x) for x in childress["p50"].split("-"))
     assert childress["cushionMonths"]["value"] == cd.month_index(2027, 4) - cd.month_index(y, m)
     assert childress["costPerMonthLate"]["value"] == round(9_700_000_000 / (5 * 12))

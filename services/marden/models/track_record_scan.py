@@ -37,6 +37,7 @@ from typing import Any
 from marden.core import db
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
+from marden.models.status_labels import chain_label
 from marden.models.status_rules import PRICE_FINDINGS
 from marden.models.track_record_cases import PRICE_TRIGGER, WINDOW_START
 
@@ -226,7 +227,8 @@ def fires(ids: Sequence[str], slugs: Sequence[str], base: State, state: State, *
         before, after = b.get(key, b["status"]), s.get(key, s["status"])
         if STATUS_RANK.get(after, 0) > STATUS_RANK.get(before, 0):
             codes = [c for c in s["codes"] if not (price_free and c.endswith("(Marden price)"))]
-            detail = f"{slug} chain {before} -> {after} ({', '.join(codes) or 'no rule code'})"
+            moved = f"{chain_label(before)} -> {chain_label(after)}"
+            detail = f"{slug} site status {moved} ({', '.join(codes) or 'no rule code'})"
             out.append(Fire(day, "status", slug, detail, state["basis"]["status"]))
     for iid in ids if not price_free else []:
         b, p = base["price"].get(iid), state["price"].get(iid)

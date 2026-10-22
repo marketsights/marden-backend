@@ -3,7 +3,7 @@ screens show them (spec 04 / 16; screens 04e-04h), on real seeded rows copied fr
 database (site_rows).
 
 - Material events: every change of a link's status between two `status` runs is a row (link, rule
-  codes, 'Green → amber'), every material cushion move is a row (M1 / M2, 'Cushion +4 → -1 months', true minus),
+  codes, 'No flags → Warning'), every material cushion move is a row (M1 / M2, 'Cushion +4 → -1 months', true minus),
   and records are one row per story, later press coverage of the same rule counted on the first report.
 - Debt: the stack's equity is a row of the instruments table (first loss); the recovery card is
   test_site_recovery_card.py.
@@ -30,7 +30,7 @@ from marden.readmodels.views import sites as _sites  # noqa: F401 (registers bui
 from marden.readmodels.views import sites_debt, sites_detail, sites_power, sites_tabs  # noqa: F401
 from marden.readmodels.views.sites_tabs import LINK_LABEL, rule_words, signed, story_key
 
-WORD = {"red": "red", "amber": "amber", "green": "green", "none": "no data"}
+WORD = {"red": "Red flag", "amber": "Warning", "green": "No flags", "none": "No data"}  # status_labels.LINK_LABEL
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ def test_every_status_change_is_a_row_with_its_rule_and_change(sites):
                 if link["role"] not in LINK_LABEL or was not in WORD or now not in WORD or was == now:
                     continue
                 seen += 1
-                prefix = f"{WORD[was].capitalize()} → {WORD[now]}"
+                prefix = f"{WORD[was]} → {WORD[now]}"
                 rows = [e for e in log if e["link"] == LINK_LABEL[link["role"]]
                         and (e["changed"] or "").startswith(prefix)
                         and prev["as_of"].isoformat() < e["date"] <= cur["as_of"].isoformat()]
@@ -87,9 +87,9 @@ def test_every_status_change_is_a_row_with_its_rule_and_change(sites):
                     assert rows[0]["tag"] == fact["tag"] and rows[0]["sourceName"] == (fact.get("sourceName") or "")
     if copied_rows("SELECT 1 FROM model_output WHERE model = 'status' LIMIT 1"):
         assert seen > 0
-    # Jupiter's tenant broke the chain: the row names T2 and the chain's own change.
+    # Jupiter's tenant put the site at risk: the row names T2 and the site's own change.
     if "jupiter" in sites:
-        broke = [e for e in build("site_tab:events", "jupiter")["events"] if "chain Strained → Broken" in
+        broke = [e for e in build("site_tab:events", "jupiter")["events"] if "site Watch → At risk" in
                  (e["changed"] or "")]
         assert len(broke) <= 1
         if broke:

@@ -72,10 +72,10 @@ _MON_ABBR = {1: ("jan",), 2: ("feb",), 3: ("mar",), 4: ("apr",), 5: (), 6: ("jun
 NUMBER_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
                 "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen")
 _TENS = {2: "twenty", 3: "thirty", 4: "forty", 5: "fifty"}
-BENCHMARK_WORDS = {
-    "SOFR": (r"\bsofr\b", r"secured overnight financing rate"),
-    "LIBOR": (r"\blibor\b", r"london interbank offered rate"),
-    "EURIBOR": (r"\beuribor\b", r"euro interbank offered rate"),
+BENCHMARK_WORDS = {  # with the abbreviations of schedules of investments ("S+ 2.50%", "SF 5.50 %", "L+400")
+    "SOFR": (r"\bsofr\b", r"secured overnight financing rate", r"\bs\s?\+\s?\d", r"\bsf\s?\+?\s?\d"),
+    "LIBOR": (r"\blibor\b", r"london interbank offered rate", r"\bl\s?\+\s?\d"),
+    "EURIBOR": (r"\beuribor\b", r"euro interbank offered rate", r"\be\s?\+\s?\d"),
     "SONIA": (r"\bsonia\b", r"sterling overnight index average"),
     "BBSY": (r"\bbbsy\b",),
     "BSBY": (r"\bbsby\b",),
@@ -144,7 +144,7 @@ class CitedDocs:
 
 
 _SCHEDULE = re.compile(r"schedules? of investments")
-_ROW_BEFORE, _ROW_AFTER = 60, 360  # chars of a schedule-of-investments row kept around the holding's name
+_ROW_BEFORE, _ROW_AFTER = 0, 200  # chars of a schedule-of-investments row kept from the holding's name on
 
 
 def _words_pattern(words: Sequence[str]) -> str:
@@ -209,7 +209,8 @@ _UNIT = {"billion": 1e9, "bn": 1e9, "b": 1e9, "million": 1e6, "mm": 1e6, "mn": 1
 _AMT_UNIT = re.compile(r"(\$\s?)?(?<![\d.,])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(billion|bn|b|million|mm|mn|m)\b")
 _AMT_FULL = re.compile(r"(?<![\d.,])(\d{1,3}(?:,\d{3}){2,}|\d{6,})(\.\d+)?(?![\d]|[.,]\d)")
 _AMT_SIGN = re.compile(r"\$\s?(\d{1,3}(?:,\d{3})+)(\.\d+)?(?![\d]|[.,]\d)(?!\s*(?:billion|bn|million|mm|mn)\b)")
-_AMT_BARE = re.compile(r"(?<![\d.,])(\d{1,3}(?:,\d{3})+|\d+)(\.\d)?(?![\d]|[.,]\d|\s*%)")
+# a table cell: two or more digits, not a footnote marker "(2)" and not a percent
+_AMT_BARE = re.compile(r"(?<![\d.,(])(\d{1,3}(?:,\d{3})+|\d{2,})(\.\d)?(?![\d]|[.,]\d|\s*%|\))")
 _YEARISH = re.compile(r"(?:19|20)\d\d")
 
 
@@ -298,6 +299,7 @@ def _bp_patterns(bp: float) -> list[str]:
     pats = _pct_patterns(bp / 100, xml=False)
     s = f"{bp:.2f}".rstrip("0").rstrip(".")
     pats.append(_num(s) + r"\s*(?:basis points?|bps?)\b")
+    pats.append(rf"\b(?:s|sf|sofr|term sofr|l|libor|e|euribor)\s?\+\s?{re.escape(s)}(?![\d.%])")  # "S+225"
     return pats
 
 

@@ -18,6 +18,7 @@ from datetime import date
 from typing import Any
 
 from marden.core.db import Conn, Row
+from marden.models.status_labels import CHAIN_CLAUSE, LINK_CLAUSE, link_label
 from marden.readmodels.context import day_end
 from marden.readmodels.views.instrument_inputs import day, num
 from marden.readmodels.views.instrument_text import short_name
@@ -59,13 +60,14 @@ def _link_record(out: Row, link: dict[str, Any]) -> tuple[Doc, Doc]:
     when = out["as_of"].isoformat()
     to = {"value": link["status"], "tag": "M", "asOf": when, "sourceName": "Marden status model",
           "methodVersion": method_of(out)}
-    record = {"date": when, "text": str(link.get("reason") or f"{ROLE_LABELS[link['role']]} link {link['status']}"),
+    fallback = f"{ROLE_LABELS[link['role']]} link: {link_label(link['status'])}"
+    record = {"date": when, "text": str(link.get("reason") or fallback),
               "tag": "M", "sourceName": "Marden status model", "sourceUrl": ""}
     return to, record
 
 
 def status_changes(site: Doc, watch: list[str], now: Row | None, before: Row | None) -> tuple[Doc | None, list[Doc]]:
-    """This week's status change line for the headline ("Abilene to Strained") and one HomeChange per
+    """This week's status change line for the headline ("Abilene now on watch") and one HomeChange per
     link whose status moved, with its severity. Nothing without both a current and a week-old output."""
     if now is None or before is None or now["id"] == before["id"]:
         return None, []
@@ -83,10 +85,10 @@ def status_changes(site: Doc, watch: list[str], now: Row | None, before: Row | N
     status_now, status_before = _status(now), _status(before)
     name = short_name(site["name"]) or site["name"]  # "Project Jupiter", not its long name with aliases
     if status_now and status_before and status_now != status_before:
-        line = f"{name} to {status_now}"
+        line = f"{name} now {CHAIN_CLAUSE.get(status_now, status_now)}"
     elif changes:
         top = max(changes, key=lambda c: c["severity"])
-        line = f"{name} {top['label'].lower()} to {top['to']['value']}"
+        line = f"{name} {top['label'].lower()} now {LINK_CLAUSE.get(top['to']['value'], top['to']['value'])}"
     else:
         return None, []
     return {"watch": watch, "name": site["name"], "line": line, "at": now["as_of"].isoformat()}, changes

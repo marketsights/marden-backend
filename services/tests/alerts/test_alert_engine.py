@@ -76,7 +76,9 @@ def test_status_change_reaches_each_watcher_once(firms, monkeypatch):
     assert not rows("SELECT 1 FROM alert WHERE user_id = 'c1' AND subject_id = ANY(%s)", (jupiter_subjects,))
     a = next(x for x in alerts if x["user_id"] == "b1")
     assert a["org_id"] == "org_b" and a["ref_url"] == f"/sites/{SITE}" and a["tag"] == "M" and not a["backfill"]
-    assert "\u2192" in a["headline"] and a["body"] and a["sources"] and a["occurred_on"] == after
+    assert " link now " in a["headline"] and a["body"] and a["sources"] and a["occurred_on"] == after
+    assert "\u2192" in a["body"].splitlines()[0]  # "Tenant (Oracle): No flags \u2192 Warning between ..."
+    assert not any(w in a["headline"] + a["body"] for w in ("Broken", "Strained", "Chain status"))
     assert "On your watchlist:" in a["body"]
 
     # one live 'alert' event per new alert, scoped to its org and user, carrying the Alert

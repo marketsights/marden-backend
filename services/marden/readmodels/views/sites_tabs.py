@@ -10,8 +10,8 @@ apps/api/src/contracts/site-tabs.ts).
   'Latest ruling' and 'impact if voided' (M) stay n/d until a ruling parser / model exists.
 - Material events: what changed a status or the cushion, and the records behind them, newest first:
   * each change of a chain link's status between two `status` runs (link, rule codes from the
-    rule text, 'Green → amber', and the chain's own change on that run), dated by the record the
-    link cites when it falls between the two runs, else by the run;
+    rule text, 'No flags → Warning', and the site's own change on that run, 'site Watch → At risk'),
+    dated by the record the link cites when it falls between the two runs, else by the run;
   * each move of the `cushion` model that is material (M1: 3+ months later; M2: below zero), with
     the record of the milestone that moved it most ('Cushion +4 → -1 months', with a true minus);
   * events approved as material or judged material by the archive (materiality_note) and events
@@ -31,6 +31,7 @@ from itertools import pairwise
 from typing import Any
 
 from marden.core.db import Conn, Row
+from marden.models.status_labels import chain_label, link_label
 from marden.readmodels.context import business_day, known_fact_rows, known_facts
 from marden.readmodels.registry import builder
 from marden.readmodels.views.sites_common import (
@@ -270,17 +271,17 @@ def status_changes(conn: Conn, slug: str, start: date) -> list[Doc]:
             text = _one_line(str(fact["value"]), 120) if fact and fact.get("value") else _one_line(
                 re.sub(r"^[EDTLM][12]\s+", "", reason.split(". ")[0]), 120)
             rows.append({
-                "date": when, "text": text or f"{LINK_LABEL[role]} {STATUS_WORD[now]}",
+                "date": when, "text": text or f"{LINK_LABEL[role]}: {link_label(now)}",
                 "tag": fact.get("tag", "R") if fact else "M",
                 "sourceName": (fact.get("sourceName") or "") if fact else "Marden status model",
                 "sourceUrl": (fact.get("sourceUrl") or "") if fact else "",
                 "severity": now, "link": LINK_LABEL[role], "ruleHit": _codes(reason),
-                "changed": f"{STATUS_WORD[was].capitalize()} \u2192 {STATUS_WORD[now]}",
+                "changed": f"{link_label(was)} \u2192 {link_label(now)}",
             })
         chain_was, chain_now = output_field(prev, "status"), output_field(cur, "status")
         if rows and isinstance(chain_was, str) and isinstance(chain_now, str) and chain_was != chain_now:
             worst = min(rows, key=lambda r: ("red", "amber", "green", "none").index(r["severity"]))
-            worst["changed"] += f"; chain {chain_was} \u2192 {chain_now}"
+            worst["changed"] += f"; site {chain_label(chain_was)} \u2192 {chain_label(chain_now)}"
         out.extend(rows)
     return out
 
@@ -396,7 +397,7 @@ def _lane_status(output: Any, role: str) -> tuple[str | None, str]:
         return None, ""
     if role == "chain":
         status = output.get("status")
-        return (STATUS_TONE.get(status), str(status)) if status in STATUS_TONE else (None, "")
+        return (STATUS_TONE.get(status), chain_label(status)) if status in STATUS_TONE else (None, "")
     for link in output.get("chain") or []:
         if isinstance(link, dict) and link.get("role") == role and link.get("status") in STATUS_TONE.values():
             return link["status"], str(link.get("reason") or "")

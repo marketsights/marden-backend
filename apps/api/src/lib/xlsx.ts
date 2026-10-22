@@ -2,6 +2,7 @@
 // further table the export adds (the Data centers building sheet), and a sources sheet listing every
 // Sourced value and evidence record in those rows (field, tag, URL, as-of).
 import ExcelJS from 'exceljs';
+import { chainStatusCell, linkStatusWord } from './status-labels.js';
 
 type Json = Record<string, unknown>;
 
@@ -23,7 +24,7 @@ const clip = (s: string): string => (s.length > MAX_CELL ? `${s.slice(0, MAX_CEL
 function arrayCell(v: unknown[]): string | null {
   if (v.every((x) => typeof x === 'string' || typeof x === 'number')) return clip(v.join(', '));
   if (v.every((x) => isObj(x) && typeof x.party === 'string')) {
-    return clip(v.map((x) => `${text((x as Json).party)} (${text((x as Json).status)})`).join(' → '));
+    return clip(v.map((x) => `${text((x as Json).party)} (${linkStatusWord(text((x as Json).status))})`).join(' → '));
   }
   // Financed sites (FinancedLink[] on Data centers and On-site power rows): the site names, most debt first.
   if (v.every((x) => isObj(x) && typeof x.siteSlug === 'string' && typeof x.siteName === 'string')) {
@@ -109,7 +110,7 @@ function addTable(wb: ExcelJS.Workbook, name: string, rows: Json[]): void {
   const sheet = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
   const columns = columnsOf(rows);
   sheet.columns = columns.map((key) => ({ header: key, key, width: Math.min(Math.max(key.length + 2, 12), 40) }));
-  for (const row of rows) sheet.addRow(Object.fromEntries(columns.map((k) => [k, cellValue(row[k])])));
+  for (const row of rows) sheet.addRow(Object.fromEntries(columns.map((k) => [k, cellValue(chainStatusCell(k, row[k]))])));
   sheet.getRow(1).font = { bold: true };
 }
 

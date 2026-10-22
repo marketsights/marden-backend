@@ -190,3 +190,39 @@ def test_cited_docs_reads_stored_bytes_and_skips_record_only_rows(conn):
     assert rows["amount_usd"].tag == "R"
     assert docs.text("https://www.sec.gov/edgar/search/#/forms=NPORT-P") is None
     assert date.today()  # the lookup never fetches: only what is stored counts
+
+
+def test_schedule_of_investments_is_read_on_the_holdings_rows_only():
+    bdc = normalize_text(
+        "Consolidated Schedule of Investments (in thousands) Quikrete Holdings, Inc. First lien term loan S+225, "
+        "0.00% floor 04/14/2031 4,950 4,950 4,952 QTS Project Ram (Microsoft DC) First lien secured debt - mortgage "
+        "loan (DD) S+225, 0.00% floor 05/29/2028 $ 47,015 $ 46,509 $ 46,651")
+    ram = scope(bdc, names=["qts", "project", "ram"], titles=["project", "ram", "dd", "mortgage"])
+    assert "quikrete" not in ram and "47,015" in ram
+    assert states(ram, "maturity", "2028-05") and not states(ram, "maturity", "2031-04")
+    assert states(ram, "coupon", "S+225, 0% floor") and states(ram, "coupon_benchmark", "SOFR")
+    ram_terms = {"maturity": "2028-05", "coupon": "S+225, 0% floor"}
+    assert states(ram, "amount_usd", 47_000_000, anchors=anchor_patterns(ram_terms, "amount_usd"))
+    assert not states(ram, "amount_usd", 47_000_000, anchors=anchor_patterns({"maturity": "2028-05"}, "amount_usd"))
+    assert scope(bdc, names=["nobody"]) == ""
+
+
+def test_loader_rerun_supersedes_its_own_stale_term_rows(conn):
+    from marden.core.facts import FactWriter
+    from marden.seed.instruments import PRODUCER, LoadReport, _supersede_replaced
+
+    w = FactWriter(conn)
+    common = dict(valid_from=date(2026, 10, 20), producer=PRODUCER, status="published", unit="USD")
+    old = w.add("instrument", "EX-JUPITER-190", "amount_usd", 18_000_000_000, tag="F", source_name="SEC EDGAR",
+                source_url=NCSRS, **common)
+    new = w.add("instrument", "EX-JUPITER-190", "amount_usd", 18_000_000_000, tag="R", source_name="Kfgo",
+                source_url=KFGO, **common)
+    other = w.add("instrument", "EX-JUPITER-190", "amount_usd", 18_000_000_000, tag="F", source_name="SEC EDGAR",
+                  source_url=NCSRS, valid_from=date(2026, 10, 20), producer="seed:cases", status="published")
+    report = LoadReport()
+    _supersede_replaced(conn, w, "EX-JUPITER-190", {"amount_usd": new.id}, report)
+    status = {r["id"]: r["status"] for r in conn.execute("SELECT id, status FROM fact")}
+    assert status == {old.id: "superseded", new.id: "published", other.id: "published"}  # other loaders untouched
+    assert report.counts["fact.superseded"] == 1
+    _supersede_replaced(conn, w, "EX-JUPITER-190", {"amount_usd": new.id}, report)  # idempotent
+    assert report.counts["fact.superseded"] == 1

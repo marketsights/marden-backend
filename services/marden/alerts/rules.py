@@ -16,6 +16,7 @@ from typing import Any
 from marden.alerts import text as t
 from marden.core.jsonutil import canonical_json
 from marden.models.materiality import SEVERITY, is_material
+from marden.models.status_labels import CHAIN_CLAUSE, LINK_CLAUSE, chain_label, link_label
 
 THRESHOLDS = (1, 2, 3)  # AlertSettings.priceThresholdPts
 MARKED_HIGH_PTS = 5  # spec 11: "fund marks 5+ pts high"
@@ -120,9 +121,12 @@ def status_findings(name: str, slug: str, before: dict[str, Any], after: dict[st
         worse = _rank(n) > _rank(o)
         severity = n if worse and n in ("amber", "red") else "green"
         label = t.ROLE_LABEL.get(role, role)
-        lines = [f"{label} ({link.get('party')}): {o} {t.ARROW} {n} between {t.day(before_as_of)} and {t.day(as_of)}."]
-        if before.get("status") != after.get("status"):
-            lines.append(f"Chain status {before.get('status')} {t.ARROW} {after.get('status')}.")
+        moved = f"{link_label(o)} {t.ARROW} {link_label(n)}"
+        lines = [f"{label} ({link.get('party')}): {moved} between {t.day(before_as_of)} and {t.day(as_of)}."]
+        chain_before, chain_after = before.get("status"), after.get("status")
+        chain_moved = chain_before != chain_after
+        if chain_moved:
+            lines.append(f"Site status {chain_label(chain_before)} {t.ARROW} {chain_label(chain_after)}.")
         lines.append(f"{'Why' if worse else 'Was'}: {(link if worse else prev).get('reason')}")
         lines.append(f"Rule {code}: {t.rule_text(code)}.")
         lines.append(_method_line("status", method))
@@ -130,7 +134,9 @@ def status_findings(name: str, slug: str, before: dict[str, Any], after: dict[st
         sources.append(_model_source("Marden status model", method, as_of, "docs/methods/status-rules-v0.1.md"))
         out.append(Finding(
             codes=[code], severity=severity, tag="M", ref_url=f"/sites/{slug}",
-            headline=f"{name}: {label.lower()} link {o} {t.ARROW} {n}" + (f" ({code})" if code in t.SHORT else ""),
+            headline=f"{name}: {label.lower()} link now {LINK_CLAUSE.get(n, n)}"
+            + (f" ({code})" if code in t.SHORT else "")
+            + (f"; site {CHAIN_CLAUSE.get(str(chain_after), str(chain_after))}" if chain_moved else ""),
             body="\n".join(lines), alert_types=[t.alert_type(code, role)], part=role,
             facts={"role": role, "party": link.get("party"), "before": o, "after": n, "ruleCode": code,
                    "chainBefore": before.get("status"), "chainAfter": after.get("status"),

@@ -87,7 +87,7 @@ describe('completion and sites exports', () => {
       slug: 'le-leased', buildings: '2 / 8', p10: '2028-07', p50: '2029-01', p90: '2032-05', outsideDate: '2028',
       cushionMonths: -1, deltaWeek: -5, driver: 'Power', debtB: 18, lastEvidence: '2026-10-13 · Pipeline in service Feb 1 2027',
     });
-    expect(rows[0]?.chain).toBe('OpenAI (amber) → Oracle (red) → Dev Co (green) → About 20 banks (amber)');
+    expect(rows[0]?.chain).toBe('OpenAI (Warning) → Oracle (Red flag) → Dev Co (No flags) → About 20 banks (Warning)');
     // No lease date: the band is still there; cushion, Δ wk "—"; the model named no driver: n/d.
     expect(rows[1]).toMatchObject({ p50: '2027-10', outsideDate: 'n/d', cushionMonths: '—', deltaWeek: '—', driver: 'n/d', buildings: 'n/d', debtB: 'n/d' });
     expect(rows[2]).toMatchObject({ p10: '—', p50: '—', outsideDate: '—', cushionMonths: '—', driver: '—' });
@@ -111,7 +111,7 @@ describe('completion and sites exports', () => {
       'cushionMonths', 'rentStartP50', 'debtB', 'leadLenders',
     ]);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ slug: 'le-a', tenant: '—', gw: '1.2 GW', buildings: '2 / 8', cushionMonths: 4, rentStartP50: '2027-06' });
+    expect(rows[0]).toMatchObject({ slug: 'le-a', tenant: '—', gw: '1.2 GW', buildings: '2 / 8', status: 'Watch', cushionMonths: 4, rentStartP50: '2027-06' });
     const nm = (await sheet('/api/export/sites.xlsx?state=NM')).rows[0];
     expect(nm).toMatchObject({ slug: 'le-b', buildings: 'n/d', cushionMonths: '—', rentStartP50: '—', debtB: 'n/d' });
   });
@@ -121,5 +121,6 @@ describe('completion and sites exports', () => {
     expect(row.cushionMonths).toBe(LEASED.projection.cushionMonths);
     expect(row.buildings).toBe(buildings);
     expect(sitesExportRow(summary('le-a', 'TX', 4) as never).gw).toEqual(sourced('1.2 GW', 'R'));
+    expect(sitesExportRow(summary('le-a', 'TX', 4) as never).status).toBe('Strained'); // the enum; the cell says Watch
   });
 });
