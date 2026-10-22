@@ -11,8 +11,10 @@ Rows are idempotent by `idempotency_key` (`instant:<org>:<user>:<first alert id>
 At send time the member's access and settings are checked again (an unsubscribe or a lapsed product
 cancels the row). Without a provider, every due row becomes 'not_configured' with the missing variable
 names: nothing pretends to have been sent. A transient failure (network, 429, 5xx) is retried after 1, 2,
-4, 8 and 16 minutes, then the row is 'failed'; a permanent one (4xx) fails at once. Delivery is at least
-once: Resend dedupes on the Idempotency-Key header; a worker dying mid-send can repeat a Postmark email.
+4, 8 and 16 minutes, then the row is 'failed'; a permanent one (4xx) fails at once. A row that raises while it
+is rendered or sent is retried on the same schedule (its error type in last_error, the trace in the worker
+log), so it never holds up the rows behind it. Delivery is at least once: Resend dedupes on the
+Idempotency-Key header; a worker dying mid-send can repeat a Postmark email.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from datetime import datetime, time, timedelta
 from typing import Any
 
 import httpx
+import psycopg
 
 from marden.alerts.email_templates import render, subject_for
 from marden.alerts.engine import row_alert
@@ -229,15 +232,41 @@ def send_due(*, limit: int = 200, cfg: EmailConfig | None = None, client: httpx.
     with db.transaction() as conn:
         record_provider_state(conn, cfg)
     for _ in range(limit):
-        with db.transaction() as conn:
-            row = conn.execute(
-                """SELECT * FROM email_outbox WHERE status = 'queued' AND next_attempt_at <= %s
-                   ORDER BY next_attempt_at, id LIMIT 1 FOR UPDATE SKIP LOCKED""",
-                (moment,),
-            ).fetchone()
-            if row is None:
-                break
-            counts[_send_one(conn, row, cfg, provider, moment)] += 1
+        picked: int | None = None
+        try:
+            with db.transaction() as conn:
+                row = conn.execute(
+                    """SELECT * FROM email_outbox WHERE status = 'queued' AND next_attempt_at <= %s
+                       ORDER BY next_attempt_at, id LIMIT 1 FOR UPDATE SKIP LOCKED""",
+                    (moment,),
+                ).fetchone()
+                if row is None:
+                    break
+                picked = int(row["id"])
+                counts[_send_one(conn, row, cfg, provider, moment)] += 1
+        except psycopg.OperationalError:
+            raise  # the database is gone: no row can be sent or recorded
+        except Exception as exc:
+            if picked is None:
+                raise
+            counts[_crashed(picked, exc, moment)] += 1
     if counts:
         log.info("alerts.send: %s", dict(counts))
     return dict(counts)
+
+
+def _crashed(row_id: int, exc: Exception, moment: datetime) -> str:
+    """A row that raised: its transaction was rolled back, so count the attempt and back off (failed after
+    MAX_ATTEMPTS). last_error names the error type only; the trace is in the worker log."""
+    log.exception("alerts.send: outbox row %s raised %s; retried with backoff", row_id, type(exc).__name__)
+    with db.transaction() as conn:
+        row = conn.execute(
+            "SELECT attempts FROM email_outbox WHERE id = %s AND status = 'queued' FOR UPDATE", (row_id,),
+        ).fetchone()
+        if row is None:
+            return "error"
+        attempts = int(row["attempts"]) + 1
+        status = "queued" if attempts < MAX_ATTEMPTS else "failed"
+        _finish(conn, row_id, status, attempts=attempts, next_attempt_at=moment + backoff(attempts),
+                last_error=f"{type(exc).__name__} while rendering or sending (worker log has the details)")
+    return "retry" if status == "queued" else "failed"

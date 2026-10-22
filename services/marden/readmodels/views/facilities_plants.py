@@ -3,13 +3,22 @@ and summarises these docs) and `plant_detail` (PowerPlantDetail).
 
 - Units: the plant's power_unit rows with their unit facts (OEM, model, count, rating, fuel) as known
   on the build date; total MW = count x rating, computed here. A unit has no status of its own in the
-  records, so it shows the plant's status.
+  records, so it shows the plant's status. A plant without power_unit rows takes its units from the
+  equipment statements of its generating-unit air permits (`air_permits`: PSD / NSR / standard permits,
+  not PBR registrations for emergency engines or Title V permits that restate units): each statement
+  that gives a count and a rating each, one per OEM and model per permit (the latest record's, since a
+  revision restates the units), with the permit's status and number and the record's URL.
+- Fuel type (detail `fuelType`): the unit rows' fuel facts as stated, with the units they cover when
+  not every unit row states one; n/d otherwise.
 - Permitted MW = the sum of unit ratings when every unit row has a count and a rating (spec 15:
   computed in code, tagged with the weakest unit fact); else the plant's capacity as stated; else n/d.
 - Air permit: the plant's `air_permit` fact (agency, number, type, URL); its status from the permit
   docket entity's newer status when Marden watches it (TCEQ 'PENDING' -> Permit pending ...). A PSD
   permit is a major-source permit ('Major'). Filed / decided dates and amendments come from the
   `air_permits` collector's value (filed, issued, amendments); an older record without them stays n/d.
+  The detail's permit also names the holder (applicant) and facility, the permit's other ids, the
+  emission limits only as the record states them (pollutant, amount, unit, basis, URL), and the plant's
+  other matched permits (`related`: number, type, status, dates, record URL).
 - Fuel supply: the fuel line (pipeline / lateral plant) serving the same campus, or the plant itself
   when it is one: its FERC / state docket and the planned in-service dates as stated.
 - Grid mode from the served campus's power source (On-site gas -> Islanded, Grid / Hybrid -> Grid-tied).
@@ -19,6 +28,7 @@ and summarises these docs) and `plant_detail` (PowerPlantDetail).
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from marden.core.db import Conn, Row
@@ -56,6 +66,7 @@ PLANT_FIELDS = (
     "stage",
     "capacity_mw",
     "air_permit",
+    "air_permits",
     "expected_cod",
     "original_cod",
     "dockets",
@@ -78,6 +89,13 @@ PERMIT_STATUS = {
 # permit outside PSD and a permit-by-rule registration are minor authorizations.
 PERMIT_TYPES = {"PSD": "Major", "NSR": "Minor", "PBR": "Minor"}
 GRID_MODES = {"On-site gas": "Islanded", "Grid": "Grid-tied", "Hybrid": "Grid-tied"}
+# Permits whose equipment statements do not stand in for the plant's generating units: PBR registrations
+# (emergency engines) and Title V operating permits (they restate units authorized elsewhere).
+NON_UNIT_PERMITS = {"PBR", "Title V"}
+CLOSED_PERMITS = {"withdrawn", "cancelled", "denied", "inactive"}
+# Makers as the permit records shorten them ("Solar Titan 350", "GE LM2500").
+OEM_NAMES = {"Solar": "Solar Turbines", "GE": "GE Vernova"}
+BUILT = ("Under construction", "Operating")
 
 
 # ---------------------------------------------------------------- units
@@ -105,8 +123,95 @@ def plant_units(conn: Conn, plant_id: str, plant_status: Any) -> list[Doc]:
                 "onlineYear": year if isinstance(year, int) else None,
                 "permitRef": u.get("permit_ref") or None,
                 "_rows": [r for r in (f.get("count"), f.get("rating_mw_each")) if r is not None],
+                "_fuel": f.get("fuel"),
             }
         )
+    return out
+
+
+def _is_num(v: Any) -> bool:
+    return isinstance(v, int | float) and not isinstance(v, bool) and v > 0
+
+
+def _record_day(statement: dict[str, Any]) -> str:
+    """'Technical Review 2025-01-22' -> '2025-01-22'; '' when the record is not dated."""
+    m = re.search(r"\d{4}-\d{2}-\d{2}", str(statement.get("record") or ""))
+    return m.group(0) if m else ""
+
+
+def permit_units(row: Row | None, plant_status: Any) -> list[Doc]:
+    """PowerUnit rows from the equipment statements of the plant's generating-unit permits (see the
+    module notes); [] when no such statement gives both a count and a rating each."""
+    permits = row["value"] if row and isinstance(row["value"], list) else []
+    out = []
+    for p in permits:
+        if not isinstance(p, dict) or p.get("type") in NON_UNIT_PERMITS:
+            continue
+        stated = str(p.get("status") or "").strip().lower()
+        if stated in CLOSED_PERMITS:
+            continue
+        latest: dict[tuple[Any, Any], dict[str, Any]] = {}
+        for s in p.get("units") or []:
+            count = s.get("count") if isinstance(s, dict) else None
+            if not (isinstance(count, int) and _is_num(count) and _is_num(s.get("rating_mw_each"))):
+                continue
+            key = (s.get("oem"), s.get("model"))
+            if key not in latest or _record_day(s) >= _record_day(latest[key]):
+                latest[key] = s
+        status = PERMIT_STATUS.get(stated)
+        if status == "Permitted" and plant_status in BUILT:
+            status = plant_status  # the plant's construction or operating record is the newer state
+        for s in latest.values():
+            assert row is not None
+            src = {
+                "value": None,
+                "tag": row["tag"],
+                "valid_from": row["valid_from"],
+                "method_version": row.get("method_version"),
+                "source_name": " ".join(str(x) for x in (p.get("agency"), s.get("record")) if x)
+                or row.get("source_name"),
+                "source_url": s.get("url") or p.get("url") or row.get("source_url"),
+            }
+            out.append(
+                {
+                    "oem": OEM_NAMES.get(s.get("oem"), s.get("oem")) or None,
+                    "model": s.get("model") or None,
+                    "count": s["count"],
+                    "ratingMwEach": with_value(src, s["rating_mw_each"]),
+                    "totalMw": round(s["count"] * s["rating_mw_each"], 3),
+                    "fuel": None,
+                    "status": status,
+                    "onlineYear": None,
+                    "permitRef": str(p["number"]) if p.get("number") else None,
+                    "_rows": [src],
+                    "_fuel": None,
+                }
+            )
+    return out
+
+
+def fuel_type(units: list[Doc]) -> Doc:
+    """The units' fuel as stated ("natural gas"; "diesel (Cat C32B)" when only some unit rows state one)."""
+    rows = [(u, u["_fuel"]) for u in units if u.get("_fuel") and isinstance(u["_fuel"]["value"], str)]
+    if not rows:
+        return nd("F")
+    every = len(rows) == len(units)
+    by_fuel: dict[str, list[str]] = {}
+    for u, r in rows:
+        by_fuel.setdefault(r["value"], []).append(" ".join(x for x in (u["oem"], u["model"]) if x))
+    text = "; ".join(
+        f if every else f"{f} ({', '.join(m for m in models if m) or 'unit n/d'})" for f, models in by_fuel.items()
+    )
+    facts = [r for _, r in rows]
+    newest = max(facts, key=lambda r: r["valid_from"])
+    out = with_value(newest, text)
+    out["tag"] = weakest_tag(r["tag"] for r in facts)
+    out["sourceName"] = " + ".join(sorted({r["source_name"] for r in facts if r.get("source_name")}))
+    if len({r.get("source_url") for r in facts}) > 1:
+        out.pop("sourceUrl", None)  # several records: the names say which
+    methods = sorted({r["method_version"] for r in facts if r["tag"] == "M" and r.get("method_version")})
+    if out["tag"] == "M" and methods:
+        out["methodVersion"] = " + ".join(methods)
     return out
 
 
@@ -177,7 +282,48 @@ def air_permit(conn: Conn, facts: dict[str, Row]) -> Doc | None:
              "sourceName": row.get("source_name") or "", "sourceUrl": a.get("url") or v.get("url") or ""}
             for a in v.get("amendments") or [] if isinstance(a, dict) and _iso_day(a.get("date"))
         ],
+        "holder": v["applicant"] if isinstance(v.get("applicant"), str) and v["applicant"].strip() else None,
+        "facility": _facility(v.get("facility")),
+        "otherIds": [str(i) for i in v.get("ids") or [] if str(i) != str(v["number"])],
+        "limits": [
+            {"pollutant": str(lim["pollutant"]), "value": lim["value"], "unit": str(lim.get("unit") or ""),
+             "basis": str(lim.get("basis") or ""), "moreThan": lim.get("more_than") is True,
+             "url": lim.get("url") or v.get("url") or row.get("source_url") or ""}
+            for lim in v.get("emission_limits") or []
+            if isinstance(lim, dict) and lim.get("pollutant") and isinstance(lim.get("value"), int | float)
+        ],
+        "related": related_permits(facts.get("air_permits"), str(v["number"])),
     }
+
+
+def related_permits(row: Row | None, main: str) -> list[Doc]:
+    """The plant's other matched permits (the `air_permits` collector), oldest filing first: the permits behind
+    unit rows, backup engines (PBR) and the operating permit (Title V), each with its agency record."""
+    permits = row["value"] if row and isinstance(row["value"], list) else []
+    out = []
+    for p in permits:
+        if not isinstance(p, dict) or not p.get("number") or str(p["number"]) == main:
+            continue
+        kind, stated = p.get("type"), str(p.get("status") or "").strip().lower()
+        out.append(
+            {
+                "agency": str(p.get("agency") or ""),
+                "number": str(p["number"]),
+                "type": PERMIT_TYPES.get(kind, kind) if isinstance(kind, str) else None,
+                "status": PERMIT_STATUS.get(stated),
+                "filed": _iso_day(p.get("filed")),
+                "decided": _iso_day(p.get("issued")),
+                "url": p.get("url") or (row or {}).get("source_url") or "",
+            }
+        )
+    return sorted(out, key=lambda r: (r["filed"] or r["decided"] or "9999", r["number"]))
+
+
+def _facility(value: Any) -> Doc | None:
+    """The agency's facility record the permit belongs to (TCEQ RN, Iowa plant number ...)."""
+    if isinstance(value, dict) and value.get("key"):
+        return {"id": str(value["key"]), "name": value.get("name") or None}
+    return {"id": value, "name": None} if isinstance(value, str) and value else None
 
 
 def _iso_day(value: Any) -> str | None:
@@ -261,6 +407,8 @@ def row_parts(conn: Conn, plant: Row, facts: dict[str, Row]) -> tuple[Doc, dict[
     pid = plant["id"]
     status = facts.get("status")
     units = plant_units(conn, pid, status["value"] if status else None)
+    if not units:
+        units = permit_units(facts.get("air_permits"), status["value"] if status else None)
     campuses = served_campuses(conn, pid)
     events = subject_events(conn, "plant", pid)
     changes = plant_changes(conn, pid, events)
@@ -332,6 +480,7 @@ def build_plant_detail(conn: Conn, plant_id: str) -> Doc | None:
     doc.update(
         {
             "unitRows": public_units(parts["units"]),
+            "fuelType": fuel_type(parts["units"]),
             "permit": parts["permit"],
             "fuel": fuel_detail(parts["lines"]),
             "servedCampus": served_campus(conn, parts["campuses"], doc["permittedMw"]),

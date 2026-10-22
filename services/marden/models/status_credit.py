@@ -1,7 +1,7 @@
-"""The rate-neutral reading of a Marden price, for status rule L2 (docs/methods/status-rules-v0.1.md "L2").
+"""The rate-neutral reading of a Marden price, for status rules L1 and L2 (docs/methods/status-rules-v0.1.md).
 
 A chain status is a credit signal. A fixed-rate instrument's price also falls when Treasury yields rise
-while its credit is unchanged, so for a fixed coupon L2 reads the Marden spread, not the price:
+while its credit is unchanged, so for a fixed coupon L1 and L2 read the Marden spread, not the price:
 
 - reference day: the instrument's issue date (its issue comp: the price output's `basis.terms.issueDate`),
   else the first day Marden priced it (its earliest stored `price` output with a spread, on or before the
@@ -15,9 +15,10 @@ while its credit is unchanged, so for a fixed coupon L2 reads the Marden spread,
   the same with the reference spread. Spread-only loss = reference price - credit price, in points per
   100 par: (spread now - spread at reference) x spread duration, revalued in full.
 
-L2 fires on a loss of LOSS_RED_POINTS or more: the spread move alone would take a par-issued instrument
-below 95. A floating-rate loan has no rate duration (its coupon resets with SOFR), so its price is already
-a credit price and L2 reads the price itself (`status_rules.lenders`).
+L2 fires on a loss of LOSS_RED_POINTS or more (the spread move alone would take a par-issued instrument
+below 95), L1 (status v0.3) on a loss of LOSS_AMBER_POINTS up to LOSS_RED_POINTS (it would take it to 98 or
+below). A floating-rate loan has no rate duration (its coupon resets with SOFR), so its price is already a
+credit price and L1 / L2 read the price itself (`status_rules.lenders`).
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from marden.models.price_bonds import Terms, clean_at_yield, flows, g_spread_bp
 from marden.models.price_curve import CurveBook
 
 LOSS_RED_POINTS = 5.0  # 100 - 95: L2's line for a par-issued instrument
+LOSS_AMBER_POINTS = 2.0  # 100 - 98: L1's line (a loss of 2 up to 5 points)
 ONE_BP_PCT = 0.01
 
 

@@ -41,8 +41,16 @@ type PlantOver = {
 export type PlantRowDoc = Over<T.PowerPlantRow, PlantOver>;
 type Fuel = Over<T.PowerPlantDetail['fuel'], { regulator: N<string>; docket: N<string> }>;
 type Served = Over<NonNullable<T.PowerPlantDetail['servedCampus']>, { status: N<T.DcStatus> }>;
+// Plant detail additions (spec 15 Air permit card and Fuel supply): the permit's holder, facility, other
+// ids and emission limits as the record states them, and the units' fuel as stated.
+type PermitExtra = {
+  holder: N<string>; facility: N<{ id: string; name: N<string> }>; otherIds: string[];
+  limits: { pollutant: string; value: number; unit: string; basis: string; moreThan: boolean; url: string }[];
+  related: { agency: string; number: string; type: N<string>; status: N<T.PlantStatus>; filed: N<string>;
+    decided: N<string>; url: string }[] };
 export type PlantDetailDoc = Over<T.PowerPlantDetail, PlantOver & {
-  unitRows: UnitDoc[]; permit: N<Over<T.AirPermit, PermitOver>>; fuel: N<Fuel>; servedCampus: N<Served> }>;
+  unitRows: UnitDoc[]; permit: N<Over<T.AirPermit, PermitOver> & PermitExtra>; fuel: N<Fuel>; servedCampus: N<Served>;
+  fuelType: T.Sourced<string> }>;
 export type PlantPageDoc = Over<T.PowerPlantPage, { rows: PlantRowDoc[]; asOf: N<string> }>;
 export type BuildingDoc = T.Building & { inService: T.Sourced<string> };
 """

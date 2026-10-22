@@ -51,11 +51,24 @@ export async function queryRows<T>(
   const order = buildOrder(def, scope.q);
   const limitPh = params.add(window.limit);
   const offsetPh = params.add(window.offset);
-  const body = await db.query<{ doc: T }>(
-    `${cte} SELECT r.doc FROM filtered r ORDER BY ${order} LIMIT ${limitPh} OFFSET ${offsetPh}`,
+  const companion = def.companion;
+  const join = companion
+    ? `LEFT JOIN (${latestRowsSql(params.add(companion.view), params.add(scope.asOf))}) c ON c.key = r.key`
+    : '';
+  const body = await db.query<{ doc: T; companion?: unknown }>(
+    `${cte} SELECT r.doc${companion ? ', c.doc AS companion' : ''} FROM filtered r ${join}
+      ORDER BY ${order} LIMIT ${limitPh} OFFSET ${offsetPh}`,
     params.values,
   );
-  return { available, asOf, total, rows: body.rows.map((r) => r.doc) };
+  const rows = body.rows.map((r) => (companion ? (companion.merge(r.doc as never, (r.companion ?? null) as never) as T) : r.doc));
+  return { available, asOf, total, rows };
+}
+
+/** One row doc of a row view (the `/row` refresh), with its companion joined like a page row. */
+export async function rowDoc<T>(db: Db, def: RowViewDef, doc: T, key: string, asOf: string | null): Promise<T> {
+  if (!def.companion) return doc;
+  const other = await db.readModel(def.companion.view, key, asOf);
+  return def.companion.merge(doc as never, (other ?? null) as never) as T;
 }
 
 /** Does the subject exist in its identity table? Separates "unknown id" (404) from "not built" (503). */

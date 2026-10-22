@@ -5,8 +5,10 @@
 
 Events: published, not a scheduled catalyst, never evaluated (alert_trigger), dated in the window, or dated up
 to LATE_DAYS back when Marden learned of it after the engine first ran (an 8-K filed four business days after
-the event, a candidate approved in the review queue days later). The engine's first evaluation is the line
-between history (rows loaded before alerts existed are never news) and news.
+the event, a candidate approved in the review queue days later), or dated ahead (a hearing or a termination
+announced for next month) when Marden learned of it after the engine first ran: news when it comes through,
+not when its day arrives. The engine's first evaluation is the line between history (rows loaded before
+alerts existed are never news) and news.
 Rating facts: a published `rating` / `rating_summary` that differs from the subject's previous one; the same
 window and late rule.
 Model outputs (status, cushion, price, mark_gap): model_output keeps one row per subject and as-of day and
@@ -14,19 +16,27 @@ replaces it on a rerun, so the engine keeps the last output it evaluated per sub
 "before" of the next change. A subject the engine has not seen starts from its newest output dated before
 the window (that output is the baseline, not news). Outputs dated before the evaluated one (a backtest run
 for a past day) are never news.
+
+A row a rule cannot read is logged and skipped (no alert_trigger row: the next scan retries it); it does not
+stop the rows behind it. A model subject that fails is skipped whole, so its changes stay in order.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
 
+import psycopg
+
 from marden.alerts import rules
 from marden.alerts.fanout import ref_url, subject_name
 from marden.core.db import Conn, Row
 from marden.core.jsonutil import hash_parts
+
+log = logging.getLogger(__name__)
 
 RATING_FIELDS = ("rating", "rating_summary")
 SCHEDULED_KINDS = ("catalyst",)
@@ -82,7 +92,8 @@ def event_triggers(conn: Conn, start: date, today: date) -> Iterator[Trigger]:
         """SELECT e.* FROM event e
            WHERE e.status = 'published' AND e.kind <> ALL(%(scheduled)s)
              AND (e.event_date BETWEEN %(start)s AND %(today)s
-                  OR (e.event_date BETWEEN %(late)s AND %(today)s AND e.learned_at >= %(since)s))
+                  OR (e.event_date BETWEEN %(late)s AND %(today)s AND e.learned_at >= %(since)s)
+                  OR (e.event_date > %(today)s AND e.learned_at >= %(since)s))
              AND NOT EXISTS (SELECT 1 FROM alert_trigger t WHERE t.trigger_key = 'event:' || e.id)
            ORDER BY e.event_date, e.id""",
         {**window(conn, start, today), "scheduled": list(SCHEDULED_KINDS)},
@@ -90,7 +101,14 @@ def event_triggers(conn: Conn, start: date, today: date) -> Iterator[Trigger]:
     for event in rows:
         tab = "opposition" if event["kind"] == "opposition" else "events"
         name = subject_name(conn, event["subject_type"], event["subject_id"])
-        finding = rules.event_finding(event, name, ref_url(conn, event["subject_type"], event["subject_id"], tab))
+        url = ref_url(conn, event["subject_type"], event["subject_id"], tab)
+        try:
+            finding = rules.event_finding(event, name, url)
+        except psycopg.Error:
+            raise
+        except Exception:
+            log.exception("alerts: event %s could not be evaluated; retried next scan", event["id"])
+            continue
         yield Trigger(
             key=f"event:{event['id']}", kind="event", subject_type=event["subject_type"],
             subject_id=event["subject_id"], occurred_on=event["event_date"], event_id=event["id"],
@@ -117,7 +135,14 @@ def fact_triggers(conn: Conn, start: date, today: date) -> Iterator[Trigger]:
             (fact["subject_type"], fact["subject_id"], fact["field"], fact["id"], fact["valid_from"], fact["id"]),
         ).fetchone()
         name = subject_name(conn, fact["subject_type"], fact["subject_id"])
-        finding = rules.rating_finding(name, ref_url(conn, fact["subject_type"], fact["subject_id"]), fact, prior)
+        url = ref_url(conn, fact["subject_type"], fact["subject_id"])
+        try:
+            finding = rules.rating_finding(name, url, fact, prior)
+        except psycopg.Error:
+            raise
+        except Exception:
+            log.exception("alerts: rating fact %s could not be evaluated; retried next scan", fact["id"])
+            continue
         yield Trigger(
             key=f"fact:{fact['id']}", kind="fact", subject_type=fact["subject_type"], subject_id=fact["subject_id"],
             occurred_on=fact["valid_from"], findings=[finding] if finding else [], material=finding is not None,
@@ -196,7 +221,15 @@ def model_triggers(conn: Conn, start: date, today: date, models: tuple[str, ...]
             (model, start, today),
         ).fetchall()
         for subj in subjects:
-            yield from _subject_changes(conn, model, subj["subject_type"], subj["subject_id"], start, today)
+            try:
+                changes = list(_subject_changes(conn, model, subj["subject_type"], subj["subject_id"], start, today))
+            except psycopg.Error:
+                raise
+            except Exception:
+                log.exception("alerts: %s output of %s %s could not be evaluated; retried next scan", model,
+                              subj["subject_type"], subj["subject_id"])
+                continue
+            yield from changes
 
 
 def _subject_changes(conn: Conn, model: str, subject_type: str, subject_id: str, start: date,

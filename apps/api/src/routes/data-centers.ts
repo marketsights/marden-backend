@@ -8,6 +8,7 @@ import { asOfOf, queryOf } from '../lib/params.js';
 import { DC_ROWS, PLANT_ROWS } from '../lib/row-views.js';
 import { isoBoundaries } from '../queries/grid.js';
 import { dataCenterSummary, powerPlantSummary } from '../queries/row-summaries.js';
+import { rowDoc } from '../queries/rows.js';
 import { listRows, rowScope } from './row-list.js';
 import { CAMPUS, keyed, param, PLANT, serveDoc } from './serve.js';
 
@@ -54,7 +55,10 @@ export function powerPlantRoutes(app: FastifyInstance, db: Db): void {
   app.get('/api/power-plants/:id', async (req) => serveDoc(db, 'plant_detail', keyed(PLANT, param(req, 'id')), asOfOf(req)));
 
   // One table row (PowerPlantRow), loaded on a `plant` stream event (see /api/data-centers/:id/row).
-  app.get('/api/power-plants/:id/row', async (req) => serveDoc(db, PLANT_ROWS.view, keyed(PLANT, param(req, 'id')), asOfOf(req)));
+  app.get('/api/power-plants/:id/row', async (req) => {
+    const id = param(req, 'id');
+    return rowDoc(db, PLANT_ROWS, await serveDoc<object>(db, PLANT_ROWS.view, keyed(PLANT, id), asOfOf(req)), id, asOfOf(req));
+  });
 
   app.get('/api/power-plants/:id/debt', async (req) => serveDoc(db, 'plant_debt', keyed(PLANT, param(req, 'id')), asOfOf(req)));
 }

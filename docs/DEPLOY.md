@@ -84,7 +84,7 @@ Credentials live only in Railway variables (and Neon / R2 / Clerk dashboards), n
 | `STREAM_HEARTBEAT_MS` | `25000` | default | keep **below 30000**: Next's `/api` rewrite proxy drops a connection idle for 30 s |
 | `STREAM_RECHECK_MS` | `600000` | default | SSE session re-check (spec 23: at least every 10 min) |
 | `SHUTDOWN_TIMEOUT_MS` | `20000` | default | SIGTERM drain budget; must stay below `drainingSeconds` (30 s) |
-| `LOG_LEVEL` | `info` | default | JSON logs (pino); `authorization`, `cookie` and `svix-signature` headers are redacted |
+| `LOG_LEVEL` | `info` | default | JSON logs (pino). Headers are not logged (`authorization`, `cookie` and `svix-signature` are redacted should one be); in each logged request URL, secret query values (`token`, `key`, `secret`, `signature`, …: the unsubscribe link's `?token=`) are masked (`src/lib/log-redact.ts`) |
 | `MARDEN_STRESS_WAIT_MS` | `20000` | default | how long POST /api/stress/run waits for a custom run |
 | `MARDEN_UPLOAD_MAX_BYTES` | `52428800` (50 MiB) | default | largest staff document upload (`POST /api/documents`); larger answers 413. The web's `/api/*` rewrite passes request bodies whole only up to 50 MiB (`next.config.ts` `experimental.middlewareClientMaxBodySize`, checked against this default by `src/test/deploy-config.test.ts`): raise both together |
 | `ALERT_LINK_SECRET` | `${{worker.ALERT_LINK_SECRET}}` (the worker's value) | for alert email | verifies the one-click unsubscribe links the worker signs; without it (or under 32 characters) `/api/email/unsubscribe` answers 503 and changes nothing |
@@ -144,7 +144,7 @@ Without both Clerk keys every page renders "Sign-in is not configured" and `/hea
 - `https://api.marden.ai` is public for the Clerk webhook, uptime checks and `scripts/smoke.sh`. CORS there allows only `WEB_ORIGIN`; every data route needs a session. (Same-origin only is also possible: skip the API's public domain and point the Clerk webhook at `https://app.marden.ai/api/webhooks/clerk`, which the rewrite forwards byte for byte.)
 - Cookies: Marden sets none of its own. Clerk's production cookies on `marden.ai` are `Secure`; the session cookie is short-lived and refreshed by Clerk's middleware.
 - Headers: the API sends helmet's set (HSTS, `X-Content-Type-Options`, `default-src 'none'` CSP, `frame-ancestors 'none'`); the web sends HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and no `X-Powered-By`.
-- Rate limits: 600 requests per minute per signed-in user (per client address before sign-in), on every route including `/healthz`.
+- Rate limits: 600 requests per minute per signed-in user (per client address on the public routes: `/healthz`, the unsubscribe links, the Clerk webhook). A request the auth check refuses (401/403) is answered before the limiter and is not counted; that refusal is a signature check with no database work.
 - Request bodies through the web app: Next.js buffers each `/api/*` request body for the middleware and, past `experimental.middlewareClientMaxBodySize`, silently forwards only the first part (its default, 10 MB, turned a 12 MB upload into a 500 in the local proof). `next.config.ts` sets it to 50 MiB, the API's `MARDEN_UPLOAD_MAX_BYTES` default; a 12 MB body then reached the API byte for byte (same sha256).
 
 ## 6. Clerk production (shared marden.ai instance)
@@ -193,6 +193,8 @@ Install the Railway CLI on your machine (`npm i -g @railway/cli`, `railway login
    It checks `/healthz` (database reachable), that `/api/me`, `/api/sites` and `/api/stream` refuse requests without a session (dev auth off), CORS, security headers, that `/` redirects to sign-in, that `/api/*` through the web app reaches the API, and with a token that `/api/me` answers 200 and `/api/stream` opens an event stream. Exit 0 = all passed.
 10. Sign in as staff and grant the first fund its product (docs/access-control.md).
 
+Before every push to the deploy branch, run the gates the image builds rely on: in marden-front-end `pnpm lint && pnpm typecheck && pnpm test` (`next build` type-checks the whole app, test files included, so one type error fails the web deploy: this happened at web commit `7a93a61`); in apps/api `pnpm typecheck && pnpm test`; in services `uv run ruff check . && uv run pytest -q -m "not network"` and `uv lock --check` (the worker image installs with `uv sync --locked`, which fails the build on a stale lock).
+
 Later deploys: push to the branch. The api and worker migrate in their pre-deploy step (only when their watch patterns match), Railway waits for `/healthz`, then sends SIGTERM to the old deployment: the API stops accepting connections, closes SSE streams (clients reconnect to the new deploy and replay from `Last-Event-ID`) and finishes in-flight requests within 20 s; the worker stops fetching jobs and gives running ones 90 s. A job killed anyway (crash, SIGKILL) is requeued within 5 minutes by `queue.retry_stalled`. The web's Next server stops accepting connections and waits for open ones; an event stream proxied through an old web deploy stays open until the API ends it or Railway's `drainingSeconds` (30 s) passes, then the browser reconnects to the new deploy and replays from `Last-Event-ID`.
 
 ## 8. Operations
@@ -220,7 +222,7 @@ Restore an R2 dump into a fresh database (never over `app`), from inside the wor
    RESTORE_URL='<direct URL of restore_check>'          # paste; do not echo it
    pg_restore --no-owner --no-privileges --exit-on-error --jobs 2 --dbname "$RESTORE_URL" /tmp/restore.dump
    ```
-   (`fetch` refuses a key that does not look like a backup key and stops if the sha256 does not match the one recorded at backup time.)
+   (`fetch` refuses a key that does not look like a backup key and stops if the sha256 does not match the one `backup_run` recorded, for `latest` and for a named key alike. A key no ok run recorded, e.g. when the database itself is lost and the dump comes from R2 alone, is fetched and listed but printed as `NOT verified`.)
 3. Check it: `DATABASE_URL_UNPOOLED="$RESTORE_URL" marden-migrate status` shows `Pending: 0`; compare a few counts with production (`SELECT count(*) FROM fact`, `… FROM read_model`, `… FROM source_run`). Queue tables come back empty by design.
 4. Only in a real disaster: point `DATABASE_URL` / `DATABASE_URL_UNPOOLED` of api and worker at the restored database (Neon: rename databases or create a new branch from it), redeploy both, run `scripts/smoke.sh`.
 5. Otherwise drop `restore_check`. Do this whole drill monthly (spec 21, rule 9: "backups you've tested").
@@ -237,6 +239,21 @@ Restore an R2 dump into a fresh database (never over `app`), from inside the wor
 | `POSTMARK_TOKEN` or `RESEND_API_KEY`, `ALERT_FROM_EMAIL`, `ALERT_LINK_SECRET` (same value on the api), `MARDEN_APP_URL` | worker (+ api for the secret) | in-app alerts only; email rows end `not_configured` and Account > Alerts says email is not set up |
 | `FRED_API_KEY`, ERCOT API key/account (and FINRA once licensed) | worker | those collectors record a missing credential |
 | DNS CNAMEs for `app` and `api` | custom domains | use the `*.up.railway.app` domains meanwhile (set `WEB_ORIGIN` to the web's) |
+
+## What was proved locally, third pass (independent review, 2026-10-22 ~00:00–00:45 UTC, with Docker)
+
+The Docker daemon was installed but stopped; started by hand (`dockerd`) it built all three images. Throwaway values only, as before (local RS256 key, Clerk-format `pk_test_`/`sk_test_` strings for a non-existent `clerk.local.test`); `RENDER`/`RENDER_SERVICE_ID` set as the deploy markers this time. Logs in the reviewer's scratchpad (`advrev-deploy/`).
+
+| Check | Result |
+| --- | --- |
+| Images from backend `1074d84` / web `45c2116` plus this review's changes | all three build; users `node`, `marden` (uid 10001), `node`. The worker image installs with `uv sync --locked` (85 packages; `--frozen`, used before, installs a stale lock silently). The web image's standalone folder holds its own traced `node_modules` (the gap the second pass left) |
+| Web build gate | web `7a93a61` **failed** `next build` (type error in `src/components/gpus/gpu-format.ts`, `asOf` possibly undefined); fixed. A later build of the live working tree failed on another agent's unfinished edit: hence the pre-push gate in section 7 |
+| Migrate from empty | `scripts/migrate.sh` (Neon-style URL with `channel_binding=require`): 15/15 in 1.7 s, second run 0, `Pending: 0`, no password in the output; the image's `marden-migrate` the same; raw dbmate on that URL fails as expected; schema identical to the development database (66 tables/views, same columns, same 15 versions) |
+| API (`dist/server.js`, then the image) | `/healthz` 200 `db: ok` with helmet headers and `x-ratelimit-limit: 600`; dev auth exits 1 with `RENDER`, `RENDER_SERVICE_ID`, `RAILWAY_PROJECT_ID` or `NODE_ENV=production`; no Clerk keys / no `DATABASE_URL` exit 1; `/api/me` 200 with a token (bearer or `__session` cookie on GET), 401 for a wrong `azp` or none; a cookie-only POST is 401 (CSRF); CORS refuses a foreign origin. SIGTERM with an open stream and an idle socket: drained in under 2 s, exit 0 (`docker stop`: 690 ms). **Found and fixed**: the unsubscribe link's `?token=` was written to the request log; URLs are now logged with secret query values masked |
+| Worker (`python -m marden worker`, then the image) | 60 s on a scratch database: 70 schedules, all queues; the queued backup recorded `not_configured` naming the three R2 variables; 13 task kinds ran, none failed; agent jobs `not_configured` ("RENDER is set: no CLI fallback"); a collector whose fetches failed recorded the failure on its `source_run`; 135 JSON lines, no password; SIGTERM → "worker stopped" in 17 ms, exit 0. The image: same, `docker stop` 453 ms, exit 0 |
+| Web without Clerk keys (standalone build, then the image) | every page "Sign-in is not configured", `/healthz` 503, `/api/*` reaches the API |
+| Web with Clerk keys at runtime only (new) | `/healthz` 200 `auth: clerk`; `/sites` → 307 to `/sign-in`; `/sign-in` 200 for the key's Frontend API. **Found and fixed**: behind a proxy the sign-in return URL was `https://0.0.0.0:<port>/…` (the standalone server's own address); it is now the forwarded host (`redirect_url=https://app.marden.ai/sites`) |
+| Smoke test | `scripts/smoke.sh` against the API and the web, unconfigured and Clerk mode, built server and images: **21 passed, 0 failed** each time; the token never in the output |
 
 ## What was proved locally, second pass (2026-10-21 ~22:15 UTC, without Docker)
 

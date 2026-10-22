@@ -109,10 +109,14 @@ describe('read-model routes', () => {
     const res = await get(url);
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({ error: 'not_found', what: 'gpu_collateral' });
+    // The detail says so, so the page does not ask for collateral it does not have.
+    expect((await get(`/api/instruments/${INSTRUMENT}`)).json()).toMatchObject({ id: INSTRUMENT, hasCollateral: false });
     expect((await get(`${url}?asOf=2026-10-01`)).statusCode).toBe(503);
     const collateral = { instrumentId: INSTRUMENT, model: 'H100', units: sourced(1000, 'M'), ltvByQuarter: [] };
     await putReadModel(db, { view: 'gpu_collateral', key: INSTRUMENT, asOf: '2026-10-15' }, collateral);
     expect((await get(url)).json()).toEqual(collateral);
+    expect((await get(`/api/instruments/${INSTRUMENT}`)).json()).toMatchObject({ id: INSTRUMENT, hasCollateral: true });
+    expect((await get(`/api/instruments/${INSTRUMENT}?asOf=2026-10-14`)).statusCode).toBe(503);
     expect((await get('/api/instruments/NO-SUCH-INSTRUMENT/collateral')).statusCode).toBe(404);
   });
 

@@ -6,16 +6,17 @@
 | tenant | T1 rated BBB- or lower, or must post contested collateral | T2 BBB- or lower and power denied or |
 | | | withdrawn, or force majeure filed |
 | developer | D1 in-service date slips 3+ months | D2 construction halted |
-| lenders | L1 Marden price 95-98, or syndication stalled | L2 Marden price below 95 on credit alone, or |
-| | | default notice |
+| lenders | L1 Marden price 95-98 on credit alone, or | L2 Marden price below 95 on credit alone, or |
+| | syndication stalled | default notice |
 
 Chain status = worst link: any red -> Broken, any amber -> Strained, else Holding; 'No build' when a
 statement says construction has not started. A link without a named party is 'none' (lenders are judged
 whenever the site has debt). Each tripped rule keeps the statement that tripped it (the ChainLink `fact`);
-when several statements trip one rule, the filed one first, then the earliest. L2's price test is
-rate-neutral: a fixed-rate instrument trips it when its spread move since the reference day (issue, else
-the first Marden price) alone is worth 5+ points (`marden.models.status_credit`); a floating-rate loan
-when its Marden price is below 95. Text rules: `marden.models.status_text`; dates:
+when several statements trip one rule, the filed one first, then the earliest. The price tests of L1 and L2
+are rate-neutral: a fixed-rate instrument trips L2 when its spread move since the reference day (issue, else
+the first Marden price) alone is worth 5+ points and L1 when it is worth 2 up to 5 points
+(`marden.models.status_credit`); a floating-rate loan trips L2 when its Marden price is below 95 and L1 at
+95-98. Text rules: `marden.models.status_text`; dates:
 `marden.models.status_dates`; method: docs/methods/status-rules-v0.1.md.
 """
 
@@ -30,16 +31,17 @@ from typing import Any
 
 from marden.models import status_dates as dates
 from marden.models import status_text as tx
-from marden.models.status_credit import LOSS_RED_POINTS
+from marden.models.status_credit import LOSS_AMBER_POINTS, LOSS_RED_POINTS
 from marden.models.status_inputs import Inputs, Item, Party, Price, SiteInputs
 
-METHOD_VERSION = "status v0.2"
+METHOD_VERSION = "status v0.3"
 PRICE_RED_BELOW = 95.0
 PRICE_AMBER_AT_OR_BELOW = 98.0
-L1_PRICE = "Marden price 95-98"
+L1_PRICE = "Marden price 95-98"  # a floating-rate loan (or terms not on file)
+L1_SPREAD = "Marden spread loss of 2-5 points"  # a fixed coupon: the spread move alone (status_credit)
 L2_PRICE = "Marden price below 95"  # a floating-rate loan (or terms not on file)
 L2_SPREAD = "Marden spread loss of 5+ points"  # a fixed coupon: the spread move alone (status_credit)
-PRICE_FINDINGS = (f"L1 {L1_PRICE}", f"L2 {L2_PRICE}", f"L2 {L2_SPREAD}")  # as they open a link's reason
+PRICE_FINDINGS = (f"L1 {L1_PRICE}", f"L1 {L1_SPREAD}", f"L2 {L2_PRICE}", f"L2 {L2_SPREAD}")  # a link's reason
 SLIP_MONTHS = 3
 TAG_RANK = {"F": 0, "R": 1, "M": 2}
 SEVERITY = {"none": 0, "green": 1, "amber": 2, "red": 3}
@@ -268,11 +270,26 @@ def credit_shortfall(p: Price) -> float | None:
     return 100.0 - p.value
 
 
-def _l2_price(p: Price) -> Finding:
+def price_rule(p: Price) -> str | None:
+    """'L2' | 'L1' | None: the price rule one instrument trips. A fixed coupon by its spread-only loss (5+
+    points: L2; 2 up to 5: L1), a floating-rate loan (or a price without terms) by its price (below 95: L2;
+    95-98: L1). A fixed coupon without a rate-neutral reading trips neither."""
+    if p.coupon_type == "fixed":
+        if p.credit is None:
+            return None
+        loss = p.credit.loss
+        return "L2" if loss >= LOSS_RED_POINTS else "L1" if loss >= LOSS_AMBER_POINTS else None
+    return "L2" if p.value < PRICE_RED_BELOW else "L1" if p.value <= PRICE_AMBER_AT_OR_BELOW else None
+
+
+def _price_finding(code: str, p: Price) -> Finding:
+    """The L1 / L2 finding on one instrument's Marden price (fixed coupon: its spread-only loss)."""
+    status = "red" if code == "L2" else "amber"
     if p.credit is None:  # floating rate: the price is already a credit price
         kind = "floating rate" if p.coupon_type == "floating" else "coupon type n/d"
         text = f"Marden price {p.value:.1f} ({p.instrument_id}, {kind})"
-        return Finding("L2", "red", L2_PRICE, detail=text, fact=_price_fact(p, text))
+        label = L2_PRICE if code == "L2" else L1_PRICE
+        return Finding(code, status, label, detail=text, fact=_price_fact(p, text))
     c = p.credit
     text = (f"{p.instrument_id}: Marden spread {c.spread_bp:.0f} bp vs {c.ref.spread_bp:.0f} bp {c.ref.at}, "
             f"{c.loss:.1f} points on spread alone (spread duration {c.spread_duration:.1f}; rate-neutral price "
@@ -280,7 +297,7 @@ def _l2_price(p: Price) -> Finding:
     fact = _price_fact(p, f"Marden spread loss {c.loss:.1f} points ({p.instrument_id}: {c.spread_bp:.0f} bp vs "
                           f"{c.ref.spread_bp:.0f} bp {c.ref.at})",
                        f"{METHOD_VERSION} on {p.method_version or 'price'}")
-    return Finding("L2", "red", L2_SPREAD, detail=text, fact=fact)
+    return Finding(code, status, L2_SPREAD if code == "L2" else L1_SPREAD, detail=text, fact=fact)
 
 
 def lenders(site: SiteInputs, missing: list[str]) -> list[Finding]:
@@ -294,15 +311,15 @@ def lenders(site: SiteInputs, missing: list[str]) -> list[Finding]:
     if site.prices:
         for p in site.prices:
             if p.coupon_type == "fixed" and p.credit is None:
-                missing.append(f"lenders: {p.credit_missing or p.instrument_id} (rate-neutral L2 test)")
-        red = [(loss, p) for p in site.prices if (loss := credit_shortfall(p)) is not None
-               and (loss >= LOSS_RED_POINTS if p.credit is not None else p.value < PRICE_RED_BELOW)]
-        worst = min(site.prices, key=lambda p: p.value)
-        if red:
-            found.append(_l2_price(max(red, key=lambda r: (r[0], r[1].instrument_id))[1]))
-        elif PRICE_RED_BELOW <= worst.value <= PRICE_AMBER_AT_OR_BELOW:
-            text = f"Marden price {worst.value:.1f} ({worst.instrument_id})"
-            found.append(Finding("L1", "amber", L1_PRICE, detail=text, fact=_price_fact(worst, text)))
+                missing.append(f"lenders: {p.credit_missing or p.instrument_id} (rate-neutral L1 / L2 test)")
+        tripped: dict[str, list[tuple[float, str, Price]]] = defaultdict(list)
+        for p in site.prices:
+            if (code := price_rule(p)) is not None:
+                tripped[code].append((credit_shortfall(p) or 0.0, p.instrument_id, p))
+        for code in ("L2", "L1"):  # the worst rule; within it the largest loss on credit alone
+            if tripped[code]:
+                found.append(_price_finding(code, max(tripped[code], key=lambda r: r[:2])[2]))
+                break
     else:
         missing.append("lenders: Marden price (price model output)")
     stalled = _pick(_scan(debt_items, tx.syndication_stalled, site=site, fields=DEBT_FIELDS))

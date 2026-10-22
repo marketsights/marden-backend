@@ -35,6 +35,11 @@ export interface RowViewDef {
   sorts: Readonly<Record<string, string>>;
   defaultSort: string; // '-lastChange' = descending
   pageSize: number;
+  /**
+   * A second read model per key joined onto each served row (its latest doc as of the same date, or
+   * null when not built): plant rows carry their plant_debt roll-up (spec 20 table columns).
+   */
+  companion?: { view: string; merge: (doc: never, companion: never | null) => unknown };
 }
 
 // ---- jsonb expression helpers (alias r = one latest read_model row) ----

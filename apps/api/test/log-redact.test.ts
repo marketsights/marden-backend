@@ -27,7 +27,7 @@ describe('the API logger', () => {
     const lines: string[] = [];
     const stream = new Writable({ write(chunk, _enc, done) { lines.push(String(chunk)); done(); } });
     const app = Fastify({ logger: { ...loggerOptions('info'), stream } });
-    app.get('/api/email/unsubscribe', async () => ({ ok: true }));
+    app.get('/api/email/unsubscribe', (_req, reply) => reply.send({ ok: true }));
     try {
       const res = await app.inject({
         method: 'GET',

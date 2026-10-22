@@ -41,7 +41,8 @@ RULE_CODES: dict[str, tuple[str, str | None, str]] = {
     "T2": ("Tenant: BBB- or lower and power denied or withdrawn, or force majeure filed", "tenant", "red"),
     "D1": ("Developer: in-service date slips 3+ months", "milestone", "amber"),
     "D2": ("Developer: construction halted", "construction_stall", "red"),
-    "L1": ("Lenders: Marden price 95-98, or syndication stalled", "price_or_mark", "amber"),
+    "L1": ("Lenders: Marden price 95-98 on credit alone (fixed rate: the spread move since issue is worth 2 "
+           "up to 5 points; floating rate: the price), or syndication stalled", "price_or_mark", "amber"),
     "L2": ("Lenders: Marden price below 95 on credit alone (fixed rate: the spread move since issue is worth "
            "5+ points; floating rate: the price), or default notice", "price_or_mark", "red"),
 }

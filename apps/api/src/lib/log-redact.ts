@@ -33,13 +33,15 @@ export function redactUrl(url: string): string {
   return `${url.slice(0, q)}?${masked}${hash === -1 ? '' : url.slice(hash)}`;
 }
 
-export interface LoggedRequest {
+// A type alias, not an interface: Fastify's serializer type has an index signature, which an interface
+// does not satisfy.
+export type LoggedRequest = {
   method: string;
   url: string;
   host: string | undefined;
   remoteAddress: string | undefined;
   remotePort: number | undefined;
-}
+};
 
 /** Fastify's default request serializer, with the URL redacted. */
 export function serializeRequest(req: FastifyRequest): LoggedRequest {

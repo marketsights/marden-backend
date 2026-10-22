@@ -79,6 +79,7 @@ def _install_payer_deps() -> None:
     depends("site", "@model:status", "obligation_company", _SITE_PAYERS)
     depends("site", "@model:status", "obligations", singleton)
     depends("site", "@model:status", "payer", _PAID_BY_SITE_PARTIES)
+    depends("site", "tenant_rating", "payer", _RATED_PARTY_PAYEES)  # paidBy facts: the party's rating statement
     # Model outputs for subject 'all' (the leases model) may sit on subject_type 'series'.
     depends("series", "@model:leases", "leases", singleton)
 
@@ -91,6 +92,15 @@ _PAID_BY_SITE_PARTIES = via(
         WHERE b.site_slug = %(id)s AND b.role = 'end_user' AND t.entity_id IS NOT NULL
        UNION SELECT o.to_entity_id FROM chain_party cp JOIN obligation o ON o.from_entity_id = cp.entity_id
         WHERE cp.site_slug = %(id)s"""
+)
+# paidBy lists each party's latest rating statement, a `tenant_rating` on a site where it is tenant: a new
+# one reaches the payers that party pays (tenants of the sites it is end user of, payees of its edges).
+_RATED_PARTY_PAYEES = via(
+    """SELECT t.entity_id FROM chain_party r JOIN chain_party eu ON eu.entity_id = r.entity_id AND eu.role = 'end_user'
+          JOIN chain_party t ON t.site_slug = eu.site_slug AND t.role = 'tenant'
+        WHERE r.site_slug = %(id)s AND r.role = 'tenant' AND t.entity_id IS NOT NULL AND t.entity_id <> r.entity_id
+       UNION SELECT o.to_entity_id FROM chain_party r JOIN obligation o ON o.from_entity_id = r.entity_id
+        WHERE r.site_slug = %(id)s AND r.role = 'tenant'"""
 )
 
 _install_payer_deps()

@@ -5,7 +5,9 @@
 
 A result says whether the provider accepted the message (with its message id) and, when it did not, whether
 a retry can help (network errors, 429, 5xx) or not (4xx: a bad address, an unverified sender). Errors carry
-the HTTP status and the provider's own message; keys are sent only in headers and never logged.
+the HTTP status and the provider's own message; keys are sent only in headers, never logged, and scrubbed
+from any error text (an HTTP library refusing a malformed header quotes its value; a provider may echo it),
+because last_error is shown to the member on Account > Alerts.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ RESEND_URL = "https://api.resend.com/emails"
 POSTMARK_URL = "https://api.postmarkapp.com/email"
 POSTMARK_STREAM = "outbound"
 MAX_ERROR = 300
+REDACTED = "[redacted]"
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,14 @@ class Provider(Protocol):
     def send(self, message: Message, idempotency_key: str) -> SendResult: ...
 
 
+def redact(text: str, secret: str | None) -> str:
+    """The text with the secret (and its repr-escaped form) replaced, then clipped."""
+    if secret:
+        for form in {secret, secret.encode("unicode_escape").decode("ascii")}:
+            text = text.replace(form, REDACTED)
+    return text[:MAX_ERROR]
+
+
 def _error_text(resp: httpx.Response) -> str:
     try:
         body: Any = resp.json()
@@ -57,17 +68,17 @@ def _error_text(resp: httpx.Response) -> str:
         body = resp.text
     if isinstance(body, dict):
         body = body.get("message") or body.get("Message") or body.get("name") or body
-    return f"HTTP {resp.status_code}: {str(body)[:MAX_ERROR]}"
-
-
-def _failure(resp: httpx.Response) -> SendResult:
-    retryable = resp.status_code == 429 or resp.status_code >= 500
-    return SendResult(ok=False, retryable=retryable, error=_error_text(resp))
+    return f"HTTP {resp.status_code}: {str(body)[: MAX_ERROR * 4]}"
 
 
 class _Http:
-    def __init__(self, client: httpx.Client | None) -> None:
+    def __init__(self, client: httpx.Client | None, secret: str) -> None:
         self._client = client
+        self._secret = secret
+
+    def failure(self, resp: httpx.Response) -> SendResult:
+        retryable = resp.status_code == 429 or resp.status_code >= 500
+        return SendResult(ok=False, retryable=retryable, error=redact(_error_text(resp), self._secret))
 
     def post(self, url: str, *, headers: dict[str, str], body: dict[str, Any]) -> httpx.Response | SendResult:
         try:
@@ -76,14 +87,15 @@ class _Http:
             with httpx.Client(timeout=TIMEOUT) as client:
                 return client.post(url, headers=headers, json=body)
         except httpx.HTTPError as exc:  # network: worth a retry
-            return SendResult(ok=False, retryable=True, error=f"{type(exc).__name__}: {str(exc)[:MAX_ERROR]}")
+            return SendResult(ok=False, retryable=True,
+                              error=redact(f"{type(exc).__name__}: {str(exc)[: MAX_ERROR * 4]}", self._secret))
 
 
 class ResendProvider(_Http):
     name = "resend"
 
     def __init__(self, api_key: str, client: httpx.Client | None = None) -> None:
-        super().__init__(client)
+        super().__init__(client, api_key)
         self._key = api_key
 
     def send(self, message: Message, idempotency_key: str) -> SendResult:
@@ -99,14 +111,14 @@ class ResendProvider(_Http):
         if resp.status_code in (200, 201):
             data = resp.json()
             return SendResult(ok=True, message_id=str(data.get("id")) if data.get("id") else None)
-        return _failure(resp)
+        return self.failure(resp)
 
 
 class PostmarkProvider(_Http):
     name = "postmark"
 
     def __init__(self, token: str, client: httpx.Client | None = None) -> None:
-        super().__init__(client)
+        super().__init__(client, token)
         self._token = token
 
     def send(self, message: Message, idempotency_key: str) -> SendResult:
@@ -124,7 +136,7 @@ class PostmarkProvider(_Http):
             data = resp.json()
             if int(data.get("ErrorCode") or 0) == 0:
                 return SendResult(ok=True, message_id=str(data.get("MessageID")) if data.get("MessageID") else None)
-        return _failure(resp)
+        return self.failure(resp)
 
 
 def make_provider(cfg: EmailConfig, client: httpx.Client | None = None) -> Provider | None:

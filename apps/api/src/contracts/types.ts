@@ -146,9 +146,19 @@ export interface Payer {
   slug: string; name: string; role: 'tenant' | 'end_user';
   kpis: { siteDebtB: Sourced<number>; gwLeased: Sourced<string>; rating: Sourced<string>; cds5y: Sourced<string>; notesB: Sourced<number>; noteHolders: Sourced<number> };
   sites: { slug: string; name: string; gw: string; rentStartP50: string | null; outsideDate: Sourced<string>; cushionMonths: number | null; debtB: number; status: ChainStatus }[];
-  paidBy: { name: string; status: ChainStatus; note: Sourced<string> }[];
+  paidBy: PayerAbove[];
   credit: Record<string, Sourced<string>>;
   stressSummary?: { scenario: string; siteDebtLossB: number; notesLossB: number };
+}
+/** Who pays the payer: a party one link up (an end user of its sites, or the payer of a lease or compute contract it is owed). */
+export interface PayerAbove {
+  name: string; slug: string | null;           // slug: its own payer page; null when it is not a payer
+  status: ChainStatus;                         // its worst link in the status model's outputs
+  ruleCode: string | null; rule: string | null; // the status rule that link tripped ('E1', "End user's plan needs new funding"); null while Holding
+  note: Sourced<string>;                       // the statement that tripped it (else its first funding statement)
+  endUserOn: string[];                         // slugs of the payer's sites where it is the end user
+  owes: string[];                              // what it owes the payer on the obligation map: 'Lease' | 'Compute contract'
+  facts: { label: string; fact: Sourced<string>; tripped: boolean }[]; // funding, commitments, rating; newest first
 }
 
 // POST /api/stress/run

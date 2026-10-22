@@ -96,7 +96,7 @@ P = Σ CF·S·D + Σ R·N·(S(t−1) − S(t))·D, with D = Treasury × e^(−(l
 
 **Calibration.** The liquidity premium lp is solved so the model reprices the issue price on the issue date, with that day's curve and SOFR, then held.
 - The issue price is the comp's, else 100.
-- The issue comp is linked by site, type, coupon or margin, maturity year, DDTL number and phase number (score ≥ 7, unique).
+- The issue comp is linked by site, type, coupon or margin, maturity year, DDTL number and phase number (score ≥ 7, unique). A comp that names another site, or states another coupon than the instrument's sourced one (another fixed rate, or fixed against floating), is never a candidate, and a comp goes to one instrument at most (the best score; a tie links neither). Before 2026-10-22 coupon and maturity year alone linked CoreWeave's 9.25% 2030 and 9.00% 2031 notes and xAI's VCI AH3 loan to other deals' comps (`docs/models.md` review findings).
 - If the tenant's curve starts after the issue date, its first value is used and the basis says so.
 - Without a comp, lp is solved on the first usable observation.
 - With neither, the price is read off the tier curve, with a band of ±1.28 × the leave-one-out RMSE.

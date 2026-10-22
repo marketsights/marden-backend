@@ -255,9 +255,35 @@ def _digits(text: str) -> str:
     return re.sub(r"[^0-9]", "", text)
 
 
+def _sourced(inst: Instrument, fld: str) -> float | None:
+    """A numeric term the instrument has from a filed or reported source (tag F or R), not a legacy M value."""
+    r = inst.facts.get(fld)
+    return _num(r["value"]) if r is not None and str(r["tag"]).strip() in ("F", "R") else None
+
+
+def contradicts(inst: Instrument, c: dict[str, Any]) -> str | None:
+    """Why the comp cannot be this instrument, or None: it finances another site, or it states another
+    coupon than the instrument's sourced one (another fixed rate, or a floating rate for a fixed coupon and
+    the other way round). Coupon and maturity year alone match other deals: CoreWeave's 9.25% notes due
+    2030 are not Applied Digital's 9.25% notes due 2030."""
+    if c["site_slug"] and c["site_slug"] != inst.site_slug:
+        return f"finances site {c['site_slug']}"
+    rate, margin = _sourced(inst, "coupon_rate_pct"), _sourced(inst, "coupon_spread_bp")
+    comp_float = c["benchmark"] == "SOFR" or _FLOAT.search(c["rate"] or "") is not None
+    if rate is not None and margin is None:
+        if c["coupon_pct"] is not None and abs(rate - c["coupon_pct"]) >= 0.01:
+            return f"coupon {c['coupon_pct']:g}%, not {rate:g}%"
+        if c["coupon_pct"] is None and comp_float:
+            return f"floating rate, not a {rate:g}% fixed coupon"
+    if margin is not None and rate is None and c["coupon_pct"] is not None and not comp_float:
+        return f"fixed {c['coupon_pct']:g}% coupon, not a floating margin"
+    return None
+
+
 def link_comp(inst: Instrument, comps: Sequence[dict[str, Any]]) -> tuple[dict[str, Any] | None, int]:
     """The issue comp that is this instrument (best score >= LINK_MIN and unique): site +3, deal type +2,
-    coupon or margin +3, maturity year +2, DDTL number +4, phase number +3."""
+    coupon or margin +3, maturity year +2, DDTL number +4, phase number +3. A comp that `contradicts` the
+    instrument (another site or another coupon) is never a candidate."""
     rate = _num(inst.value("coupon_rate_pct"))
     margin = _num(inst.value("coupon_spread_bp"))
     mat, _ = parse_maturity(inst.value("maturity"))
@@ -266,6 +292,8 @@ def link_comp(inst: Instrument, comps: Sequence[dict[str, Any]]) -> tuple[dict[s
     phase = m_phase.group(1) if m_phase else None
     scored = []
     for c in comps:
+        if contradicts(inst, c):
+            continue
         s = 0
         if inst.site_slug and c["site_slug"] == inst.site_slug:
             s += 3
@@ -295,8 +323,18 @@ def link_comp(inst: Instrument, comps: Sequence[dict[str, Any]]) -> tuple[dict[s
 
 
 def attach(instruments: dict[str, Instrument], comps: Sequence[dict[str, Any]]) -> None:
+    """Link each instrument to its issue comp and build its terms. A comp is one deal, so it goes to one
+    instrument at most: the best-scoring one (a tie links neither)."""
+    links = {iid: link_comp(inst, comps) for iid, inst in instruments.items()}
+    claims: dict[str, list[tuple[int, str]]] = {}
+    for iid, (comp, score) in links.items():
+        if comp is not None:
+            claims.setdefault(comp["id"], []).append((score, iid))
     for inst in instruments.values():
-        inst.comp, score = link_comp(inst, comps)
-        if inst.comp is not None:
-            inst.comp = {**inst.comp, "linkScore": score}
+        comp, score = links[inst.id]
+        if comp is not None:
+            rivals = sorted(claims[comp["id"]], reverse=True)
+            if rivals[0][1] != inst.id or (len(rivals) > 1 and rivals[1][0] == rivals[0][0]):
+                comp = None
+        inst.comp = {**comp, "linkScore": score} if comp is not None else None
         inst.terms, inst.terms_missing = build_terms(inst)

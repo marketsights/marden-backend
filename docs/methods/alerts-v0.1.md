@@ -13,7 +13,7 @@ the computed numbers and the fact references. No language model writes alert or 
 
 | Trigger | Before / after | Rerun guard |
 | --- | --- | --- |
-| A published event (not a scheduled `catalyst`) dated in the window, or a late one (below) | the event text (`is_material`) | `alert_trigger` row `event:<id>` |
+| A published event (not a scheduled `catalyst`) dated in the window, a late one or one dated ahead (below) | the event text (`is_material`) | `alert_trigger` row `event:<id>` |
 | A published `rating` / `rating_summary` fact (same window and late rule) | the subject's previous rating fact | `alert_trigger` row `fact:<id>` |
 | A model output: `status`, `cushion`, `price`, `mark_gap` | the last output the engine evaluated for that subject (`alert_state`); a subject seen for the first time starts from its newest output dated before the window (a baseline, not news) | `alert_state` hash; findings also write `alert_trigger` `model:<model>:<type>:<id>:<as_of>:<hash>` |
 
@@ -27,6 +27,16 @@ counts): an 8-K filed four business days after the event, a candidate approved i
 extraction. It is alerted live (timed when it fires, so it is in that day's digest) and dated on its own day.
 Rows Marden learned before the engine first ran are history; before any evaluation exists, nothing older than
 the 3-day window is evaluated. Anything dated more than 14 days back is not alerted.
+
+Dated ahead: an event dated after today (a hearing or vote announced for next month, a termination effective
+next quarter) is evaluated as soon as Marden learns it after the engine's first evaluation, not when its day
+arrives; its alert carries the event's own date (`occurred_on`) and is not evaluated again on that day.
+
+A trigger that fails (a rule meeting a value it cannot read, a stream payload refused) is logged with its key
+and left unevaluated: its transaction is rolled back, the next scan retries it, and the triggers behind it go
+on (`errors` in the scan summary). A failed change of a model output holds back that subject's later changes
+for the scan, so they are evaluated in order on the retry. The engine's model state never moves back to an
+older output.
 
 ## Rules (codes)
 
@@ -60,7 +70,8 @@ The body ends with the watched names the alert reached them through.
 One alert row per (org, user, matter): `alert` is unique on `(org_id, user_id, dedupe_key)`; the key is the
 trigger key plus the link role or price threshold. A material event repeating a matter already alerted to
 that user (same subject and rule within 7 days, e.g. five articles on one force majeure notice) is added to
-that alert's sources instead of becoming a new alert. Each new alert emits a stream event `{type: 'alert',
+that alert's sources instead of becoming a new alert, unless it is more severe than every earlier alert of the
+matter (an ungraded opposition article, then the county's vote): then it is an alert of its own. Each new alert emits a stream event `{type: 'alert',
 alert: Alert}` scoped to that org and user; the web's `alertsPatch` puts it on top of the list in place.
 
 ## Email
@@ -77,7 +88,10 @@ chosen by environment: `POSTMARK_TOKEN` (Postmark, server API) or `RESEND_API_KE
 `ALERT_EMAIL_PROVIDER` deciding when both exist, plus `ALERT_FROM_EMAIL`, `ALERT_LINK_SECRET` and
 `MARDEN_APP_URL`. Anything missing: the row becomes `not_configured` with the missing variable names (never a
 value) and `email_provider_state` records it, so Account > Alerts says email is not set up. Network errors, 429
-and 5xx retry after 1, 2, 4, 8 and 16 minutes, then `failed`; other 4xx fail at once. Resend dedupes on the
+and 5xx retry after 1, 2, 4, 8 and 16 minutes, then `failed`; other 4xx fail at once. A row that raises while it
+is rendered or sent is retried on the same schedule (its error type in `last_error`, the trace in the worker
+log) and never holds up the rows behind it. The provider key is scrubbed from any error text before it is
+stored (`last_error` is shown to the member): an HTTP library refusing a malformed header quotes its value. Resend dedupes on the
 `Idempotency-Key` header; a worker dying mid-send can repeat a Postmark email (at least once). A sent email
 marks its alerts `emailed_at` and re-sends them on the stream with `emailed: true`.
 
@@ -104,8 +118,8 @@ are shown to staff only.
 ## Backfill
 
 `python -m marden alerts scan --since-days 30 --dry-run` evaluates the window and writes alerts only: dated
-on the day the change happened, `backfill = true`, landed read (history, not news for the badge), no stream
-event, never emailed. The triggers it evaluated are not evaluated again by the live scan.
+on the day the change happened (an event dated ahead: on the scan's day, never in the future), `backfill = true`,
+landed read (history, not news for the badge), no stream event, never emailed. The triggers it evaluated are not evaluated again by the live scan.
 
 Run on the local database, 2026-10-21 (window 2026-09-21 to 2026-10-21; one firm, `dev`, watching 4 sites
 and 2 instruments): 3,051 triggers (1,201 events, 415 rating facts, 1,435 model-output changes), 528 material.

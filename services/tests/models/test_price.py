@@ -122,6 +122,76 @@ def test_tier_rules_and_nelson_siegel_loading():
     assert ns(1e-9) == pytest.approx(1.0) and ns(30.0) < 0.11
 
 
+def _comp(cid: str, **kw: object) -> dict:
+    base = {"id": cid, "issue_date": date(2025, 11, 20), "issue_spread_bp": None, "issue_spread_tag": "F",
+            "tier": None, "type_code": "dc_project_bond", "site_slug": None, "rate": "", "coupon_pct": None,
+            "maturity": None, "tenor_years": None, "benchmark": "UST", "rating": None, "contract": None,
+            "name": cid, "issue_price": None, "spread_method": None, "tenant": None, "source_name": "test",
+            "source_url": None}
+    return {**base, **kw}
+
+
+def _inst(iid: str, name: str, kind: str, site: str | None, maturity: str, rate: float | None = None,
+          margin: float | None = None, tag: str = "F"):
+    from marden.models.price_terms import Instrument
+
+    facts = {"maturity": {"value": maturity, "tag": "F"}}
+    if rate is not None:
+        facts |= {"coupon_rate_pct": {"value": rate, "tag": tag}, "coupon_type": {"value": "fixed", "tag": tag}}
+    if margin is not None:
+        facts |= {"coupon_spread_bp": {"value": margin, "tag": tag}, "coupon_type": {"value": "floating", "tag": tag}}
+    return Instrument(iid, name, kind, None, "", site, facts)
+
+
+def test_an_issue_comp_links_only_the_deal_it_describes():
+    """Coupon, deal type and maturity year alone are not identity: CoreWeave's 9.25% notes due 2030 once took
+    Applied Digital's 9.25% 2030 comp (issued 2025-11-20 at 97), and its 9.00% 2031 notes the floating DDTL
+    2.1 comp ('... 9% effective'), so their basis carried another deal's issue date and price."""
+    from marden.models.price_terms import attach, contradicts
+
+    apld_comp = _comp("issue_comp:APLD_COMPUTECO_2030", site_slug="polaris-forge-1", coupon_pct=9.25,
+                      rate="9.25% fixed; issued at 97.0", maturity="2030-12", issue_price=97.0, issue_spread_bp=634.0)
+    ddtl_comp = _comp("issue_comp:CRWV_DDTL21", type_code="gpu_loan", benchmark="SOFR", maturity="2031-03",
+                      rate="Term SOFR + 4.25% (base + 3.25%); 1.50% upfront fee per draw; 9% effective",
+                      issue_date=date(2025, 9, 29), issue_spread_bp=425.0)
+    apld = _inst("EX-APLD-010", "9.25% Sr Secured Notes 2030", "bond", "polaris-forge-1", "2030-12", 9.25)
+    crwv_2030 = _inst("EX-CRWV-101", "9.25% Sr Notes 2030", "bond", None, "2030-06", 9.25)
+    crwv_2031 = _inst("EX-CRWV-102", "9.00% Sr Notes 2031", "bond", None, "2031-02", 9.0)
+    ddtl = _inst("EX-CRWV-093", "DDTL 2.1", "ddtl", None, "2031-03", margin=425.0)
+    insts = {i.id: i for i in (apld, crwv_2030, crwv_2031, ddtl)}
+    assert contradicts(crwv_2030, apld_comp) == "finances site polaris-forge-1"
+    assert contradicts(crwv_2031, ddtl_comp) == "floating rate, not a 9% fixed coupon"
+    attach(insts, [apld_comp, ddtl_comp])
+    assert apld.comp is not None and apld.comp["id"] == apld_comp["id"]
+    assert (apld.issue_date, apld.issue_price) == (date(2025, 11, 20), 97.0)
+    assert ddtl.comp is not None and ddtl.comp["id"] == ddtl_comp["id"]
+    assert crwv_2030.comp is None and crwv_2030.issue_date is None and crwv_2030.terms is not None
+    assert crwv_2031.comp is None and crwv_2031.issue_date is None
+
+
+def test_an_issue_comp_goes_to_one_instrument_at_most():
+    """xAI's VCI AH2 comp (7.375% due 2031-02) also fit VCI AH3 (6.875% due 2031-04) on site, deal type and
+    maturity year. A sourced 6.875% coupon contradicts it; without one, the better-scored AH2 loan keeps it."""
+    from marden.models.price_terms import attach
+
+    comp = _comp("issue_comp:XAI_VCI_AH2_NOTES", type_code="gpu_loan", site_slug="colossus-2", coupon_pct=7.375,
+                 rate="7.375% fixed", maturity="2031-02", issue_date=date(2026, 2, 18), issue_spread_bp=372.0)
+    ah2 = _inst("EX-XAI_VCI-389", "VCI AH2 1L Term Loan", "term_loan", "colossus-2", "2031-02", 7.375)
+    ah3 = _inst("EX-XAI_VCI-390", "VCI AH3 1L Term Loan", "term_loan", "colossus-2", "2031-04", 6.875)
+    attach({i.id: i for i in (ah2, ah3)}, [comp])
+    assert ah2.comp is not None and ah3.comp is None
+    legacy = _inst("EX-XAI_VCI-390", "VCI AH3 1L Term Loan", "term_loan", "colossus-2", "2031-04", 6.875, tag="M")
+    attach({i.id: i for i in (ah2, legacy)}, [comp])  # scores 7 on its own: site, deal type, maturity year
+    assert ah2.comp is not None and ah2.comp["linkScore"] == 10 and legacy.comp is None
+    alone = _inst("EX-XAI_VCI-390", "VCI AH3 1L Term Loan", "term_loan", "colossus-2", "2031-04", 6.875, tag="M")
+    attach({alone.id: alone}, [comp])
+    assert alone.comp is not None  # with no rival it still links (the legacy coupon is not evidence)
+    twin = _inst("EX-XAI_VCI-391", "VCI AH3 1L Term Loan B", "term_loan", "colossus-2", "2031-04", 6.875, tag="M")
+    alone2 = _inst("EX-XAI_VCI-390", "VCI AH3 1L Term Loan", "term_loan", "colossus-2", "2031-04", 6.875, tag="M")
+    attach({i.id: i for i in (alone2, twin)}, [comp])
+    assert alone2.comp is None and twin.comp is None  # a tie links neither
+
+
 # ---------------------------------------------------------------- real rows
 @pytest.fixture
 def crwv_rows():

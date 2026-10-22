@@ -12,21 +12,19 @@ totals are sums of those rows (spec 08 acceptance), so site debt and GW always m
 - notesB / noteHolders: its own bonds and converts (issuer = the entity or its subsidiaries), sizes
   summed; funds holding them from N-PORT / BDC filings.
 - cds5y: the payer_capacity model's `cds5y` (bond-implied CDS from the price engine); n/d until it runs.
-- paidBy: the next link up: the end users of the sites it is tenant of, and payers of the leases and
-  compute contracts it is owed; each with its own worst link in the status model's outputs (a party
-  with no judged link has no status and is not listed) and the statement behind it.
+- paidBy: the next link up (payers_paid_by.py): the end users of the sites it is tenant of, and payers of
+  the leases and compute contracts it is owed; each with its own worst link in the status model's outputs
+  (a party with no judged link has no status and is not listed), the rule and statement behind it, and
+  its dated funding, commitment and rating statements.
 - credit: funding statements (`funding_fact`) and the statements behind its amber or red links.
 - stressSummary: the `stress` model's payer summary, omitted until that model runs.
 """
 
 from __future__ import annotations
 
-import re
-
 from marden.core.db import Conn, Row
 from marden.readmodels.registry import builder
 from marden.readmodels.views.payers_common import (
-    LEASE_TYPES,
     OWED_TYPES,
     Doc,
     billions_of,
@@ -36,7 +34,6 @@ from marden.readmodels.views.payers_common import (
     edge_sites,
     entity_row,
     latest_output,
-    link_status,
     model_field,
     nd,
     num,
@@ -49,11 +46,11 @@ from marden.readmodels.views.payers_common import (
     with_value,
 )
 from marden.readmodels.views.payers_debt import holder_funds
+from marden.readmodels.views.payers_paid_by import funding_rows, funding_text, paid_by, rating_statement, rule_label
 from marden.readmodels.views.sites import projection_of, site_summary
-from marden.readmodels.views.sites_common import TAG_RANK, gw_text, is_us, known_fact_rows, known_facts, site_rows
+from marden.readmodels.views.sites_common import gw_text, is_us, known_facts, site_rows
 
 NOTE_KINDS = ("bond", "convert")
-_RULE_CODE = re.compile(r"^[A-Z]\d+\s+")
 
 
 # ---------------------------------------------------------------- sites
@@ -130,25 +127,6 @@ def gw_leased(conn: Conn, slugs: list[str]) -> Doc:
     return total
 
 
-def rating_statement(conn: Conn, entity_id: str) -> Doc:
-    """The latest rating statement about the payer: `tenant_rating` on the sites it is tenant of (newest,
-    filed before reported), else the entity's `rating_summary`."""
-    rows = []
-    for party in chain_roles(conn, entity_id):
-        if party["role"] != "tenant":
-            continue
-        row = known_facts(conn, "site", party["site_slug"], ["tenant_rating"]).get("tenant_rating")
-        if row is not None and isinstance(row["value"], str) and row["value"].strip():
-            rows.append(row)
-    if rows:
-        best = max(rows, key=lambda r: (r["valid_from"], -TAG_RANK.get(r["tag"].strip(), 2)))
-        return with_value(best, best["value"])
-    row = known_facts(conn, "entity", entity_id, ["rating_summary"]).get("rating_summary")
-    if row is not None and isinstance(row["value"], dict) and isinstance(row["value"].get("rating"), str):
-        return with_value(row, row["value"]["rating"])
-    return nd("R")
-
-
 def own_notes(conn: Conn, entity_id: str) -> list[Row]:
     return conn.execute(
         """SELECT i.id FROM instrument i JOIN entity e ON e.id = i.issuer_entity_id
@@ -182,54 +160,15 @@ def cds_text(out: Row | None) -> Doc:
 
 
 # ---------------------------------------------------------------- rail
-def funding_note(conn: Conn, entity_id: str) -> Doc | None:
-    rows = known_fact_rows(conn, "entity", entity_id, ["funding_fact"])["funding_fact"]
-    for row in rows:
-        v = row["value"] if isinstance(row["value"], dict) else {}
-        if v.get("label") and v.get("value"):
-            note = f" ({v['note']})" if v.get("note") else ""
-            return with_value(row, f"{v['label']}: {v['value']}{note}")
-    return None
-
-
-def paid_by(conn: Conn, entity_id: str) -> list[Doc]:
-    candidates: dict[str, tuple[str, tuple[str, ...] | None]] = {}
-    for party in chain_roles(conn, entity_id):
-        if party["role"] != "tenant":
-            continue
-        row = conn.execute(
-            "SELECT entity_id FROM chain_party WHERE site_slug = %s AND role = 'end_user' AND entity_id IS NOT NULL",
-            (party["site_slug"],),
-        ).fetchone()
-        if row and row["entity_id"] != entity_id:
-            candidates[row["entity_id"]] = ("end_user", ("end_user",))
-    for ob in obligation_rows(conn, entity_id):
-        if ob["to_entity_id"] == entity_id and ob["type"] in LEASE_TYPES and ob["from_entity_id"] not in candidates:
-            facts, rows = edge_inputs(conn, ob)
-            if edge_known(facts, rows):
-                candidates[ob["from_entity_id"]] = ("obligation", None)
-    out = []
-    for cid, (_, roles) in sorted(candidates.items()):
-        entity = entity_row(conn, cid)
-        status, fact = link_status(conn, cid, roles)
-        if entity is None or status is None:
-            continue
-        note = fact or funding_note(conn, cid) or nd("R")
-        out.append({"name": entity["name"], "status": status, "note": note})
-    return out
-
-
 def credit_facts(conn: Conn, entity_id: str) -> dict[str, Doc]:
     credit: dict[str, Doc] = {}
-    for row in known_fact_rows(conn, "entity", entity_id, ["funding_fact"])["funding_fact"]:
-        v = row["value"] if isinstance(row["value"], dict) else {}
-        if v.get("label") and v.get("value"):
-            note = f" ({v['note']})" if v.get("note") else ""
-            credit.setdefault(str(v["label"]), with_value(row, f"{v['value']}{note}"))
+    for row in funding_rows(conn, entity_id):
+        if (got := funding_text(row)) is not None:
+            credit.setdefault(got[0], with_value(row, got[1]))
     names = site_names(conn)
     grouped: dict[tuple[str, str], tuple[list[str], Doc]] = {}
     for slug, link, fact in tripped_links(conn, entity_id):
-        rule = _RULE_CODE.sub("", str(link.get("reason") or "").split(":", 1)[0]).strip() or "Rule tripped"
+        rule = rule_label(link)
         sites, _ = grouped.setdefault((rule, str(fact.get("value"))), ([], fact))
         sites.append(names.get(slug, slug))
     for (rule, _), (sites, fact) in grouped.items():
@@ -273,7 +212,7 @@ def payer_doc(conn: Conn, entity: Row) -> Doc:
             "noteHolders": holders,
         },
         "sites": rows,
-        "paidBy": paid_by(conn, entity["id"]),
+        "paidBy": paid_by(conn, entity, {r["slug"] for r in rows}),
         "credit": credit_facts(conn, entity["id"]),
     }
     if (stress := stress_summary(conn, entity["id"])) is not None:

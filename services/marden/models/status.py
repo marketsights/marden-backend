@@ -4,8 +4,9 @@
 
 For each site the four ChainLinks (end_user, tenant, developer, lenders) with LinkStatus, ruleCode
 (E1/E2, T1/T2, D1/D2, L1/L2), the reason and the statement that tripped the rule, and the ChainStatus
-(worst link). L2's price test is rate-neutral from v0.2: a fixed coupon's spread move since issue (else its
-first Marden price) worth 5+ points, a floating-rate loan's price below 95 (status_credit). One
+(worst link). L2's price test is rate-neutral from v0.2, L1's from v0.3: a fixed coupon's spread move since
+issue (else its first Marden price) worth 5+ points (L2) or 2 up to 5 points (L1), a floating-rate loan's
+price below 95 (L2) or 95-98 (L1) (status_credit). One
 `model_output` per site and as-of day: model 'status', version VERSION, subject ('site', slug), output =
 {chain: ChainLink[], status: ChainStatus, missing: [...]} - the `chain` and `status` pieces of types.ts
 SiteSummary, plus the inputs that were not on file. Rules: status_rules.py; inputs: status_inputs.py;
@@ -45,7 +46,7 @@ from marden.readmodels.deps import mark_dirty_for, via
 log = logging.getLogger(__name__)
 
 MODEL = "status"
-VERSION = "0.2"  # 0.2: L2 reads the Marden price rate-neutral (status_credit)
+VERSION = "0.3"  # 0.2: L2 reads the Marden price rate-neutral (status_credit); 0.3: L1 as well
 CRON_UTC = "53 9 * * *"
 OUTPUT_FIELD = f"@model:{MODEL}"
 

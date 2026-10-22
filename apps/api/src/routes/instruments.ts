@@ -17,8 +17,15 @@ export function instrumentRoutes(app: FastifyInstance, db: Db): void {
 
   app.get('/api/curve', async (req) => serveDoc(db, 'curve', 'all', asOfOf(req)));
 
-  app.get('/api/instruments/:id', async (req) =>
-    serveDoc(db, 'instrument_detail', keyed(INSTRUMENT, param(req, 'id')), asOfOf(req)));
+  // hasCollateral: whether GET /api/instruments/:id/collateral has a document for the same day, so
+  // Instrument detail asks for GPU collateral only when there is some (no 404 for every other loan).
+  app.get('/api/instruments/:id', async (req) => {
+    const id = param(req, 'id');
+    const asOf = asOfOf(req);
+    const doc = await serveDoc<InstrumentDetail>(db, 'instrument_detail', keyed(INSTRUMENT, id), asOf);
+    const hasCollateral = (await db.readModel('gpu_collateral', id, asOf)) !== null;
+    return { ...doc, hasCollateral };
+  });
 
   // Price series and holders are read from the same instrument_detail document as the page,
   // so the chart, KPI strip and holders table agree (spec 07 acceptance).

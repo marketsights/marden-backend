@@ -1,5 +1,7 @@
 // Filters and sorts for the Data centers (spec 14) and On-site power (spec 15) tables.
 // Each row view holds one DataCenterRow / PowerPlantRow doc per campus / plant id.
+import type { PlantDebt } from '../contracts/types.js';
+import { withPlantDebt } from './plant-debt-row.js';
 import { arrAt, inList, low, numAt, txt, type FilterCtx, type FilterDef, type RowViewDef } from './row-query.js';
 
 const PERMIT_FIELD = 'air_permit_number';
@@ -131,4 +133,6 @@ export const PLANT_ROWS: RowViewDef = {
     permittedMw: numAt('permittedMw,value'),
     lastChange: txt('lastChange,date'),
   },
+  // Spec 20 columns (Owner, Financed by, Plant debt, Power buyer) from the plant's debt document.
+  companion: { view: 'plant_debt', merge: (doc: object, debt: PlantDebt | null) => withPlantDebt(doc, debt) },
 };
