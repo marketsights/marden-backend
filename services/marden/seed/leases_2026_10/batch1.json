@@ -1,0 +1,667 @@
+[
+ {
+  "subject_type": "entity",
+  "subject_id": "oracle",
+  "field": "leases_not_commenced_usd",
+  "value": 288000000000.0,
+  "tag": "F",
+  "source_name": "Oracle 10-Q (Q1 FY2027)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+  "find": "As of August 31, 2026 ?, we had \\$ ?288 billion of additional lease commitments.{0,320}?maturities table above\\.",
+  "valid_from": "2026-08-31"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "oracle",
+  "field": "leases_not_commenced_filing",
+  "value": {
+   "form": "10-Q",
+   "period": "2026-08-31",
+   "commence": "Q2 FY2027 to FY2029",
+   "terms": "15 to 19 years"
+  },
+  "tag": "F",
+  "source_name": "Oracle 10-Q (Q1 FY2027)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+  "find": "As of August 31, 2026 ?, we had \\$ ?288 billion of additional lease commitments.{0,320}?maturities table above\\.",
+  "valid_from": "2026-08-31"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "microsoft",
+  "field": "leases_not_commenced_usd",
+  "value": 329100000000.0,
+  "tag": "F",
+  "source_name": "Microsoft 10-K (FY2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+  "find": "As of June 30, 2026, we had additional leases, primarily for datacenters, that had not yet commenced of \\$ ?329\\.1 billion.{0,260}?lease terms of 1 year to 20 years\\.",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "microsoft",
+  "field": "leases_not_commenced_filing",
+  "value": {
+   "form": "10-K",
+   "period": "2026-06-30",
+   "commence": "FY2027 to FY2033",
+   "terms": "1 to 20 years"
+  },
+  "tag": "F",
+  "source_name": "Microsoft 10-K (FY2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+  "find": "As of June 30, 2026, we had additional leases, primarily for datacenters, that had not yet commenced of \\$ ?329\\.1 billion.{0,260}?lease terms of 1 year to 20 years\\.",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "meta",
+  "field": "leases_not_commenced_usd",
+  "value": 355730000000.0,
+  "tag": "F",
+  "source_name": "Meta 10-Q (Q3 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026066773/meta-20260930.htm",
+  "find": "we have operating and finance leases that have not yet commenced as of September 30, 2026\\. These lease obligations were approximately \\$ ?355\\.73 billion.{0,260}?30 years\\.",
+  "valid_from": "2026-09-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "meta",
+  "field": "leases_not_commenced_filing",
+  "value": {
+   "form": "10-Q",
+   "period": "2026-09-30",
+   "commence": "rest of 2026 to 2036",
+   "terms": "more than 1 to 30 years"
+  },
+  "tag": "F",
+  "source_name": "Meta 10-Q (Q3 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026066773/meta-20260930.htm",
+  "find": "we have operating and finance leases that have not yet commenced as of September 30, 2026\\. These lease obligations were approximately \\$ ?355\\.73 billion.{0,260}?30 years\\.",
+  "valid_from": "2026-09-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "amazon-aws",
+  "field": "leases_not_commenced_usd",
+  "value": 137214000000.0,
+  "tag": "F",
+  "source_name": "Amazon.com 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000026/amzn-20260630.htm",
+  "find": "Leases not yet commenced 4,018 11,732 9,278 9,483 9,227 93,476 137,214",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "amazon-aws",
+  "field": "leases_not_commenced_filing",
+  "value": {
+   "form": "10-Q",
+   "period": "2026-06-30",
+   "commence": "H2 2026 onward (by-year payments in the commitments table)",
+   "terms": null
+  },
+  "tag": "F",
+  "source_name": "Amazon.com 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000026/amzn-20260630.htm",
+  "find": "Leases not yet commenced 4,018 11,732 9,278 9,483 9,227 93,476 137,214",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "google",
+  "field": "leases_not_commenced_usd",
+  "value": 85200000000.0,
+  "tag": "F",
+  "source_name": "Alphabet 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000071/goog-20260630.htm",
+  "find": "As of June 30, 2026, we have entered into leases, primarily related to data centers, that have not yet commenced with future lease payments of \\$ ?85\\.2 billion\\. These leases will commence between 2026 and 2031 with non-cancelable lease terms between one and 26 years\\.",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "google",
+  "field": "leases_not_commenced_filing",
+  "value": {
+   "form": "10-Q",
+   "period": "2026-06-30",
+   "commence": "2026 to 2031",
+   "terms": "1 to 26 years"
+  },
+  "tag": "F",
+  "source_name": "Alphabet 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000071/goog-20260630.htm",
+  "find": "As of June 30, 2026, we have entered into leases, primarily related to data centers, that have not yet commenced with future lease payments of \\$ ?85\\.2 billion\\. These leases will commence between 2026 and 2031 with non-cancelable lease terms between one and 26 years\\.",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "coreweave",
+  "field": "leases_not_commenced_usd",
+  "value": 35500000000.0,
+  "tag": "F",
+  "source_name": "CoreWeave 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+  "find": "Leases Not Yet Commenced As of June 30, 2026, the Company executed additional lease agreements.{0,200}?is \\$ ?35\\.5 billion\\. These leases will commence between 2026 and 2029 with estimated lease terms of seven to sixteen years ?\\.",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity",
+  "subject_id": "coreweave",
+  "field": "leases_not_commenced_filing",
+  "value": {
+   "form": "10-Q",
+   "period": "2026-06-30",
+   "commence": "2026 to 2029",
+   "terms": "7 to 16 years"
+  },
+  "tag": "F",
+  "source_name": "CoreWeave 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+  "find": "Leases Not Yet Commenced As of June 30, 2026, the Company executed additional lease agreements.{0,200}?is \\$ ?35\\.5 billion\\. These leases will commence between 2026 and 2029 with estimated lease terms of seven to sixteen years ?\\.",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--galaxy-digital-inc--lease",
+  "field": "annual_usd",
+  "value": 1200000000.0,
+  "tag": "F",
+  "source_name": "Galaxy Digital 8-K Ex 99.1 (Q2 2026 results)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000084/glxy-20260630xpressrelease.htm",
+  "find": "The Helios Campus CoreWeave Leases \\(Phases I\\+II\\+III\\).{0,400}?\\$1\\.2B\\+.{0,700}?over the lease term\\."
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--galaxy-digital-inc--lease",
+  "field": "contracted_mw",
+  "value": 526,
+  "tag": "F",
+  "source_name": "Galaxy Digital 8-K Ex 99.1 (Q2 2026 results)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000084/glxy-20260630xpressrelease.htm",
+  "find": "The Helios Campus CoreWeave Leases \\(Phases I\\+II\\+III\\) 1\\.63GW 800MW 526MW 15 Years.{0,120}?Critical IT Load"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--galaxy-digital-inc--lease",
+  "field": "term_years",
+  "value": 15,
+  "tag": "F",
+  "source_name": "Galaxy Digital 8-K Ex 99.1 (Q2 2026 results)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000084/glxy-20260630xpressrelease.htm",
+  "find": "delivering 200 MW of gross power . 133 MW of critical IT load . to CoreWeave under the Company's 15-year lease agreement"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--galaxy-digital-inc--lease",
+  "field": "start",
+  "value": "Phase I Q2 2026 (rent commenced); Phase II Q2 2027; Phase III 2028",
+  "tag": "F",
+  "source_name": "Galaxy Digital 8-K Ex 99.2 (Q2 2026 overview)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000084/exhibit992-q22026overvie.htm",
+  "find": "Phase I Delivered Critical IT Load3 133 MW Q2 2026 Delivery Date.{0,200}?Phase III Contracted Critical IT Load3 133 MW 2028 Initial Rent Commencement"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--applied-digital-corp--lease",
+  "field": "total_usd",
+  "value": 11000000000.0,
+  "tag": "F",
+  "source_name": "Applied Digital 10-K (FY2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 1 CoreWeave 400 MW 15 years ~\\$11\\.0B 2H25.1H27"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--applied-digital-corp--lease",
+  "field": "contracted_mw",
+  "value": 400,
+  "tag": "F",
+  "source_name": "Applied Digital 10-K (FY2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 1 CoreWeave 400 MW 15 years ~\\$11\\.0B 2H25.1H27"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--applied-digital-corp--lease",
+  "field": "term_years",
+  "value": 15,
+  "tag": "F",
+  "source_name": "Applied Digital 10-K (FY2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 1 CoreWeave 400 MW 15 years ~\\$11\\.0B 2H25.1H27"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--applied-digital-corp--lease",
+  "field": "start",
+  "value": "2H 2025 to 1H 2027 (phased by building)",
+  "tag": "F",
+  "source_name": "Applied Digital 10-K (FY2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 1 CoreWeave 400 MW 15 years ~\\$11\\.0B 2H25.1H27"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "oracle--applied-digital-corp--lease",
+  "field": "contracted_mw",
+  "value": 200,
+  "tag": "F",
+  "source_name": "Applied Digital 10-K (FY2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 2 Investment-grade hyperscaler 200 MW 15 years ~\\$5\\.0B 2H26.1H27"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "unnamed-tenants--applied-digital-corp--lease",
+  "field": "total_usd",
+  "value": 20200000000.0,
+  "tag": "M",
+  "source_name": "Applied Digital 10-K (FY2026) and 10-Q (Q1 FY2027)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 3 High investment-grade hyperscaler 300 MW 15 years ~\\$7\\.5B 2H27.2H28 Delta Forge 1 High investment-grade hyperscaler 300 MW 15 years ~\\$7\\.5B",
+  "method_version": "lease sum v1: Polaris Forge 3 ~$7.5B + Delta Forge 1 ~$7.5B (10-K table) + Delta Forge 2 ~$5.2B (10-Q Note 17)"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "unnamed-tenants--applied-digital-corp--lease",
+  "field": "contracted_mw",
+  "value": 810,
+  "tag": "M",
+  "source_name": "Applied Digital 10-K (FY2026) and 10-Q (Q1 FY2027)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 3 High investment-grade hyperscaler 300 MW 15 years ~\\$7\\.5B 2H27.2H28 Delta Forge 1 High investment-grade hyperscaler 300 MW",
+  "method_version": "lease sum v1: 300 MW + 300 MW (10-K table) + 210 MW (10-Q Note 17)"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "unnamed-tenants--applied-digital-corp--lease",
+  "field": "term_years",
+  "value": 15,
+  "tag": "F",
+  "source_name": "Applied Digital 10-Q (Q1 FY2027)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000059/apld-20260831.htm",
+  "find": "entered into an approximately 15-year lease \\(with three five-year renewal options\\) with a high investment-grade hyperscaler at its Delta Forge 2"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "unnamed-tenants--applied-digital-corp--lease",
+  "field": "start",
+  "value": "Polaris Forge 3 2H 2027 to 2H 2028; Delta Forge 1 1H 2027 to 1H 2028; Delta Forge 2 1H 2028",
+  "tag": "M",
+  "source_name": "Applied Digital 10-K (FY2026) and 10-Q (Q1 FY2027)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 3 High investment-grade hyperscaler 300 MW 15 years ~\\$7\\.5B 2H27.2H28 Delta Forge 1 High investment-grade hyperscaler 300 MW 15 years ~\\$7\\.5B 1H27.1H28",
+  "method_version": "lease dates v1: 10-K delivery table + 10-Q Note 17 (Delta Forge 2 1H CY2028)"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "unnamed-tenants--applied-digital-corp--lease",
+  "field": "tenant_description",
+  "value": "A tier-one, high investment-grade hyperscaler (not named)",
+  "tag": "F",
+  "source_name": "Applied Digital 8-K Ex 99.1 (Q1 FY2027 results)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000057/apldq127earningsrelease.htm",
+  "find": "Delta Forge 1, Polaris Forge 3, and Delta Forge 2 to a tier-one investment-grade hyperscaler"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "coreweave--core-scientific-inc--lease",
+  "field": "contracted_mw",
+  "value": 590,
+  "tag": "F",
+  "source_name": "Core Scientific 8-K Ex 99.2",
+  "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526165121/d149019dex992.htm",
+  "find": "approximately 590 megawatts .{1,4}MW.{1,4} of net critical information technology .{1,4}IT.{1,4} capacity contracted with CoreWeave"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "fluidstack--hut-8-corp--lease",
+  "field": "contracted_mw",
+  "value": 245,
+  "tag": "F",
+  "source_name": "Hut 8 8-K Ex 99.1 (River Bend lease)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465925122052/hut-20251217xex99d1.htm",
+  "find": "with Fluidstack for 245 megawatts \\(MW\\) of IT capacity at its River Bend data center campus"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "unnamed-tenants--hut-8-corp--lease",
+  "field": "total_usd",
+  "value": 9800000000.0,
+  "tag": "F",
+  "source_name": "Hut 8 8-K Ex 99.1 (Q1 2026 results)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926055894/hut-20260506xex99d1.htm",
+  "find": "through a 15-year, \\$9\\.8 billion lease for 352 MW of IT capacity with a high-investment-grade tenant",
+  "supersede": [
+   {
+    "value": 9788000000,
+    "source_name": "unverified archive figure"
+   }
+  ],
+  "supersede_reason": "unverified archive figure ($9.788B) replaced by the filed base-term contract value"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "unnamed-tenants--hut-8-corp--lease",
+  "field": "contracted_mw",
+  "value": 352,
+  "tag": "F",
+  "source_name": "Hut 8 8-K Ex 99.1 (Q1 2026 results)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926055894/hut-20260506xex99d1.htm",
+  "find": "through a 15-year, \\$9\\.8 billion lease for 352 MW of IT capacity with a high-investment-grade tenant"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "unnamed-tenants--hut-8-corp--lease",
+  "field": "tenant_description",
+  "value": "A high-investment-grade company rated AA- or higher (not named)",
+  "tag": "F",
+  "source_name": "Hut 8 8-K Ex 99.1 (Beacon Point Phase 2)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926084862/tm2620835d1_ex99-1.htm",
+  "find": "The tenant, the high-investment-grade company that executed the Phase 1 lease, has doubled its contracted IT capacity at the campus to 704 MW"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "fluidstack--flash-compute-llc--lease",
+  "field": "contracted_mw",
+  "value": 168,
+  "tag": "F",
+  "source_name": "TeraWulf 8-K (Abernathy lease)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925102858/tm2529509d1_8k.htm",
+  "find": "the Joint Venture will provide Fluidstack with a total of 168 MW of critical IT load"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "fluidstack--cipher-digital-inc--lease",
+  "field": "contracted_mw",
+  "value": 168,
+  "tag": "F",
+  "source_name": "Cipher Mining 8-K Ex 99.1 (Barber Lake lease)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325012168/dp234624_ex9901.htm",
+  "find": "Cipher will deliver 168 MW of critical IT load, supported by a maximum of 244 MW of gross capacity, at its Barber Lake site"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "fluidstack--cipher-digital-inc--lease",
+  "field": "total_usd",
+  "value": 3800000000.0,
+  "tag": "F",
+  "source_name": "Cipher Digital 8-K Ex 99.1 (Barber Lake lease amendment)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1819989/000181998926000043/barberlakeleaseamendmentpr.htm",
+  "find": "increase total contracted revenue at the facility from \\$3\\.8 billion to over \\$9 billion",
+  "supersede": [
+   {
+    "value": 3863000000,
+    "source_name": "unverified archive figure"
+   }
+  ],
+  "supersede_reason": "unverified archive figure ($3.863B) replaced by the filed $3.8B Fluidstack lease value"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "microsoft--iren-ltd--compute-purchase",
+  "field": "contracted_mw",
+  "value": 200,
+  "tag": "F",
+  "source_name": "IREN 8-K (Microsoft agreement)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125040072/ef20058139_8k.htm",
+  "find": "representing a combined IT load of approximately 200MW"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "core42--terawulf-inc--lease",
+  "field": "status",
+  "value": "Started",
+  "tag": "F",
+  "source_name": "TeraWulf 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1083301/000108330126000166/wulf-20260630.htm",
+  "find": "As of June 30, 2026, all of the Core42 HPC Leases have commenced"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "anthropic--terawulf-inc--lease",
+  "field": "term_years",
+  "value": 20,
+  "tag": "F",
+  "source_name": "TeraWulf 8-K (Justified Data Campus lease)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465926080583/tm2619468d1_8k.htm",
+  "find": "entered into a 20-year lease agreement \\(the .Justified Data Campus Lease.\\) with Anthropic PBC"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "anthropic--terawulf-inc--lease",
+  "field": "contracted_mw",
+  "value": 401,
+  "tag": "F",
+  "source_name": "TeraWulf 8-K (Justified Data Campus lease)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465926080583/tm2619468d1_8k.htm",
+  "find": "the Landlord will provide Anthropic with approximately 401 MW of critical IT load"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "anthropic--terawulf-inc--lease",
+  "field": "start",
+  "value": "Late 2027 to early 2028 (phased)",
+  "tag": "F",
+  "source_name": "TeraWulf 8-K (Justified Data Campus lease)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465926080583/tm2619468d1_8k.htm",
+  "find": "Delivery of the leased capacity is expected to occur in phases beginning in late 2027 and concluding in early 2028"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "meta--coreweave--compute-purchase",
+  "field": "total_usd",
+  "value": 14200000000.0,
+  "tag": "F",
+  "source_name": "CoreWeave 8-K (Meta order form)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000050/crwv-20250925.htm",
+  "find": "Meta has initially committed to pay the Company up to approximately \\$14\\.2 billion through December 14, 2031"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "meta--coreweave--compute-purchase",
+  "field": "start",
+  "value": "Order form Sep 2025; commitment runs through Dec 14, 2031",
+  "tag": "F",
+  "source_name": "CoreWeave 8-K (Meta order form)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000050/crwv-20250925.htm",
+  "find": "Meta has initially committed to pay the Company up to approximately \\$14\\.2 billion through December 14, 2031"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "openai--coreweave--compute-purchase",
+  "field": "total_usd",
+  "value": 22400000000.0,
+  "tag": "F",
+  "source_name": "CoreWeave 8-K Ex 99.1 (Q3 2025 results)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000059/coreweave3q25earningspress.htm",
+  "find": "Expanded the OpenAI partnership with an up to approximately \\$6\\.5 billion deal, bringing total commitments to up to approximately \\$22\\.4 billion"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "jane-street--coreweave--compute-purchase",
+  "field": "total_usd",
+  "value": 6000000000.0,
+  "tag": "F",
+  "source_name": "CoreWeave 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+  "find": "in April 2026, we announced that Jane Street, a private company, had committed approximately \\$6\\.0 billion to use our AI cloud platform"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "microsoft--nebius--compute-purchase",
+  "field": "total_usd",
+  "value": 17400000000.0,
+  "tag": "F",
+  "source_name": "Nebius 6-K (Microsoft agreement)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465925088312/tm2525580d1_6k.htm",
+  "find": "the total contract value is about \\$17\\.4 billion through 2031"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "microsoft--nebius--compute-purchase",
+  "field": "term_years",
+  "value": 5,
+  "tag": "F",
+  "source_name": "Nebius 6-K (Microsoft agreement)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465925088312/tm2525580d1_6k.htm",
+  "find": "over a five-year term\\. The GPU Services will be deployed in several tranches during 2025 and 2026"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "microsoft--nebius--compute-purchase",
+  "field": "start",
+  "value": "Tranches during 2025 and 2026",
+  "tag": "F",
+  "source_name": "Nebius 6-K (Microsoft agreement)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465925088312/tm2525580d1_6k.htm",
+  "find": "over a five-year term\\. The GPU Services will be deployed in several tranches during 2025 and 2026"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "meta--nebius--compute-purchase",
+  "field": "total_usd",
+  "value": 12000000000.0,
+  "tag": "F",
+  "source_name": "Nebius 6-K Ex 99.1 (Meta agreement, Mar 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926027886/tm268879d1_ex99-1.htm",
+  "find": "Under the five-year agreement, Nebius will provide \\$12 billion of dedicated capacity across multiple locations"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "meta--nebius--compute-purchase",
+  "field": "term_years",
+  "value": 5,
+  "tag": "F",
+  "source_name": "Nebius 6-K Ex 99.1 (Meta agreement, Mar 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926027886/tm268879d1_ex99-1.htm",
+  "find": "Under the five-year agreement, Nebius will provide \\$12 billion of dedicated capacity"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "meta--nebius--compute-purchase",
+  "field": "start",
+  "value": "Early 2027",
+  "tag": "F",
+  "source_name": "Nebius 6-K Ex 99.1 (Meta agreement, Mar 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926027886/tm268879d1_ex99-1.htm",
+  "find": "Nebius will deliver this capacity starting early 2027"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "nvidia--lambda-inc--compute-purchase",
+  "field": "total_usd",
+  "value": 1500000000.0,
+  "tag": "R",
+  "source_name": "Tom's Hardware",
+  "url": "https://www.tomshardware.com/tech-industry/artificial-intelligence/nvidia-signs-usd1-5-billion-deal-with-cloud-startup-lambda-to-rent-back-its-own-ai-chips-18-000-gpus-will-be-leased-over-4-years-as-lambda-gears-up-for-its-ipo",
+  "find": "Nvidia signs \\$1\\.5 billion deal with cloud startup Lambda to rent back its own AI chips . 18,000 GPUs will be leased over 4 years",
+  "doc_date": "2025-09-05"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "nvidia--lambda-inc--compute-purchase",
+  "field": "term_years",
+  "value": 4,
+  "tag": "R",
+  "source_name": "Tom's Hardware",
+  "url": "https://www.tomshardware.com/tech-industry/artificial-intelligence/nvidia-signs-usd1-5-billion-deal-with-cloud-startup-lambda-to-rent-back-its-own-ai-chips-18-000-gpus-will-be-leased-over-4-years-as-lambda-gears-up-for-its-ipo",
+  "find": "18,000 GPUs will be leased over 4 years",
+  "doc_date": "2025-09-05"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "xai-spacex--xai-valor-vci--lease",
+  "field": "total_usd",
+  "value": 20206000000.0,
+  "tag": "M",
+  "source_name": "SpaceX S-1 (Valor equipment leases)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026042639/spaceexplorationtechnologi.htm",
+  "find": "aggregate cash payments of \\$6,986 million.{0,900}?aggregate cash payments of \\$6,587 million",
+  "method_version": "lease sum v1: $6,986M + $6,633M + $6,587M (three Valor equipment leases)",
+  "supersede": [
+   {
+    "value": 20206000000,
+    "source_name": "Marden research archive"
+   }
+  ],
+  "supersede_reason": "research-archive sum replaced by the same sum traced to the filed passage"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "oracle--abilene-stargate--lease",
+  "field": "contracted_mw",
+  "value": 1200,
+  "tag": "R",
+  "source_name": "Financial Times (quoted by Spyglass)",
+  "url": "https://spyglass.org/the-stargate-data-center-layer-cake/",
+  "find": "will provide 1\\.2 gigawatts of power when it is completed next year",
+  "doc_date": "2025-05-24"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "oracle--project-jupiter--lease",
+  "field": "start",
+  "value": "2028 (planned; Oracle force majeure may delay rent)",
+  "tag": "R",
+  "source_name": "Reuters (via KFGO)",
+  "url": "https://kfgo.com/?p=1355919",
+  "find": "fail to come online in 2028 as planned",
+  "doc_date": "2026-09-24"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "oracle--saline-twp-related-digital--lease",
+  "field": "contracted_mw",
+  "value": 1000,
+  "tag": "R",
+  "source_name": "Related Digital press release",
+  "url": "https://www.related.com/press-releases/2026-04-24/related-digital-announces-financing-16-billion-oracle-data-center-project",
+  "find": "three single-story data center buildings with more than a gigawatt of capacity",
+  "doc_date": "2026-04-24"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "amazon-aws--cipher-digital-inc--lease",
+  "field": "total_usd",
+  "value": 7500000000.0,
+  "tag": "M",
+  "source_name": "Cipher 8-K Ex 99.1 (Black Pearl) + Ex 99.1 (Stingray)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001480/dp240991_ex9901.htm",
+  "find": "~\\$ 5\\.5 Bn Contracted Lease Payments",
+  "method_version": "lease sum v1: Black Pearl ~$5.5B + Stingray ~$2.0B contracted lease payments"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "amazon-aws--cipher-digital-inc--lease",
+  "field": "contracted_mw",
+  "value": 286,
+  "tag": "M",
+  "source_name": "Cipher 8-K Ex 99.1 (Black Pearl) + Ex 99.1 (Stingray)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001480/dp240991_ex9901.htm",
+  "find": "Developing Black Pearl \\(300 Gross MW / 216 MW Critical IT Load\\), leased to Amazon Data Services",
+  "method_version": "lease sum v1: Black Pearl 216 MW + Stingray 70 MW critical IT"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "amazon-aws--cipher-digital-inc--lease",
+  "field": "term_years",
+  "value": 15,
+  "tag": "F",
+  "source_name": "Cipher 8-K Ex 99.1 (Black Pearl)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001480/dp240991_ex9901.htm",
+  "find": "216 MW Critical IT Load Under Contract 15 Years Base Lease Term"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "amazon-aws--cipher-digital-inc--lease",
+  "field": "start",
+  "value": "Black Pearl from Oct 2026 (phased); Stingray Apr 2027",
+  "tag": "M",
+  "source_name": "Cipher 8-K Ex 99.1 (Black Pearl) + Ex 99.1 (Stingray)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001480/dp240991_ex9901.htm",
+  "find": "initial rent targeted to begin October 1, 2026",
+  "method_version": "lease dates v1: Black Pearl target Oct 1, 2026; Stingray target Apr 1, 2027"
+ }
+]

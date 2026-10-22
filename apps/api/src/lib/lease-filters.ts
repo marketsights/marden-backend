@@ -16,7 +16,7 @@ const matches = (wanted: Set<string>, value: string | null | undefined): boolean
   wanted.size === 0 || (value != null && wanted.has(value.toLowerCase()));
 
 /**
- * Status filter key: the status up to its first comma ("Signed, not commenced" → "Signed"), since
+ * Status filter key: the status up to its first comma ("Signed, not started" → "Signed"), since
  * filter values are comma lists (front end: components/leases/lease-model.ts statusKey).
  */
 export const statusKey = (status: string): string => status.split(',')[0]?.trim() ?? status;
@@ -26,7 +26,10 @@ export const leaseBand = (lease: LeaseRecord): string => lease.lesseeBand?.value
 
 /** Words the free-text filter looks in: lessee, landlord, site and the lease id. */
 const haystack = (lease: LeaseRecord): string =>
-  [lease.lessee, lease.lessor?.value, lease.siteSlug, lease.campusId, lease.id].filter(Boolean).join(' ').toLowerCase();
+  [lease.lessee, lease.lessor?.value, lease.siteSlug, ...(lease.sites ?? []).flatMap((s) => [s.slug, s.name]), lease.campusId, lease.id]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 
 /**
  * lessee, kind, status (its key), attribution and band match one of a comma list (any case); trigger=1 keeps
@@ -68,7 +71,9 @@ export function leaseExportRow(lease: LeaseRecord): Record<string, unknown> {
     lessee: lease.lessee,
     lessor: lease.lessor,
     siteSlug: lease.siteSlug,
+    sites: (lease.sites ?? []).map((s) => s.name).join('; '),
     campusId: lease.campusId,
+    mw: lease.mw,
     kind: lease.kind,
     status: lease.status,
     attribution: lease.attribution,

@@ -1,7 +1,7 @@
 // Lease map (spec 25) points: GET /api/leases?format=geojson places each lease at the campus it sits
 // on, so the map and the ranked table read one document. A lease names its campus directly
-// (campusId) or its financed site (siteSlug), whose campuses come from the site's Buildings tab
-// (site_tab:buildings, spec 16). Coordinates, facility MW and status are the campus row's own
+// (campusId) or its financed sites (`sites`, else the single `siteSlug`), whose campuses come from each
+// site's Buildings tab (site_tab:buildings, spec 16). Coordinates, facility MW and status are the campus row's own
 // (dc_row, spec 14), served as published. Leases with neither link are left off the map; they
 // still appear in the table. Every read is as of the same snapshot date.
 import type * as GeoJSON from 'geojson';
@@ -47,13 +47,19 @@ async function latestDocs<T>(db: Db, view: string, keys: string[], asOf: string 
 const located = (row: DataCenterRow | undefined): row is DataCenterRow =>
   !!row && Number.isFinite(row.lat) && Number.isFinite(row.lon);
 
-/** Campus ids per lease: its own campusId, else every campus on its site. */
+/** The lease's financed sites: every linked site (`sites`), else its single `siteSlug`. */
+export function leaseSiteSlugs(lease: LeaseMapPage['leases'][number]): string[] {
+  const slugs = (lease.sites ?? []).map((s) => s.slug).filter(Boolean);
+  return slugs.length > 0 ? [...new Set(slugs)] : lease.siteSlug ? [lease.siteSlug] : [];
+}
+
+const campusIdsOf = (tab: SiteBuildings | undefined) => (tab?.campuses ?? []).map((c) => c.id).filter(Boolean);
+
+/** Campus ids per lease: its own campusId, else every campus on its linked sites. */
 function campusesByLease(page: LeaseMapPage, siteTabs: Map<string, SiteBuildings>): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const lease of page.leases) {
-    const ids = lease.campusId
-      ? [lease.campusId]
-      : (siteTabs.get(lease.siteSlug ?? '')?.campuses ?? []).map((c) => c.id).filter(Boolean);
+    const ids = lease.campusId ? [lease.campusId] : leaseSiteSlugs(lease).flatMap((slug) => campusIdsOf(siteTabs.get(slug)));
     out.set(lease.id, [...new Set(ids)]);
   }
   return out;
@@ -70,7 +76,7 @@ function addSite(loc: LeaseLocation, slug: string | null, site: SiteSummary | un
 }
 
 export async function leaseLocations(db: Db, page: LeaseMapPage, asOf: string | null): Promise<LeaseLocationCollection> {
-  const slugs = [...new Set(page.leases.map((l) => l.siteSlug).filter((s): s is string => Boolean(s)))];
+  const slugs = [...new Set(page.leases.flatMap(leaseSiteSlugs))];
   const [siteTabs, sites] = await Promise.all([
     latestDocs<SiteBuildings>(db, 'site_tab:buildings', slugs, asOf),
     db.readModel<SiteSummary[]>('sites', 'all', asOf),
@@ -87,7 +93,9 @@ export async function leaseLocations(db: Db, page: LeaseMapPage, asOf: string | 
       const loc = byCampus.get(id) ?? newLocation(id, rows.get(id) as DataCenterRow);
       byCampus.set(id, loc);
       loc.leaseIds.push(lease.id);
-      addSite(loc, lease.siteSlug, siteBySlug.get(lease.siteSlug ?? ''));
+      // The lease's sites on this campus (all of them when the lease names the campus itself).
+      const sitesHere = leaseSiteSlugs(lease).filter((slug) => lease.campusId === id || campusIdsOf(siteTabs.get(slug)).includes(id));
+      for (const slug of sitesHere) addSite(loc, slug, siteBySlug.get(slug));
     }
     if (here.length > 0) placed += 1;
   }

@@ -1,0 +1,55 @@
+[
+ {
+  "subject_type": "obligation",
+  "subject_id": "oracle--vantage-frontier-port-washington--lease",
+  "field": "contracted_mw",
+  "value": 2302,
+  "tag": "M",
+  "method_version": "lease campus MW v1: Oracle leases both campuses whole; Epoch AI IT capacity Frontier 1,400 MW + Lighthouse 902 MW",
+  "source_name": "Epoch AI data center records (Frontier, Lighthouse)",
+  "url": "https://epoch.ai/data/ai-data-centers",
+  "doc_date": "2026-09-04",
+  "quote": "Epoch AI it_mw: vantage-frontier 1400 (as of 2026-09-04); vantage-lighthouse 902 (as of 2026-07-24)",
+  "from_facts": [
+   {
+    "subject_type": "campus",
+    "subject_id": "vantage-frontier",
+    "field": "it_mw",
+    "value": 1400
+   },
+   {
+    "subject_type": "campus",
+    "subject_id": "vantage-lighthouse",
+    "field": "it_mw",
+    "value": 902
+   }
+  ]
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "oracle--vantage-frontier-port-washington--lease",
+  "field": "start",
+  "value": "Frontier: first building registered to finish Feb 15, 2027 (Vantage planned 2H 2026); Lighthouse: Oracle expects 2H 2027, outside analysts mid-2028",
+  "tag": "M",
+  "method_version": "lease start v1: earliest Frontier building completion in the Texas TDLR registrations (TABS2026024094, Building 5, 2/15/2027) and Vantage's Aug 2025 plan (2H 2026, BusinessWire, site fact original_energization); Lighthouse per Oracle guidance and Aterio as reported by BizTimes",
+  "source_name": "Texas TDLR registration TABS2026024094; BizTimes (Aterio)",
+  "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026024094",
+  "doc_date": "2026-10-22",
+  "find": "Project Name: Vantage DC Abilene - TX3 - Project Frontier Project Number: TABS2026024094 Facility Name: TX305 .{0,120}?Completion Date: 2/15/2027"
+ },
+ {
+  "subject_type": "obligation",
+  "subject_id": "oracle--vantage-frontier-port-washington--lease",
+  "field": "evidence",
+  "value": {
+   "date": "2026-09-30",
+   "text": "Aterio: the Port Washington (Lighthouse) facility is unlikely to be operational by the second half of 2027, as expected by Oracle; base case full capacity around October 2028.",
+   "url": "https://biztimes.com/?p=642966"
+  },
+  "tag": "R",
+  "source_name": "BizTimes",
+  "url": "https://biztimes.com/?p=642966",
+  "doc_date": "2026-09-30",
+  "find": "unlikely to be operational by the second half of 2027, as expected by Oracle"
+ }
+]

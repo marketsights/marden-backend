@@ -194,7 +194,25 @@ export interface InstrumentDetail extends InstrumentRow {
 }
 
 // GET /api/curve
-export interface CurveTier { tier: string; points: { years: number; yieldPct: number; instrumentId: string }[]; fit: { years: number; yieldPct: number }[] }
+export interface CurveSource { tag: Tag; asOf: string; sourceName: string; sourceUrl?: string; methodVersion?: string }
+export interface CurveObservation { date: string; price: number; tag: Tag; kind: string; sourceName: string; sourceUrl?: string }
+export interface CurveDot {
+  years: number; yieldPct: number; instrumentId: string;
+  spreadBp?: number | null;                   // yield minus the Treasury par yield at the same maturity (bp)
+  source?: CurveSource;                       // the yield's source: the Marden model price (M) on the run day
+  lastObservation?: CurveObservation | null;  // latest observed price behind it (TRACE, fund mark, quote)
+  excluded?: string | null;                   // why the dot is left out of its tier's fit (outlier, ...)
+}
+export interface CurveTier {
+  tier: string;
+  kind?: 'tier' | 'benchmark';                // 'benchmark': the Treasury par curve (no dots)
+  points: CurveDot[];
+  fit: { years: number; yieldPct: number; spreadBp?: number }[];
+  range?: [number, number] | null;            // maturities the fit covers with dots (solid); dashed beyond
+  robustSdBp?: number | null;                 // robust SD of the fitted dots around the curve (bp)
+  note?: string | null;                       // plain words: why no curve, or why its spread is flat
+  source?: CurveSource;
+}
 
 // GET /api/risk-list?week=
 export interface RiskRow {
@@ -497,9 +515,17 @@ export interface PayersPage { asOf: string; rows: PayerCapacity[] }
 
 // ---------- Off-balance-sheet lease map (spec 25) ----------
 export interface LeaseRecord {
-  id: string; lessee: string; lessor: Sourced<string>; siteSlug: string | null; campusId: string | null;
+  id: string;
+  lesseeId: string;                           // entity id of the lessee ('unnamed-tenants' when no source names it)
+  lessee: string;                             // display name; "Tenant not disclosed" when no source names the tenant
+  tenantNote: Sourced<string>;                // the sources' own description of an unnamed tenant ("AA- or higher rated company")
+  lessor: Sourced<string>;
+  siteSlug: string | null; siteName: string | null;   // the single linked site (null when several or none)
+  sites: { slug: string; name: string }[];    // every linked site, with its display name
+  campusId: string | null;
+  mw: Sourced<number>;                        // contracted capacity of the lease (MW, critical IT unless the source says gross)
   kind: 'Operating' | 'Finance' | 'Build-to-suit' | 'Compute contract' | string;
-  status: 'Signed, not commenced' | 'Commenced' | 'Announced' | 'Amended' | 'Terminated' | string;
+  status: 'Signed, not started' | 'Started' | 'Announced' | 'Amended' | 'Terminated' | string;
   totalB: Sourced<number>; annualB: Sourced<number>; commencement: Sourced<string>; termYears: Sourced<number>;
   attribution: 'Filed' | 'Reported' | 'Inferred'; confidence: 'High' | 'Medium' | 'Low' | null;  // confidence set for Inferred
   turnsAdded: Sourced<number>; headroomBeforeTurns: Sourced<number>; triggerLease: boolean;
@@ -508,8 +534,12 @@ export interface LeaseRecord {
   evidence: Evidence[];
 }
 export interface LesseeReconciliation {
-  lessee: string; filing: { form: string; period: string; url: string };
-  disclosedNotCommencedB: Sourced<number>; filedOrReportedB: number; inferredB: number; attributedB: number; unattributedB: number; attributedShare: number;
+  lessee: string; lesseeId: string | null; filing: { form: string; period: string; url: string };
+  commencement: string | null; terms: string | null;  // the filing's commencement window and term range, as stated
+  disclosedNotCommencedB: Sourced<number>;
+  namedLeases: number; namedTotalB: number;            // the lessee's named leases with a stated total (uncapped sum)
+  filedOrReportedB: number; inferredB: number; attributedB: number; unattributedB: number; attributedShare: number;
+  note: string | null;                                 // why attribution was capped, when named totals exceed the filing
 }
 // GET /api/leases
 export interface LeaseMapPage {

@@ -256,8 +256,26 @@ def test_lease_map_ranks_by_priority(area):
     # totals the 10-K lease notes and agency triggers would give are n/d (null), never 0 (00-global rule 3)
     assert_matches_ts("Omit<T.LeaseMapPage, 'totals'> & { totals: NDFields<T.LeaseMapPage['totals'], "
                       "'disclosedB' | 'unattributedB' | 'attributedShare' | 'triggerLeases'> }", [shape(doc)])
-    assert doc["reconciliation"] == [] and doc["totals"]["disclosedB"] is None  # not collected: never estimated
-    assert doc["totals"]["triggerLeases"] is None and doc["totals"]["attributedShare"] is None
+    assert doc["totals"]["triggerLeases"] is None  # agency triggers not collected: never estimated
+    recon = doc["reconciliation"]
+    if not recon:  # no lessee's lease-note total is a fact yet: n/d, never 0
+        assert doc["totals"]["disclosedB"] is None and doc["totals"]["attributedShare"] is None
+    for row in recon:  # each lessee ties to its filing to the dollar: attributed + residual = disclosed
+        disclosed = row["disclosedNotCommencedB"]["value"]
+        assert row["disclosedNotCommencedB"]["tag"] == "F" and row["filing"]["url"].startswith("https://www.sec.gov/")
+        assert row["attributedB"] + row["unattributedB"] == pytest.approx(disclosed, abs=0.002)
+        assert row["filedOrReportedB"] + row["inferredB"] == pytest.approx(row["attributedB"], abs=0.002)
+        assert row["unattributedB"] >= 0 and 0 <= row["attributedShare"] <= 1
+        named = [r for r in doc["leases"] if r["lesseeId"] == row["lesseeId"] and r["kind"] == "Lease"
+                 and r["status"] not in ("Started", "Terminated") and r["totalB"]["value"] is not None]
+        assert row["namedLeases"] == len(named)
+        assert row["namedTotalB"] == pytest.approx(sum(r["totalB"]["value"] for r in named), abs=0.002)
+        assert (row["note"] is not None) == (row["namedTotalB"] > disclosed + 0.001)
+    if recon:
+        assert doc["totals"]["disclosedB"] == pytest.approx(sum(r["disclosedNotCommencedB"]["value"] for r in recon))
+    for r in doc["leases"]:  # sites by name, never a bare slug; an unnamed tenant says so
+        assert all(s["name"] for s in r["sites"])
+        assert (r["lessee"] == "Tenant not disclosed") == (r["lesseeId"] == "unnamed-tenants")
     scores = [r["priorityScore"]["value"] for r in doc["leases"] if r["priorityScore"]["value"] is not None]
     assert scores == sorted(scores, reverse=True)
     for r in doc["leases"]:
