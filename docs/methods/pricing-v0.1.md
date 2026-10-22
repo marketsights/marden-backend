@@ -40,6 +40,19 @@ S survival, λ default intensity, R recovery share of par, N notional, D discoun
 3. **Calibration.** A Kalman filter fuses sparse, noisy, stale observations into a daily estimate. Bond-implied levels anchor it; daily equity-implied moves update it in between. Stale fund marks are a smoothed, lagged reading (Getmansky, Lo and Makarov 2004).
 4. **Backtesting.** Every input carries the date it became public; assumptions are locked in writing before a backtest runs.
 
+## v0.2: recovery from the site collateral model (Oct 22, 2026)
+
+Owner decision 2026-10-22 ("Do what is proper"). Code: `services/marden/models/price_chain.py` (`site_recovery`, `recovery_fn`), `price_facility.py` (`_recovery_sensitivity`). Version `price v0.2`; the Jupiter backtest keeps its locked 55% (below).
+
+- **Which recovery.** A facility (not an issuer bond) prices with the `recovery` model's central estimate for the instrument when that model has an output on or before the pricing day, at most 14 days old (it runs weekly and on its inputs), with a number (`recoveryBasis: "site_waterfall"`):
+  - **Powered shell:** the base case (50th-percentile cost comp), flat over the life. The waterfall already takes the claims ranking ahead of the instrument and shares the value with the claims at its rank, from the seniority facts; a claim of unknown rank or size makes it n/d. When no source states how much is built, the recovery model estimates it (recovery-v0.1.md "v0.2").
+  - **GPU collateral:** the recovery at each scheduled balance over the loan's life (`pathCents`: the GPUs age while the loan amortizes), interpolated in time and held flat after the last point. This replaces the half-life decay, which the waterfall covers.
+- **Fallback.** Only without such an estimate (no output, an n/d waterfall, or a waterfall of other collateral than the price chain's) the v0.1 defaults apply (`recoveryBasis: "default_assumption"`): buildings flat 55%, GPUs 55% halving on the chip half-life. Issuer bonds keep 40%: their intensity is solved from their own prices at that recovery, so it is a convention, not an estimate.
+- **Point in time.** The recovery is the pricing day's estimate. It is applied to the calibration at issue as well (as the GPU half-life already was), so the liquidity premium is solved with it. A backtest reads only the recovery output dated on or before its day.
+- **Outputs.** `recoveryBasis`, `recoveryInputs` (method, cents used, range, path, the waterfall's inputs: collateral value, debt ahead, claims at the rank, lien, completion and how it is estimated; the recovery output it came from; why the default applies), an input `recoveryCents` (sourced to the recovery model, or to the price engine for a default) and `recoverySensitivity`.
+- **Sensitivity.** `per10cPts`: the price change per 10c of recovery, by central difference of ±5c (one-sided at 0c / 100c), with the whole model re-run: the liquidity premium re-solves to the issue price and the residual re-filters. `holdingSpreadPer10cPts`: the same at today's spread, without re-solving. Because the premium absorbs the recovery at calibration, a recovery change moves the price mostly through the change in default intensity since issue: little for a facility whose tenant curve has not moved, several points where it has (Jupiter, the CoreWeave DDTLs). With no tenant, obligor or guarantor intensity, recovery does not move the price at all.
+- **Triggers.** A recovery run marks the price model dirty (`@model:recovery`).
+
 ## Data (all public, point in time)
 
 | Input | Source | Frequency | Use |
@@ -85,7 +98,7 @@ Fit: residual SD 91bp; leave-one-out RMSE 111bp. Backstopped deals span 100bp (A
 
 - Floating SOFR+250 at par on 2025-11-07, 4-year term.
 - Tenant: Oracle bond-implied intensity, each N-PORT print used only 60 days after its report date; daily equity-implied moves fused in (loading 0.018, estimated from monthly data).
-- Lease protection before rent starts 0.5; completion target 2028-06-30; base completion-failure rate 1.5%/yr; recovery 55%. Liquidity premium solved once so issue price = 100 (172bp), then held fixed.
+- Lease protection before rent starts 0.5; completion target 2028-06-30; base completion-failure rate 1.5%/yr; recovery 55% (locked: `price_validate.JUPITER_RECOVERY`; price v0.2's site recovery does not apply to this path). Liquidity premium solved once so issue price = 100 (172bp), then held fixed.
 - Signal rules from the public date: each agency denial of a critical-path power permit multiplies completion risk by 1.75 (cap 6×); each confirmed power delay ≥ 3 months adds 0.25 to the probability of force majeure delay, charged at 0.15/yr.
 
 | Public date | Event | Marden price |

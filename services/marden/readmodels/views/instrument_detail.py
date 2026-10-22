@@ -8,7 +8,9 @@ The row part is `instruments.instrument_row`, so the page agrees with the list. 
   count and par of the funds whose latest filing lists the instrument, and no rows;
 - priceHistory: the Marden daily price (price_obs kind 'marden'), each with the yields worked from it;
 - yields: model 'yield' (yield to worst and to maturity, discount margin, dates worked; instrument_yields);
-- recovery: model 'recovery', else the price output's assumed recovery, else the recovery facts (M);
+- recovery: the recovery the price model used ('52c (site collateral model)', '55c assumed (no site
+  collateral model yet)'), else the recovery model's own number, else the recovery facts (M); recoveryDetail:
+  its method, key inputs with their sources and the price change per 10c of recovery (views/recovery_detail);
 - stress: model 'stress' rows; terms: the instrument's facts, with termsNotDisclosed (why a missing term is
   n/d) and lenders (the lender group named in filings and reports); payers: end-user share facts;
 - marketCheck: the issuer's (or the SPV's parent's) bond-implied CDS named for the company, the
@@ -51,6 +53,8 @@ from marden.readmodels.views.instrument_text import (
 )
 from marden.readmodels.views.instrument_yields import price_history
 from marden.readmodels.views.instruments import gap_rows, instrument_row
+from marden.readmodels.views.recovery_detail import detail as recovery_detail
+from marden.readmodels.views.recovery_detail import tile as recovery_tile
 from marden.readmodels.views.recovery_text import recovery_from_facts, recovery_from_output
 
 HOLDER_FILINGS = ("N-PORT", "10-Q")
@@ -147,8 +151,11 @@ def next_marks_public(gap_out: Row | None) -> str | None:
 
 
 def recovery(conn: Conn, instrument_id: str, price_out: Row | None, facts: dict[str, Row]) -> dict[str, Any]:
-    """Recovery if default, cents per dollar (M); the price model's is its default: 'assumed 55c'."""
+    """Recovery if default, cents per dollar (M): the one the price used, labelled site model or assumed."""
     rec_out = latest_output(conn, "recovery", instrument_id, "instrument")
+    shown = recovery_tile(price_out, rec_out)
+    if shown is not None and shown.get("value"):
+        return shown
     for out in (rec_out, price_out):
         if out is None or not isinstance(out["output"], dict):
             continue
@@ -363,6 +370,8 @@ def build_instrument_detail(conn: Conn, key: str) -> dict[str, Any] | None:
         "fundMarks": fund_marks(ctx["gap_out"], ctx["lines"]),
         "nextMarksPublic": next_marks_public(ctx["gap_out"]),
         "recovery": recovery(conn, key, ctx["price_out"], facts),
+        "recoveryDetail": recovery_detail(conn, key, ctx["price_out"],
+                                          latest_output(conn, "recovery", key, "instrument")),
         "priceHistory": price_history(ctx["series"], ctx["yield_out"]),
         "yields": ctx["yields"],
         "holders": holders(ctx["gap_out"], ctx["lines"]),

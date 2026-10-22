@@ -1,6 +1,6 @@
 # Recovery v0.1 (model v0)
 
-Written 2026-10-21. Code: `services/marden/models/recovery.py`, `recovery_shell.py`, and `gpu_facilities.py` for GPU-backed loans. Model `recovery`, version `0.1`.
+Written 2026-10-21; v0.2 on 2026-10-22 ("v0.2" below). Code: `services/marden/models/recovery.py`, `recovery_shell.py`, `recovery_progress.py` (v0.2), and `gpu_facilities.py` for GPU-backed loans. Model `recovery`, version `0.2`. Since price v0.2 the price model prices each facility with this model's central estimate (`basis.baseCents`; GPUs: `basis.pathCents`), so it is the recovery behind the Marden price wherever it gives a number.
 
 ## Question
 
@@ -22,15 +22,32 @@ One output per instrument:
    - **Comps.** Every site with a filed or reported total project cost and gross MW gives a value per gross MW. This is replacement cost, the only value evidence on file. The archive's model costs (tag M) are not comps, and neither is a GPU-capex cost basis. At least 3 comps are needed. Low, base and high use the 25th, 50th and 75th percentile. On 2026-10-21: 6 comps, $11.6m / $12.1m / $12.8m per MW.
    - **Site.** Gross MW (else critical IT MW × the midpoint of the published PUE range, flagged in the basis) × completion.
      - Completion is `pct_complete`, else delivered MW ÷ critical IT MW (gross if delivered exceeds IT).
-     - With nothing delivered and no stated completion, the value of unfinished works is n/d. It is never assumed.
+     - With nothing delivered and no stated completion, v0.1 left the value of unfinished works n/d; v0.2 estimates the share from capex, schedule and imagery (below), never a flat assumption.
    - **Claims.** The site's other instruments (excluding GPU facilities) at their filed drawn amount, else their amount, ranked by `seniority`: secured 1, junior 2, unsecured 3. Guarantees and leases are not claims on the buildings.
    - **Recovery** = (value − claims ahead) ÷ claims at the instrument's rank, between 0 and 100c.
 3. **Corporate unsecured notes and converts.** n/d, because the issuer balance-sheet waterfall is not modelled in v0.
 
+## v0.2: an estimated share finished, unfinished works and unspent proceeds (2026-10-22)
+
+Owner feedback: a site under construction must never show n/d next to a flat 55c. v0.2 estimates what v0.1 left n/d.
+
+- **Share finished when no source states it** (`recovery_progress.py`; tag M; every estimator in `basis.completionEstimators`, shown on hover). A stated `pct_complete` or delivered MW still wins. Otherwise:
+  1. **Capex spent vs budget**, when a filed or reported `cost_to_complete_usd` and `total_project_cost_usd` are on file: 1 − cost to complete ÷ budget. It stands alone.
+  2. Else the mean of:
+     - **Schedule:** months elapsed since construction started over the months from start to the campus's planned completion. Start: the earliest building `construction_start`, else a start month stated in the site's records (`risk_construction`: "Construction began ~Sep/Q4 2025"), else the financial close (issue date of the site's `debt_facility` comp). End: the last date of the campus `capacity_plan`, else the cushion P50 rent start.
+     - **Imagery:** the roofed share of the planned footprint (campus `imagery_note.roof_ha` over `sqft_total`; else Sentinel-2 `imagery_stage` of the planned buildings, roofed 1, under construction ½) × ⅓, the shell's share of a data center's cost (the fit-out is not visible from orbit).
+  3. **Energization:** with no MW delivered, at most 90%.
+- **Value if the tenant walks** = gross MW × comp value per MW × (energized share + unfinished share × (1 − 25%)) + unspent proceeds. The 25% haircut on works not yet energized (a buyer must finish, power and re-let them) is judgment, like the GPU model's 20% resale haircut.
+- **Unspent proceeds.** A project bond (`kind` bond, sized at its amount) is funded at close and spent pro rata with the works: its amount × (1 − share finished) is still in the project accounts. Counted only when the share is a stated or estimated share of the works (not delivered MW, which can trail the works). Construction loans draw as they build, so none.
+- **Not counted (named in the basis):** land (no land values on file), equipment on site (no invoices or liens on file), re-letting time and carry, third-party support (residual value guarantees, backstops).
+- Every parameter (⅓, 90%, 25%) is uncalibrated ('model v0').
+
+On 2026-10-22: Jupiter (EX-JUPITER-190) 41–45c, base 43c (share finished 34%, schedule only: Sep 2025 → Dec 2028; no footprint on file for the imagery estimate; $18B of claims at its rank). The Barn (EX-SALINE-308) 96–99c, base 97c (share 26%: schedule 18% from the Apr 2026 close, imagery 33%; $10.4B of the $14B notes still unspent).
+
 ## Not in v0 (listed in each output's basis)
 
+- Land and equipment on site (no values on file).
 - Re-letting time and carry.
-- Unspent proceeds held in project accounts (funded construction bonds).
 - Third-party support: Meta residual value guarantees, Google backstops, SpaceX lease guarantee.
 
 ## Runs

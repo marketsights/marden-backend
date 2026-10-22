@@ -53,14 +53,14 @@ SPECS: list[tuple[str, str, Callable[[str], bool], str, Pick]] = [
      "yieldPct: number | null; change1w: number | null; recovery: number | null; "
      "band: { low: number; high: number; label: 'model v0'; level: number } | null; "
      "inputs: (T.Sourced<number> & { key: string; label: string; unit: string })[]; missing: string[]; "
-     "methodVersion: 'price v0.1' }",
+     "methodVersion: 'price v0.2' }",
      _keep("mardenPrice", "price", "spreadBp", "yieldPct", "change1w", "recovery", "band", "inputs", "missing",
            "methodVersion")),
     ("cds", "entity", lambda s: True,
      "{ label: 'Marden bond-implied CDS'; spreadBp: number | null; upfrontPct: number | null; "
      "hazard: number | null; maturity: string | null; years: number | null; "
      "band: { low: number; high: number; label: 'model v0'; level: number } | null; missing: string[]; "
-     "methodVersion: 'price v0.1' }",
+     "methodVersion: 'price v0.2' }",
      _keep("label", "spreadBp", "upfrontPct", "hazard", "maturity", "years", "band", "missing", "methodVersion")),
     ("curve", "series", lambda s: s == "all", "T.CurveTier[]", lambda _s, o: o),
     ("mark_gap", "instrument", lambda s: True,

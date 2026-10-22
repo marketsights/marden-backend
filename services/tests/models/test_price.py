@@ -246,10 +246,16 @@ def test_full_run_writes_outputs_marks_views_and_does_not_retrigger_itself():
     crwv = result["cds"]["coreweave"]
     assert crwv["label"] == "Marden bond-implied CDS" and 600 < crwv["spreadBp"] < 1600
     jup = result["prices"]["EX-JUPITER-190"]
-    assert jup["methodVersion"] == "price v0.1" and jup["band"]["label"] == "model v0"
+    assert jup["methodVersion"] == "price v0.2" and jup["band"]["label"] == "model v0"
     assert jup["price"] is not None and jup["band"]["low"] <= jup["price"] <= jup["band"]["high"]
     assert {"price", "spreadBp", "yieldPct", "recovery", "change1w", "inputs", "band", "missing"} <= set(jup)
     assert any(i["key"] == "tenantCdsBp" for i in jup["inputs"])
+    # no recovery output copied: the default 55c, said so, with its price change per 10c of recovery
+    assert jup["recoveryBasis"] == "default_assumption" and jup["recovery"] == 0.55
+    assert jup["recoveryInputs"]["method"] == "building_default" and jup["recoveryInputs"]["why"]
+    assert any(i["key"] == "recoveryCents" and i["value"] == 55.0 for i in jup["inputs"])
+    sens = jup["recoverySensitivity"]
+    assert sens["per10cPts"] is not None and sens["holdingSpreadPer10cPts"] > 0
     with db.transaction() as conn:
         outs = conn.execute("SELECT model, subject_type, count(*) n FROM model_output WHERE run_id = %s "
                             "GROUP BY 1, 2", (result["run_id"],)).fetchall()
@@ -317,3 +323,17 @@ def test_a_print_outside_the_engine_universe_does_not_mark_it():
         conn.execute("INSERT INTO instrument (id, name, kind, issuer_name) VALUES ('T-OTHER', 'x', 'bond', 'x')")
         PriceWriter(conn).add("T-OTHER", date(2026, 10, 20), "dealer", 99.0, tag="R", source_name="Test desk")
         assert triggers.dirty_marks(conn, "price") == []
+
+
+def test_trace_is_collected_every_weekday_evening_and_its_prints_re_run_the_price():
+    """The daily price follows the TRACE ingest: the collector runs weekdays at 18:45 ET (after the 18:30 ET
+    close), its trade rows mark the price model dirty (the run within a minute re-prices the day), and the
+    scheduled 09:40 UTC run reprices the next morning."""
+    from marden.collectors import finra_trace
+    from marden.core.queue import app
+
+    crons = {name: t.cron for (name, _), t in app.periodic_registry.periodic_tasks.items()}
+    assert crons["collect.finra_trace"] == finra_trace.CRON_UTC == "45 22,23 * * 1-5"
+    assert finra_trace.RUN_AT_ET == (18, 45) and finra_trace.RUN_AT_ET > finra_trace.TRACE_CLOSE_ET
+    assert crons["models.price_daily"] == price_run.DAILY_CRON
+    assert "models.run_dirty" in crons or any("dirty" in n for n in crons)  # marks are drained every minute

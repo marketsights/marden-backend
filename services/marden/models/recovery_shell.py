@@ -8,16 +8,21 @@ model values, tag M, are not comps):
   GPU capex is not a building comp. At least MIN_COMPS sites; the 25th / 50th / 75th percentiles.
 - the site: gross MW (else critical IT MW x the midpoint of the published data-center PUE range, flagged
   in the basis) and its completion share: `pct_complete`, else delivered MW over critical IT MW (or
-  gross MW when delivered exceeds IT); with nothing delivered and no stated completion the value of
-  unfinished works is not known (n/d), never assumed.
+  gross MW when delivered exceeds IT); with nothing delivered and no stated completion (v0.2) an estimate,
+  tag M, from capex spent vs budget, the construction schedule and imagery (marden.models.recovery_progress;
+  every estimator in the basis), never a flat assumption.
 - claims: the site's instruments other than GPU facilities (their collateral is GPUs), each at its filed
   drawn amount, else its amount, ranked by `seniority` (secured 1, junior / subordinated 2, unsecured 3;
   guarantees and leases are not claims on the buildings).
-Shell value = gross MW x completion x comp value per MW; recovery = (value - claims ranking ahead) /
-claims at the instrument's rank, between 0 and 100c; low / base / high from the 25th / 50th / 75th comp.
-The basis carries the arithmetic (shell value low / base / high, `valueUsd`; cover before the cap, `coverCents`).
-Not in v0 (named in `missing` / basis): re-letting time and carry, unspent proceeds held in project
-accounts, third-party support (residual value guarantees, backstops).
+Value if the tenant walks = gross MW x comp value per MW x (energized share + unfinished share x (1 -
+UNFINISHED_HAIRCUT)) + unspent proceeds of funded notes (v0.2: a project bond is funded at close and spent
+pro rata with the works, so debt x (1 - completion) is still in the project accounts; counted only when the
+completion is a stated or estimated share of the works, not delivered MW); recovery = (value - claims
+ranking ahead) / claims at the instrument's rank, between 0 and 100c; low / base / high from the 25th /
+50th / 75th comp. The basis carries the arithmetic (value low / base / high, `valueUsd`; works and cash,
+`worksUsd`, `unspentProceedsUsd`; cover before the cap, `coverCents`).
+Not counted (named in the basis): land (no land values on file), equipment on site (no invoices or liens on
+file), re-letting time and carry, third-party support (residual value guarantees, backstops).
 """
 
 from __future__ import annotations
@@ -34,7 +39,11 @@ from marden.models import pit
 from marden.models.sourced import num
 
 MIN_COMPS = 3
-SITE_FIELDS = ("total_project_cost_usd", "gross_mw", "critical_it_mw", "pct_complete", "delivered_mw", "cost_basis")
+SITE_FIELDS = ("total_project_cost_usd", "gross_mw", "critical_it_mw", "pct_complete", "delivered_mw", "cost_basis",
+               "cost_to_complete_usd", "risk_construction", "debt_facility")
+UNFINISHED_HAIRCUT = 0.25  # works not yet energized: a buyer must finish, power and re-let them (judgment, model v0)
+NOT_COUNTED = ["land (no land values on file)", "equipment on site (no equipment invoices or liens on file)",
+               "re-letting time and carry", "third-party support (residual value guarantees, backstops)"]
 INSTRUMENT_FIELDS = ("seniority", "drawn_usd", "amount_usd")
 SOURCED_TAGS = ("F", "R")
 
@@ -74,6 +83,15 @@ class SiteFacts:
 
     def best(self, fld: str) -> Row | None:
         return _best(self.rows.get(fld, []))
+
+    def energized(self) -> float:
+        """Delivered MW over capacity (0 when nothing is delivered)."""
+        delivered, it, gross = self.best("delivered_mw"), self.best("critical_it_mw"), self.best("gross_mw")
+        d = num(delivered["value"]) if delivered else None
+        cap = num(it["value"]) if it else None
+        if cap is None or (d and d > cap):
+            cap = num(gross["value"]) if gross else None
+        return min(1.0, d / cap) if d and cap else 0.0
 
     def completion(self) -> tuple[float | None, str]:
         pct = self.best("pct_complete")
@@ -122,11 +140,13 @@ class Claim:
     rank: int | None
     amount: float | None
     basis: str
+    funded: bool = False  # a project bond: funded at close, its unspent proceeds sit in the project accounts
 
 
 def site_claims(conn: Conn, day: date, slug: str, exclude: set[str]) -> list[Claim]:
-    ids = [r["id"] for r in conn.execute("SELECT id FROM instrument WHERE site_slug = %s ORDER BY id", (slug,))]
-    ids = [i for i in ids if i not in exclude]
+    kinds = {r["id"]: r["kind"] for r in conn.execute("SELECT id, kind FROM instrument WHERE site_slug = %s "
+                                                       "ORDER BY id", (slug,))}
+    ids = [i for i in kinds if i not in exclude]
     rows = pit.fact_rows(conn, day, "instrument", ids, list(INSTRUMENT_FIELDS)) if ids else []
     by: dict[str, dict[str, list[Row]]] = {}
     for r in rows:
@@ -138,7 +158,8 @@ def site_claims(conn: Conn, day: date, slug: str, exclude: set[str]) -> list[Cla
         drawn, amount = pit.current_of(f.get("drawn_usd", [])), pit.current_of(f.get("amount_usd", []))
         pick = drawn if drawn is not None and num(drawn["value"]) else amount
         out.append(Claim(iid, rank_of(sen["value"] if sen else None), num(pick["value"]) if pick else None,
-                         pick["field"] if pick else "none"))
+                         pick["field"] if pick else "none", kinds.get(iid) == "bond" and pick is not None
+                         and pick["field"] == "amount_usd"))
     return out
 
 
@@ -155,7 +176,9 @@ class ShellResult:
 
 
 def shell_recovery(site: SiteFacts | None, comp: Comps, claims: list[Claim], instrument_id: str,
-                   pue: float | None = None) -> ShellResult:
+                   pue: float | None = None, progress: Any = None) -> ShellResult:
+    """`progress`: a recovery_progress.Estimate (the share finished, stated or estimated); without one only a
+    stated share is used."""
     missing: list[str] = []
     q = comp.quantiles()
     if q is None:
@@ -168,8 +191,12 @@ def shell_recovery(site: SiteFacts | None, comp: Comps, claims: list[Claim], ins
     if gross_mw is None:
         missing.append("site gross MW (or critical IT MW)")
     share, share_basis = site.completion() if site else (None, "no site facts")
+    estimated = False
+    if share is None and progress is not None and progress.share is not None:
+        share, share_basis, estimated = progress.share, "estimated", True
     if share is None:
         missing.append(f"completion of the works ({share_basis}); value of unfinished works and unspent proceeds")
+    energized = min(site.energized(), share) if site and share is not None else 0.0
     own = next((c for c in claims if c.instrument_id == instrument_id), None)
     if own is None or own.rank is None:
         missing.append("the instrument's rank in the site's debt (seniority)")
@@ -186,10 +213,17 @@ def shell_recovery(site: SiteFacts | None, comp: Comps, claims: list[Claim], ins
                 sorted(c.instrument_id for c in senior + same if c.amount is None)))
         else:
             ahead, pari = sum(c.amount or 0 for c in senior), sum(c.amount or 0 for c in same)
-    value = None
+    value = works = None
+    # unspent proceeds follow the spend share: a stated or estimated completion of the works, not delivered MW
+    # (works can run well ahead of the MW delivered, so 1 - delivered share would overstate the cash left)
+    spend_share = share if share_basis in ("estimated", "pct_complete") else None
+    unspent = (sum((c.amount or 0) * (1 - spend_share) for c in claims if c.funded) if spend_share is not None
+               else 0.0 if share is not None else None)
     rec: list[float | None] = [None, None, None]
     if q and gross_mw and share is not None:
-        value = (gross_mw * share * q[0], gross_mw * share * q[1], gross_mw * share * q[2])
+        factor = energized + (share - energized) * (1 - UNFINISHED_HAIRCUT)
+        works = (gross_mw * factor * q[0], gross_mw * factor * q[1], gross_mw * factor * q[2])
+        value = tuple(w + (unspent or 0) for w in works)  # type: ignore[assignment]
         if ahead is not None and pari:
             rec = [max(0.0, min(1.0, (v - ahead) / pari)) for v in value]
     basis = {
@@ -198,12 +232,16 @@ def shell_recovery(site: SiteFacts | None, comp: Comps, claims: list[Claim], ins
         "compMedianUsdPerMw": None if not comp.per_mw else round(statistics.median(v for _, v in comp.per_mw)),
         "grossMw": None if gross_mw is None else round(gross_mw, 1), "grossMwBasis": gross_basis,
         "completion": None if share is None else round(share, 4), "completionBasis": share_basis,
+        "completionEstimated": estimated,
+        "completionEstimators": (progress.estimators if progress is not None and estimated else []),
+        "energizedShare": round(energized, 4), "unfinishedHaircut": UNFINISHED_HAIRCUT,
+        "worksUsd": None if works is None else [round(v) for v in works],
+        "unspentProceedsUsd": None if unspent is None else round(unspent),
         "valueUsd": None if value is None else [round(v) for v in value],
         "coverCents": [round((v - ahead) / pari * 100) for v in value] if value and ahead is not None and pari
         else None,
-        "claims": [{"instrumentId": c.instrument_id, "rank": c.rank, "amountUsd": c.amount, "basis": c.basis}
-                   for c in claims],
-        "notInV0": ["re-letting time and carry", "unspent proceeds in project accounts",
-                    "third-party support (residual value guarantees, backstops)"],
+        "claims": [{"instrumentId": c.instrument_id, "rank": c.rank, "amountUsd": c.amount, "basis": c.basis,
+                    "funded": c.funded} for c in claims],
+        "notInV0": NOT_COUNTED,
     }
     return ShellResult(value, rec[0], rec[1], rec[2], ahead, pari, missing, basis)

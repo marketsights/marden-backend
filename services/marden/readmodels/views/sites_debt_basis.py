@@ -12,9 +12,10 @@ SiteDebtTab.basis, DebtBasis in the app's types), for the site's main instrument
   as its mid only when it is that range's midpoint.
 - model: the Marden price and what it prices (the instrument on its own terms).
 - vsQuote: 'Model value: 85.9; -4.1 points vs dealer quote (Sep 18)', computed from the two values.
-- recovery: the recovery model's number (derived), else the price model's default recovery for the
-  collateral (an assumption, said so), else the research archive's estimate, else n/d; with the debt
-  class, the scenario, the assumptions and the method page.
+- recovery: the recovery model's number (derived; price v0.2 prices with it), else the price model's
+  default recovery for the collateral (an assumption, said so), else the research archive's estimate, else
+  n/d; with the debt class, the scenario, the assumptions, the method page, and (views/recovery_detail) the
+  key inputs with their sources (`lines`) and the price change per 10c of recovery (`sensitivity`).
 """
 
 from __future__ import annotations
@@ -26,7 +27,9 @@ from typing import Any
 from marden.core.db import Conn, Row
 from marden.readmodels.context import known_fact_rows
 from marden.readmodels.views.instrument_inputs import latest_output as instrument_output
-from marden.readmodels.views.instrument_inputs import num
+from marden.readmodels.views.instrument_inputs import method_version, num
+from marden.readmodels.views.recovery_detail import detail as recovery_detail
+from marden.readmodels.views.recovery_text import NO_SITE_MODEL, SITE_MODEL
 from marden.readmodels.views.sites_common import Doc, nd, output_field, with_value
 from marden.readmodels.views.sites_recovery import reason_nd
 
@@ -148,23 +151,34 @@ def recovery_basis(conn: Conn, inst: Doc, recovery: Doc, tenant: str | None) -> 
                 "scenario": f"{who} walks and the loan defaults; lenders are repaid from the collateral"
                             + (f" ({collateral})" if collateral else ""),
                 "value": recovery}
+    info = recovery_detail(conn, inst["id"], price_out, rec_out)
+    if info is not None:  # the key inputs with their sources, and how much the recovery moves the price
+        doc |= {"lines": [x for x in info["lines"] if x["label"] != "Not counted"],  # in the assumptions below
+                "sensitivity": info["sensitivity"]}
     source = recovery.get("sourceName")
+    cents = num(output_field(price_out, "recovery"))
+    pct = None if cents is None else round(cents * 100 if cents <= 1 else cents)
     if recovery.get("value") and source == "Marden recovery model":
         method = output_field(rec_out, "method")
-        doc |= {"basis": "derived", "headline": f"Derived: {recovery['value']} on {klass}",
+        shown = f"{pct}c" if pct is not None else str(recovery["value"]).replace(f" ({SITE_MODEL})", "")
+        used = ", used in the Marden price" if output_field(price_out, "recoveryBasis") == "site_waterfall" else ""
+        doc |= {"basis": "derived", "headline": f"Derived: {shown} on {klass} ({SITE_MODEL}{used})",
                 "assumptions": [f"Method: {str(method).replace('_', ' ')}" if method else "Method: recovery model",
                                 *[f"Not counted: {x}" for x in output_field(rec_out, "basis", "notInV0") or []]],
-                "method": {**recovery, "value": "Recovery v0.1", "sourceUrl": RECOVERY_DOC}}
+                "method": {**recovery, "value": "Recovery " + (f"v{rec_out['version']}" if rec_out else "model"),
+                           "sourceUrl": RECOVERY_DOC}}
         return doc
     not_derived = reason_nd(rec_out).removeprefix("Not derived: ")
-    if source == "Marden price model" and (cents := num(output_field(price_out, "recovery"))) is not None:
-        pct = round(cents * 100 if cents <= 1 else cents)
+    if source == "Marden price model" and pct is not None:
         on = {"buildings": "flat on the buildings", "gpus": "on the GPUs, decaying with the chips' half-life"}.get(
             str(collateral), f"on the {collateral}" if collateral else "on the collateral")
-        doc |= {"basis": "assumption", "headline": f"Assumption, not derived: {pct}c on {klass}",
-                "assumptions": [f"{pct}% of par recovered at default, {on}: the price model's default, the same for "
-                                "every facility with this collateral", f"Not derived from this site: {not_derived}"],
-                "method": {**recovery, "value": "Pricing v0.1, facility recovery", "sourceUrl": PRICING_DOC}}
+        version = method_version(price_out) if price_out is not None else "price"
+        doc |= {"basis": "assumption", "headline": f"Assumption, not derived: {pct}c on {klass} ({NO_SITE_MODEL})",
+                "assumptions": [f"{pct}% of par recovered at default, {on}: the price model's default, used only "
+                                "where no site collateral model gives a number", f"Not derived from this site: "
+                                f"{not_derived}"],
+                "method": {**recovery, "value": f"Pricing {version.removeprefix('price ')}, facility recovery",
+                           "sourceUrl": PRICING_DOC}}
         return doc
     if recovery.get("value"):
         doc |= {"basis": "archive", "headline": f"Research estimate, not derived by Marden's models: "

@@ -139,6 +139,7 @@ def score_one(conn: Conn, inst: dict[str, Any], day: date, ctx: dict[str, Any]) 
     elif int(num((gap_out or {}).get("count")) or 0) == 0 and gap_out is not None:
         fund_mark = "no fund holds it"
     px_day = date.fromisoformat(px["asOf"]) if isinstance(px.get("asOf"), str) else day
+    px_version = str(px.get("methodVersion") or "price v0.1")  # the stored output's own version
     return {
         "instrumentId": iid,
         "name": inst["name"],
@@ -146,8 +147,8 @@ def score_one(conn: Conn, inst: dict[str, Any], day: date, ctx: dict[str, Any]) 
         "_size": size_usd or 0.0,
         "_points": points,
         "why": reasons,
-        "price": m_value(round(float(px["price"]), 3), px_day, "price v0.1", source_name="Marden model price"),
-        "change1w": m_value(round(change, 3), px_day, "price v0.1", source_name="Marden model price")
+        "price": m_value(round(float(px["price"]), 3), px_day, px_version, source_name="Marden model price"),
+        "change1w": m_value(round(change, 3), px_day, px_version, source_name="Marden model price")
         if change is not None
         else None,
         "fundMark": fund_mark,

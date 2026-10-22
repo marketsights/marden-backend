@@ -42,6 +42,7 @@ from marden.readmodels.views.instrument_text import (
     yield_text,
 )
 from marden.readmodels.views.instrument_yields import yields_doc
+from marden.readmodels.views.last_trade import last_trade
 
 CHAIN_STATUSES = ("Broken", "Strained", "Holding", "No build")
 GAP_WORDS = ("no fund", "traded", "private")
@@ -168,6 +169,7 @@ def instrument_row(conn: Conn, inst: Row, facts: dict[str, Row]) -> tuple[dict[s
         "change1w": change_1w(price_out, series, price),
         "markGap": mark_gap(gap_out, price, bool(lines or marks)),
         "chainStatus": chain_status(conn, inst),
+        "lastTrade": last_trade(observed, series),
     }
     ctx = {
         "price_out": price_out,

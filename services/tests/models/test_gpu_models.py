@@ -169,7 +169,11 @@ def test_recovery_by_collateral_type(copied):
     pct = float(rows("SELECT value FROM fact WHERE subject_type = 'site' AND subject_id = 'abilene' "
                      "AND field = 'pct_complete' AND tag IN ('F', 'R') ORDER BY valid_from DESC LIMIT 1")[0]["value"])
     median = statistics.median(c["usdPerGrossMw"] for c in comps)
-    assert ab["valueB"]["value"] == pytest.approx(gross * pct / 100 * median / 1e9, rel=1e-3)
+    # v0.2: the energized share at comp value, the unfinished rest less the haircut, plus unspent proceeds
+    b = ab["basis"]
+    share, e, cut = pct / 100, b["energizedShare"], b["unfinishedHaircut"]
+    works = gross * (e + (share - e) * (1 - cut)) * median
+    assert ab["valueB"]["value"] == pytest.approx((works + (b["unspentProceedsUsd"] or 0)) / 1e9, rel=1e-3)
     assert ab["basis"]["pariClaimsB"] == pytest.approx(out[ABILENE2]["basis"]["pariClaimsB"])
     assert out[WULF]["basis"]["grossMwBasis"].startswith("critical_it_mw x PUE")
     assert out[NOTE]["method"] is None and out[NOTE]["recovery"]["value"] is None and out[NOTE]["missing"]
@@ -181,7 +185,11 @@ def test_recovery_basis_carries_its_arithmetic(copied):
     before the 0-100c cap, which give the range; a GPU pool names its haircut."""
     out = recovery.run(instruments=[ABILENE1, DDTL1, NOTE], trigger="test")["outputs"]
     b = out[ABILENE1]["basis"]
-    value = [b["grossMw"] * b["completion"] * q for q in b["compQuartilesUsdPerMw"]]
+    e, share = b["energizedShare"], b["completion"]
+    factor = e + (share - e) * (1 - b["unfinishedHaircut"])  # v0.2 haircut on works not yet energized
+    works = [b["grossMw"] * factor * q for q in b["compQuartilesUsdPerMw"]]
+    assert b["worksUsd"] == pytest.approx(works, rel=1e-3)
+    value = [w + (b["unspentProceedsUsd"] or 0) for w in works]
     assert b["valueUsd"] == pytest.approx(value, rel=1e-3)
     assert b["valueUsd"][1] / 1e9 == pytest.approx(out[ABILENE1]["valueB"]["value"], rel=1e-4)
     ahead, pari = b["seniorClaimsB"] * 1e9, b["pariClaimsB"] * 1e9

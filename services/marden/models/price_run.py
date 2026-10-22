@@ -2,10 +2,10 @@
 
     cd services && uv run python -m marden model price [--as-of YYYY-MM-DD] [--instrument ID ...] [--no-mark]
 
-Writes in one transaction under one model_run ('price', 'price v0.1'): model_output 'price' per instrument,
+Writes in one transaction under one model_run ('price', 'price v0.2'): model_output 'price' per instrument,
 'cds' per issuer entity, 'curve' for series 'all' (exactly CurveTier[]) and 'curve_fit' (the tier fit, its
 sample and what is missing) on full runs; one price_obs per priced instrument
-and day (kind 'marden', tag M, method_version 'price v0.1', source 'Marden model price'; a rerun of the
+and day (kind 'marden', tag M, method_version 'price v0.2', source 'Marden model price'; a rerun of the
 same day replaces the model's own row). change1w is taken against the stored output exactly 7 days
 earlier when there is one, else from this run's filtered path. After the writes the read models of
 every subject are marked dirty ('@model:price', '@model:cds', '@model:curve').
@@ -14,8 +14,8 @@ Runs (spec 22 "What runs when"): daily 09:40 UTC (05:40 EDT, after the 09:35 cus
 projection sets completion dates, before the 09:53 status run that reads the price), and within a
 minute of any published input (marden.models.triggers): a price observation other than the model's
 own, a Treasury / SOFR / HY (ICE BofA, or its etf_oas fund-OAS proxy) / equity series value, an issue
-comp, an instrument's terms, a site's power, permit or schedule facts and events, a cushion run, an
-issuer's XBRL debt or shares.
+comp, an instrument's terms, a site's power, permit or schedule facts and events, a cushion run, a
+recovery run (the site collateral waterfall the facilities price with, v0.2), an issuer's XBRL debt or shares.
 """
 
 from __future__ import annotations
@@ -129,6 +129,10 @@ def _price_series(conn: Conn, subject_id: str) -> list[str]:
     return ["*"] if subject_id.startswith(prefixes) else []
 
 
+def _priced(conn: Conn, instrument_id: str) -> list[str]:
+    return ["*"] if is_target(conn, instrument_id) else []
+
+
 def _site_with_debt(conn: Conn, slug: str) -> list[str]:
     row = conn.execute("SELECT 1 FROM instrument WHERE site_slug = %s LIMIT 1", (slug,)).fetchone()
     return ["*"] if row else []
@@ -149,6 +153,7 @@ def _install_triggers() -> None:
         triggers.model_depends(MODEL, "site", fld, _site_with_debt)
     triggers.model_depends(MODEL, "site", "@event", _site_with_debt)
     triggers.model_depends(MODEL, "site", "@model:cushion", _site_with_debt)
+    triggers.model_depends(MODEL, "instrument", "@model:recovery", _priced)
     for fld in (*price_equity.DEBT_FIELDS, *price_equity.SHARE_FIELDS):
         triggers.model_depends(MODEL, "entity", fld, triggers.everything)
     triggers.register_runner(MODEL, run_keys)

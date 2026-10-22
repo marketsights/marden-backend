@@ -155,6 +155,8 @@ class Valuation:
     recovery_low: float | None
     recovery_high: float | None
     missing: list[str]
+    # (years from the day, recovery capped at 100c) at each scheduled balance: the waterfall over the loan's life
+    recovery_path: list[tuple[float, float]] = field(default_factory=list)
 
 
 def pools(facilities: list[Facility]) -> dict[str, list[Facility]]:
@@ -203,6 +205,7 @@ def value_facility(f: Facility, market: Market, fit: Fit | None, day: date,
     ltv = pool_balance / value if value and pool_balance else None
     quarters: list[dict[str, Any]] = []
     rec: list[float] = []
+    path: list[tuple[float, float]] = []
     if value and pool_balance and units and model and age is not None and life is not None and fit is not None:
         sched = f.schedule(pool_balance) or [(day.strftime("%Y-%m"), pool_balance)]
         seen: dict[str, float] = {}
@@ -213,12 +216,13 @@ def value_facility(f: Facility, market: Market, fit: Fit | None, day: date,
                 continue
             coll = v * units * (1 - HAIRCUT)
             seen[quarter_label(month)] = round(bal / coll, 4)
+            path.append((round(ahead, 4), min(1.0, coll / bal) if bal > 0 else 1.0))
             if k <= DEFAULT_WINDOW_QUARTERS:
                 rec.append(min(1.0, coll / bal))
         quarters = [{"quarter": q, "ltv": v} for q, v in seen.items()]
     return Valuation(model, units, scaled, [m.instrument_id for m in members], pool_balance, life, life_row, age,
                      per_unit, value, balance, balance_row, ltv, quarters, min(rec) if rec else None,
-                     max(rec) if rec else None, missing)
+                     max(rec) if rec else None, missing, path)
 
 
 def range_text(low: float | None, high: float | None) -> str | None:

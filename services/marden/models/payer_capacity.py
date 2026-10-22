@@ -225,7 +225,7 @@ def payer_doc(
     cds = latest_output(conn, "cds", "entity", eid, day)
     spread = num(cds["output"].get("spreadBp")) if cds is not None and isinstance(cds["output"], dict) else None
     spread_doc = (
-        m_value(round(spread, 1), cds["as_of"], "price v0.1", source_name="Marden bond-implied CDS")
+        m_value(round(spread, 1), cds["as_of"], cds["version"], source_name="Marden bond-implied CDS")
         if spread is not None
         else _nd(day, "M")
     )

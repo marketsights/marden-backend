@@ -28,7 +28,7 @@ import numpy as np
 from marden.core.db import Conn
 from marden.models import price_signals as sig
 from marden.models.price_bonds import RECOVERY, Flows, clean_price, flows, g_spread_bp, solve_spread, yield_to_maturity
-from marden.models.price_chain import Chain, Legs, hazard_fn, recovery_fn
+from marden.models.price_chain import Chain, Legs, hazard_fn, recovery_basis, recovery_doc, recovery_fn
 from marden.models.price_curve import CurveBook
 from marden.models.price_issuer import IssuerCurve, bond_hazard
 from marden.models.price_kalman import Reading
@@ -41,6 +41,7 @@ RESID_VOL = 0.012  # annual volatility of the residual spread (decimal), judgmen
 Q_RESID = RESID_VOL**2 / 252.0
 CALIBRATED_SD = 0.0010  # 10bp: the residual is known at the calibration price
 Z80 = 1.2816
+RECOVERY_STEP = 0.10  # recoverySensitivity: the price change per 10c of recovery
 
 
 @dataclass
@@ -101,10 +102,16 @@ def model_for(ctx: Ctx, inst: Instrument, ch: Chain | None) -> Model:
 
         return Model("issuer bond", issuer_hazard, RECOVERY)
 
+    seen: dict[tuple[date, bool], tuple[Callable[[np.ndarray], np.ndarray], list[str], dict[str, Any]]] = {}
+
     def chain_hazard(day: date, backfill: bool = False) -> tuple[Callable[[np.ndarray], np.ndarray], list[str],
                                                                   dict[str, Any]]:
-        lg, missing, info = legs(ctx, ch, day, backfill)
-        return hazard_fn(ch, lg, day), missing, info
+        # cached per day: the recovery sensitivity re-runs the calibration and the filter on the same days
+        if (day, backfill) not in seen:
+            lg, missing, info = legs(ctx, ch, day, backfill)
+            seen[(day, backfill)] = hazard_fn(ch, lg, day), missing, info
+        hz, missing, info = seen[(day, backfill)]
+        return hz, list(missing), dict(info)
 
     return Model("facility", chain_hazard, recovery_fn(ch))  # type: ignore[arg-type]
 
@@ -183,7 +190,7 @@ def price(ctx: Ctx, inst: Instrument, ch: Chain | None, obs: list[Obs]) -> dict[
     """The 'price' model output of one instrument (types: see marden.models.price)."""
     missing = list(inst.terms_missing) + (list(ch.missing) if ch else [])
     out: dict[str, Any] = {"price": None, "spreadBp": None, "yieldPct": None, "recovery": None, "change1w": None,
-                           "band": None, "inputs": [], "missing": missing}
+                           "band": None, "inputs": [], "missing": missing, "recoveryBasis": None}
     f_now = _flows(ctx, inst, ctx.as_of) if inst.terms else None
     if f_now is None:
         missing.append(f"instrument {inst.id}: terms, curve or SOFR for {ctx.as_of}" if inst.terms else "terms")
@@ -201,12 +208,7 @@ def price(ctx: Ctx, inst: Instrument, ch: Chain | None, obs: list[Obs]) -> dict[
     if cal is None:
         return _tier_price(ctx, inst, ch, f_now, out)
     cal_day, lp, cal_basis = cal
-    days = ctx.book.business_days(cal_day, ctx.as_of) or [ctx.as_of]
-    if days[-1] != ctx.as_of:
-        days = [*days, ctx.as_of]
-    rd = readings(ctx, inst, m, lp, [o for o in obs if o.day >= cal_day], days)
-    p0 = CALIBRATED_SD**2 if m.mode == "facility" else 0.02**2
-    filt = kalman(len(days), 0.0, p0, Q_RESID, rd)
+    days, filt = _filtered(ctx, inst, m, obs, cal_day, lp)
     r, r_var = filt.at(len(days) - 1)
     hz, miss_now, info = m.hazard(ctx.as_of)
     missing.extend(miss_now)
@@ -238,7 +240,69 @@ def price(ctx: Ctx, inst: Instrument, ch: Chain | None, obs: list[Obs]) -> dict[
         "chain": ch.doc() if ch else None, "terms": _terms_doc(inst),
         "defaultOddsToMaturity": round(_default_odds(hz, f_now.maturity_years), 4) if credit_leg else None,
     }
+    out["recoveryBasis"] = recovery_basis(ch)
+    out["recoveryInputs"] = recovery_doc(ch, rec, _version(), RECOVERY)
+    out["recoverySensitivity"] = _recovery_sensitivity(ctx, inst, ch, m, obs, f_now, hz, lp + r, rec, px)
     out["_week_ago_price"] = week
+    return out
+
+
+def _version() -> str:
+    from marden.models.price import VERSION
+
+    return VERSION
+
+
+def _filtered(ctx: Ctx, inst: Instrument, m: Model, obs: list[Obs], cal_day: date, lp: float) -> tuple[list[date], Any]:
+    """The business days from calibration to the as-of day and the residual filter over them."""
+    days = ctx.book.business_days(cal_day, ctx.as_of) or [ctx.as_of]
+    if days[-1] != ctx.as_of:
+        days = [*days, ctx.as_of]
+    rd = readings(ctx, inst, m, lp, [o for o in obs if o.day >= cal_day], days)
+    p0 = CALIBRATED_SD**2 if m.mode == "facility" else 0.02**2
+    return days, kalman(len(days), 0.0, p0, Q_RESID, rd)
+
+
+def _recovery_sensitivity(ctx: Ctx, inst: Instrument, ch: Chain | None, m: Model, obs: list[Obs], f_now: Flows,
+                          hz: Any, spread: float, rec0: float, px: float) -> dict[str, Any]:
+    """Price change per 10c of recovery (dP/dR x 0.10), points, by central difference of +-5c (one-sided at the
+    0c / 100c bounds). `per10cPts`: the whole model re-run with the shifted recovery, so the liquidity
+    premium re-solves to the issue price; `holdingSpreadPer10cPts`: today's price at today's spread."""
+    curve = ctx.book.curve(ctx.as_of)
+    assert curve is not None
+    half = RECOVERY_STEP / 2
+    up, down = (min(half, 1.0 - rec0), -min(half, rec0))
+    if up - down < 1e-6:
+        return {"per10cPts": None, "holdingSpreadPer10cPts": None, "why": "recovery at a bound"}
+    if up < half:
+        down = -min(RECOVERY_STEP - up, rec0)
+    elif -down < half:
+        up = min(RECOVERY_STEP + down, 1.0 - rec0)
+    width = up - down
+
+    def shifted(s: float) -> Any:
+        return recovery_fn(ch, s) if ch is not None else min(max(RECOVERY + s, 0.0), 1.0)
+
+    hold = [clean_price(f_now, curve, hz, shifted(s), spread) for s in (down, up)]
+    out: dict[str, Any] = {"holdingSpreadPer10cPts": round((hold[1] - hold[0]) / width * RECOVERY_STEP, 3),
+                           "stepCents": round(width * 100, 1), "pricedAt": round(px, 3)}
+    if m.mode != "facility" or ch is None:
+        out.update({"per10cPts": None, "why": "issuer bond: its default intensity is solved from the issuer's bond "
+                                               "prices at the same 40% recovery, so the model price does not move "
+                                               "with the convention; holdingSpread is at today's intensity"})
+        return out
+    full: list[float] = []
+    for s in (down, up):
+        m_s = Model(m.mode, m.hazard, shifted(s))
+        cal = calibrate(ctx, inst, m_s, obs)
+        if cal is None:
+            out.update({"per10cPts": None, "why": "no calibration"})
+            return out
+        days, filt = _filtered(ctx, inst, m_s, obs, cal[0], cal[1])
+        full.append(clean_price(f_now, curve, hz, m_s.recovery, cal[1] + filt.at(len(days) - 1)[0]))
+    out.update({"per10cPts": round((full[1] - full[0]) / width * RECOVERY_STEP, 3),
+                "how": "price re-run with the recovery 5c lower and higher (one-sided at a bound), liquidity "
+                       "premium re-solved at calibration and residual re-filtered; per 10c"})
     return out
 
 
@@ -294,6 +358,10 @@ def _tier_price(ctx: Ctx, inst: Instrument, ch: Chain | None, f: Flows, out: dic
     out["basis"] = {"mode": "tier curve", "tier": tier, "terms": _terms_doc(inst), "chain": ch.doc() if ch else None,
                     "looRmseBp": round(err, 1)}
     out["missing"].append("issue comp and observations: price read off the tier curve (wide band)")
+    out["recoveryBasis"] = None
+    out["recoveryInputs"] = {"basis": None, "why": "price read off the tier curve: no recovery is used"}
+    out["recoverySensitivity"] = {"per10cPts": 0.0, "holdingSpreadPer10cPts": 0.0,
+                                  "why": "price read off the tier curve: recovery does not enter it"}
     return out
 
 

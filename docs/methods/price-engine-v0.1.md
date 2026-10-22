@@ -1,6 +1,6 @@
-# Marden price engine v0.1 (Oct 21, 2026)
+# Marden price engine v0.1 (Oct 21, 2026; v0.2 Oct 22: per-site recovery)
 
-Code: `services/marden/models/price*.py`. Method: [pricing-v0.1.md](pricing-v0.1.md) (the owner's methodology; this page says how the code implements it and where it departs). Outputs: `model_output` rows of models `price` (instrument), `cds` (entity), `curve` (series `all`, exactly `CurveTier[]`) and `curve_fit` (series `all`), version `price v0.1`, one per subject and as-of day; plus one `price_obs` per priced instrument and day (kind `marden`, tag M, method version `price v0.1`, source `Marden model price`).
+Code: `services/marden/models/price*.py`. Method: [pricing-v0.1.md](pricing-v0.1.md) (the owner's methodology; this page says how the code implements it and where it departs). Outputs: `model_output` rows of models `price` (instrument), `cds` (entity), `curve` (series `all`, exactly `CurveTier[]`) and `curve_fit` (series `all`), version `price v0.2` (v0.1 until 2026-10-22; [pricing-v0.1.md](pricing-v0.1.md) "v0.2"), one per subject and as-of day; plus one `price_obs` per priced instrument and day (kind `marden`, tag M, method version `price v0.2`, source `Marden model price`). Every Treasury business day from 2026-07-01 was run (backfill 2026-10-22, point in time).
 
 Every number is computed in code (numpy, scipy, QuantLib 1.44) from stored rows. A missing input gives null fields and a `missing` entry. Bands are uncalibrated and carry the "model v0" label.
 
@@ -87,7 +87,7 @@ P = Σ CF·S·D + Σ R·N·(S(t−1) − S(t))·D, with D = Treasury × e^(−(l
 - **Obligor leg:** for an SPV of a CDS issuer, (1 − 0.5) × λ_parent when customer contracts are named, else the full λ_parent.
 - **Construction leg:** until the cushion P50 rent start, 1.5%/yr × 1.75^denials (cap 6×) + 0.15/yr × min(0.25 × delays, 1).
 - **Backstop:** with a guarantor, the facility defaults only jointly with it (Gaussian copula, ρ = 0.3).
-- **Recovery:** buildings flat at 55%. GPU collateral starts at 55% and halves every chip half-life. The half-life comes from a log-linear fit of the stored residual bands: B200 ≈ 3.4y, H100 ≈ 0.9y.
+- **Recovery (v0.2):** the `recovery` model's central estimate for the instrument when it has a current one (`recoveryBasis: site_waterfall`): the powered-shell base case after the claims ahead, or the GPU waterfall's path over the loan's life. Otherwise (`default_assumption`) buildings flat at 55%, and GPU collateral starts at 55% and halves every chip half-life (log-linear fit of the stored residual bands: B200 ≈ 3.4y, H100 ≈ 0.9y). `recoverySensitivity` gives the price change per 10c of recovery. Details: [pricing-v0.1.md](pricing-v0.1.md) "v0.2".
 
 **Signals** (`price_signals`). These are read by the status model's fixed text rules: `power_denied`, `stated_slip` ≥ 3 months near a power word, and `force_majeure` near a power word.
 - Counts do not sum restatements. The denial count is the larger of the distinct denial events and the most denials any one record states ("twice" = 2; a plural = 2).
@@ -105,7 +105,7 @@ P = Σ CF·S·D + Σ R·N·(S(t−1) − S(t))·D, with D = Treasury × e^(−(l
 
 **Price and band.** Price = clean price at lp + r. The 80% band is the price at r ± 1.28 sd, with the tenant's intensity uncertainty added. `change1w` is measured against the stored output exactly 7 days earlier, else this run's filtered path.
 
-Output `price`: `{price, spreadBp (yield − Treasury par at maturity), yieldPct, recovery, change1w, inputs: [{key, label, value, unit, tag, asOf, methodVersion?, sourceName?}], band: {low, high, level, label: "model v0"}, missing: [...], basis, label: "Marden model price", methodVersion, tier}`. The input keys include `issuerCdsBp`, `tenantCdsBp`, `obligorCdsBp`, `permitDenials`, `powerDelays`, `liquidityPremiumBp`, `residualBp`, `treasuryYieldPct`, `sofrPct`, `impliedDefaultOdds` and, for a price read off the tier curve, `hyOasPct` (`displayAllowed: false`: the read models never show it).
+Output `price`: `{price, spreadBp (yield − Treasury par at maturity), yieldPct, recovery, change1w, inputs: [{key, label, value, unit, tag, asOf, methodVersion?, sourceName?}], band: {low, high, level, label: "model v0"}, missing: [...], basis, label: "Marden model price", methodVersion, tier, recoveryBasis, recoveryInputs, recoverySensitivity: {per10cPts, holdingSpreadPer10cPts, stepCents}}`. The input keys include `recoveryCents` (v0.2), `issuerCdsBp`, `tenantCdsBp`, `obligorCdsBp`, `permitDenials`, `powerDelays`, `liquidityPremiumBp`, `residualBp`, `treasuryYieldPct`, `sofrPct`, `impliedDefaultOdds` and, for a price read off the tier curve, `hyOasPct` (`displayAllowed: false`: the read models never show it).
 
 Not priced in v0.1, each listed in `missing`: convertible notes (no equity-option model), non-USD notes, and instruments without maturity or coupon terms.
 
@@ -119,7 +119,8 @@ Not priced in v0.1, each listed in `missing`: convertible notes (no equity-optio
 - an issue comp;
 - an instrument term;
 - a signal fact, an event or `@model:cushion` on a site with debt;
-- an entity's XBRL debt or shares.
+- an entity's XBRL debt or shares;
+- a `recovery` model output of an instrument the engine prices (`@model:recovery`, v0.2).
 
 **After each run.** The run marks `@model:price` (instrument), `@model:cds` (entity) and `@model:curve` (series `all`). The read models `instruments`, `instrument_detail`, `curve`, the site views and the payer views then rebuild.
 
@@ -149,7 +150,7 @@ Run 2026-10-21 on the local database. The numbers move as more N-PORT filings lo
 - Target: 17 prices, 0.76pt, 0.87pt, 65%.
 - The largest misses are the shortest and the longest note, which are extrapolated or sit at the line's ends: 21873SAK4 on 06-30 (−1.66pt) and 07-31 (−1.31pt); 21873SAG3 on 05-29/05-31 (+1.4pt).
 
-**Jupiter, locked path.** SOFR+250 at par on 2025-11-07, 4-year term, Oracle point in time, protection 0.5, completion 2028-06-30, 1.5%/yr, recovery 55%, the methodology's dated signals.
+**Jupiter, locked path.** SOFR+250 at par on 2025-11-07, 4-year term, Oracle point in time, protection 0.5, completion 2028-06-30, 1.5%/yr, recovery 55% (locked in `price_validate.JUPITER_RECOVERY`; unchanged by v0.2, so the table below still reproduces), the methodology's dated signals.
 
 | Date | Methodology | Marden locked | Marden from records |
 | --- | --- | --- | --- |

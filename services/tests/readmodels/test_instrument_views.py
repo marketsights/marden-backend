@@ -26,12 +26,15 @@ DDTL3, DDTL5, CRWV31, ORACLE = "EX-CRWV-094", "EX-CRWV-096", "EX-CRWV-102", "EX-
 NOT_V1 = "EX-VANTAGE_ORCL-367"
 SEEDED = (JUPITER, BARN, FRONTIER, ABILENE, DDTL3, DDTL5, CRWV31, ORACLE, NOT_V1)
 ROW_KEYS = {"id", "name", "type", "sizeB", "matures", "mardenPrice", "yieldPct", "ytw", "ytm", "change1w", "markGap",
-            "chainStatus"}
+            "chainStatus", "lastTrade"}
 DETAIL_KEYS = ROW_KEYS | {
     "facts",
     "fundMarks",
     "nextMarksPublic",
     "recovery",
+    "recoveryDetail",
+    "termsNotDisclosed",
+    "lenders",
     "priceHistory",
     "yields",
     "holders",
@@ -137,6 +140,14 @@ def test_detail_terms_dealer_quote_recovery_and_payers(seeded):
             "sourceUrl": q["source_url"],
             "sourceName": q["source_name"],
         }
+    price = _output("price", JUPITER)
+    if price is not None and isinstance(price["output"].get("recovery"), int | float):
+        # the tile is the recovery the price used, labelled site model or assumed (price v0.2)
+        cents = round(price["output"]["recovery"] * 100)
+        site = price["output"].get("recoveryBasis") == "site_waterfall"
+        assert doc["recovery"]["value"] == (f"{cents}c (site collateral model)" if site
+                                            else f"{cents}c assumed (no site collateral model yet)")
+        assert doc["recoveryDetail"]["basis"] == ("site_waterfall" if site else "default_assumption")
     rec = _fact(JUPITER, "recovery_project")
     if (
         _output("recovery", JUPITER) is None

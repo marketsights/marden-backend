@@ -29,7 +29,7 @@ from marden.core.db import Conn
 from marden.models import price_marks, price_signals
 from marden.models.price_bonds import Terms, clean_price, flows, solve_spread
 from marden.models.price_cds import interpolate, isda
-from marden.models.price_chain import BUILDING_RECOVERY, Chain, Legs, hazard_fn
+from marden.models.price_chain import Chain, Legs, hazard_fn
 from marden.models.price_curve import load_curves, year_frac
 from marden.models.price_issuer import build, raw_level, sections, straight_bonds
 from marden.models.price_terms import attach, load_comps, load_instruments
@@ -46,6 +46,10 @@ JUPITER_ID = "EX-JUPITER-190"
 JUPITER_ISSUE = date(2025, 11, 7)
 JUPITER_TERMS = Terms(JUPITER_ID, date(2029, 11, 7), "floating", None, 250.0, 4, ("locked: SOFR+250, 4-year term",))
 JUPITER_COMPLETION = date(2028, 6, 30)
+# Locked with the backtest (pricing-v0.1.md "Jupiter backtest"): the methodology's flat 55%. Price v0.2 takes a
+# facility's recovery from its site waterfall when there is one; the locked path keeps 55% so it stays
+# reproducible (Jupiter's waterfall is n/d anyway: nothing delivered and no stated completion).
+JUPITER_RECOVERY = 0.55
 JUPITER_TABLE = ((date(2025, 11, 7), 100.0), (date(2026, 3, 31), 98.2), (date(2026, 7, 16), 96.7),
                  (date(2026, 8, 17), 94.3), (date(2026, 9, 18), 94.1), (date(2026, 9, 24), 89.0))
 
@@ -151,7 +155,7 @@ def _jupiter_price(conn: Conn, day: date, signals: list[price_signals.Signal]) -
     assert at_issue is not None
     f0 = flows(JUPITER_TERMS, issue_curve, JUPITER_ISSUE, issue_sofr)
     hz0 = hazard_fn(ch, Legs(at_issue[0], None, None, 0, 0), JUPITER_ISSUE)
-    lp = solve_spread(f0, issue_curve, 100.0, hz0, BUILDING_RECOVERY).value
+    lp = solve_spread(f0, issue_curve, 100.0, hz0, JUPITER_RECOVERY).value
     got = cur.hazard(day) if day >= cur.days[0] else None
     curve, sofr = book.curve(day), book.sofr_on(day)
     if got is None or curve is None or sofr is None:
@@ -159,7 +163,7 @@ def _jupiter_price(conn: Conn, day: date, signals: list[price_signals.Signal]) -
         return out
     denials, delays = price_signals.counts(signals, day)
     hz = hazard_fn(ch, Legs(got[0], None, None, denials, delays), day)
-    px = clean_price(flows(JUPITER_TERMS, curve, day, sofr), curve, hz, BUILDING_RECOVERY, lp)
+    px = clean_price(flows(JUPITER_TERMS, curve, day, sofr), curve, hz, JUPITER_RECOVERY, lp)
     cds = isda(day, curve, got[0]).spread_bp
     out.update({"price": round(px, 2), "lpBp": round(lp * 1e4, 1), "oracleCdsBp": round(cds),
                 "oracleHazard": round(got[0], 5), "denials": denials, "delays": delays})

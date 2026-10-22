@@ -4,7 +4,7 @@ plain line each, read from the model's basis (marden.models.recovery and recover
 
 - range: the model's cents per dollar ('100c', a '62-74c' range with an en dash). When the model lacks an
   input the range is n/d, `reason` names the input in plain words, and `assumed` shows the price model's
-  recovery for what it is, a default ('assumed 55c (price model v0.1 default)'), never as the range.
+  recovery for what it is, a default ('55c assumed (no site collateral model yet)'), never as the range.
 - inputs, powered shell: comparable value per MW x gross MW x share finished = shell value; less the
   claims ranking ahead; over the claims at the loan's rank = cents, capped at 100c. GPU pool: units x
   value per unit x (1 - haircut) = collateral value; over the pool balance = cents. What model v0 does
@@ -18,13 +18,14 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.readmodels.views.instrument_inputs import latest_output as instrument_output
-from marden.readmodels.views.instrument_inputs import method_version, model_sourced, num
+from marden.readmodels.views.instrument_inputs import model_sourced, num
 from marden.readmodels.views.instrument_text import DASH
-from marden.readmodels.views.recovery_text import cents_text
+from marden.readmodels.views.recovery_text import cents_text, price_recovery_text
 from marden.readmodels.views.sites_common import Doc, is_sourced, latest_output, msourced, nd, output_field, party_label
 
 TIMES, MINUS, OVER = "\u00d7", "\u2212", "\u00f7"  # the arithmetic signs
 EQUIPMENT = "not counted in this run; no equipment invoices or liens on file"
+LAND = "not counted in this run; no land values on file"
 RELETTING = "not counted in this run; no re-letting times by market on file"
 COMPLETION = {"nothing delivered and no stated completion": "nothing delivered yet and no completion share stated",
               "no capacity": "no capacity on file to measure delivered MW against",
@@ -119,13 +120,29 @@ def shell_lines(out: Row, instrument_id: str) -> list[Doc]:
         gross_text = f"{gross:,.0f} gross MW" + (f" (critical IT MW {TIMES} PUE {how.rsplit(' ', 1)[-1]})"
                                                  if how.startswith("critical_it_mw") else "")
     why = str(b.get("completionBasis") or "")
+    estimators = [e for e in b.get("completionEstimators") or [] if isinstance(e, dict) and e.get("key")]
     how_share = " (stated completion)" if why == "pct_complete" else (
-        " (delivered MW over capacity)" if "delivered" in why else "")
+        " (delivered MW over capacity)" if "delivered" in why else
+        " (estimated: " + ", ".join(str(e.get("label")) for e in estimators) + ")" if estimators else "")
     share_text = None if share is None else f"{share:.0%}{how_share}"
+    estimate_text = "; ".join(f"{e.get('label')}: {float(e['share']):.0%} ({e.get('detail')})" for e in estimators
+                              if num(e.get("share")) is not None and e.get("detail"))
+    if len([e for e in estimators if e.get("key") in ("schedule", "imagery", "capex")]) > 1:
+        estimate_text += "; share finished = their mean"
+    works = _triple(b.get("worksUsd"))
+    unspent, energized, cut = num(b.get("unspentProceedsUsd")), num(b.get("energizedShare")), num(b.get("haircut"))
+    cut = num(b.get("unfinishedHaircut")) if cut is None else cut
     shell = None
-    if value is not None and q and gross is not None and share is not None:
-        shell = f"{_mm(q[1])} {TIMES} {gross:,.0f} MW {TIMES} {share:.0%} = {money_b(value)}"
-        if vals and round(vals[0] / 1e8) != round(vals[2] / 1e8):
+    works_b = works[1] / 1e9 if works else value
+    if works_b is not None and q and gross is not None and share is not None:
+        if energized is not None and cut and share - energized > 1e-4:
+            parts = f"({energized:.0%} energized + {share - energized:.0%} unfinished {TIMES} (1 {MINUS} {cut:.0%}))"
+        else:
+            parts = f"{share:.0%}"
+        shell = f"{_mm(q[1])} {TIMES} {gross:,.0f} MW {TIMES} {parts} = {money_b(works_b)}"
+        if works and round(works[0] / 1e8) != round(works[2] / 1e8):
+            shell += f" (25th{DASH}75th comps: {money_b(works[0] / 1e9)}{DASH}{money_b(works[2] / 1e9)})"
+        elif not works and vals and round(vals[0] / 1e8) != round(vals[2] / 1e8):
             shell += f" (25th{DASH}75th comps: {money_b(vals[0] / 1e9)}{DASH}{money_b(vals[2] / 1e9)})"
     lacking = [n for n, ok in (("comparable value per MW", q is not None), ("site capacity", gross is not None),
                                ("share finished", share is not None)) if not ok]
@@ -140,12 +157,17 @@ def shell_lines(out: Row, instrument_id: str) -> list[Doc]:
               f"too few comparable sites with a filed cost and gross MW ({len(comps)} on file)"),
         _line(out, "Site capacity", gross_text, "no gross or critical IT MW on file"),
         _line(out, "Share finished", share_text, COMPLETION.get(why, why or "no completion on file")),
+        *([_line(out, "How the share is estimated", estimate_text, "")] if estimate_text else []),
         _line(out, "Powered shell value", shell,
               "needs the " + " and ".join(lacking) if lacking else "not in the model output"),
+        _line(out, "Unspent proceeds", None if unspent is None else (
+            f"{money_b(unspent / 1e9)} still in the project accounts (funded notes {TIMES} (1 {MINUS} share "
+            "finished))" if unspent > 0 else "$0 (no notes funded up front)"), "needs the share finished"),
         _line(out, "Claims ahead of the loan", money_b(ahead), claims_why),
         _line(out, "Claims at the loan's rank", pari_text, claims_why),
         _line(out, "Recovery", _recovery_line(value, ahead, pari, cover),
               "needs the powered shell value" if value is None else "needs the claims at and ahead of the loan"),
+        _line(out, "Land", None, LAND),
         _line(out, "Equipment on site", None, EQUIPMENT),
         _line(out, "Re-letting time", None, RELETTING),
     ]
@@ -190,13 +212,13 @@ def reason_nd(out: Row | None) -> str:
 
 
 def price_assumption(conn: Conn, instrument_id: str) -> Doc | None:
-    """The price model's recovery, a default it assumes: 'assumed 55c (price model v0.1 default)'."""
+    """The price model's recovery when it is a default it assumes: '55c assumed (no site collateral model yet)'
+    (its method version is in the source tag). None when the price used the site waterfall."""
     out = instrument_output(conn, "price", instrument_id, "instrument")
     n = num(output_field(out, "recovery"))
-    if out is None or n is None:
+    if out is None or n is None or output_field(out, "recoveryBasis") == "site_waterfall":
         return None
-    label = method_version(out).replace(f"{out['model']} ", f"{out['model']} model ", 1)
-    return model_sourced(out, f"assumed {round(n * 100 if n <= 1 else n)}c ({label} default)")
+    return model_sourced(out, price_recovery_text(out["output"]) or f"{round(n * 100 if n <= 1 else n)}c assumed")
 
 
 def recovery_card(conn: Conn, parties: dict[str, Row], main: Doc | None) -> Doc:

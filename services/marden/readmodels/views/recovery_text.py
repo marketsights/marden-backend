@@ -2,8 +2,10 @@
 (waterfall, project, GPU-only) and from model outputs.
 
 The `recovery` model derives its range from the collateral ('62-74c', en dash; a bare '100' from the
-model gets its 'c'). The price model's recovery is a default it assumes (marden.models.price_chain BUILDING_RECOVERY
-and GPU_RECOVERY, 40% on bonds), never derived from the collateral, so it is shown as one: 'assumed 55c'.
+model gets its 'c'). The price model (v0.2) prices a facility with that model's central estimate when there is
+one (`recoveryBasis` 'site_waterfall': '52c (site collateral model)') and otherwise with a default it assumes
+(marden.models.price_chain BUILDING_RECOVERY and GPU_RECOVERY, 40% on bonds; 'default_assumption': '55c
+assumed (no site collateral model yet)'). A v0.1 price output has no basis: its recovery was always the default.
 """
 
 from __future__ import annotations
@@ -91,3 +93,24 @@ def recovery_from_output(value: Any, *, assumed: bool = False) -> str | None:
     """`cents_text`, marked 'assumed 55c' when the value is a model's default, not derived (the price model)."""
     text = cents_text(value)
     return f"assumed {text}" if text and assumed else text
+
+
+SITE_MODEL = "site collateral model"
+NO_SITE_MODEL = "no site collateral model yet"
+NO_NOTE_MODEL = "no collateral model for corporate notes yet"
+
+
+def price_recovery_text(output: Any) -> str | None:
+    """The recovery the price model used, in plain words: '52c (site collateral model)', '55c assumed (no site
+    collateral model yet)', '40c assumed (no collateral model for corporate notes yet)'; None when unpriced."""
+    if not isinstance(output, dict):
+        return None
+    n = num(output.get("recovery"))
+    if n is None:
+        return None
+    cents = round(n * 100 if n <= 1 else n)
+    if output.get("recoveryBasis") == "site_waterfall":
+        return f"{cents}c ({SITE_MODEL})"
+    bond = (output.get("recoveryInputs") or {}).get("method") == "bond_convention" or (
+        (output.get("basis") or {}).get("mode") == "issuer bond")
+    return f"{cents}c assumed ({NO_NOTE_MODEL if bond else NO_SITE_MODEL})"

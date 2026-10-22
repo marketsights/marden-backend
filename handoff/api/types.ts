@@ -187,7 +187,25 @@ export interface DebtBasis {
     assumptions: string[];
     method: Sourced<string>;                  // method page
     value: Sourced<string>;
+    lines?: RecoveryLine[];                   // key inputs, each with its source (views/recovery_detail.py)
+    sensitivity?: string | null;              // "±10c recovery moves the price by ±0.13 points"
   };
+}
+/** One key input behind the recovery the price uses: "Debt ahead" · "$0". */
+export interface RecoveryLine { label: string; value: Sourced<string> }
+/** The recovery behind the Marden price (Recovery tile expand). */
+export interface RecoveryDetail {
+  basis: 'site_waterfall' | 'default_assumption';
+  headline: string;                           // "52c from the site collateral model, used in the Marden price"
+  method: Sourced<string>;                    // method name, linked to its page
+  lines: RecoveryLine[];
+  sensitivity: string | null;                 // "±10c recovery moves the price by ±0.13 points"
+}
+/** The latest trade print behind a traded instrument's price (a price that has not moved says why). */
+export interface LastTrade {
+  date: string; price: number; tag: Tag; sourceName: string; sourceUrl?: string;
+  noTradeSince: boolean;                      // no trade on the price's own day
+  note: string | null;                        // "Unchanged since Oct 20: no trade since Oct 20"
 }
 
 // GET /api/instruments and /api/instruments/:id
@@ -197,6 +215,7 @@ export interface InstrumentRow {
   ytw: Sourced<number>; ytm: Sourced<number>;  // calculated from the Marden price (model 'yield', M), %; null = n/d
   change1w: Sourced<number>; markGap: Sourced<number> | 'no fund' | 'traded' | 'private' | null;
   chainStatus: ChainStatus | null;           // null = n/d: no status judged for its site or issuer
+  lastTrade?: LastTrade | null;              // traded instruments: the latest trade print (null = never traded)
 }
 export interface Holder {
   name: string; filing: 'N-PORT' | '10-Q'; filingUrl: string; filingDate: string;
@@ -235,6 +254,7 @@ export interface InstrumentDetail extends InstrumentRow {
   fundMarks: { low: number; high: number; filing: string; date: string } | null; // null = n/d: no fund filing reports it
   nextMarksPublic: string | null;             // null = n/d: no fund files marks for it
   recovery: Sourced<string>;
+  recoveryDetail?: RecoveryDetail | null;    // null = no recovery behind a price or the recovery model
   priceHistory: PriceHistoryPoint[];
   yields: InstrumentYields;
   holders: { count: number; parMm: number; rows: Holder[] };

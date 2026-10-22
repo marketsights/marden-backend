@@ -6,12 +6,16 @@ Collateral waterfall per instrument, by what secures it:
 - GPU-backed facilities (marden.models.gpu_facilities): units x value per unit (rental index, decline and
   depreciation life; gpu_value) less the liquidation haircut, over the pool's claims (pari passu, nothing
   known ahead of the first lien), for a customer walking today to a year out;
-- site-backed debt (marden.models.recovery_shell): finished powered capacity x value per MW from the cost
-  comps (25th / 50th / 75th percentile), less claims ranking ahead, over the claims at its rank;
+- site-backed debt (marden.models.recovery_shell): powered capacity x value per MW from the cost comps (25th /
+  50th / 75th percentile) x the share finished (stated, else estimated: recovery_progress), unfinished works
+  less a haircut, plus funded notes' unspent proceeds, less claims ranking ahead, over the claims at its rank;
 - anything else (corporate unsecured notes, converts): n/d, the issuer waterfall is not modelled.
 One `model_output` per instrument (subject ('instrument', id)) = {recovery: Sourced<string> ('62-74' with an en dash,
 cents per dollar; InstrumentDetail.recovery), valueB: Sourced<number> (collateral value, $B, base case),
 method: 'gpu_collateral' | 'powered_shell' | null, missing, basis}. Ranges are uncalibrated ('model v0').
+The basis carries the central estimate the price model prices with (`baseCents`: the 50th-percentile comp
+for a powered shell, a default today for GPUs), `rangeCents` [low, high], and for GPUs `pathCents`, the
+recovery at each scheduled balance over the loan's life ({years, cents}: the GPUs age as the loan amortizes).
 
 Runs: weekly, Monday 09:41 UTC (spec 22 "Weekly ... recovery"), and within a minute of an input: the
 instrument's terms, its site's capacity, cost and completion facts, any site's cost comps, the GPU market
@@ -29,7 +33,7 @@ from typing import Any
 from marden import cli
 from marden.core.db import Conn
 from marden.core.queue import app
-from marden.models import triggers
+from marden.models import recovery_progress, triggers
 from marden.models.gpu_facilities import FACILITY_FIELDS, pools, range_text, value_facility
 from marden.models.gpu_facilities import load as load_facilities
 from marden.models.gpu_inputs import ENTITY_FIELDS, SERIES_FIELDS, SERIES_PREFIXES
@@ -48,7 +52,7 @@ from marden.models.sourced import Batch, m_value, method_version, rounded, run_o
 from marden.readmodels.deps import via
 
 MODEL = "recovery"
-VERSION = "0.1"
+VERSION = "0.2"  # v0.2 (2026-10-22): estimated completion share, unfinished-works haircut, unspent proceeds
 METHOD = method_version(MODEL, VERSION)
 CRON_UTC = "41 9 * * 1"
 SOURCE = "Marden recovery model"
@@ -57,6 +61,18 @@ UNSECURED = "issuer balance-sheet waterfall (unsecured or unsited debt is not mo
 
 def _m(value: Any, day: date) -> dict[str, Any]:
     return m_value(value, day, METHOD, source_name=SOURCE, uncalibrated=True)
+
+
+def _cents_pair(low: float | None, high: float | None) -> list[int] | None:
+    return None if low is None or high is None else [round(min(low, high) * 100), round(max(low, high) * 100)]
+
+
+def _path(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """One point per time from the day (scheduled months already past all sit at 0: the latest one wins)."""
+    by: dict[float, float] = {}
+    for years, rec in points:
+        by[years] = rec
+    return sorted(by.items())
 
 
 def _targets(conn: Conn, ids: list[str] | None) -> list[str]:
@@ -88,6 +104,7 @@ def compute(conn: Conn, day: date, ids: list[str] | None) -> Batch:
         if iid in by_id:
             f = by_id[iid]
             v = value_facility(f, market, fit, day, by_pool[f.pool_key])
+            path = _path(v.recovery_path)
             out = {"recovery": _m(range_text(v.recovery_low, v.recovery_high), day),
                    "valueB": _m(rounded(v.value / 1e9 if v.value else None, 4), day), "method": "gpu_collateral",
                    "missing": v.missing,
@@ -95,16 +112,24 @@ def compute(conn: Conn, day: date, ids: list[str] | None) -> Batch:
                        v.pool_balance / 1e9 if v.pool_balance else None, 4), "pool": v.pool,
                        "units": rounded(v.units, 0), "haircut": HAIRCUT,
                        "valuePerUnitUsd": rounded(v.per_unit, 0), "seniorClaimsB": 0.0,
-                       "rule": "collateral value / pool balance, capped at 100c, default today to a year out"}}
+                       "rule": "collateral value / pool balance, capped at 100c, default today to a year out",
+                       "baseCents": round(path[0][1] * 100) if path else None,
+                       "rangeCents": _cents_pair(v.recovery_low, v.recovery_high),
+                       "pathCents": [{"years": y, "cents": round(r * 100, 1)} for y, r in path]}}
         elif site_of.get(iid):
             slug = site_of[iid]
             claims = site_claims(conn, day, slug, set(by_id))
-            res = shell_recovery(sites.get(slug), comp, claims, iid, pue)
+            site = sites.get(slug)
+            stated = site.completion() if site else (None, "no site facts")
+            progress = recovery_progress.estimate(conn, day, slug, site.rows if site else {}, stated,
+                                                  site.energized() if site else None)
+            res = shell_recovery(site, comp, claims, iid, pue, progress)
             out = {"recovery": _m(range_text(res.low, res.high) if res.base is not None else None, day),
                    "valueB": _m(rounded(res.value[1] / 1e9, 4) if res.value else None, day),
                    "method": "powered_shell", "missing": res.missing,
                    "basis": {"methodVersion": f"{METHOD} (model v0)", "site": slug,
                              "baseCents": None if res.base is None else round(res.base * 100),
+                             "rangeCents": _cents_pair(res.low, res.high),
                              "seniorClaimsB": rounded(res.ahead / 1e9 if res.ahead is not None else None, 4),
                              "pariClaimsB": rounded(res.pari / 1e9 if res.pari is not None else None, 4), **res.basis}}
         else:
@@ -127,6 +152,10 @@ def run_keys(keys: list[str], trigger: str) -> dict[str, Any]:
 
 
 _SITE_INSTRUMENTS = via("SELECT id FROM instrument WHERE site_slug = %s")
+_CAMPUS_INSTRUMENTS = via("SELECT i.id FROM site_link sl JOIN instrument i ON i.site_slug = sl.site_slug "
+                          "WHERE sl.campus_id = %s")
+_BUILDING_INSTRUMENTS = via("SELECT i.id FROM building b JOIN site_link sl ON sl.campus_id = b.campus_id "
+                            "JOIN instrument i ON i.site_slug = sl.site_slug WHERE b.id = %s")
 
 
 def _gpu_series(conn: Conn, subject_id: str) -> list[str]:
@@ -142,6 +171,13 @@ def _install_triggers() -> None:
                                                                                   "cost_basis") else _SITE_INSTRUMENTS)
     for fld in (*SERIES_FIELDS, "value"):
         triggers.model_depends(MODEL, "series", fld, _gpu_series)
+    # the completion estimate (recovery_progress): campus plans and imagery, building starts and stages,
+    # the site's cushion projection
+    for fld in recovery_progress.CAMPUS_FIELDS:
+        triggers.model_depends(MODEL, "campus", fld, _CAMPUS_INSTRUMENTS)
+    for fld in recovery_progress.BUILDING_FIELDS:
+        triggers.model_depends(MODEL, "building", fld, _BUILDING_INSTRUMENTS)
+    triggers.model_depends(MODEL, "site", "@model:cushion", _SITE_INSTRUMENTS)
     for fld in ENTITY_FIELDS:
         triggers.model_depends(MODEL, "entity", fld, triggers.everything)
     triggers.register_runner(MODEL, run_keys)

@@ -3,15 +3,18 @@
     cd services && uv run python -m marden model price [--as-of YYYY-MM-DD] [--instrument ID ...]
 
 One run as of a day (default today, US Eastern; a past day is an honest backtest: every input is what
-was public that day, marden.models.pit / price_marks) writes, under model_run 'price' v0.1:
+was public that day, marden.models.pit / price_marks) writes, under model_run 'price' v0.2 (v0.2: a facility's
+recovery is its site collateral waterfall's central estimate when the recovery model has one, else the v0.1
+default; price_chain):
 
 - model 'cds', subject entity: the 'Marden bond-implied CDS' of every issuer with straight bonds
   (price_issuer): {label, spreadBp, upfrontPct (500bp coupon), hazard, maturity, years, band, raw (the
   latest bond cross-section, unfiltered), equity {ticker, loading, pairs}, missing, methodVersion};
 - model 'price', subject instrument (every V1 instrument and every bond of the V1 chains' issuers):
   {price, mardenPrice (InstrumentRow.mardenPrice: Sourced<number>), spreadBp, yieldPct, recovery, change1w,
-  inputs: [...], band: {low, high}, missing: [...],
-  basis} (price_facility); plus price_obs kind 'marden', tag M, method_version 'price v0.1';
+  inputs: [...], band: {low, high}, missing: [...], recoveryBasis ('site_waterfall' | 'default_assumption' |
+  null), recoveryInputs, recoverySensitivity {per10cPts, holdingSpreadPer10cPts},
+  basis} (price_facility); plus price_obs kind 'marden', tag M, method_version 'price v0.2';
 - model 'curve', subject series 'all': CurveTier[] (types.ts) for the Instruments curve card
   (price_curve_card): the Treasury par curve, then per tier its priced instruments as dots and a curve
   fitted to them (Treasury plus a robust fit of the tier's spreads).
@@ -30,7 +33,7 @@ from typing import Any
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
 from marden.models import pit, price_curve_card, price_marks, price_signals, price_tiers, runs
-from marden.models.price_chain import Chain, gpu_half_lives, resolve
+from marden.models.price_chain import Chain, gpu_half_lives, recovery_input, resolve
 from marden.models.price_curve import CurveBook, load_curves, year_frac
 from marden.models.price_facility import Ctx, price
 from marden.models.price_issuer import IssuerCurve, build, quote, raw_quote, straight_bonds
@@ -40,7 +43,7 @@ from marden.readmodels.context import business_today
 
 log = logging.getLogger(__name__)
 
-MODEL, VERSION = "price", "price v0.1"
+MODEL, VERSION = "price", "price v0.2"  # v0.2 (2026-10-22): per-site recovery (pricing-v0.1.md "v0.2")
 METHOD_URL = "docs/methods/pricing-v0.1.md"
 CDS_LABEL = "Marden bond-implied CDS"
 PRICE_LABEL = "Marden model price"
@@ -186,6 +189,8 @@ def _inputs(inst: Instrument, out: dict[str, Any], ch: Chain | None, curves: dic
     if odds is not None and inst.terms is not None:
         t = max(year_frac(as_of, inst.terms.maturity), 0.0)
         add("impliedDefaultOdds", f"Default odds to maturity ({t:.1f}y, risk-neutral, model v0)", odds, "share")
+    if (rec := recovery_input(out, as_of, VERSION)) is not None:
+        items.append(rec)
     if basis.get("mode") == "tier curve" and tiers is not None and tiers.hy_input:
         items.append(dict(tiers.hy_input))  # the tier curve's HY OAS (ICE, or its USHY proxy, labelled)
     return items
@@ -193,14 +198,14 @@ def _inputs(inst: Instrument, out: dict[str, Any], ch: Chain | None, curves: dic
 
 def _null(missing: list[str]) -> dict[str, Any]:
     return {"price": None, "spreadBp": None, "yieldPct": None, "recovery": None, "change1w": None, "band": None,
-            "inputs": [], "missing": missing}
+            "inputs": [], "missing": missing, "recoveryBasis": None}
 
 
 def _unsupported(inst: Instrument) -> str | None:
     if inst.kind == "convert":
-        return f"instrument {inst.id}: convertible note (the equity option is not modelled in v0.1)"
+        return f"instrument {inst.id}: convertible note (the equity option is not modelled in v0.2)"
     if not inst.usd:
-        return f"instrument {inst.id}: non-USD note (no foreign-currency discount curve in v0.1)"
+        return f"instrument {inst.id}: non-USD note (no foreign-currency discount curve in v0.2)"
     return None
 
 
