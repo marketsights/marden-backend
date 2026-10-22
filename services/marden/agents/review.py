@@ -173,6 +173,10 @@ def apply_decision(conn: db.Conn, d: dict[str, Any]) -> dict[str, Any]:
         if action == "edit":
             raise ValidationError("links are approved or rejected, not edited")
         out |= _decide_link(conn, item, action == "approve", by)
+    elif item["kind"] in ("note", "issue"):  # the operations agents' items (marden.agents.ops.decisions)
+        from marden.agents.ops.decisions import decide_ops
+
+        out |= decide_ops(conn, item, action, by, reason)
     else:
         raise ValidationError(f"no decision rule for review items of kind {item['kind']} / {item['ref_type']}")
     _close(conn, item["id"], "approved" if action in ("approve", "edit") else "rejected", by)

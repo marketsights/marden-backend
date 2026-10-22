@@ -30,7 +30,7 @@ API should return 404 (not 503) for collateral on non-GPU instruments.
 
 ## Spend limit hit again (2026-10-21 ~21:50 UTC); resumed 22:10 UTC
 Resumed with Workflow({scriptPath, resumeFromRunId}): marden-saas-live-v2 (wf_c6559cea-094; deploy built; alerts, agents core/ops, reviews, integration re-running), marden-web-remaining-screens (wf_6239c834-ac7; 6 groups built; reviews, GPUs+Leases build, final re-running), marden-models (wf_3e2f467f-9d1; all 6 models built; review re-running), marden-web-mockup-fidelity (wf_32d85200-a86; completion-sites, site-tabs-a, site-tabs-b audited; the rest re-running). Deferred to save CPU: marden-data-gaps (wf_5fca7cc9-15c): plant locations done and verified (23 of 74 placed, 27 counties); air permits build and the dc lastChange verify still to resume.
-After a container restart: setsid pg_ctlcluster 16 main start; then the server supervisor (scratchpad ops/supervise.sh) restarts API :4000 and web :3000.
+After a container restart: setsid pg_ctlcluster 16 main start; then start the server supervisor fully detached (setsid -f nohup <scratchpad>/ops/supervise.sh >/dev/null 2>&1 </dev/null), which restarts API :4000 and web :3000; then resume interrupted workflows with resumeFromRunId. Container restarted 2026-10-22 ~01:30 UTC: resumed marden-saas-live-v2, marden-polish, marden-status-fixes.
 
 ## Running as of 2026-10-21 ~18:45 UTC (re-run with Workflow({scriptPath, resumeFromRunId}) if lost)
 | Workflow | Run id | What |
