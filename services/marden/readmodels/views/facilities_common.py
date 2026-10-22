@@ -39,6 +39,7 @@ from marden.readmodels.views.sites_common import (
     fact_evidence,
     latest_output,
     nd,
+    relevant_events,
     site_instruments,
     with_value,
 )
@@ -267,12 +268,14 @@ def financed_sites(conn: Conn, campus_ids: Iterable[str]) -> list[Doc]:
 
 # ---------------------------------------------------------------- events, history, last change
 def subject_events(conn: Conn, subject_type: str, subject_id: str) -> list[Row]:
-    """Published past-dated events on the subject that Marden knew by the build date, newest first."""
-    return conn.execute(
+    """Published past-dated events on the subject that Marden knew by the build date, newest first;
+    procedural docket filings left out (sites_common.relevant_events)."""
+    rows = conn.execute(
         """SELECT * FROM event WHERE subject_type = %s AND subject_id = %s AND status = 'published'
              AND learned_at < %s AND event_date <= %s ORDER BY event_date DESC, id DESC""",
         (subject_type, subject_id, day_end(), day()),
     ).fetchall()
+    return relevant_events(conn, subject_type, rows)
 
 
 def _shown(value: Any) -> str | None:
