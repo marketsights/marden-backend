@@ -16,8 +16,8 @@ services:
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
     healthCheckPath: /healthz
-    # dbmate with an advisory lock: safe when the worker's pre-deploy runs at the same time.
-    preDeployCommand: marden-migrate
+    # No pre-deploy migration here: core-api connects as app_rw, which may not create tables. The worker's
+    # pre-deploy (database owner) applies db/migrations.
     buildFilter:
       paths: [apps/api/**, db/migrations/**, scripts/migrate.sh, package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
     envVars:
