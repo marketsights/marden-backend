@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from marden.core.db import Conn
+from marden.readmodels.context import day_end
 from marden.readmodels.registry import builder
 from marden.readmodels.views.instrument_inputs import day, num
 from marden.readmodels.views.monitor_common import Doc, is_iso_date, latest_output_any
@@ -111,9 +112,9 @@ def model_rows(conn: Conn) -> list[Doc]:
     """Marden models that had run by the build day, with their newest version."""
     runs = conn.execute(
         """SELECT DISTINCT ON (model) model, version, started_at FROM model_run
-            WHERE started_at < (%s::date + 1)::timestamptz AND model NOT LIKE 'legacy%%' AND ok IS NOT FALSE
+            WHERE started_at < %s AND model NOT LIKE 'legacy%%' AND ok IS NOT FALSE
             ORDER BY model, started_at DESC, id DESC""",
-        (day(),),
+        (day_end(),),
     ).fetchall()
     rows = []
     for r in runs:

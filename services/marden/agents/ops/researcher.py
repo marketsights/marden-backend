@@ -22,21 +22,20 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
 from marden.agents.ops import gaps as gaps_mod
 from marden.agents.ops import research_store as store
 from marden.agents.ops import runs
+from marden.agents.ops.research_plan import Query, doc_text, plan, relevance, window
 from marden.agents.ops.research_sources import check_collectors
 from marden.agents.ops.search_edgar import SOURCE as EDGAR_SOURCE
 from marden.agents.ops.search_edgar import EdgarSearch, Hit, SearchBlocked
 from marden.agents.ops.search_ferc import SOURCE as FERC_SOURCE
 from marden.agents.ops.search_ferc import FercSearch
-from marden.agents.text import UnreadableDocument, normalize, read_text
 from marden.collectors.market_http import Challenged
-from marden.core import db, heartbeat
+from marden.core import db, documents, heartbeat
 from marden.core.documents import DocumentRow
 from marden.core.http import FetchError
 from marden.core.sources import SourceError, upsert_spec
@@ -44,101 +43,12 @@ from marden.readmodels.context import business_today
 
 log = logging.getLogger(__name__)
 
-LOOKBACK_DAYS = 365
-OVERLAP_DAYS = 7
 HITS_PER_QUERY = 3
-MIN_TEXT_CHARS = 500  # below this the text layer is too thin to say the phrase is absent (a scan)
 
 
 def _env_int(name: str, default: int) -> int:
     raw = (os.environ.get(name) or "").strip()
     return int(raw) if raw.isdigit() and int(raw) > 0 else default
-
-
-@dataclass
-class Query:
-    endpoint: str  # 'edgar_fts' | 'ferc_elibrary'
-    query: str
-    phrase: str
-    ciks: list[str]
-    gaps: list[gaps_mod.Gap] = field(default_factory=list)
-
-    @property
-    def watched(self) -> bool:
-        return any(g.subject.watched for g in self.gaps)
-
-    @property
-    def weight(self) -> int:
-        return max(g.plan.weight for g in self.gaps)
-
-    def subjects(self) -> list[dict[str, str]]:
-        seen = {(g.subject.type, g.subject.id) for g in self.gaps}
-        return [{"type": t, "id": i} for t, i in sorted(seen)]
-
-    def items(self) -> list[str]:
-        return sorted({g.item for g in self.gaps})
-
-
-@dataclass
-class Plan:
-    edgar: list[Query]
-    ferc: list[Query]
-    collector_gaps: list[gaps_mod.Gap]
-    not_searched: list[dict[str, Any]]
-
-
-def plan(all_gaps: list[gaps_mod.Gap], last: dict[str, dict[str, Any]] | None = None) -> Plan:
-    """Group the gaps into queries (one query serves every subject and item it covers) and order them."""
-    edgar: dict[tuple[str, str], Query] = {}
-    ferc: dict[str, Query] = {}
-    collector, why_not, unnamed = [], {}, {}
-    for g in all_gaps:
-        p = g.plan
-        if p.why_not:
-            why_not.setdefault((g.item, p.why_not), set()).add(g.subject.id)
-            continue
-        if p.collector:
-            collector.append(g)
-            continue
-        if not g.subject.phrases:
-            unnamed.setdefault(g.item, set()).add(g.subject.id)
-            continue
-        for phrase in g.subject.phrases:
-            ciks = g.subject.ciks if len(phrase.split()) == 1 else []
-            for term in p.edgar:
-                q = f'"{phrase}" {term}'
-                edgar.setdefault((q, ",".join(ciks)), Query("edgar_fts", q, phrase, ciks)).gaps.append(g)
-            if p.ferc and g.subject.us and len(phrase.split()) > 1:
-                ferc.setdefault(phrase, Query("ferc_elibrary", phrase, phrase, [])).gaps.append(g)
-    last = last or {}
-
-    def order(qs: list[Query], endpoint: str) -> list[Query]:
-        seen = last.get(endpoint) or {}
-        return sorted(qs, key=lambda q: (not q.watched, seen.get(q.query) is not None,
-                                         str(seen.get(q.query) or ""), -q.weight, q.query))
-
-    not_searched = [{"item": item, "why": why, "subjects": sorted(s)} for (item, why), s in sorted(why_not.items())]
-    not_searched += [{"item": item, "why": "no searchable name: a one-word name with no chain party's CIK, or none",
-                      "subjects": sorted(s)} for item, s in sorted(unnamed.items())]
-    return Plan(order(list(edgar.values()), "edgar_fts"), order(list(ferc.values()), "ferc_elibrary"), collector,
-                not_searched)
-
-
-def window(conn: db.Conn, q: Query, today: date) -> tuple[date, date]:
-    end = store.last_window_end(conn, q.endpoint, q.query)
-    since = end - timedelta(days=OVERLAP_DAYS) if end else today - timedelta(days=LOOKBACK_DAYS)
-    return min(since, today), today
-
-
-def names_phrase(doc: DocumentRow, phrase: str) -> bool | None:
-    """Does the stored text name the phrase? None when the text layer is too thin to say (a scan)."""
-    try:
-        text = read_text(doc.read(), doc.content_type, doc.url).text
-    except UnreadableDocument:
-        return None
-    if len(text) < MIN_TEXT_CHARS:
-        return None
-    return normalize(phrase).casefold() in normalize(text).casefold()
 
 
 class Run:
@@ -170,16 +80,23 @@ class Run:
             store.add_find(conn, search_id, url=url, outcome=outcome, **kw)
 
     def take(self, search_id: int, q: Query, url: str, title: str, form: str | None, filed: date | None,
-             fetch: Any) -> None:
+             fetch: Any, filer_cik: str | None = None) -> None:
         """One hit: recorded as read / waiting / queued (fetched, or already held) / skipped / failed."""
         info = {"title": title, "form": form, "filed": filed}
         with db.transaction() as conn:
             held = store.held(conn, url)
-            if held is not None:
-                outcome, reason = store.outcome_for_held(held)
-                if outcome == "queued":
-                    store.queue_held(conn, held["id"], self.research_meta(q))
         if held is not None:
+            outcome, reason = store.outcome_for_held(held)
+            if outcome == "queued":  # stored but never queued: the same check as a new file first
+                stored = documents.get_document(int(held["id"]))
+                ok, why = relevance(doc_text(stored) if stored else None, q, filer_cik)
+                if not ok:
+                    self._record(search_id, url, "skipped", reason=f"held, not queued: {why}",
+                                 document_id=held["id"], **info)
+                    return
+                with db.transaction() as conn:
+                    store.queue_held(conn, held["id"], self.research_meta(q))
+                reason = f"{reason}: {why}"
             job = self._job(held["id"], q) if outcome == "queued" else held["job_id"]
             if outcome == "queued":
                 self.queued.append({"document_id": held["id"], "url": url, "title": title, "items": q.items(),
@@ -196,19 +113,19 @@ class Run:
             self._record(search_id, url, "failed", reason=str(exc)[:300], **info)
             return
         self.docs_left -= 1
-        named = names_phrase(doc, q.phrase)
-        if named is False:
-            with db.transaction() as conn:
-                conn.execute("UPDATE document SET extract_state = 'none' WHERE id = %s AND extract_state = 'queued'",
-                             (doc.id,))
-            self._record(search_id, url, "skipped", reason=f"stored, but its text does not name {q.phrase!r}",
-                         document_id=doc.id, **info)
+        ok, why = relevance(doc_text(doc), q, filer_cik)
+        if not ok:
+            self._record(search_id, url, "skipped", reason=f"stored raw, not queued: {why}", document_id=doc.id,
+                         **info)
             return
+        with db.transaction() as conn:
+            conn.execute("UPDATE document SET extract_state = 'queued' WHERE id = %s AND extract_state = 'none'",
+                         (doc.id,))
         job = self._job(doc.id, q)
         self.queued.append({"document_id": doc.id, "url": url, "title": title, "items": q.items(),
                             "subjects": q.subjects(), "job_id": job, "fetched": True})
-        self._record(search_id, url, "queued", reason="fetched raw and queued for the extractor"
-                     + ("" if named else " (scanned: phrase not checked)"), document_id=doc.id, job_id=job, **info)
+        self._record(search_id, url, "queued", reason=f"fetched raw and queued for the extractor: {why}",
+                     document_id=doc.id, job_id=job, **info)
 
     def edgar_query(self, q: Query) -> None:
         with db.transaction() as conn:
@@ -240,7 +157,7 @@ class Run:
             self.seen_urls.add(hit.url)
             taken += 1
             self.take(sid, q, hit.url, f"{hit.form} {hit.file_type} {hit.filer}", hit.form, hit.filed,
-                      lambda h=hit, qq=q: self._fetch_edgar(h, qq))
+                      lambda h=hit, qq=q: self._fetch_edgar(h, qq), filer_cik=hit.cik)
 
     def _fetch_edgar(self, hit: Hit, q: Query) -> DocumentRow:
         doc = self.edgar.fetch(hit, {"research": self.research_meta(q)})
@@ -328,17 +245,20 @@ def run(today: date | None = None, *, trigger: str = "manual", edgar: EdgarSearc
             last = {e: store.last_searched(conn, e) for e in ("edgar_fts", "ferc_elibrary")}
         p = plan(all_gaps, last)
         r = Run(run_id, today, edgar=edgar or EdgarSearch(), ferc=ferc or FercSearch(), configured=status.configured,
-                max_docs=max_docs or _env_int("MARDEN_RESEARCH_MAX_DOCS", 25))
+                max_docs=_env_int("MARDEN_RESEARCH_MAX_DOCS", 25) if max_docs is None else max_docs)
         subjects = {(g.subject.type, g.subject.id) for g in all_gaps}
         report["gaps"] = {"total": len(all_gaps), "subjects": len(subjects),
                           "watched_subjects": len({(g.subject.type, g.subject.id) for g in all_gaps
                                                    if g.subject.watched}),
                           "by_origin": _count(g.origin for g in all_gaps)}
         report["edgar"] = _endpoint("EDGAR", EDGAR_SOURCE.id, p.edgar,
-                                    max_queries or _env_int("MARDEN_RESEARCH_MAX_QUERIES", 120), r.edgar_query,
+                                    (_env_int("MARDEN_RESEARCH_MAX_QUERIES", 120) if max_queries is None
+                                     else max_queries),
+                                    r.edgar_query,
                                     SearchBlocked)
         report["ferc"] = _endpoint("eLibrary", FERC_SOURCE.id, p.ferc,
-                                   max_ferc or _env_int("MARDEN_RESEARCH_MAX_FERC", 20), r.ferc_query, Challenged)
+                                   _env_int("MARDEN_RESEARCH_MAX_FERC", 20) if max_ferc is None else max_ferc,
+                                   r.ferc_query, Challenged)
         report["collectors"] = check_collectors(p.collector_gaps, run=collectors)
         report["requests"] = {"edgar": r.edgar.requests, "ferc": r.ferc.requests}
         report["finds"] = r.outcomes

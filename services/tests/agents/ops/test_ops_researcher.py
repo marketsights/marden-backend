@@ -1,0 +1,221 @@
+"""Researcher: gaps from what Marden shows, queries, raw-first searches, relevance checks and the intake hand-off."""
+
+from __future__ import annotations
+
+from datetime import date
+
+import pytest
+from ops_rows import FakeFercFetcher, FakeSec, ferc_answer, page, recorded, seed_sites
+
+from marden.agents.config import BackendStatus, set_backend_status
+from marden.agents.ops import gaps, researcher
+from marden.agents.ops.research_plan import plan, relevance, tokens
+from marden.agents.ops.search_edgar import EdgarSearch, parse
+from marden.agents.ops.search_ferc import FercSearch
+from marden.collectors.ferc_api import ElibraryClient
+from marden.collectors.ferc_parse import parse_search
+from marden.core import db, documents
+from marden.core.http import TokenBucket
+from marden.core.sources import upsert_spec
+
+TODAY = date(2026, 10, 22)
+GALAXY = recorded("edgar_fts_galaxy_helios_commencement.json")
+
+
+@pytest.fixture(autouse=True)
+def _agents_off():
+    set_backend_status(BackendStatus("not_configured", "test: no backend"))
+    yield
+    set_backend_status(None)
+
+
+def ferc_search(files: dict[str, bytes]) -> FercSearch:
+    client = ElibraryClient("ferc_fts", fetcher=FakeFercFetcher(ferc_answer(), files),  # type: ignore[arg-type]
+                            bucket=TokenBucket(1000.0), sleep=lambda s: None)
+    return FercSearch(client)
+
+
+def main_files() -> list[tuple[str, str]]:
+    """(file id, public url) of each recorded eLibrary hit's main file, in the researcher's order."""
+    from marden.agents.ops.search_ferc import rank
+
+    _, filings = parse_search(ferc_answer())
+    out = []
+    for f in rank(filings):
+        main, _ = f.main_file()
+        assert main is not None
+        out.append((main.file_id, main.url))
+    return out
+
+
+def test_name_phrases_and_entity_names():
+    assert gaps.name_phrases("Project Jupiter (Stargate New Mexico)") == ["Project Jupiter", "Stargate New Mexico"]
+    assert gaps.name_phrases("Childress (Microsoft)") == ["Childress"]
+    assert gaps.name_phrases("Polaris Forge 1, Buildings 2 and 3") == ["Polaris Forge 1"]
+    assert gaps.name_phrases("CoreWeave DDTL 3.0 (OpenAI servers)") == ["CoreWeave DDTL 3.0"]
+    assert gaps.name_phrases('Saline "The Barn" (Stargate Michigan)') == ["Saline", "Stargate Michigan", "Barn"]
+    names = ["CoreWeave Compute Acquisition Co. VII, LLC (co-borrower CCAC V)",
+             "Iskandar Enterprise LLC and Kaveh Enterprise LLC", "Cloud Capital HoldCo LP issuers"]
+    assert gaps.entity_phrases(names) == ["CoreWeave Compute Acquisition Co. VII LLC", "Cloud Capital HoldCo LP"]
+    assert tokens("Co. VII, LLC") == tokens("Co. VII LLC")
+    assert tokens("Doña Ana") == tokens("dona ana")
+
+
+def test_gaps_and_plan_from_the_read_models():
+    seed_sites()
+    with db.transaction() as conn:
+        found = gaps.collect(conn)
+    items = {(g.subject.id, g.item, g.origin) for g in found}
+    assert ("helios-1", "Lease: Commencement", "project_file") in items
+    assert ("helios-1", "Permits: Zoning", "project_file") in items
+    assert not any(g.item in ("Lease: Rent", "Insurance: Builder's risk") for g in found)  # sourced / n/p
+    assert found[0].subject.watched  # watched first
+    p = plan(found)
+    queries = [q.query for q in p.edgar]
+    assert queries[:2] == ['"Galaxy Helios I LLC" "commencement date"', '"Helios Phase I" "commencement date"']
+    assert [q.query for q in p.ferc] == ["Project Jupiter", "Stargate New Mexico"]
+    assert {n["item"] for n in p.not_searched} == {"Permits: Zoning"}
+    jupiter = next(g for g in found if g.subject.id == "jupiter").subject
+    assert {"Oracle", "OpenAI", "Dona Ana County", "Red Chiles A\u2013D LLC"} <= set(jupiter.context)
+
+
+def test_edgar_answer_parses_and_filters_forms():
+    total, hits = parse(GALAXY)
+    assert total == 13 and len(hits) == 13
+    first = hits[0]
+    assert (first.form, first.file_type, first.cik) == ("8-K", "8-K", "0001859392")
+    assert first.url.startswith("https://www.sec.gov/Archives/edgar/data/1859392/")
+    assert first.url.endswith("/glxy-20260728.htm")
+    assert all(h.wanted for h in hits)
+
+
+def test_relevance_tells_namesakes_apart():
+    seed_sites()
+    with db.transaction() as conn:
+        p = plan(gaps.collect(conn))
+    q = p.ferc[0]  # "Project Jupiter"
+    ok, why = relevance(tokens("Comments on Project Jupiter in Doña Ana County " * 20), q, None)
+    assert ok and "Dona Ana County" in why
+    ok, why = relevance(tokens("Enlight's Project Jupiter solar plant in Israel " * 20), q, None)
+    assert not ok and "another project" in why
+    ok, _ = relevance(tokens("Project Jupiter " * 50), q, "0001341439")  # filed by the tenant (Oracle)
+    assert ok
+    ok, why = relevance(None, q, None)
+    assert ok and "scanned" in why
+
+
+def test_run_stores_raw_checks_and_queues():
+    seed_sites()
+    _, hits = parse(GALAXY)
+    held_url = hits[2].url
+    upsert_spec(researcher.EDGAR_SOURCE)
+    from marden.agents.intake import ensure_intake_sources
+
+    ensure_intake_sources()
+    held = documents.record_document("upload", held_url, page("Galaxy Helios I LLC indenture."),
+                                     content_type="text/html", extract_state="none")
+    files = {hits[0].url: page("Galaxy Helios I LLC: the commencement date of the lease."),
+             hits[1].url: page("Galaxy Digital reports its second quarter results.")}
+    (j1, j1_url), (j2, _), (j3, j3_url) = main_files()
+    ferc_files = {j1: page("STACK supports the lateral to Project Jupiter in Doña Ana County."),
+                  j2: page("Project Jupiter is a solar project in another state."),
+                  j3: page("Comments on the Project Jupiter data center that Oracle will lease.")}
+    sec = FakeSec(GALAXY, files)
+    ferc = ferc_search(ferc_files)
+    report = researcher.run(TODAY, edgar=EdgarSearch(sec), ferc=ferc,  # type: ignore[arg-type]
+                            max_queries=1, max_ferc=1, collectors=False)
+    assert report["edgar"] == {"planned": 2, "run": 1, "deferred": 1, "blocked": None}
+    assert report["ferc"]["run"] == 1
+    assert report["finds"] == {"queued": 4, "skipped": 2}
+    assert sec.calls[0][1]["q"] == '"Galaxy Helios I LLC" "commencement date"'
+    assert "forms" in sec.calls[0][1] and sec.calls[0][1]["startdt"] == "2025-10-22"
+    body = ferc.client.fetcher.client.bodies[0]
+    assert body["searchText"] == '"Project Jupiter"' and body["docketSearches"] == []
+    queued = {q["url"]: q for q in report["queued"]}
+    assert set(queued) == {hits[0].url, held_url, j1_url, j3_url}
+    assert queued[held_url]["fetched"] is False and queued[held_url]["document_id"] == held.id
+    assert report["agents"]["backend"] == "not_configured" and "wait in the intake" in report["agents"]["note"]
+    with db.transaction() as conn:
+        searches = conn.execute("SELECT * FROM research_search ORDER BY id").fetchall()
+        finds = {r["url"]: r for r in conn.execute("SELECT * FROM research_find")}
+        docs = {r["url"]: r for r in conn.execute("SELECT url, extract_state, meta, source_id FROM document")}
+        run_row = conn.execute("SELECT * FROM agent_ops_run").fetchone()
+        src = conn.execute("SELECT last_ok_at FROM source WHERE id = 'edgar_fts'").fetchone()
+        jobs = conn.execute("SELECT count(*) AS n FROM agent_job").fetchone()["n"]
+    assert [(s["endpoint"], s["status"], s["hits"]) for s in searches] == [("edgar_fts", "ok", 13),
+                                                                           ("ferc_elibrary", "ok", 12)]
+    assert searches[0]["window_from"] == date(2025, 10, 22) and searches[0]["document_id"] is not None
+    efts = next(r for u, r in docs.items() if u.startswith("https://efts.sec.gov/"))
+    assert efts["source_id"] == "edgar_fts"
+    assert docs[hits[0].url]["extract_state"] == "queued"
+    assert docs[hits[0].url]["meta"]["research"]["items"] == ["Lease: Commencement"]
+    assert docs[hits[0].url]["meta"]["cik"] == "1859392"
+    assert docs[hits[1].url]["extract_state"] == "none"  # stored raw, not about the subject
+    assert "does not name" in finds[hits[1].url]["reason"]
+    assert docs[held_url]["extract_state"] == "queued" and docs[held_url]["meta"]["research"]["run_id"]
+    assert docs[j1_url]["extract_state"] == "queued" and docs[j1_url]["source_id"] == "ferc_fts"
+    assert "another project" in next(f["reason"] for u, f in finds.items() if f["outcome"] == "skipped"
+                                     and "elibrary" in u)
+    assert run_row["status"] == "ok" and run_row["model_status"] == "not_used"
+    assert src["last_ok_at"] is not None and jobs == 0  # not configured: no agent jobs, the intake waits
+
+
+def test_second_run_is_idempotent_and_windows_overlap():
+    seed_sites(watch_helios=True)
+    _, hits = parse(GALAXY)
+    files = {h.url: page("Galaxy Helios I LLC commencement date.") for h in hits}
+    for _ in range(2):
+        researcher.run(TODAY, edgar=EdgarSearch(FakeSec(GALAXY, files)), ferc=ferc_search({}),  # type: ignore[arg-type]
+                       max_queries=1, max_ferc=0, collectors=False)
+    with db.transaction() as conn:
+        searches = conn.execute("SELECT query, window_from FROM research_search WHERE endpoint = 'edgar_fts' "
+                                "ORDER BY id").fetchall()
+        finds = conn.execute("SELECT outcome, count(*) AS n FROM research_find GROUP BY 1 ORDER BY 1").fetchall()
+        n_docs = conn.execute("SELECT count(*) AS n FROM document WHERE source_id = 'edgar_fts' AND doc_type <> "
+                              "'edgar_fts'").fetchone()["n"]
+    # the second run takes the other query first (never searched), so both queries ran once each
+    assert len({s["query"] for s in searches}) == 2
+    assert n_docs == 3  # the same three files, stored once
+    assert {f["outcome"]: f["n"] for f in finds} == {"queued": 3, "already_stored": 3}
+
+
+def test_refusal_stops_edgar_and_is_recorded():
+    seed_sites()
+    report = researcher.run(TODAY, edgar=EdgarSearch(FakeSec(GALAXY, {}, status=403)),  # type: ignore[arg-type]
+                            ferc=ferc_search({}), max_queries=5, max_ferc=0, collectors=False)
+    assert report["edgar"]["blocked"] and report["edgar"]["run"] == 1 and report["edgar"]["deferred"] == 1
+    with db.transaction() as conn:
+        s = conn.execute("SELECT status FROM research_search").fetchone()
+        src = conn.execute("SELECT last_error FROM source WHERE id = 'edgar_fts'").fetchone()
+        run_row = conn.execute("SELECT status FROM agent_ops_run").fetchone()
+    assert s["status"] == "blocked" and "403" in src["last_error"] and run_row["status"] == "partial"
+
+
+def test_configured_agents_get_jobs_at_research_priority():
+    seed_sites()
+    set_backend_status(BackendStatus("api", "test"))
+    _, hits = parse(GALAXY)
+    files = {hits[0].url: page("Galaxy Helios I LLC: commencement date.")}
+    report = researcher.run(TODAY, edgar=EdgarSearch(FakeSec(GALAXY, files)), ferc=ferc_search({}),  # type: ignore[arg-type]
+                            max_queries=1, max_ferc=0, max_docs=1, collectors=False)
+    assert report["agents"]["jobs"] == 1
+    assert report["finds"] == {"queued": 1, "skipped": 2}  # the document budget stops the other two
+    with db.transaction() as conn:
+        job = conn.execute("SELECT priority, priority_reason, links FROM agent_job").fetchone()
+    assert job["priority"] == 90 and job["priority_reason"].startswith("researcher: Lease: Commencement")
+    assert job["links"] == {}  # a research find is never a person's link
+
+
+def test_collector_items_are_checked_not_searched():
+    from marden.agents.ops.research_sources import check_collectors
+    from marden.collectors.air_permits_tx import SOURCE_CR
+
+    seed_sites()
+    with db.transaction() as conn:
+        conn.execute("""INSERT INTO read_model (view, key, as_of, doc) VALUES ('project_file', 'helios-1',
+                        '2026-10-22', '{"checklist": [{"area": "Permits", "item": "Air permits", "state": "n/d"}]}')""")
+        found = [g for g in gaps.collect(conn) if g.plan.collector]
+    upsert_spec(SOURCE_CR)
+    out = check_collectors(found, run=False)
+    assert out[0]["state"] == "TX" and out[0]["source"] == "tceq_cr_open_data"
+    assert "missed its cadence" in out[0]["action"]  # never ran here, and run=False

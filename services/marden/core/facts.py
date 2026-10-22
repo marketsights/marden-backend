@@ -260,12 +260,13 @@ def facts_asof(
     *,
     hidden: Sequence[str] = (),
 ) -> dict[str, Row]:
-    """field -> the fact Marden knew on `as_of` (fact_asof precedence), rows from `hidden` sources left out."""
+    """field -> the fact Marden knew on `as_of` (fact_asof precedence), rows from `hidden` sources left out.
+    Known on `as_of` = learned before it ended in business time (midnight US Eastern after it), as fact_asof."""
     if hidden:
         sql = """SELECT DISTINCT ON (field) * FROM fact WHERE subject_type = %s AND subject_id = %s
                    AND status IN ('published', 'superseded') AND valid_from <= %s
-                   AND learned_at < (%s::date + 1)::timestamptz AND (valid_to IS NULL OR valid_to > %s)
-                   AND source_name <> ALL(%s)"""
+                   AND learned_at < ((%s::date + 1)::timestamp AT TIME ZONE 'America/New_York')
+                   AND (valid_to IS NULL OR valid_to > %s) AND source_name <> ALL(%s)"""
         params: list[Any] = [subject_type, subject_id, as_of, as_of, as_of, list(hidden)]
     else:
         sql = "SELECT * FROM fact_asof(%s) WHERE subject_type = %s AND subject_id = %s"

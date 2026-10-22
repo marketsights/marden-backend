@@ -1,7 +1,7 @@
 // Builds SQL WHERE / ORDER BY clauses for row read models (dc_row, plant_row) from query params.
 // Filter expressions are constants in code; only values travel as bind parameters.
 import { badRequest } from '../errors.js';
-import { factSource } from './licensing.js';
+import { dayEnd, factSource } from './licensing.js';
 import { first, flag, isoDate, likePattern, list, num, type Query } from './params.js';
 
 export class SqlParams {
@@ -102,7 +102,7 @@ export function buildWhere(def: RowViewDef, q: Query, params: SqlParams, scope: 
     org: () => (orgPh ??= params.add(scope.orgId)),
     day,
     facts: () => factSource(scope.asOf === null ? null : day(), hidden()),
-    known: (learnedAt) => (scope.asOf === null ? 'TRUE' : `${learnedAt} < (${day()}::date + 1)`),
+    known: (learnedAt) => (scope.asOf === null ? 'TRUE' : `${learnedAt} < ${dayEnd(day())}`),
   };
   const conds = def.filters.map((f) => bindFilter(f, q, params, ctx)).filter((c): c is string => c !== null);
   return conds.length ? conds.map((c) => `(${c})`).join(' AND ') : 'TRUE';

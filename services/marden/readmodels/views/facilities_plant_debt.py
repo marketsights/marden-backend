@@ -22,7 +22,7 @@ from marden.core.db import Conn, Row
 from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.registry import builder
 from marden.readmodels.views.facilities_common import plant_ids, plant_row, served_campuses
-from marden.readmodels.views.sites_common import Doc, day, fact_evidence, nd, next_day, src_or_nd, with_value
+from marden.readmodels.views.sites_common import Doc, day, day_end, fact_evidence, nd, src_or_nd, with_value
 
 ITEM_FIELDS = ("ucc_lien", "mortgage", "financing", "equipment_order")
 
@@ -109,9 +109,9 @@ def power_buyer(conn: Conn, plant_id: str, facts: dict[str, Row]) -> Doc | None:
     rows = conn.execute(
         """SELECT o.id, o.from_entity_id, e.name AS buyer FROM obligation o
              LEFT JOIN entity e ON e.id = o.from_entity_id
-            WHERE o.type = 'Power purchase' AND o.to_entity_id = %s AND o.created_at < %s::date
+            WHERE o.type = 'Power purchase' AND o.to_entity_id = %s AND o.created_at < %s
               AND (o.campus_id = ANY(%s) OR o.site_slug = ANY(%s)) ORDER BY o.id""",
-        (operator, next_day(), campuses, sites),
+        (operator, day_end(), campuses, sites),
     ).fetchall()
     for row in rows:
         of = known_facts(conn, "obligation", row["id"], ["edge_type", "term_years"])

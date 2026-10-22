@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from marden.core.db import Conn, Row
@@ -48,6 +48,14 @@ def snapshot_date(as_of: date | None) -> date:
 def build_date() -> date:
     """The day of the snapshot being built (today outside a rebuild)."""
     return _BUILD_DATE.get() or business_today()
+
+
+def day_end(day: date | None = None) -> datetime:
+    """The instant `day` (default the build date) ends in business time: midnight US Eastern after it.
+    A row learned, created or approved before it was known on that day. Compare timestamps with this, never
+    with `day + 1` as a date: the database session is UTC, so a bare date is midnight UTC, still 8 pm (EDT)
+    or 7 pm (EST) of `day` in New York, and anything Marden learned later that evening would show a day late."""
+    return datetime.combine((day or build_date()) + timedelta(days=1), time.min, tzinfo=BUSINESS_TZ)
 
 
 def is_backfill() -> bool:
@@ -86,8 +94,8 @@ def known_fact_rows(conn: Conn, subject_type: str, subject_id: str, fields: Sequ
     if is_backfill():
         sql = """SELECT * FROM fact WHERE subject_type = %s AND subject_id = %s AND field = ANY(%s)
                    AND status IN ('published', 'superseded') AND valid_from <= %s
-                   AND learned_at < (%s::date + 1)::timestamptz AND (valid_to IS NULL OR valid_to > %s)"""
-        params: tuple = (subject_type, subject_id, list(fields), day, day, day)
+                   AND learned_at < %s AND (valid_to IS NULL OR valid_to > %s)"""
+        params: tuple = (subject_type, subject_id, list(fields), day, day_end(day), day)
     else:
         sql = """SELECT * FROM fact WHERE subject_type = %s AND subject_id = %s AND field = ANY(%s)
                    AND status = 'published' AND (valid_to IS NULL OR valid_to > CURRENT_DATE)"""

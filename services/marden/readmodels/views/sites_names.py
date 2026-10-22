@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 
 from marden.core.db import Conn, Row
 from marden.core.licensing import hidden_source_names
@@ -162,7 +162,7 @@ class SiteNames:
         return 1 if url and url in self.sources else None
 
 
-def site_names(conn: Conn, site: Row, campuses: list[Row], plants: list[Row], known_by: date) -> SiteNames:
+def site_names(conn: Conn, site: Row, campuses: list[Row], plants: list[Row], known_by: datetime) -> SiteNames:
     """The site's names (above). A plant name is a description ('Entergy Louisiana Hyperion CCGTs
     (first 3 plants, Richland/Franklin area)'): only its lead part before the first bracket counts."""
     rows = conn.execute(
@@ -182,7 +182,7 @@ def site_names(conn: Conn, site: Row, campuses: list[Row], plants: list[Row], kn
     sources = conn.execute(
         """SELECT DISTINCT source_url FROM fact WHERE subject_type = 'instrument' AND source_url IS NOT NULL
              AND subject_id IN (SELECT id FROM instrument WHERE site_slug = %s)
-             AND status IN ('published', 'superseded') AND learned_at < %s::date AND source_name <> ALL(%s)""",
+             AND status IN ('published', 'superseded') AND learned_at < %s AND source_name <> ALL(%s)""",
         (site["slug"], known_by, hidden_source_names()),
     ).fetchall()
     return SiteNames(names_pattern(names), names_pattern(names, any_case=True), ciks,

@@ -29,10 +29,10 @@ from marden.readmodels.context import known_fact_rows
 from marden.readmodels.views.sites_common import (
     Doc,
     day,
+    day_end,
     event_evidence,
     fact_evidence,
     material_events,
-    next_day,
     severity,
     site_row,
 )
@@ -65,8 +65,8 @@ def linked_events(conn: Conn, subject_type: str, ids: Sequence[str]) -> list[Row
         return []
     return conn.execute(
         """SELECT * FROM event WHERE subject_type = %s AND subject_id = ANY(%s) AND status = 'published'
-             AND learned_at < %s::date AND event_date <= %s ORDER BY event_date DESC, id DESC""",
-        (subject_type, list(ids), next_day(), day()),
+             AND learned_at < %s AND event_date <= %s ORDER BY event_date DESC, id DESC""",
+        (subject_type, list(ids), day_end(), day()),
     ).fetchall()
 
 
@@ -114,7 +114,7 @@ def evidence_candidates(conn: Conn, slug: str, events: Sequence[Row]) -> list[Ca
         return []
     campuses, _approved = linked_campuses(conn, slug)
     plants = site_plants(conn, slug, campuses)
-    names = site_names(conn, site, campuses, plants, next_day())
+    names = site_names(conn, site, campuses, plants, day_end())
     material = {ev["id"] for ev, _note in material_events(conn, slug, events)}
     found = [c for ev in events if (c := event_candidate(ev, names, ev["id"] in material, 0))]
     linked = linked_events(conn, "campus", [c["id"] for c in campuses])

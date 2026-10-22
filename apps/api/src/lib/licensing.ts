@@ -28,6 +28,15 @@ export function hiddenSources(showUnlicensed: boolean): readonly string[] {
   return showUnlicensed ? [] : UNLICENSED_SOURCE_NAMES;
 }
 
+/**
+ * The instant a day ends in business time: midnight US Eastern after it (snapshots and ?asOf days are Eastern;
+ * the session is UTC, so `(day + 1)::timestamptz` would be 8 pm EDT). fact_asof(day) uses the same instant
+ * (db/migrations/20261022050000_fact_asof_business_day.sql; services/marden/readmodels/context.py day_end).
+ */
+export function dayEnd(dayPh: string): string {
+  return `((${dayPh}::date + 1)::timestamp AT TIME ZONE 'America/New_York')`;
+}
+
 /** fact_current / fact_asof order after (subject, field): non-model first, newest valid_from, F over R, newest learned. */
 const PRECEDENCE = `(tag = 'M'), valid_from DESC, (CASE tag WHEN 'F' THEN 0 WHEN 'R' THEN 1 ELSE 2 END), learned_at DESC, id DESC`;
 
@@ -42,7 +51,7 @@ export function factSource(asOfPh: string | null, hiddenPh: string | null): stri
   const known = asOfPh === null
     ? `status = 'published' AND (valid_to IS NULL OR valid_to > CURRENT_DATE)`
     : `status IN ('published', 'superseded') AND valid_from <= ${asOfPh}::date
-       AND learned_at < (${asOfPh}::date + 1)::timestamptz AND (valid_to IS NULL OR valid_to > ${asOfPh}::date)`;
+       AND learned_at < ${dayEnd(asOfPh)} AND (valid_to IS NULL OR valid_to > ${asOfPh}::date)`;
   return `(SELECT DISTINCT ON (subject_type, subject_id, field) * FROM fact
            WHERE ${known} AND source_name <> ALL(${hiddenPh}::text[])
            ORDER BY subject_type, subject_id, field, ${PRECEDENCE})`;

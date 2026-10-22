@@ -28,10 +28,10 @@ from marden.readmodels.views.sites import building_count
 from marden.readmodels.views.sites_common import (
     Doc,
     day,
+    day_end,
     fact_evidence,
     gw_value,
     nd,
-    next_day,
     site_row,
     site_slugs,
     src_or_nd,
@@ -102,8 +102,8 @@ def plant_track(conn: Conn, plant: Row, facts: dict[str, Row]) -> Doc:
                         "evidence": fact_evidence(row)})
     first_event = conn.execute(
         """SELECT min(event_date) AS d FROM event WHERE subject_type = 'plant' AND subject_id = %s
-             AND status = 'published' AND learned_at < %s::date AND event_date <= %s""",
-        (plant["id"], next_day(), day()),
+             AND status = 'published' AND learned_at < %s AND event_date <= %s""",
+        (plant["id"], day_end(), day()),
     ).fetchone()["d"]
     first = min([r["valid_from"] for r in facts.values()] + ([first_event] if first_event else []), default=None)
     status = facts.get("status")

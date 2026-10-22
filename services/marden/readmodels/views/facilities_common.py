@@ -37,7 +37,6 @@ from marden.readmodels.views.sites_common import (
     fact_evidence,
     latest_output,
     nd,
-    next_day,
     site_instruments,
     with_value,
 )
@@ -124,16 +123,16 @@ def campus_row(conn: Conn, campus_id: str) -> Row | None:
     """The campus as known on the build date, with its point as lat / lon (None without a point)."""
     return conn.execute(
         """SELECT id, name, aliases, county, state, parcel_ids, first_seen_at, created_at,
-                  ST_Y(geom) AS lat, ST_X(geom) AS lon FROM campus WHERE id = %s AND created_at < %s::date""",
-        (campus_id, next_day()),
+                  ST_Y(geom) AS lat, ST_X(geom) AS lon FROM campus WHERE id = %s AND created_at < %s""",
+        (campus_id, day_end()),
     ).fetchone()
 
 
 def plant_row(conn: Conn, plant_id: str) -> Row | None:
     return conn.execute(
         """SELECT id, name, county, state, eia_plant_id, created_at, ST_Y(geom) AS lat, ST_X(geom) AS lon
-             FROM power_plant WHERE id = %s AND created_at < %s::date""",
-        (plant_id, next_day()),
+             FROM power_plant WHERE id = %s AND created_at < %s""",
+        (plant_id, day_end()),
     ).fetchone()
 
 
@@ -148,8 +147,8 @@ def campus_buildings(conn: Conn, campus_id: str) -> list[Row]:
     """The campus's building rows known on the build date, in label order (with GeoJSON footprints)."""
     rows = conn.execute(
         """SELECT id, campus_id, label, parcel_ids, ST_AsGeoJSON(footprint)::jsonb AS footprint, created_at
-             FROM building WHERE campus_id = %s AND created_at < %s::date ORDER BY id""",
-        (campus_id, next_day()),
+             FROM building WHERE campus_id = %s AND created_at < %s ORDER BY id""",
+        (campus_id, day_end()),
     ).fetchall()
     return sorted(rows, key=lambda b: _label_order(b["label"] or b["id"]))
 
@@ -162,7 +161,7 @@ def _label_order(label: str) -> tuple[int, str]:
 # A plant_serves link counts once its evidence fact was known by the build date and is not from a source
 # the licence switch hides.
 _SERVES_EVIDENCE = """(ps.evidence_fact_id IS NULL OR (f.status IN ('published', 'superseded')
-                      AND f.learned_at < %s::date AND f.source_name <> ALL(%s)))"""
+                      AND f.learned_at < %s AND f.source_name <> ALL(%s)))"""
 
 
 def serving_plants(conn: Conn, campus_id: str) -> list[Row]:
@@ -170,9 +169,9 @@ def serving_plants(conn: Conn, campus_id: str) -> list[Row]:
     return conn.execute(
         f"""SELECT p.* FROM plant_serves ps JOIN power_plant p ON p.id = ps.plant_id
              LEFT JOIN fact f ON f.id = ps.evidence_fact_id
-            WHERE ps.campus_id = %s AND p.created_at < %s::date AND {_SERVES_EVIDENCE}
+            WHERE ps.campus_id = %s AND p.created_at < %s AND {_SERVES_EVIDENCE}
             ORDER BY p.id""",
-        (campus_id, next_day(), next_day(), hidden_source_names()),
+        (campus_id, day_end(), day_end(), hidden_source_names()),
     ).fetchall()
 
 
@@ -181,9 +180,9 @@ def served_campuses(conn: Conn, plant_id: str) -> list[Row]:
     rows = conn.execute(
         f"""SELECT c.id, c.name, c.state FROM plant_serves ps JOIN campus c ON c.id = ps.campus_id
              LEFT JOIN fact f ON f.id = ps.evidence_fact_id
-            WHERE ps.plant_id = %s AND c.created_at < %s::date AND {_SERVES_EVIDENCE}
+            WHERE ps.plant_id = %s AND c.created_at < %s AND {_SERVES_EVIDENCE}
             ORDER BY c.id""",
-        (plant_id, next_day(), next_day(), hidden_source_names()),
+        (plant_id, day_end(), day_end(), hidden_source_names()),
     ).fetchall()
     return sorted(rows, key=lambda c: (c["state"] not in US_STATES, c["id"]))
 
@@ -268,8 +267,8 @@ def subject_events(conn: Conn, subject_type: str, subject_id: str) -> list[Row]:
     """Published past-dated events on the subject that Marden knew by the build date, newest first."""
     return conn.execute(
         """SELECT * FROM event WHERE subject_type = %s AND subject_id = %s AND status = 'published'
-             AND learned_at < %s::date AND event_date <= %s ORDER BY event_date DESC, id DESC""",
-        (subject_type, subject_id, next_day(), day()),
+             AND learned_at < %s AND event_date <= %s ORDER BY event_date DESC, id DESC""",
+        (subject_type, subject_id, day_end(), day()),
     ).fetchall()
 
 

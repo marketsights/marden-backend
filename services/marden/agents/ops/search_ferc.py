@@ -4,9 +4,10 @@ The eLibrary web app's Advanced Search (`collectors.ferc_api`: POST /eLibraryWeb
 with `searchText` = the subject phrase in quotes, every docket, posted in the window. The answer is stored raw
 (source `ferc_fts`, doc_type 'ferc_search') before it is parsed; a filing's main public file is fetched raw
 the same way the docket collector does (POST File/DownloadP8File, stored under its public filedownload link)
-and queued for the extractor. The docket collector (`collect ferc`) already follows the dockets tied to our
-subjects every hour; this finds filings in dockets Marden does not follow yet. One request every 2 s on the
-eLibrary host, declared User-Agent; a challenge, 401/403 or a persisting 429 stops the run (`Challenged`).
+with extract_state 'none'; the researcher queues it once it has checked the file is about the subject. The
+docket collector (`collect ferc`) already follows the dockets tied to our subjects every hour; this finds
+filings in dockets Marden does not follow yet. One request every 2 s on the eLibrary host, declared
+User-Agent; a challenge, 401/403 or a persisting 429 stops the run (`Challenged`).
 """
 
 from __future__ import annotations
@@ -68,4 +69,4 @@ class FercSearch:
 
     def fetch(self, filing: Filing, main: FileRef, meta: dict[str, Any]) -> DocumentRow:
         return self.client.download(filing, main, meta={**filing.as_meta(), "producer": "agent:researcher", **meta},
-                                    extract_state="queued")
+                                    extract_state="none")

@@ -7,7 +7,8 @@ backtest and reads only what was public by that day:
   `valid_from` + the source's publication lag <= as_of, and not ended (`valid_to`) by then. The fact's
   `valid_from` is its record date (filing, statement, report month); `learned_at` is when Marden ingested
   it, which for the archive and the collectors' first runs (2026-10-21) is after every backtest day, so
-  `mode="public"` (the default) ignores it and `mode="known"` applies it (exactly `fact_asof`).
+  `mode="public"` (the default) ignores it and `mode="known"` applies it (exactly `fact_asof`: learned before
+  the day ended in US Eastern time, `readmodels.context.day_end`).
 - publication lags (`public_date`): an N-PORT mark is public 60 days after its period end; an XBRL
   value 40 days after the period end (pricing-v0.1 "Data") or, when later, on the date of the filing that
   reported it (`quote_loc` '... filed YYYY-MM-DD': 10-Ks, late filers, restatements); an EIA-860M monthly
@@ -38,7 +39,7 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.core.licensing import show_unlicensed_prices, unlicensed_source_names
-from marden.readmodels.context import business_today
+from marden.readmodels.context import business_today, day_end
 
 NPORT_LAG_DAYS = 60
 XBRL_LAG_DAYS = 40
@@ -181,7 +182,8 @@ def fact_rows(
         sql += " AND status IN ('published', 'superseded') AND valid_from <= %(day)s"
         sql += " AND (valid_to IS NULL OR valid_to > %(day)s)"
         if mode == "known":
-            sql += " AND learned_at < (%(day)s::date + 1)::timestamptz"
+            sql += " AND learned_at < %(day_end)s"
+            params["day_end"] = day_end(as_of)
     else:
         sql += " AND status = 'published' AND (valid_to IS NULL OR valid_to > %(day)s)"
     sql += _licence_clause(params)
@@ -233,7 +235,8 @@ def event_rows(
         sql += " AND kind = ANY(%(kinds)s)"
         params["kinds"] = list(kinds)
     if is_backtest(as_of):
-        sql += " AND (event_date <= %(day)s OR learned_at < (%(day)s::date + 1)::timestamptz)"
+        sql += " AND (event_date <= %(day)s OR learned_at < %(day_end)s)"
+        params["day_end"] = day_end(as_of)
     sql += _licence_clause(params)
     sql += " ORDER BY subject_id, event_date DESC, id DESC"
     rows = conn.execute(sql, params).fetchall()

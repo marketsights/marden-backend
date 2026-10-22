@@ -23,7 +23,7 @@ from typing import Any
 from marden.core.db import Conn, Row
 from marden.core.facts import sourced
 from marden.core.licensing import show_unlicensed_prices, unlicensed_source_names
-from marden.readmodels.context import build_date, is_backfill
+from marden.readmodels.context import BUSINESS_TZ, build_date, is_backfill
 
 SOURCED_KEYS = ("value", "tag", "sourceUrl", "sourceName", "asOf", "methodVersion")
 OBSERVED_KINDS = ("trade", "exchange", "quote", "dealer")
@@ -54,9 +54,13 @@ def nd(tag: str) -> dict[str, Any]:
     return {"value": None, "tag": tag, "asOf": day().isoformat()}
 
 
+DAY_END_SQL = f"((%(day)s::date + 1)::timestamp AT TIME ZONE '{BUSINESS_TZ.key}')"  # context.day_end, in SQL
+
+
 def _known_by_clause(column: str = "learned_at") -> str:
-    """On a backfilled day, only rows Marden had learned by the end of that day."""
-    return f" AND {column} < (%(day)s::date + 1)::timestamptz" if is_backfill() else ""
+    """On a backfilled day, only rows Marden had learned by the end of that day in business time (midnight
+    US Eastern after it, `context.day_end`; the session is UTC, so `day + 1` alone would be 8 pm Eastern)."""
+    return f" AND {column} < {DAY_END_SQL}" if is_backfill() else ""
 
 
 def _licence_clause() -> tuple[str, list[str]]:

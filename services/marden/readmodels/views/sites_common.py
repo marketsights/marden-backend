@@ -11,14 +11,14 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Sequence
-from datetime import date, datetime, time, timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.core.facts import sourced
 from marden.core.jsonutil import jsonb
 from marden.core.licensing import hidden_source_names
-from marden.readmodels.context import BUSINESS_TZ, build_date, known_fact_rows, known_facts
+from marden.readmodels.context import build_date, day_end, known_fact_rows, known_facts
 from marden.readmodels.views.sites_text import text_of
 
 Doc = dict[str, Any]
@@ -42,15 +42,10 @@ def day() -> date:
 
 
 def next_day() -> date:
-    """Rows learned before this instant were known on the build date."""
+    """The day after the build date, for dated columns. Timestamps (learned_at, created_at, approved_at)
+    compare with `day_end()`: midnight US Eastern, not this date read as midnight UTC."""
     return build_date() + timedelta(days=1)
 
-
-def day_end() -> datetime:
-    """The instant the build date ends in business time (US Eastern, as snapshots are dated): a row
-    approved before it was known on the build date. A bare `next_day()` date compares as midnight UTC,
-    which is still the evening of the build date in Eastern time."""
-    return datetime.combine(next_day(), time.min, tzinfo=BUSINESS_TZ)
 
 
 def nd(tag: str = "R") -> Doc:
@@ -247,8 +242,8 @@ def dealer_quote(conn: Conn, instrument_id: str) -> Row | None:
     """The newest dealer quote known by the build date (licence switch applied)."""
     return conn.execute(
         """SELECT * FROM price_obs WHERE instrument_id = %s AND kind = 'dealer' AND obs_date <= %s
-             AND learned_at < %s::date AND source_name <> ALL(%s) ORDER BY obs_date DESC, id DESC LIMIT 1""",
-        (instrument_id, day(), next_day(), hidden_source_names()),
+             AND learned_at < %s AND source_name <> ALL(%s) ORDER BY obs_date DESC, id DESC LIMIT 1""",
+        (instrument_id, day(), day_end(), hidden_source_names()),
     ).fetchone()
 
 
@@ -271,12 +266,12 @@ def holders(conn: Conn, instrument_ids: Sequence[str]) -> dict[str, Any]:
         return {"count": 0, "par": 0.0, "period": None, "filings": []}
     rows = conn.execute(
         """WITH known AS (
-             SELECT * FROM holding WHERE instrument_id = ANY(%s) AND learned_at < %s::date
+             SELECT * FROM holding WHERE instrument_id = ANY(%s) AND learned_at < %s
                AND coalesce(filed_at, period_end) <= %s),
            latest AS (SELECT fund_entity_id, max(period_end) AS period_end FROM known GROUP BY 1)
            SELECT k.fund_entity_id, k.period_end, k.filing_type, sum(k.par) AS par
              FROM known k JOIN latest l USING (fund_entity_id, period_end) GROUP BY 1, 2, 3""",
-        (list(instrument_ids), next_day(), day()),
+        (list(instrument_ids), day_end(), day()),
     ).fetchall()
     return {
         "count": len({r["fund_entity_id"] for r in rows}),
@@ -316,8 +311,8 @@ def site_events(conn: Conn, slug: str, *, kinds: Sequence[str] | None = None, fu
     """Published events on the site that Marden knew by the build date, newest first. Past-dated
     only, unless `future` (hearings and deadlines still to come)."""
     sql = """SELECT * FROM event WHERE subject_type = 'site' AND subject_id = %s AND status = 'published'
-               AND learned_at < %s::date AND event_date {op} %s"""
-    params: list[Any] = [slug, next_day(), day()]
+               AND learned_at < %s AND event_date {op} %s"""
+    params: list[Any] = [slug, day_end(), day()]
     sql = sql.format(op=">" if future else "<=")
     if kinds is not None:
         sql += " AND kind = ANY(%s)"
