@@ -70,6 +70,11 @@ Release-readiness pass to run when the workflows above finish: mark the n/d-able
 
 If a new session starts: read this file, check `git log`, then re-run any workflow whose review did not finish (the scripts are under the session's `workflows/scripts/`; otherwise re-create from the task descriptions above).
 
+## 2026-10-22 early UTC
+- Done: `marden-status-fixes` (wf_6717aea7-4f2): status v0.4 (a withdrawn permit counts only when nothing replaces it; Abilene Broken -> Strained), US Eastern day cutoff (`context.day_end`, migration 20261022050000), campus `financedSites` ($145.219B -> $148.077B), model_dirty and read_model_dirty drained. Payer leverage reads one balance sheet (Oracle 5.6x, CoreWeave 11.7x).
+- Running: `marden-status-followups` (wf_185521ea-c19): remaining cutoff sites (home_parts, payers_common, API stress/search/alerts/sources), financed-sites list on data-center screens, air-permit type shapes + row-query lint, then full suites. Still running: `marden-saas-live-v2` (wf_c6559cea-094, ops agents).
+- Before launch: re-sync Neon from local once these finish (Neon holds the 02:06 UTC snapshot; no production users yet, so a full reload is safe).
+
 ## Next steps (in order)
 1. After the seed load: run `seed legacy_trace`, `legacy_frankfurt`, `legacy_yahoo`, then `collect finra_trace`, `boerse_frankfurt`, `yahoo_equity` on the main DB (`docs/methods/licensing.md`).
 2. ~~Resolve the 7 grid-region review items from filings (Abernathy, Childress, Helios 1/2, Polaris Forge 1/B4, Stingray).~~ Done 2026-10-21: `collect grid_evidence` settled all 16 site items (and 17 on their campuses/buildings) from 8 SEC filings (docs/grid-coverage.md section 1).
