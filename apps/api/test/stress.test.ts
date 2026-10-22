@@ -37,6 +37,17 @@ CREATE OR REPLACE FUNCTION stress_run(req jsonb) RETURNS jsonb LANGUAGE sql AS $
       jsonb_build_object('instrumentId', 'EX-SALINE-308', 'name', 'Saline Project bonds', 'sizeB', jsonb_build_object('value', 14, 'tag', 'M', 'asOf', '2026-10-20', 'sourceName', 'Marden research archive'),
         'why', 'Tenant oracle cut to BB+', 'ruleCode', 'T1', 'priceNow', 85.244, 'priceAfter', 82.867, 'holders', 'Pimco Income Fund +343 more')))
 $$`;
+/** A stand-in stress_run that answers one row per chosen instrument (params.instruments), naming the list it got. */
+const CHOSEN_RUN = `
+CREATE OR REPLACE FUNCTION stress_run(req jsonb) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object(
+    'kpis', jsonb_build_object('exposedB', 1, 'valueLostB', 0, 'valueLostPct', 0, 'loansBelow95', '[]'::jsonb, 'fundsHit', 0),
+    'flow', '[]'::jsonb,
+    'rows', (SELECT jsonb_agg(jsonb_build_object(
+      'instrumentId', id, 'name', id, 'sizeB', jsonb_build_object('value', 1, 'tag', 'R', 'asOf', '2026-10-15', 'sourceName', 'Test record'),
+      'why', 'Chosen: ' || (req->'params'->'instruments')::text, 'priceNow', 90, 'priceAfter', 90, 'holders', ''))
+      FROM jsonb_array_elements_text(req->'params'->'instruments') AS id))
+$$`;
 const QUEUED_RUN = `CREATE OR REPLACE FUNCTION stress_run(req jsonb) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{"status":"queued","jobId":"job-1"}'::jsonb $$`;
 /** Queued on the first call, done on the next (the model's worker stored the result in between). */
 const QUEUED_THEN_DONE = `
@@ -126,6 +137,41 @@ describe('stress', () => {
     const res = await app.inject({ method: 'POST', url: '/api/stress/run', payload: { scenario: 'power_delay', params: { months: 3 }, severity: 'base' } });
     expect(res.statusCode).toBe(200);
     expect(res.json().rows[0]).toMatchObject({ instrumentId: 'ST-TEST-LOAN', why: 'Delay of 3 months, base' });
+  });
+
+  it('passes the chosen instruments to the model as one sorted list, and refuses them in any other form', async () => {
+    await db.query(CHOSEN_RUN);
+    const run = (params: Record<string, unknown>, scenario = 'tenant_downgrade') =>
+      app.inject({ method: 'POST', url: '/api/stress/run', payload: { scenario, params, severity: 'base' } });
+    const res = await run({ tenant: 'oracle', rating: 'BB+', instruments: ['EX-SALINE-308', 'EX-ABILENE-000', 'EX-SALINE-308'] });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().rows.map((r: { instrumentId: string }) => r.instrumentId)).toEqual(['EX-ABILENE-000', 'EX-SALINE-308']);
+    expect(res.json().rows[0].why).toBe('Chosen: ["EX-ABILENE-000", "EX-SALINE-308"]');
+    expect((await run({ tenant: 'oracle', instruments: 'EX-SALINE-308' })).statusCode).toBe(400); // text, not a list
+    expect((await run({ tenant: ['oracle'] })).statusCode).toBe(400); // only instruments is a list
+    expect((await run({ tenant: 'oracle', instruments: [] })).statusCode).toBe(400);
+    expect((await run({ tenant: 'oracle', instruments: Array.from({ length: 101 }, (_, i) => `EX-${i}`) })).statusCode).toBe(400);
+    expect((await run({ company: 'oracle', payPct: 50, instruments: ['EX-SALINE-308'] }, 'contagion')).statusCode).toBe(400);
+  });
+
+  it('exports a run limited to chosen instruments from the URL form instruments=a,b', async () => {
+    await db.query(CHOSEN_RUN);
+    const res = await get('/api/export/stress.xlsx?scenario=power_delay&months=6&instruments=EX-SALINE-308,EX-ABILENE-000');
+    expect(res.statusCode).toBe(200);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer);
+    const data = wb.worksheets[0]!;
+    expect((data.getRow(2).values as unknown[]).slice(1, 5)).toEqual(['EX-ABILENE-000', 'EX-ABILENE-000', 1, 'Chosen: ["EX-ABILENE-000", "EX-SALINE-308"]']);
+    expect(data.rowCount).toBe(3);
+  });
+
+  it('saves a scenario with its chosen instruments and reopens it with them', async () => {
+    const request = { scenario: 'tenant_downgrade', params: { tenant: 'oracle', rating: 'BB+', instruments: ['EX-SALINE-308', 'EX-ABILENE-000'] }, severity: 'base' };
+    const saved = await app.inject({ method: 'POST', url: '/api/stress/saved', payload: { name: 'Oracle, two loans', request } });
+    expect(saved.statusCode).toBe(201);
+    const stored = { ...request, params: { ...request.params, instruments: ['EX-ABILENE-000', 'EX-SALINE-308'] } };
+    expect(saved.json().request).toEqual(stored);
+    expect((await get(`/api/stress/saved/${saved.json().id}`)).json().request).toEqual(stored);
   });
 
   it('waits for a queued custom run and returns it once the model stored it', async () => {

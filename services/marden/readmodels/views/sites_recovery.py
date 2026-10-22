@@ -24,8 +24,8 @@ from marden.readmodels.views.recovery_text import cents_text
 from marden.readmodels.views.sites_common import Doc, is_sourced, latest_output, msourced, nd, output_field, party_label
 
 TIMES, MINUS, OVER = "\u00d7", "\u2212", "\u00f7"  # the arithmetic signs
-EQUIPMENT = "not counted in model v0; no equipment invoices or liens on file"
-RELETTING = "not counted in model v0; no re-letting times by market on file"
+EQUIPMENT = "not counted in this run; no equipment invoices or liens on file"
+RELETTING = "not counted in this run; no re-letting times by market on file"
 COMPLETION = {"nothing delivered and no stated completion": "nothing delivered yet and no completion share stated",
               "no capacity": "no capacity on file to measure delivered MW against",
               "no site facts": "no completion or delivery facts on file for the site"}

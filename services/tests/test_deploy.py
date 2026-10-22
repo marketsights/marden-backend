@@ -24,6 +24,7 @@ from marden import worker
 from marden.core import config, logs, rawstore
 from marden.core.config import ConfigError, Settings
 from marden.core.queue import QUEUES, app
+from marden.models import stress_run
 from marden.plugins import load_plugins
 
 REPO = Path(__file__).resolve().parents[2]
@@ -220,6 +221,29 @@ def test_shutdown_timeout():
     for bad in ("0", "-5", "soon"):
         with pytest.raises(ConfigError):
             worker.shutdown_timeout({"MARDEN_WORKER_SHUTDOWN_TIMEOUT": bad})
+
+
+def test_stress_lane_concurrency():
+    assert worker.lane_concurrency({}) == worker.DEFAULT_LANE_CONCURRENCY == 1
+    assert worker.lane_concurrency({"MARDEN_STRESS_LANE_CONCURRENCY": "2"}) == 2
+    assert worker.lane_concurrency({"MARDEN_STRESS_LANE_CONCURRENCY": "0"}) == 0  # off
+    for bad in ("-1", "one"):
+        with pytest.raises(ConfigError):
+            worker.lane_concurrency({"MARDEN_STRESS_LANE_CONCURRENCY": bad})
+    assert worker.STRESS_QUEUE in QUEUES
+
+
+def test_worker_on_every_queue_runs_the_stress_lane_beside_it(committed, monkeypatch):
+    """Working every queue, the worker runs the reserved stress lane beside the main worker: a job on `stress` is
+    worked, and the lane stops with the main worker."""
+    calls: list[str] = []
+    monkeypatch.setattr(stress_run, "run_custom", lambda request, key: calls.append(key) or {"key": key})
+    with app.open():
+        job_id = stress_run.stress_custom_task.defer(request={"scenario": "power_delay"}, key="custom:lane-test")
+    monkeypatch.setenv("MARDEN_STRESS_LANE_CONCURRENCY", "1")
+    worker.run_worker(queues=None, concurrency=1, wait=False)
+    job = committed.execute("SELECT status, queue_name FROM procrastinate_jobs WHERE id = %s", (job_id,)).fetchone()
+    assert job["queue_name"] == worker.STRESS_QUEUE and job["status"] == "succeeded" and calls == ["custom:lane-test"]
 
 
 # ------------------------------------------------------------------ raw store on Railway

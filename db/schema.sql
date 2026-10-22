@@ -775,7 +775,7 @@ BEGIN
   END IF;
   BEGIN
     SELECT (procrastinate_defer_jobs_v1(ARRAY[ROW(
-              'models', 'models.stress_custom', 0, NULL, 'stress:' || subj,
+              'stress', 'models.stress_custom', 0, NULL, 'stress:' || subj,
               jsonb_build_object('request', norm, 'key', subj), NULL
             )::procrastinate_job_to_defer_v1]))[1] INTO new_id;
   EXCEPTION WHEN unique_violation THEN  -- another caller queued it a moment ago
@@ -4645,4 +4645,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261022030000'),
     ('20261022041700'),
     ('20261022050000'),
-    ('20261022090000');
+    ('20261022090000'),
+    ('20261022200000');

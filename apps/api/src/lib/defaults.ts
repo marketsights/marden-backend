@@ -42,9 +42,23 @@ export const homeLayoutSchema = z.strictObject({
     .max(24),
 });
 
-const stressParams = z.record(z.string().max(50), z.union([z.number(), z.string().max(200)]));
+/** The most instruments one run may be limited to (params.instruments). */
+export const STRESS_MAX_INSTRUMENTS = 100;
+/** params.instruments: the instrument ids a V1 run applies its shock to (the stress model's selected_result),
+ *  deduplicated and sorted so the same choice is the same run (stress_run keys custom runs by the request). */
+const stressInstruments = z
+  .array(z.string().trim().min(1).max(100))
+  .min(1)
+  .max(STRESS_MAX_INSTRUMENTS)
+  .transform((ids) => [...new Set(ids)].sort());
+const stressParams = z
+  .record(z.string().max(50), z.union([z.number(), z.string().max(200), stressInstruments]))
+  .refine((p) => Object.entries(p).every(([k, v]) => Array.isArray(v) === (k === 'instruments')), {
+    message: 'params.instruments is a list of instrument ids; every other parameter is a number or text',
+  });
 
-/** StressRequest (spec 09) plus the contagion scenario (spec 18: params company, payPct). */
+/** StressRequest (spec 09; params.instruments limits a run to chosen instruments) plus the contagion scenario
+ *  (spec 18: params company, payPct). */
 export const stressRequestSchema = z.discriminatedUnion('scenario', [
   z.strictObject({
     scenario: z.enum(['end_user_funding_miss', 'tenant_downgrade', 'power_delay']),

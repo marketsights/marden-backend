@@ -7,8 +7,10 @@ worker starts.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+from typing import Any
 
 from procrastinate import JobContext, builtin_tasks, exceptions
 from procrastinate.jobs import Status
@@ -30,6 +32,8 @@ BACKUP_CRON = "23 7 * * *"  # daily 07:23 UTC = 03:23 EDT / 02:23 EST (spec 22: 
 # SIGTERM: stop fetching, give running jobs this long, then abort them (Railway's drainingSeconds must
 # be longer, or the platform kills the process first; jobs it kills are retried by queue.retry_stalled).
 DEFAULT_SHUTDOWN_TIMEOUT_S = 90.0
+STRESS_QUEUE = "stress"  # custom stress runs (models.stress_custom): a reserved lane, see run_worker
+DEFAULT_LANE_CONCURRENCY = 1
 
 
 @app.periodic(cron=REBUILD_DIRTY_CRON, periodic_id="every_30s")
@@ -120,27 +124,78 @@ def registered_task_names() -> list[str]:
     return sorted(name for name in app.tasks if not name.startswith(("builtin:", "procrastinate.")))
 
 
+def lane_concurrency(env: dict[str, str] | None = None) -> int:
+    """MARDEN_STRESS_LANE_CONCURRENCY: jobs the reserved stress lane runs at once (default 1, 0 turns it off)."""
+    raw = (os.environ if env is None else env).get("MARDEN_STRESS_LANE_CONCURRENCY", "").strip()
+    if not raw:
+        return DEFAULT_LANE_CONCURRENCY
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ConfigError("MARDEN_STRESS_LANE_CONCURRENCY must be a whole number") from None
+    if value < 0:
+        raise ConfigError("MARDEN_STRESS_LANE_CONCURRENCY must be 0 or more")
+    return value
+
+
+async def _run_with_lane(options: dict[str, Any], lane: int) -> None:
+    """The main worker plus a reserved lane on the `stress` queue, in one process (they share the stress model's
+    cached book). Only the main worker installs signal handlers; the lane stops when it does."""
+    async with app.open_async():
+        app.perform_import_paths()
+        lane_worker = app._worker(  # procrastinate builds its Worker the same way in run_worker_async
+            queues=[STRESS_QUEUE],
+            concurrency=lane,
+            name="stress-lane",
+            wait=options["wait"],
+            install_signal_handlers=False,
+            shutdown_graceful_timeout=options["shutdown_graceful_timeout"],
+        )
+        lane_task = asyncio.create_task(lane_worker.run(), name="stress-lane")
+        try:
+            await app.run_worker_async(**options)
+        finally:
+            lane_worker.stop()
+            await lane_task
+
+
 def run_worker(*, queues: list[str] | None = None, concurrency: int = 4, wait: bool = True) -> None:
-    """Run the worker on the current DATABASE_URL until stopped (or until idle if wait=False)."""
+    """Run the worker on the current DATABASE_URL until stopped (or until idle if wait=False).
+
+    Working every queue (the default), it also runs a reserved lane on the `stress` queue
+    (MARDEN_STRESS_LANE_CONCURRENCY jobs at once, default 1): a custom stress run (models.stress_custom, queued by
+    stress_run(jsonb) while the screen waits) never waits behind long collector, agent or model jobs."""
     get_settings().require_database_url()
     timeout = shutdown_timeout()
+    lane = lane_concurrency() if queues is None else 0
     load_plugins()
-    log.info("worker starting; queues: %s; tasks: %s", ", ".join(queues or ["all"]), ", ".join(registered_task_names()))
+    log.info(
+        "worker starting; queues: %s; stress lane: %d; tasks: %s",
+        ", ".join(queues or ["all"]),
+        lane,
+        ", ".join(registered_task_names()),
+    )
+    options: dict[str, Any] = {
+        "queues": queues,
+        "concurrency": concurrency,
+        "wait": wait,
+        "install_signal_handlers": wait,
+        "shutdown_graceful_timeout": timeout,
+    }
     with app.replace_connector(make_connector()):
-        app.run_worker(
-            queues=queues,
-            concurrency=concurrency,
-            wait=wait,
-            install_signal_handlers=wait,
-            shutdown_graceful_timeout=timeout,
-        )
+        if lane:
+            asyncio.run(_run_with_lane(options, lane))
+        else:
+            app.run_worker(**options)
     log.info("worker stopped")
 
 
 __all__ = [
     "QUEUES",
+    "STRESS_QUEUE",
     "app",
     "backup_db_task",
+    "lane_concurrency",
     "prune_jobs_task",
     "rebuild_all_task",
     "rebuild_dirty_task",

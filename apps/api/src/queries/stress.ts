@@ -59,14 +59,17 @@ const RESERVED = new Set(['scenario', 'severity', 'asOf']);
 
 /**
  * The run an export URL names, in the screen's own URL form (/stress?scenario=&severity=&<param>=):
- * every other query parameter is a scenario parameter, numbers parsed. 400 when it is not a valid run.
+ * every other query parameter is a scenario parameter, numbers parsed, `instruments` a comma-separated
+ * list of instrument ids. 400 when it is not a valid run.
  */
 export function stressRequestFromQuery(q: Query): StressRunRequest {
-  const params: Record<string, string | number> = {};
+  const params: Record<string, string | number | string[]> = {};
   for (const key of Object.keys(q).sort()) {
     const value = first(q, key);
     if (RESERVED.has(key) || value === undefined) continue;
-    params[key] = /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : value;
+    // instruments=EX-A,EX-B: the chosen instruments, as the screen writes them.
+    if (key === 'instruments') params[key] = value.split(',').map((id) => id.trim()).filter(Boolean);
+    else params[key] = /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : value;
   }
   const parsed = stressRequestSchema.safeParse({ scenario: first(q, 'scenario'), params, severity: first(q, 'severity') ?? 'base' });
   if (!parsed.success) {

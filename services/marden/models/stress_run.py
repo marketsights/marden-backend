@@ -5,7 +5,8 @@ schedule, triggers and the CLI.
 
 - `run(as_of)`: one model_run writing every saved scenario's outputs (marden.models.stress.compute); on a run
   for today it then fills `stress_saved.result` / `ran_at` for every org-saved request (identical requests
-  computed once) with the day's cached book;
+  computed once) with the day's cached book, and computes every parameter set the screen offers
+  (marden.models.stress_grid), so a slider or dropdown change is served from a stored output at once;
 - `models.stress_custom(request, key)`: the job the SQL function stress_run(jsonb) queues for a custom
   request; writes subject ('scenario', key) as of today (no read model is marked: nothing serves it but
   stress_run itself), reusing the worker's cached book (stress_price.cached_book) so a request after the
@@ -25,7 +26,7 @@ from marden.core import db
 from marden.core.db import Conn
 from marden.core.jsonutil import jsonb
 from marden.core.queue import app
-from marden.models import runs, triggers
+from marden.models import runs, stress_grid, triggers
 from marden.models.sourced import Batch, run_outputs
 from marden.models.stress import CRON_UTC, MODEL, SEVERITIES, VERSION, compute, run_request
 from marden.models.stress_price import Book, cached_book
@@ -52,6 +53,7 @@ def run(as_of: date | None = None, *, trigger: str = "manual", mark: bool = True
     if (as_of or business_today()) == business_today():
         with db.transaction() as conn:
             result["saved"] = fill_saved(conn, cached_book(conn, business_today()))
+        result["grid"] = stress_grid.run(trigger=f"{trigger}:grid")
     return result
 
 
@@ -92,7 +94,7 @@ def stress_task(timestamp: int | None = None) -> dict[str, Any]:
     return _run_keys(["*"], "schedule")
 
 
-@app.task(name="models.stress_custom", queue="models")
+@app.task(name="models.stress_custom", queue="stress")  # the worker's reserved stress lane (marden.worker)
 def stress_custom_task(request: dict[str, Any], key: str) -> dict[str, Any]:
     return run_custom(request, key)
 

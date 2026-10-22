@@ -5,6 +5,7 @@ stored outputs; formula checks use tiny hand-made inputs only.
 
 from __future__ import annotations
 
+import json
 import math
 from datetime import date, timedelta
 
@@ -16,12 +17,19 @@ from ts_shapes_models import assert_matches_ts, assert_matches_types
 
 from marden.core import db
 from marden.core.jsonutil import jsonb
-from marden.models import capacity, payer_capacity, risk_list, risk_note, stress, stress_run
+from marden.models import capacity, payer_capacity, risk_list, risk_note, stress, stress_grid, stress_run, stress_walk
 from marden.models import capacity_methods as cm
 from marden.models.stress_price import Book, Shock
+from marden.models.stress_scenarios import DEFAULTS
 from marden.readmodels.context import business_today
 
 PRICED = ["EX-JUPITER-190", "EX-SALINE-308", "EX-VANTAGE_ORCL-366", "EX-ABILENE-000", "EX-ORCL-230", "EX-CRWV-102"]
+
+
+def stress_shape(doc: dict) -> dict:
+    """The StressResult piece: bookkeeping removed, and each row's `walk` (the waterfall behind its price)."""
+    out = shape(doc)
+    return {**out, "rows": [{k: v for k, v in r.items() if k != "walk"} for r in out["rows"]]}
 
 
 @pytest.fixture
@@ -64,7 +72,7 @@ def test_saved_scenarios_and_their_outputs(area):
     result = stress_run.run(trigger="test")
     out = result["outputs"]
     base = [out[f"{s}:base"] for s in ("end_user_funding_miss", "tenant_downgrade", "power_delay")]
-    assert_matches_types("StressResult", [shape(o) for o in base])
+    assert_matches_types("StressResult", [stress_shape(o) for o in base])
     walks = [out[f"contagion:{c}:base"] for c in stress.CONTAGION_COMPANIES]
     # totalAtRiskB is n/d (null, never 0) when no edge on the walk has a payment schedule
     assert_matches_ts("NDFields<T.ContagionResult, 'totalAtRiskB'>", [shape(o) for o in walks])
@@ -111,6 +119,122 @@ def test_saved_scenarios_and_their_outputs(area):
     assert eu["basis"]["label"] == f"{names['openai']} cuts 30% of its contracts"
     assert all("openai" not in r["why"] and "oracle" not in r["why"] for o in base for r in o["rows"])
     assert all("_" not in r["why"] for r in out["power_delay:base"]["rows"])  # milestone names, not keys
+
+
+def test_chosen_instruments_reads_a_list_or_text():
+    assert stress.chosen_instruments(["EX-2", "EX-1", "EX-1", " ", ""]) == ["EX-1", "EX-2"]
+    assert stress.chosen_instruments("EX-2, EX-1,") == ["EX-1", "EX-2"]  # the screen's URL form
+    assert stress.chosen_instruments(None) == [] and stress.chosen_instruments([]) == []
+
+
+def test_scenario_applied_to_chosen_instruments(area):
+    """params.instruments: the same shock re-prices exactly the chosen instruments (each one row, the same prices as
+    the whole-scenario run), kpis over those rows only; an id the engine cannot price is listed, never shown."""
+    day = business_today()
+    if not rows("SELECT 1 FROM model_output WHERE model = 'price' AND as_of = %s LIMIT 1", (day,)):
+        pytest.skip("the price model has not run today in the source database")
+    base = {"scenario": "tenant_downgrade", "params": {"tenant": "oracle", "rating": "BB+"}, "severity": "base"}
+    chosen = ["EX-SALINE-308", "EX-CRWV-102", "EX-ORCL-230", "NOT-AN-INSTRUMENT"]
+    with db.transaction() as conn:
+        book = Book.build(conn, day)
+        whole = stress.run_request(conn, book, base)
+        out = stress.run_request(conn, book, {**base, "params": {**base["params"], "instruments": chosen}})
+    assert_matches_types("StressResult", [stress_shape(out)])
+    assert out["request"]["params"] == {"tenant": "oracle", "rating": "BB+", "instruments": sorted(chosen)}
+    by = {r["instrumentId"]: r for r in out["rows"]}
+    assert set(by) <= {"EX-SALINE-308", "EX-CRWV-102", "EX-ORCL-230"} and "EX-SALINE-308" in by
+    assert any("NOT-AN-INSTRUMENT" in m for m in out["missing"])
+    site_row = next(r for r in whole["rows"] if r["instrumentId"] == "EX-SALINE-308")
+    assert (by["EX-SALINE-308"]["priceNow"], by["EX-SALINE-308"]["priceAfter"]) == (
+        site_row["priceNow"],
+        site_row["priceAfter"],
+    )
+    assert by["EX-SALINE-308"]["ruleCode"] == "T1" and by["EX-SALINE-308"]["why"] == site_row["why"]
+    if "EX-CRWV-102" in by:  # CoreWeave's notes are not on an Oracle chain: priced, not moved
+        assert by["EX-CRWV-102"]["priceAfter"] == by["EX-CRWV-102"]["priceNow"]
+        assert by["EX-CRWV-102"]["why"].startswith("Not reached")
+    if "EX-ORCL-230" in by:  # the tenant's own notes: one row each, priced lower
+        assert by["EX-ORCL-230"]["priceAfter"] < by["EX-ORCL-230"]["priceNow"]
+    sized = [r for r in out["rows"] if r["sizeB"]["value"]]
+    lost = sum(r["sizeB"]["value"] * (r["priceNow"] - r["priceAfter"]) / 100 for r in sized)
+    assert out["kpis"]["valueLostB"] == pytest.approx(lost, abs=0.002)
+    assert out["kpis"]["exposedB"] == pytest.approx(sum(r["sizeB"]["value"] for r in sized), abs=0.002)
+    assert "tenantNotesLossB" not in out["kpis"] and not any(
+        r["instrumentId"].startswith("notes:") for r in out["rows"]
+    )
+    saline = next(f for f in whole["flow"] if f["debtB"] == out["flow"][0]["debtB"])
+    assert len(out["flow"]) == 1 and out["flow"][0] == saline  # only the chosen instruments' hit sites
+
+
+def test_end_user_walk_prices_the_rent_it_pays_on_recovery_or_a_filed_guarantee(area):
+    """A 100% walk: the debt on the sites the end user pays rent for is priced on re-lease or recovery (stress_walk),
+    never left near par; a facility with a filed guarantee shows it; the waterfall adds up to the price after."""
+    day = business_today()
+    if not rows("SELECT 1 FROM model_output WHERE model = 'price' AND as_of = %s LIMIT 1", (day,)):
+        pytest.skip("the price model has not run today in the source database")
+    req = {"scenario": "end_user_funding_miss", "params": {"endUser": "openai", "cutPct": 100}, "severity": "base"}
+    with db.transaction() as conn:
+        book = Book.build(conn, day)
+        out = stress.run_request(conn, book, req)
+        half = stress.run_request(conn, book, {**req, "params": {"endUser": "openai", "cutPct": 50}})
+        assert book.now_state("EX-SALINE-308") is book.now_state("EX-SALINE-308")  # computed once per book
+    walked = [r for r in out["rows"] if "walk" in r]
+    assert walked and out["basis"]["walk"]["sharePct"] == 100
+    odds = stress_walk.RELEASE_ODDS
+    for r in walked:
+        w = r["walk"]
+        assert {w[k]["tag"] for k in ("walkDate", "reLeaseOdds", "reLeaseMonths", "rentHaircutPct")} == {"M"}
+        assert r["priceAfter"] == pytest.approx(w["walkCents"], abs=0.05)  # all of the rent stops
+        blend = odds * w["reLeaseCents"] + (1 - odds) * w["noReLeaseCents"]
+        assert w["walkCents"] == pytest.approx(min(blend, r["priceNow"]), abs=0.1)
+        assert w["reLeaseCents"] >= w["noReLeaseCents"]  # a new tenant never leaves lenders worse than the collateral
+        if "guarantee" not in w:
+            rec = w["recovery"]["afterWorkoutCents"] + (w.get("reserve") or {}).get("cents", 0)
+            assert w["recovery"]["afterWorkoutCents"] < w["recovery"]["cents"]  # paid after the workout
+            assert w["noReLeaseCents"] == pytest.approx(min(rec, 100), abs=0.1)
+            # single-tenant debt lands between its recovery and the re-lease value, and never above today's price
+            assert r["priceAfter"] <= r["priceNow"]
+            assert min(min(rec, 100), r["priceNow"]) - 0.1 <= r["priceAfter"] <= max(w["reLeaseCents"], rec) + 0.1
+        else:
+            assert w["guarantee"]["tag"] == "F" and w["guarantee"]["sourceName"]
+    ddtl = next((r for r in walked if r["instrumentId"] == "EX-CRWV-094"), None)
+    if ddtl is not None:  # OpenAI is its only payer: it moves, and the filed CoreWeave guarantee is shown
+        assert ddtl["priceAfter"] < ddtl["priceNow"] and "guarantee" in ddtl["walk"]
+    by_half = {r["instrumentId"]: r for r in half["rows"]}
+    for r in walked:  # half the rent stops: half way between the other effects and the walk value
+        h = by_half[r["instrumentId"]]["walk"]
+        assert h["priceAfter"] == pytest.approx(0.5 * h["otherShareCents"] + 0.5 * h["walkCents"], abs=0.05)
+
+
+def test_stress_grid_covers_the_screen_and_is_served_by_stress_run(area):
+    day = business_today()
+    if not rows("SELECT 1 FROM model_output WHERE model = 'price' AND as_of = %s LIMIT 1", (day,)):
+        pytest.skip("the price model has not run today in the source database")
+    with db.transaction() as conn:
+        reqs = stress_grid.grid_requests(conn)
+        assert not any(r["params"] == DEFAULTS[r["scenario"]] for r in reqs)
+        assert {"scenario": "power_delay", "params": {"months": 17}, "severity": "severe"} in reqs
+        one = {"scenario": "power_delay", "params": {"months": 9}, "severity": "base"}
+        subject = stress_grid.subject_of(conn, one)
+    assert len(reqs) == len({json.dumps(r, sort_keys=True) for r in reqs})
+    with psycopg.connect(TEST_URL, autocommit=True) as conn:
+        queued = conn.execute("SELECT stress_run(%s) AS r", (jsonb(one),)).fetchone()[0]
+    assert queued["subject"] == subject  # the grid keys outputs exactly as stress_run looks them up
+    with db.transaction() as conn:
+        book = Book.build(conn, day)
+        out = stress.run_request(conn, book, one)
+        conn.execute(
+            """INSERT INTO model_output (model, version, subject_type, subject_id, as_of, output)
+                        VALUES ('stress', %s, 'scenario', %s, %s, %s)""",
+            (stress.VERSION, subject, day, jsonb(out)),
+        )
+    with psycopg.connect(TEST_URL, autocommit=True) as conn:
+        served = conn.execute("SELECT stress_run(%s) AS r", (jsonb(one),)).fetchone()[0]
+    assert served["status"] == "done" and served["rows"] == jsonb_roundtrip(out["rows"])
+
+
+def jsonb_roundtrip(value):
+    return json.loads(json.dumps(value))
 
 
 def test_risk_note_rounds_odds_half_up():
@@ -170,13 +294,19 @@ def test_stress_run_function_contract(area):
         job = conn.execute(
             "SELECT task_name, queue_name, args FROM procrastinate_jobs WHERE id = %s", (first["jobId"],)
         ).fetchone()
-        assert job[0] == "models.stress_custom" and job[1] == "models" and job[2]["key"] == first["subject"]
+        assert job[0] == "models.stress_custom" and job[1] == "stress" and job[2]["key"] == first["subject"]
         conn.execute(
             """INSERT INTO model_output (model, version, subject_type, subject_id, as_of, output)
                         VALUES ('stress', '0.1', 'scenario', %s, %s, '{"rows": []}')""",
             (first["subject"], business_today()),
         )
         assert call(custom)["status"] == "done"
+        chosen = {
+            "scenario": "power_delay",
+            "params": {"months": 6, "instruments": ["EX-JUPITER-190"]},
+            "severity": "base",
+        }
+        assert call(chosen)["status"] == "queued"  # limited to chosen instruments: a custom run, not the saved one
         assert call({"scenario": "meteor", "params": {}, "severity": "base"})["status"] == "error"
 
 

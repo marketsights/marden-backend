@@ -79,6 +79,8 @@ services:
         generateValue: true
       - key: MARDEN_APP_URL          # links in alert emails
         value: https://app.marden.ai
+      - key: MARDEN_STRESS_LANE_CONCURRENCY  # custom stress runs the worker keeps a reserved lane for (0 = off)
+        value: "1"
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID

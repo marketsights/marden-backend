@@ -26,6 +26,7 @@ from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Any
 
+import numpy as np
 from dateutil.relativedelta import relativedelta
 
 from marden.core.db import Conn
@@ -87,6 +88,7 @@ class Book:
     curves: dict[str, IssuerCurve]
     chains: dict[str, Chain | None]
     issuer_bonds: set[str]
+    _now: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
 
     @classmethod
     def build(cls, conn: Conn, day: date) -> Book:
@@ -140,9 +142,19 @@ class Book:
                 ch_s = replace(ch, completion=ch.completion + relativedelta(months=round(months)))
         return replace(self.ctx, curves=curves), ch_s, missing  # type: ignore[arg-type]
 
-    def reprice(self, iid: str, shock: Shock) -> dict[str, Any]:
-        """{now, after, mode, missing} for one instrument (now/after null when it cannot be priced)."""
-        out: dict[str, Any] = {"now": None, "after": None, "mode": None, "missing": []}
+    def now_state(self, iid: str) -> dict[str, Any]:
+        """The shock-free half of a re-price, cached per instrument for the book's day: the engine's price on the day
+        (`now`), the calibrated spread (liquidity premium + filtered residual), the day's cash flows and recovery.
+        The calibration and Kalman filter are ~95% of a re-price and do not depend on the shock, so every scenario
+        after the first re-uses them (a run in well under a second instead of ~15 s)."""
+        hit = self._now.get(iid)
+        if hit is not None:
+            return hit
+        state: dict[str, Any] = {"now": None, "mode": None, "missing": []}
+        self._now[iid] = state = self._compute_now(iid, state)
+        return state
+
+    def _compute_now(self, iid: str, out: dict[str, Any]) -> dict[str, Any]:
         inst = self.insts.get(iid)
         if inst is None:
             out["missing"].append(f"instrument {iid}: not in the price engine's universe")
@@ -181,14 +193,39 @@ class Book:
             filt = kalman(len(days), 0.0, CALIBRATED_SD**2 if m.mode == "facility" else 0.02**2, Q_RESID, rd)
             spread = lp + filt.at(len(days) - 1)[0]
             now, out["mode"] = clean_price(f_now, curve, hz, m.recovery, spread), m.mode
+        rec = m.recovery if isinstance(m.recovery, float) else float(m.recovery(np.array([0.0]))[0])
+        return {
+            **out,
+            "now": round(now, 3),
+            "spread": spread,
+            "f_now": f_now,
+            "recovery": m.recovery,
+            "recoveryNow": rec,
+        }
+
+    def warm(self) -> int:
+        """Compute every instrument's shock-free state now (the nightly run), so requests only apply shocks."""
+        return sum(1 for iid in sorted(self.insts) if self.now_state(iid)["now"] is not None)
+
+    def reprice(self, iid: str, shock: Shock) -> dict[str, Any]:
+        """{now, after, mode, missing} for one instrument (now/after null when it cannot be priced)."""
+        st = self.now_state(iid)
+        out: dict[str, Any] = {"now": st["now"], "after": None, "mode": st["mode"], "missing": list(st["missing"])}
+        if st["now"] is None:
+            return out
+        inst, ch = self.insts[iid], self.chains.get(iid)
         ctx_s, ch_s, miss_s = self._shocked(inst, ch, shock)
         out["missing"] += miss_s
         m_s = model_for(ctx_s, inst, ch_s)
         hz_s, _, _ = m_s.hazard(self.day)
         if hz_s is None:
-            return {**out, "now": round(now, 3)}
-        after = clean_price(f_now, curve, hz_s, m_s.recovery, spread + shock.spread_bp / 1e4)
-        return {**out, "now": round(now, 3), "after": round(after, 3)}
+            return out
+        curve = self.ctx.book.curve(self.day)
+        assert curve is not None
+        out["after"] = round(
+            clean_price(st["f_now"], curve, hz_s, m_s.recovery, st["spread"] + shock.spread_bp / 1e4), 3
+        )
+        return out
 
 
 def remember(book: Book) -> Book:

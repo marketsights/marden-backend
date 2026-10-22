@@ -91,7 +91,7 @@ SPECS: list[tuple[str, str, Callable[[str], bool], str, Pick]] = [
      "Omit<T.StressResult, 'kpis' | 'flow' | 'rows'> & { kpis: NDFields<T.StressResult['kpis'], 'valueLostB' | "
      "'valueLostPct' | 'fundsHit'>; flow: NDFields<T.StressResult['flow'][number], 'priceChange'>[]; "
      "rows: NDFields<T.StressResult['rows'][number], 'priceAfter'>[] }",
-     _drop("basis", "missing", "request")),
+     lambda s, o: _rows_without_walk(_drop("basis", "missing", "request")(s, o))),
     ("stress", "scenario", lambda s: s.startswith("contagion:"), "NDFields<T.ContagionResult, 'totalAtRiskB'>",
      _drop("basis", "missing", "request")),
     ("stress", "instrument", lambda s: True, "{ rows: T.InstrumentDetail['stress'] }", _keep("rows")),
@@ -107,6 +107,11 @@ SPECS: list[tuple[str, str, Callable[[str], bool], str, Pick]] = [
                     "earlierCalls": o["earlierCalls"], "total": o["total"], "published": o["published"],
                     "asOf": o["asOf"]}),
 ]
+def _rows_without_walk(doc: dict[str, Any]) -> dict[str, Any]:
+    """A stress row's `walk` (the waterfall behind a walked row's price, stress_walk) is bookkeeping, like basis."""
+    return {**doc, "rows": [{k: v for k, v in r.items() if k != "walk"} for r in doc.get("rows", [])]}
+
+
 BOOKKEEPING = {  # keys a model adds beside its piece; they must be there (a missing list is never absent)
     "status": ("missing",), "cushion": ("missing", "basis"), "price": ("missing", "basis"),
     "mark_gap": ("missing", "basis"), "recovery": ("missing", "basis"), "gpu_index": ("missing", "basis"),

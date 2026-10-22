@@ -22,6 +22,8 @@ def test_only_existing_tasks_are_registered():
     for name in worker.registered_task_names():
         if not _core(name):
             expected = {"models": "models", "alerts": "alerts", "agents": "agents"}.get(name.split(".")[0], "collect")
+            if name == "models.stress_custom":  # the Stress screen waits on it: the worker's reserved lane
+                expected = worker.STRESS_QUEUE
             assert app.tasks[name].queue == expected, name
     periodic = {name: task.cron for (name, _), task in app.periodic_registry.periodic_tasks.items() if _core(name)}
     assert periodic == {

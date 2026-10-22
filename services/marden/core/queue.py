@@ -19,7 +19,7 @@ from marden.core.config import get_settings
 
 # Every queue Marden uses. `python -m marden worker` (the Railway worker service) works all queues,
 # including any a module adds later; this list documents them and lets tests check task queues.
-QUEUES = ("default", "collect", "extract", "agents", "models", "readmodels", "alerts")
+QUEUES = ("default", "collect", "extract", "agents", "models", "readmodels", "alerts", "stress")
 
 
 def make_connector() -> procrastinate.PsycopgConnector:

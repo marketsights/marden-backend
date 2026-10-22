@@ -3,7 +3,9 @@
 Every scenario turns into a `stress_price.Shock` (intensity multipliers per entity, completion moves per
 site) plus the sites it touches with the status rule each one trips (00-global "Status rules"):
 
-- end_user_funding_miss {endUser, cutPct}: the end user cuts cutPct% of its contracts. Each payee of its
+- end_user_funding_miss {endUser, cutPct}: the end user cuts cutPct% of its contracts. On the sites it pays rent
+  for (end user or tenant), that share of the rent stops and the debt is priced on re-lease or recovery
+  (marden.models.stress_walk). Beyond those sites: Each payee of its
   payment edges (the tenants on its chains) loses cutPct% of the remaining contract: the edge's remaining
   schedule discounted at the 10-year Treasury par yield (marden.models.graph), or its stated total when it
   has no schedule. That loss comes off the payee's equity value (each dollar of revenue lost is a dollar of
@@ -48,6 +50,7 @@ from marden.models.cushion_inputs import load_sites
 from marden.models.cushion_power import build as build_milestones
 from marden.models.cushion_sim import simulate
 from marden.models.stress_price import Book, Shock
+from marden.models.stress_walk import Walk, assumptions
 
 POWER_KEYS = ("utility_agreement", "gas_or_grid", "onsite_generation")
 POWER_LABELS = {"utility_agreement": "utility agreement", "gas_or_grid": "gas or grid power",
@@ -78,6 +81,7 @@ class Scenario:
     tenants: list[str] = field(default_factory=list)  # whose own notes are the shaded last row
     missing: list[str] = field(default_factory=list)
     basis: dict[str, Any] = field(default_factory=dict)
+    walk: Walk | None = None  # rent that stops (end_user_funding_miss): stress_walk prices the debt it pays
 
 
 def _r5(book: Book) -> float | None:
@@ -197,8 +201,12 @@ def end_user_funding_miss(conn: Conn, book: Book, params: dict[str, Any]) -> Sce
             **info,
             "hazardMultiplier": None if mult is None else round(mult, 4),
         }
-    for slug in sorted(set(_sites_of(conn, eu, ("end_user", "tenant")))):
+    walked = sorted(set(_sites_of(conn, eu, ("end_user", "tenant"))))
+    for slug in walked:
         sc.sites[slug] = SiteHit(slug, "E2", f"End user {eu_name} cuts {params['cutPct']:g}% of its contracts", "red")
+    # The rent these sites earn comes from the end user's contracts: that share of it stops (stress_walk).
+    sc.walk = Walk(eu, eu_name, cut, set(walked))
+    sc.basis["walk"] = {"party": eu, "sharePct": float(params["cutPct"]), "sites": walked, **assumptions(book.day)}
     for t in sc.tenants:
         t_name = display_name(conn, t)
         for slug in _sites_of(conn, t, ("tenant",)):
