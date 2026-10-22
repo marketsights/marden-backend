@@ -7,7 +7,7 @@ tenant's own V1 notes exposed to the site (instrument `exposure_links`, role Ten
 size (F/R/M as filed), the latest dealer quote (R), the Marden price and recovery (price / recovery
 models; n/d until they run; the price model's recovery reads 'assumed 55c'), the recovery card (the
 `recovery` model's own number and its arithmetic: views/sites_recovery.py), the named lenders and
-filed holders.
+filed holders, and what the main instrument's numbers each are (`basis`: views/sites_debt_basis.py).
 Lease: the terms as filed or reported (parties, rent start, outside date, force majeure, rent, term,
 termination, guarantee); a term nobody has sourced is n/d with where it will come from. What the
 terms mean for lenders (finished before / after the outside date: the cushion model; force majeure
@@ -43,6 +43,7 @@ from marden.readmodels.views.sites_common import (
     text_of,
     with_value,
 )
+from marden.readmodels.views.sites_debt_basis import debt_basis
 from marden.readmodels.views.sites_detail import marden_price, recovery_value
 from marden.readmodels.views.sites_recovery import recovery_card
 
@@ -173,6 +174,9 @@ def debt_tab(conn: Conn, slug: str) -> Doc | None:
         "lenders": lenders(conn, slug),
         "holdersNote": holders_note(holders(conn, [i["id"] for i in instruments])),
     }
+    if main is not None:  # what the main instrument's size, quote, price and recovery each are
+        doc["basis"] = debt_basis(conn, slug, main, marden_price(conn, main["id"]), dealer_quote(conn, main["id"]),
+                                  recovery_value(conn, main["id"]), party_label(parties, "tenant"))
     if names:
         doc = {"spvName": names[0], **doc}
     return doc

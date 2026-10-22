@@ -7,9 +7,9 @@ in time through `marden.models.pit`) and the model's own milestone rules (`cushi
 per milestone:
 
 - `target`: the plan a source states now (the window the simulation draws from), with the stated wording;
-- `originalTarget`: the earliest plan a source stated, when one is on file (first hall: the dossier's
-  original energization and the dated ready-for-service statements; gas supply and on-site generation:
-  the serving plant's original COD);
+- `originalTarget`: the first plan a source stated, when one is on file (first hall: the dossier's
+  original energization, else the earliest dated ready-for-service statement; gas supply and on-site
+  generation: the serving plant's original COD);
 - `actual`: the completion date when the milestone is done and a source dates it;
 - `dateNotes`: why a date is n/d;
 - `rentPath` (on the critical path to rent start: the predecessors of rent start for the site's power
@@ -36,9 +36,8 @@ UNDATED_DONE = "done, but no source dates the completion"
 def _source(row: Row | None) -> Doc:
     if row is None:
         return {}
-    day = row.get("event_date") or row.get("valid_from")
-    out: Doc = {"tag": row["tag"], "sourceName": row["source_name"],
-                "asOf": day.isoformat() if hasattr(day, "isoformat") else str(day)}
+    day = row.get("event_date") or row["valid_from"]
+    out: Doc = {"tag": row["tag"], "sourceName": row["source_name"], "asOf": day.isoformat()}
     if row.get("source_url"):
         out["sourceUrl"] = row["source_url"]
     return out
@@ -61,8 +60,9 @@ def _cited(site: Any, ms: Any, w: Any) -> Row | None:
     rows: list[Row | None] = [ms.evidence]
     rows += [site.current(f) for f in ("expected_energization", "original_energization", "rent_start")]
     rows += [p.current(f) for p in site.plants for f in ("expected_cod", "original_cod", "latest_change")]
-    rows += sorted(site.rows("rfs_statement"), key=lambda r: r["valid_from"], reverse=True)
-    rows += sorted(site.events, key=lambda e: e["event_date"], reverse=True)
+    statements: list[Row] = sorted(site.rows("rfs_statement"), key=lambda r: r["valid_from"], reverse=True)
+    events: list[Row] = sorted(site.events, key=lambda e: e["event_date"], reverse=True)
+    rows += statements + events
     for row in rows:
         if row is not None and w.text in (row.get("title") or text_of(row) or ""):
             return row
@@ -70,17 +70,16 @@ def _cited(site: Any, ms: Any, w: Any) -> Row | None:
 
 
 def _first_hall_original(site: Any) -> tuple[Any, Row] | None:
-    """The earliest-stated delivery plan (as the D1 rule and `_mark_slips` read them)."""
+    """The original delivery plan: the dossier's `original_energization` (the field the D1 rule compares
+    the expected date with), else the earliest dated ready-for-service statement."""
     from marden.models import cushion_dates as cd
     from marden.models.cushion_inputs import text_of
 
-    stated: list[tuple[date, Any, Row]] = []
     orig = site.current("original_energization")
-    if orig is not None:
-        first = cd.leading(cd.targets(text_of(orig)))
-        said = cd.statement_dates(text_of(orig))
-        if first is not None:
-            stated.append((cd.month_start(said[0].lo) if said else orig["valid_from"], first, orig))
+    first = cd.leading(cd.targets(text_of(orig))) if orig is not None else None
+    if first is not None:
+        return first, orig
+    stated: list[tuple[date, Any, Row]] = []
     for r in site.rows("rfs_statement"):
         text = text_of(r)
         w = cd.leading([w for w in cd.targets(text) if cd.clause_kind(text, w) in ("hall", "rent")])
@@ -171,7 +170,8 @@ def with_dates(conn: Conn, slug: str, output_row: Row | None, milestones: list[D
     except ImportError:
         return milestones, None
     basis = (output_row["output"] or {}).get("basis") or {}
-    binding = basis.get("bindingShare") if isinstance(basis.get("bindingShare"), dict) else {}
+    share = basis.get("bindingShare")
+    binding: dict[str, float] = share if isinstance(share, dict) else {}
     dates = milestone_dates(conn, slug, output_row["as_of"], binding)
     model: Doc = {"runDate": output_row["as_of"].isoformat(), "simulations": basis.get("simulations"),
                   "methodVersion": basis.get("methodVersion"), "powerMode": basis.get("powerMode")}

@@ -87,8 +87,37 @@ export interface SiteDetail extends SiteSummary {
   facts: string;                              // "2.2–2.45 GW · ~$18B construction loan"
   trackingNames: string[];
   tabCounts: { evidence: number; opposition: number; events: number };
-  debtExposed: { instrumentId: string; name: string; sizeB: Sourced<number>; dealerQuote?: Sourced<string>; mardenPrice: Sourced<number>; recovery: Sourced<string>; holdersNote: string };
-  materialEvents: (Evidence & { ruleCode?: string; severity: LinkStatus })[];
+  debtExposed: { instrumentId: string; name: string; sizeB: Sourced<number>; dealerQuote?: Sourced<string>; mardenPrice: Sourced<number>; recovery: Sourced<string>; holdersNote: string; basis?: DebtBasis };
+  /** One row per development, dated by its earliest report; `sources` lists every report when there are several. */
+  materialEvents: (Evidence & { ruleCode?: string; severity: LinkStatus; sources?: Evidence[] })[];
+}
+/** What the debt card's numbers each are (spec 04): sizes, quotes and recoveries are not comparable unlabelled. */
+export interface DebtBasis {
+  instrument: string;                         // "Construction loans (EX-JUPITER-190)"
+  size: {
+    label: string;                            // "Committed facility size" | "Drawn amount" | "Par held by filers" | "Facility size as reported"
+    reported: Sourced<string>;                // the amount as its source states it, quoted
+    borrower: Sourced<string>;
+    tranches: Sourced<string>;                // what the filing cited for the amount says; null = n/d
+  };
+  quote: {                                    // null = no dealer quote on file
+    refersTo: string;
+    price: Sourced<number>;
+    bid: Sourced<number>; ask: Sourced<number>; mid: Sourced<number>;   // null = n/d
+    range: Sourced<string>;                   // range of quotes the report gives, "89–91"; null = n/d
+    note: string;
+  } | null;
+  model: { refersTo: string; price: Sourced<number> };
+  vsQuote: string | null;                     // "Model value: 85.9; −4.1 points vs dealer quote (Sep 18)"
+  recovery: {
+    basis: 'derived' | 'assumption' | 'archive' | 'nd';
+    headline: string;                         // "Assumption, not derived: 55c on senior secured construction loans"
+    debtClass: string;
+    scenario: string;
+    assumptions: string[];
+    method: Sourced<string>;                  // method page
+    value: Sourced<string>;
+  };
 }
 
 // GET /api/instruments and /api/instruments/:id

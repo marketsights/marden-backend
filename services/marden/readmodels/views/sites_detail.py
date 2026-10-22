@@ -6,7 +6,8 @@ lists) plus `buildings` (built / total on the linked campuses, as the lists coun
 facts line ("2.46 GW · $18.0B debt · 4 buildings"), tracking names, tab counts (the same counts the
 Evidence, Opposition and Material events tabs list), the main instrument that needs the site
 finished (size, dealer quote R, Marden price and recovery from the price / recovery models, filed
-holders) and the material events, one per story (a headline syndicated by several outlets once).
+holders) and the material events, one per development: reports of the same subject and development a
+few days apart are one event with all its sources (views/sites_stories.py).
 The Schedule tab's projection, milestones and cushion history come from the `cushion` model;
 imagery from Sentinel-2 facts; documents are the latest filed records (F first).
 """
@@ -25,6 +26,7 @@ from marden.readmodels.views.instruments import marden_prices
 from marden.readmodels.views.sites import building_count, site_summary
 from marden.readmodels.views.sites_common import (
     Doc,
+    chain_parties,
     day,
     dealer_quote,
     event_evidence,
@@ -32,20 +34,21 @@ from marden.readmodels.views.sites_common import (
     holders_note,
     latest_output,
     main_instrument,
-    material_events,
     nd,
     output_field,
     output_history,
+    party_label,
     price_sourced,
-    severity,
     site_events,
     site_instruments,
     site_row,
     site_slugs,
     with_value,
 )
+from marden.readmodels.views.sites_debt_basis import debt_basis
 from marden.readmodels.views.sites_links import imagery
 from marden.readmodels.views.sites_milestones import with_dates
+from marden.readmodels.views.sites_stories import material_rows
 from marden.readmodels.views.sites_tabs import evidence_records, opposition_tab, site_event_log, story_key
 
 RECOVERY_FACTS = ("recovery_waterfall", "recovery_project", "recovery_gpu")
@@ -97,9 +100,13 @@ def debt_exposed(conn: Conn, instruments: list[Doc]) -> Doc | None:
         "recovery": recovery_value(conn, inst["id"]),
         "holdersNote": holders_note(holders(conn, [inst["id"]])),
     }
-    quote = price_sourced(dealer_quote(conn, inst["id"]), as_text=True)
+    quote_row = dealer_quote(conn, inst["id"])
+    quote = price_sourced(quote_row, as_text=True)
     if quote is not None:
         doc["dealerQuote"] = quote
+    slug = inst.get("site_slug") or ""
+    doc["basis"] = debt_basis(conn, slug, inst, doc["mardenPrice"], quote_row, doc["recovery"],
+                              party_label(chain_parties(conn, slug), "tenant"))
     return doc
 
 
@@ -110,18 +117,7 @@ def site_detail(conn: Conn, slug: str) -> Doc | None:
     instruments = site_instruments(conn, slug)
     summary = site_summary(conn, site, instruments=instruments)
     buildings = building_count(conn, slug)
-    events = site_events(conn, slug)
-    material = []
-    stories: set[str] = set()
-    for ev, _ in material_events(conn, slug, events):
-        key = _story_key(ev["title"])
-        if key and key in stories:
-            continue  # newest first: the latest outlet's copy of a story already stands for it
-        stories.add(key)
-        item = {**event_evidence(ev), "severity": severity(ev)}
-        if ev.get("rule_code"):
-            item["ruleCode"] = ev["rule_code"]
-        material.append(item)
+    material = material_rows(conn, site, site_events(conn, slug))  # one row per development
     return {
         **summary,
         "buildings": buildings,

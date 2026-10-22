@@ -174,7 +174,9 @@ def test_site_detail_header_and_debt_exposed(sites):
     }
     notes = {(r["value"]["event_date"], r["value"]["title"]) for r in copied_rows(
         "SELECT value FROM fact WHERE subject_type = 'site' AND subject_id = 'jupiter' AND field = 'materiality_note'")}
-    assert detail["materialEvents"] and all((e["date"], e["text"]) in notes for e in detail["materialEvents"])
+    # one row per development: a row's reports (its sources, else the row itself) are material records
+    assert detail["materialEvents"] and all((s["date"], s["text"]) in notes
+                                            for e in detail["materialEvents"] for s in e.get("sources") or [e])
 
 
 def test_debt_tab_lists_site_debt_and_tenant_notes(sites):

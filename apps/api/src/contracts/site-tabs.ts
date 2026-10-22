@@ -2,7 +2,7 @@
 // "GET /api/sites/:slug/{evidence,power,opposition,events,debt,lease} -> tab data"). Copied from the
 // web app's provisional contract (marden-front-end src/lib/site-tab-types.ts) so both sides check
 // against one shape; read models site_tab:<tab> (services/marden/readmodels/views/sites_*.py) build them.
-import type { Evidence, LinkRole, LinkStatus, PowerPlantRow, SiteBuildings, SiteSchedule, Sourced } from './types.js';
+import type { DebtBasis, Evidence, LinkRole, LinkStatus, PowerPlantRow, SiteBuildings, SiteSchedule, Sourced } from './types.js';
 
 /** A tab KPI: value with its tag, one sub-line, and whether the value is bad news. */
 export interface SiteKpi<T> {
@@ -155,6 +155,8 @@ export interface SiteDebtTab {
   };
   lenders: { name: string; role: Sourced<string>; share: Sourced<number> }[];
   holdersNote: string;
+  /** What the main instrument's size, quote, Marden price and recovery each are. */
+  basis?: DebtBasis;
 }
 
 // ---------- GET /api/sites/:slug/lease ----------
