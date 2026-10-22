@@ -85,8 +85,9 @@ def row_figures(row: dict[str, Any], count: int, refs: list[str]) -> list[Figure
                            "who holds it and whether their marks are public"))
     move = row.get("move") or {}
     by = int(move["by"]) if isinstance(move.get("by"), int | float) else None
+    places = f"{by} place{'' if by == 1 else 's'}"
     move_text = {"new": "new to the list this week", "same": "at the same rank as last week",
-                 "up": f"{by} places higher than last week", "down": f"{by} places lower than last week"}
+                 "up": f"{places} higher than last week", "down": f"{places} lower than last week"}
     if move.get("kind") in move_text and (move["kind"] in ("new", "same") or by):
         figs.append(Figure("move", move_text[move["kind"]], "its move against last week's list"))
     for j, ev in enumerate((row.get("why") or [])[:RECORDS]):
