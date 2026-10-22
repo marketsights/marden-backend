@@ -35,6 +35,7 @@ GENERIC_SEARCH = "sec.gov/edgar/search"
 FINRA_TEXT = re.compile(r"\bFINRA\b|\bTRACE\b")
 PRICE_BELOW_90 = "price < 90"
 UNVERIFIED = "unverified archive figure"
+ROMAN = re.compile(r"i{1,3}|iv|vi{0,3}|ix|x")  # series numerals in issuer names ('Issuer II' is not 'Issuer III')
 MARDEN_CALC = re.compile(r"\bcalc(?:ulated)?\b|\bimplied\b", re.I)  # '~11-12% (calc)': the research's own figure
 # Money and term fields: each is checked against the cited filings (coupon_type follows the coupon text).
 CHECKED_TERMS = frozenset({"coupon", "coupon_type", "coupon_rate_pct", "coupon_benchmark", "coupon_spread_bp",
@@ -66,6 +67,13 @@ def primary_source(src: Iterable[str] | None) -> str | None:
 def _m(field: str, value: Any, relpath: str, method: str, *, unit: str | None = None,
        valid_from: date = SEED_AS_OF) -> FactRow:
     return FactRow(field, value, "M", ARCHIVE, None, relpath, valid_from, unit, method)
+
+
+def issuer_words(issuer: str | None) -> list[str]:
+    """The issuer's name words that pick its lines in a fund report ('QTS Issuer ABS II, LLC' -> qts issuer abs;
+    'VCI Asset Holdings 2 LLC' -> vci asset holdings 2); a parenthetical note is not part of the name."""
+    name = re.sub(r"\(.*", "", issuer or "")
+    return [w for w in core_name(name).split() if len(w) >= 3 or w.isdigit() or ROMAN.fullmatch(w)]
 
 
 def _source_terms(row: Mapping[str, Any], urls: list[str], primary: str, cited: CitedDocs | TextLookup | None,
@@ -134,7 +142,7 @@ def terms_facts(iid: str, row: Mapping[str, Any], kind: str, relpath: str,
     add("source_urls", urls)
 
     terms = {f: v for f, v, _ in values if f in CHECKED_TERMS}
-    issuer = [w for w in core_name(row.get("issuer")).split() if len(w) >= 3][:1]
+    issuer = issuer_words(row.get("issuer"))
     sourced = _source_terms(row, urls, url, cited, terms, ids, issuer, also) if tag == "F" else None
     out: list[FactRow] = []
     for field, value, unit in values:

@@ -144,17 +144,21 @@ class CitedDocs:
 
 
 def scope(text: str | None, *, ids: Sequence[str] = (), names: Sequence[str] = ()) -> str | None:
-    """A fund holdings report (N-PORT XML) cut to this instrument's holdings: by CUSIP / ISIN, else by an
-    issuer word in the holding's name or title. Any other document is returned whole; a report with no
-    matching holding gives '' (it does not state the value)."""
+    """A fund holdings report (N-PORT XML) cut to this instrument's holdings: by CUSIP / ISIN, else by the
+    issuer's name words (``names``: every one must be in the holding's name or title, so 'qts issuer abs'
+    does not pick 'QTS Fayetteville' and 'vci asset holdings 2' does not pick holdings 3). Any other
+    document is returned whole; a report with no matching holding gives '' (it does not state the value)."""
     if not text or "<invstorsec>" not in text:
         return text
     blocks = re.findall(r"<invstorsec>.*?</invstorsec>", text)
     keys = [i.lower() for i in ids if i]
     picked = [b for b in blocks if any(k in b for k in keys)] if keys else []
-    if not picked:
-        words = [n.lower().strip() for n in names if n and len(n.strip()) >= 3]
-        picked = [b for b in blocks if any(re.search(rf"<(?:name|title)>[^<]*\b{re.escape(w)}", b) for w in words)]
+    words = [n.lower().strip() for n in names if n and n.strip()]
+    if not picked and words:
+        def named(block: str) -> str:
+            return " ".join(re.findall(r"<(?:name|title)>([^<]*)", block))
+
+        picked = [b for b in blocks if all(re.search(rf"\b{re.escape(w)}\b", named(b)) for w in words)]
     return " ".join(picked)
 
 
