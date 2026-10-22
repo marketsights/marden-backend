@@ -24,8 +24,8 @@ Standard ($25/month, 2 GB, because the EIA/ERCOT spreadsheets, PDFs and QuantLib
    - **core-web**: `API_ORIGIN` = core-api's public URL (`https://core-api….onrender.com`, or
      `https://api.marden.ai` once the domain is set), `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`.
      `API_ORIGIN` is baked into the build, so changing it needs a manual redeploy of core-web.
-3. **Apply**. Each backend service runs `marden-migrate` before it starts (dbmate with an advisory lock, so the
-   two pre-deploys never collide). Watch `core-api` → Logs until `/healthz` answers 200.
+3. **Apply**. `core-worker` runs `marden-migrate` before it starts, as the database owner. `core-api` has no
+   pre-deploy: it connects as `app_rw`, which may not create tables. Watch `core-api` → Logs until `/healthz` answers 200.
 4. **Seed and first runs**: Render Shell on `core-worker` (or a one-off job) runs the commands in `DEPLOY.md`
    section 7 (`python -m marden seed all` needs the seed archive: upload it to R2 or run the seed from a
    machine that has it, with the worker's two database URLs), then the collectors, models and read models in
