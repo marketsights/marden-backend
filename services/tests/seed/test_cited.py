@@ -175,11 +175,12 @@ def test_press_primary_and_unsourced_rows_are_unchanged():
 def test_cited_docs_reads_stored_bytes_and_skips_record_only_rows(conn):
     from marden.core import documents, sources
 
-    sources.ensure_source("test_docs", "Test docs", "api", "https://www.sec.gov", None, "test source", conn=conn)
+    sources.ensure_source("test_cited_docs", "Test cited docs", "api", "https://www.sec.gov", None, "test source",
+                          conn=conn)
     stub = "https://www.sec.gov/Archives/edgar/data/1/000000000126000001/ex10-1.htm"
-    documents.record_document("test_docs", stub, b'{"exhibit": "EX-10.1"}', content_type="application/json",
+    documents.record_document("test_cited_docs", stub, b'{"exhibit": "EX-10.1"}', content_type="application/json",
                               meta={"record_only": True}, conn=conn)
-    held = documents.record_document("test_docs", NCSRS, b"<html><body><p>Red Chiles A S+ 2.50% 11/9/2029</p>"
+    held = documents.record_document("test_cited_docs", NCSRS, b"<html><body><p>Red Chiles A S+ 2.50% 11/9/2029</p>"
                                      b"</body></html>", content_type="text/html", conn=conn)
     docs = CitedDocs(conn)
     assert docs.text(stub) is None

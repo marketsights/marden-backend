@@ -132,7 +132,7 @@ def test_home_headline_pieces_follow_the_models(monitor):
     for line in doc["statusChanges"]:
         slug = line["watch"][0].removeprefix("site:")
         assert set(line["watch"][1:]) == {f"instrument:{i}" for i in site_instruments(slug)}
-        assert " to " in line["line"]
+        assert " now " in line["line"]
 
     gaps = copied_rows("""SELECT DISTINCT ON (subject_id) subject_id, output->'markGap' AS gap FROM model_output
                            WHERE model = 'mark_gap' AND as_of <= %s ORDER BY subject_id, as_of DESC, id DESC""",
