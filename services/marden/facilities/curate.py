@@ -11,6 +11,9 @@ seed/sites_chain.py).
                    as seed/facilities_links.py does for the archive's links
     approve_link   the decision through the review queue (agents.review.decide): agent_decision, audit_log
                    review.approve, site_link approved_by, dirty marks
+    withdraw_link  take back an approved link that turned out wrong: the review item is reopened (audit_log
+                   review.reopen) and rejected through the same queue, so site_link reads 'rejected' with who
+                   and why; the evidence fact stays as history
     upsert_site / upsert_instrument / set_chain_party / add_fact   a financed site and its debt
     add_financing_note   campus.financing_note (tag M): owner-funded / not found, with what was searched
     apply_spec     all of the above from one JSON file (marden.facilities.commands `apply`)
@@ -186,6 +189,30 @@ def approve_link(site: str, campus: str, *, by: str, reason: str) -> dict[str, A
     if item["status"] != "open":
         return {"review_item_id": item["id"], "site_link": link["status"], "already": item["status"]}
     return decide(item["id"], "approve", by, reason=reason)
+
+
+def withdraw_link(site: str, campus: str, *, by: str, reason: str) -> dict[str, Any]:
+    """Withdraw an approved link: reopen its review item, then reject it through the review queue."""
+    from marden.agents.review import decide
+
+    checks.non_empty(by, "by")
+    checks.non_empty(reason, "reason")
+    with db.transaction() as conn:
+        item = conn.execute("""SELECT id, status FROM review_item WHERE kind = 'link' AND ref_type = 'site_link'
+                               AND ref_id = %s FOR UPDATE""", (f"{site}|{campus}",)).fetchone()
+        link = conn.execute("SELECT status FROM site_link WHERE site_slug = %s AND campus_id = %s",
+                            (site, campus)).fetchone()
+        if item is None or link is None:
+            raise ValidationError(f"no link {site} -> {campus}")
+        if link["status"] == "rejected":
+            return {"review_item_id": item["id"], "site_link": "rejected", "already": "rejected"}
+        if item["status"] != "open":
+            conn.execute("UPDATE review_item SET status = 'open', decided_by = NULL, decided_at = NULL WHERE id = %s",
+                         (item["id"],))
+            conn.execute("INSERT INTO audit_log (user_id, action, target, meta) VALUES (%s, %s, %s, %s)",
+                         (by, "review.reopen", f"review_item:{item['id']}",
+                          jsonb({"was": item["status"], "reason": reason})))
+    return decide(item["id"], "reject", by, reason=reason)
 
 
 def add_financing_note(conn: Conn, campus: str, *, kind: str, note: str, url: str, quote: str | Sequence[str],

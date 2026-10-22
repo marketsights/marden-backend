@@ -57,6 +57,7 @@ from marden.core.records import PriceWriter
 from marden.core.sources import get_spec, upsert_spec
 from marden.seed import instruments_facts as F
 from marden.seed import instruments_prices as P
+from marden.seed.cited import CitedDocs
 from marden.seed.common import SEED_SOURCE_ID, as_of, ensure_entity, producer, source_name_for_url
 from marden.seed.instruments_archive import (
     AIDEBT,
@@ -206,13 +207,55 @@ def _seeded_prices(conn: Conn, ids: list[str]) -> dict[str, set[str]]:
     return kinds
 
 
+RESOURCED = "re-sourced: a money or term value is F only when a filed document the archive row cites states it"
+
+
+def _supersede_replaced(conn: Conn, facts: FactWriter, iid: str, written: dict[str, int], report: LoadReport) -> None:
+    """Earlier rows of this loader for a term this run wrote differently (another tag or source) are superseded
+    by the new row, so a rerun after a sourcing fix corrects the value's tag and keeps the old row as history."""
+    if not written:
+        return
+    stale = conn.execute(
+        """SELECT id, field FROM fact WHERE subject_type = 'instrument' AND subject_id = %s AND producer = %s
+             AND status = 'published' AND field = ANY(%s)""",
+        (iid, PRODUCER, list(written)),
+    ).fetchall()
+    replaced = {r["id"]: written[r["field"]] for r in stale if r["id"] != written[r["field"]]}
+    done = facts.supersede(replaced, RESOURCED, replaced_by=replaced, decided_by=PRODUCER)
+    report.counts["fact.superseded"] += len(done)
+
+
+FUND_FILINGS = 8  # newest fund filings listing an instrument that are checked for its terms
+
+
+def fund_filings(conn: Conn, ids: list[str], idents: dict[str, Any] | None = None) -> dict[str, list[str]]:
+    """Fund filings (N-PORT, BDC 10-Q/10-K) whose holdings lines name each instrument, newest first: the
+    archive's N-PORT records for its identifiers, then the stored ``holding`` lines linked to it."""
+    out: dict[str, list[str]] = defaultdict(list)
+    for iid in ids:
+        ident = (idents or {}).get(iid)
+        for rec in sorted(getattr(ident, "nport_records", []) or [], key=lambda r: (r.period, r.url), reverse=True):
+            out[iid].append(rec.url)
+    for r in conn.execute(
+        """SELECT instrument_id, filing_url FROM holding WHERE instrument_id = ANY(%s) AND filing_url IS NOT NULL
+            GROUP BY instrument_id, filing_url ORDER BY instrument_id, max(period_end) DESC, filing_url""",
+        (ids,),
+    ).fetchall():
+        out[r["instrument_id"]].append(r["filing_url"])
+    return {k: list(dict.fromkeys(v))[:FUND_FILINGS] for k, v in out.items()}
+
+
 def _write_facts(conn: Conn, arc: Archive, chunk: list[str], idents: dict[str, Any], kinds: dict[str, str],
                  status: dict[str, str], report: LoadReport) -> None:
     facts = FactWriter(conn)
+    cited = CitedDocs(conn)
     seeded = _seeded_prices(conn, chunk)
+    funds = fund_filings(conn, chunk, idents)
     for iid in chunk:
         row = arc.rows[iid]
-        rows: list[F.FactRow] = F.terms_facts(iid, row, kinds[iid], AIDEBT)
+        ident = idents[iid]
+        rows: list[F.FactRow] = F.terms_facts(iid, row, kinds[iid], AIDEBT, cited,
+                                              ids=[*ident.cusips, *ident.isins], also=funds.get(iid, []))
         rating = F.rating_fact(row, AIDEBT)
         rows += [rating] if rating else []
         raw_rating = (row.get("rating") or "").strip()
@@ -236,14 +279,23 @@ def _write_facts(conn: Conn, arc: Archive, chunk: list[str], idents: dict[str, A
         if status.get(iid):
             rows.append(F._m("legacy_price_status", status[iid], AIDEBT, F.LOADER_METHOD))
         report.price_kinds[iid] = seeded.get(iid, set())  # for the docs only, never a fact (other writers add prices)
+        written: dict[str, int] = {}
         for fr in rows:
             res = facts.add(
                 "instrument", iid, fr.field, fr.value, tag=fr.tag, source_name=fr.source_name, source_url=fr.source_url,
                 valid_from=fr.valid_from, producer=PRODUCER, status="published", unit=fr.unit,
-                document_id=arc.docs.get(fr.relpath), method_version=fr.method_version,
+                document_id=fr.document_id or arc.docs.get(fr.relpath), method_version=fr.method_version,
             )
             report.counts["fact.created" if res.created else "fact.existing"] += 1
             report.counts[f"field.{fr.field}"] += 1
+            if fr.field in F.CHECKED_TERMS and res.status == "published":
+                written[fr.field] = res.id
+            if fr.flag:
+                facts.request_review(res.id, title=f"{fr.field} on {iid}: {F.UNVERIFIED}", reason=fr.flag,
+                                     payload={"subject_type": "instrument", "subject_id": iid, "field": fr.field})
+                report.skip(f"{F.UNVERIFIED}: no cited filing states the value and the row has no press source",
+                            f"{iid}.{fr.field}")
+        _supersede_replaced(conn, facts, iid, written, report)
 
 
 def load(*, only: set[str] | None = None) -> LoadReport:

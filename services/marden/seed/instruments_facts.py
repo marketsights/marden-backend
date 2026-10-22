@@ -1,9 +1,15 @@
 """Fact rows for one aidebt instrument (field table: marden/seed/instruments.py docstring).
 
-Tag rules (seed/common.py): terms take the tag and name of the row's primary ``src`` URL (filed -> F,
-press -> R; a row without any URL is a Marden research value, M). Ratings are agency opinions as
-reported (R). Legacy judgments (tenants, chain, flags, holder notes, scores) and loader inferences
-(amount basis, legacy price status, price basis) are M with a method version.
+Tag rules (seed/common.py): terms take the tag and name of the row's primary ``src`` URL (press -> R; a row
+without any URL is a Marden research value, M). A money or term value (coupon and its parts, maturity, size)
+is F only when a filed document the row cites states it (``marden.seed.cited``: the stored text is checked,
+an N-PORT report only on this instrument's own lines); the first such document is its source. When none
+does, the row's press URL is the source (R); with no press URL either, the value is R "unverified archive
+figure" with a note for review (``FactRow.flag``). An aidebt row lists every URL its research used, so the
+first one is not necessarily the one that states each field: a fund's N-CSRS showing its own $1.2mm slice of
+the Jupiter loan does not state the loan's $18B size. Ratings are agency opinions as reported (R). Legacy
+judgments (tenants, chain, flags, holder notes, scores) and loader inferences (amount basis, legacy price
+status, price basis) are M with a method version.
 """
 
 from __future__ import annotations
@@ -14,9 +20,10 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from marden.seed.common import SEED_AS_OF, source_name_for_url, tag_for_url
+from marden.seed.cited import CitedDocs, TextLookup, anchor_patterns, first_stating, is_document_url
+from marden.seed.common import SEED_AS_OF, host_of, source_name_for_url, tag_for_url
 from marden.seed.instruments_ids import Identifiers
-from marden.seed.instruments_parse import amount_basis, parse_coupon, parse_maturity
+from marden.seed.instruments_parse import amount_basis, core_name, parse_coupon, parse_maturity
 
 LEGACY_AIDEBT = "legacy-aidebt@2026-10-20"
 LEGACY_AIWCREDIT = "legacy-aiwcredit@2026-10-20"
@@ -27,6 +34,11 @@ GENERIC_SEARCH = "sec.gov/edgar/search"
 # FINRA)"): finra.org data is never loaded (docs/methods/price-sources.md section 3), ratings included.
 FINRA_TEXT = re.compile(r"\bFINRA\b|\bTRACE\b")
 PRICE_BELOW_90 = "price < 90"
+UNVERIFIED = "unverified archive figure"
+MARDEN_CALC = re.compile(r"\bcalc(?:ulated)?\b|\bimplied\b", re.I)  # '~11-12% (calc)': the research's own figure
+# Money and term fields: each is checked against the cited filings (coupon_type follows the coupon text).
+CHECKED_TERMS = frozenset({"coupon", "coupon_type", "coupon_rate_pct", "coupon_benchmark", "coupon_spread_bp",
+                           "maturity", "maturity_text", "amount_usd"})
 
 
 @dataclass(frozen=True)
@@ -40,6 +52,8 @@ class FactRow:
     valid_from: date = SEED_AS_OF
     unit: str | None = None
     method_version: str | None = None
+    document_id: int | None = None  # the stored filing that states the value (else the seed file is used)
+    flag: str | None = None  # why the value could not be sourced: opened as a review item for the fact
 
 
 def primary_source(src: Iterable[str] | None) -> str | None:
@@ -54,17 +68,54 @@ def _m(field: str, value: Any, relpath: str, method: str, *, unit: str | None = 
     return FactRow(field, value, "M", ARCHIVE, None, relpath, valid_from, unit, method)
 
 
-def terms_facts(iid: str, row: Mapping[str, Any], kind: str, relpath: str) -> list[FactRow]:
-    """Coupon, maturity, size, seniority, status and source URLs, sourced to the row's primary URL."""
-    url = primary_source(row.get("src"))
+def _source_terms(row: Mapping[str, Any], urls: list[str], primary: str, cited: CitedDocs | TextLookup | None,
+                  terms: Mapping[str, Any], ids: Iterable[str], names: Iterable[str], also: Iterable[str]):
+    """field, value -> (tag, source name, url, document id, flag) for a row whose primary URL is filed."""
+    filed = list(dict.fromkeys(u for u in [primary, *urls, *also] if tag_for_url(u) == "F" and is_document_url(u)))
+    press = next((u for u in urls if host_of(u) and tag_for_url(u) != "F"), None)
+    ids, names = list(ids), list(names)
+
+    def source(field: str, value: Any) -> tuple[str, str, str | None, int | None, str | None]:
+        check_field, check_value = ("coupon", terms.get("coupon")) if field == "coupon_type" else (field, value)
+        if cited is not None and check_value is not None:
+            ev = first_stating(cited, filed, check_field, check_value, ids=ids, names=names,
+                               anchors=anchor_patterns(terms, check_field, name=row.get("inst")))
+            if ev is not None:
+                return "F", source_name_for_url(ev.url), ev.url, ev.document_id, None
+        if press is not None:
+            return "R", source_name_for_url(press), press, None, None
+        if isinstance(value, str) and MARDEN_CALC.search(value):
+            return "M", ARCHIVE, None, None, None
+        checked = ", ".join(filed) or "no stored filing"
+        return "R", UNVERIFIED, None, None, (
+            f"{field} = {value!r}: no filing the archive row cites states it ({checked}) and the row has no press "
+            "source; kept as an archive figure, not as filed")
+
+    return source
+
+
+def terms_facts(iid: str, row: Mapping[str, Any], kind: str, relpath: str,
+                cited: CitedDocs | TextLookup | None = None, *, ids: Iterable[str] = (),
+                also: Iterable[str] = ()) -> list[FactRow]:
+    """Coupon, maturity, size, seniority, status and source URLs.
+
+    Seniority, status and source URLs take the row's primary URL. Money and term values (CHECKED_TERMS) take
+    the first filed URL of the row (then of ``also``: fund filings that list the instrument, N-PORT / BDC)
+    whose stored text (``cited``, marden.seed.cited.CitedDocs) states them, else the row's press URL (R), else
+    M when the text marks it the research's own calculation ('(calc)'), else R "unverified archive figure"
+    with a ``flag``. Without ``cited`` nothing can be checked, so no term is F. ``ids``: the instrument's
+    CUSIPs / ISINs (to read only its own lines of a fund report).
+    """
+    urls = [u for u in row.get("src") or [] if u]
+    url = primary_source(urls)
     tag = tag_for_url(url) if url else "M"
     name = source_name_for_url(url, fallback=ARCHIVE)
     method = LEGACY_AIDEBT if tag == "M" else None
-    out: list[FactRow] = []
+    values: list[tuple[str, Any, str | None]] = []
 
     def add(field: str, value: Any, unit: str | None = None) -> None:
         if value is not None and value != "" and value != []:
-            out.append(FactRow(field, value, tag, name, url, relpath, SEED_AS_OF, unit, method))
+            values.append((field, value, unit))
 
     cpn = (row.get("cpn") or "").strip()
     add("coupon", cpn or None)
@@ -80,7 +131,19 @@ def terms_facts(iid: str, row: Mapping[str, Any], kind: str, relpath: str) -> li
     add("amount_usd", round(float(amt) * 1_000_000) if amt is not None else None, "USD")
     add("seniority", (row.get("rank") or "").strip() or None)
     add("status", row.get("status"))
-    add("source_urls", [u for u in row.get("src") or [] if u])
+    add("source_urls", urls)
+
+    terms = {f: v for f, v, _ in values if f in CHECKED_TERMS}
+    issuer = [w for w in core_name(row.get("issuer")).split() if len(w) >= 3][:1]
+    sourced = _source_terms(row, urls, url, cited, terms, ids, issuer, also) if tag == "F" else None
+    out: list[FactRow] = []
+    for field, value, unit in values:
+        if sourced is not None and field in CHECKED_TERMS:
+            f_tag, f_name, f_url, doc_id, flag = sourced(field, value)
+            f_method = LEGACY_AIDEBT if f_tag == "M" else None
+            out.append(FactRow(field, value, f_tag, f_name, f_url, relpath, SEED_AS_OF, unit, f_method, doc_id, flag))
+        else:
+            out.append(FactRow(field, value, tag, name, url, relpath, SEED_AS_OF, unit, method))
     basis = amount_basis(iid, row, kind)
     if basis:
         out.append(_m("amount_basis", basis, relpath, LOADER_METHOD))

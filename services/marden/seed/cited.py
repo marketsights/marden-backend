@@ -228,9 +228,9 @@ def _usd_states(text: str, v: float, anchors: Anchors, window: int) -> bool:
         if abs(x * 1e6 - v) > tol and abs(x * 1e3 - v) > tol:
             continue
         kinds = {k for k, p in positions.items() if _near(pos, p, window)}
-        if "name" in kinds or len(kinds) >= 2:  # a name, or two terms: this row of the table, not another's
-            if not _foreign(text, pos):
-                return True
+        # a name, or two terms: this row of the table, not another's
+        if ("name" in kinds or len(kinds) >= 2) and not _foreign(text, pos):
+            return True
     return False
 
 
@@ -401,7 +401,8 @@ def name_anchor(name: str | None) -> list[str]:
              if (len(w) >= 2 or w.isdigit()) and w not in _NAME_STOP]
     if len(words) < 2:
         return []
-    return [r"\b" + r"\W+".join(re.escape(w[:4]) + (r"\w*" if w[0].isalpha() else "") for w in words[:3])]
+    gap = r"\W+(?:\w+\W+){0,2}"  # the name's own stop words ("loan", "due") may sit between
+    return [r"\b" + gap.join(re.escape(w[:4]) + (r"\w*" if w[0].isalpha() else "") for w in words[:3])]
 
 
 def anchor_patterns(terms: Mapping[str, Any], field: str, *, name: str | None = None) -> dict[str, list[str]]:

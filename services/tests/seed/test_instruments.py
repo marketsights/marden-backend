@@ -164,10 +164,15 @@ def test_facts_are_sourced_and_tagged(loaded, committed, rows):
     assert facts and all(f["status"] == "published" and f["document_id"] for f in facts)
     assert all(f["method_version"] for f in facts if f["tag"] == "M")
     f = {(x["subject_id"], x["field"]): x for x in facts}
+    # The cited N-CSRS is not stored in the test database, so no Jupiter term can be checked against it: the
+    # terms take the row's press source (FT via kfgo.com). The fund's filing never states the $18B size.
+    src = rows["EX-JUPITER-190"]["src"]
     coupon = f[("EX-JUPITER-190", "coupon")]
-    assert coupon["value"] == rows["EX-JUPITER-190"]["cpn"] and coupon["tag"] == "F"
-    assert coupon["source_url"] == rows["EX-JUPITER-190"]["src"][0] and coupon["source_name"] == "SEC EDGAR"
-    assert f[("EX-JUPITER-190", "amount_usd")]["value"] == 18_000_000_000
+    assert coupon["value"] == rows["EX-JUPITER-190"]["cpn"] and coupon["tag"] == "R"
+    assert coupon["source_url"] == src[1] and "kfgo.com" in src[1]
+    amount = f[("EX-JUPITER-190", "amount_usd")]
+    assert amount["value"] == 18_000_000_000 and amount["tag"] == "R" and amount["source_url"] == src[1]
+    assert f[("EX-JUPITER-190", "seniority")]["source_url"] == src[0]  # not a money or term field
     assert f[("EX-CRWV-095", "amount_basis")]["value"] == "drawn"
     assert f[("EX-CRWV-093", "issuer_fair_value_disclosure")]["tag"] == "F"
     assert f[("EX-CRWV-093", "legacy_price_status")]["value"] == "issuer_fair_value_not_a_price"

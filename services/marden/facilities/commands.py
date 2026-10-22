@@ -2,6 +2,7 @@
 
     facilities link propose --site S --campus C --url U --quote Q [--quote Q2] --tag F|R|M --basis B
     facilities link approve --site S --campus C --by claude-review --reason R
+    facilities link withdraw --site S --campus C --by claude-review --reason R   (an approved link found wrong)
     facilities note --campus C --kind owner_funded|not_found --note N --url U --quote Q [--owner O]
                     [--payer P] [--searched S ...]
     facilities apply SPEC.json        sites, instruments, facts, notes and links from one file
@@ -26,22 +27,23 @@ def _print(obj: Any) -> None:
 
 
 def _link_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("step", choices=("propose", "approve"))
+    p.add_argument("step", choices=("propose", "approve", "withdraw"))
     p.add_argument("--site", required=True)
     p.add_argument("--campus", required=True)
     p.add_argument("--url", help="the stored document the evidence quote is from (propose)")
     p.add_argument("--quote", action="append", help="verbatim quote (repeatable: fragments of one passage)")
     p.add_argument("--tag", choices=("F", "R", "M"), help="F filed, R reported, M Marden's inference (propose)")
     p.add_argument("--basis", help="why the site finances this campus (propose)")
-    p.add_argument("--by", default="cli", help="who approves (approve)")
-    p.add_argument("--reason", help="the reviewer's evidence note (approve)")
+    p.add_argument("--by", default="cli", help="who decides (approve, withdraw)")
+    p.add_argument("--reason", help="the reviewer's evidence note (approve) or why the link is wrong (withdraw)")
 
 
-@cli.action("facilities", "link", help="Propose or approve a financed-site -> campus link", configure=_link_args)
+@cli.action("facilities", "link", help="Propose, approve or withdraw a financed-site -> campus link",
+            configure=_link_args)
 def link_command(args: argparse.Namespace) -> int:
     from marden.core import db
     from marden.core.checks import ValidationError
-    from marden.facilities.curate import approve_link, propose_link
+    from marden.facilities.curate import approve_link, propose_link, withdraw_link
 
     try:
         if args.step == "propose":
@@ -51,6 +53,8 @@ def link_command(args: argparse.Namespace) -> int:
             with db.transaction() as conn:
                 out = propose_link(conn, args.site, args.campus, url=args.url, quote=args.quote, tag=args.tag,
                                    basis=args.basis)
+        elif args.step == "withdraw":
+            out = withdraw_link(args.site, args.campus, by=args.by, reason=args.reason or "")
         else:
             out = approve_link(args.site, args.campus, by=args.by, reason=args.reason or "")
     except ValidationError as exc:

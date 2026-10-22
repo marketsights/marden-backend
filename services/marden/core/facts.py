@@ -12,7 +12,7 @@ published facts mark dependent read models dirty in the same transaction.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
@@ -184,6 +184,52 @@ class FactWriter:
                 (decided_by, f"fact:{fact_id}", jsonb({"reason": reason})),
             )
         return rejected
+
+    def supersede(
+        self,
+        fact_ids: Iterable[int],
+        reason: str,
+        *,
+        replaced_by: Mapping[int, int] | None = None,
+        decided_by: str | None = None,
+    ) -> list[int]:
+        """Withdraw published facts that a corrected row replaces (a re-sourced or re-tagged value).
+
+        The rows stay in the table as 'superseded', so ``fact_asof`` still shows what Marden presented and when
+        (bitemporal history); ``fact_current`` moves to the replacement. Read models are marked dirty and each
+        withdrawal is audit-logged with the reason and, when given, the replacing fact (``replaced_by``: old id ->
+        new id; a replacement must be a published fact on the same subject and field). Returns the ids changed.
+        """
+        checks.non_empty(reason, "reason")
+        ids = sorted(set(fact_ids))
+        if not ids:
+            return []
+        replaced_by = dict(replaced_by or {})
+        if replaced_by:
+            bad = self.conn.execute(
+                """SELECT o.id FROM fact o JOIN fact n ON n.id = (%s::jsonb ->> o.id::text)::bigint
+                   WHERE o.id = ANY(%s) AND (n.status <> 'published' OR n.subject_type <> o.subject_type
+                         OR n.subject_id <> o.subject_id OR n.field <> o.field OR n.id = o.id)""",
+                (jsonb({str(k): v for k, v in replaced_by.items()}), ids),
+            ).fetchall()
+            if bad:
+                raise ValidationError(f"facts {[r['id'] for r in bad]}: the replacement is not a published fact "
+                                      "on the same subject and field")
+        rows = self.conn.execute(
+            """UPDATE fact SET status = 'superseded' WHERE id = ANY(%s) AND status = 'published'
+               RETURNING id, subject_type, subject_id, field""",
+            (ids,),
+        ).fetchall()
+        for r in rows:
+            _mark_dirty(self.conn, r["subject_type"], r["subject_id"], r["field"], f"fact:{r['id']}")
+            meta: dict[str, Any] = {"reason": reason}
+            if r["id"] in replaced_by:
+                meta["replaced_by"] = replaced_by[r["id"]]
+            self.conn.execute(
+                "INSERT INTO audit_log (user_id, action, target, meta) VALUES (%s, 'fact.supersede', %s, %s)",
+                (decided_by, f"fact:{r['id']}", jsonb(meta)),
+            )
+        return [r["id"] for r in rows]
 
     def set_verifier(self, fact_id: int, verdict: str) -> None:
         if verdict not in VERIFIER_VERDICTS:

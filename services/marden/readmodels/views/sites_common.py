@@ -217,6 +217,9 @@ def debt_value(instruments: Sequence[Doc]) -> Doc:
     names = sorted({r["source_name"] for r in rows if r.get("source_name")})
     out = {"value": billions(sum(r["value"] for r in rows)), "tag": weakest_tag(r["tag"] for r in rows),
            "asOf": max(r["valid_from"] for r in rows).isoformat(), "sourceName": " + ".join(names)}
+    urls = {r.get("source_url") for r in rows}
+    if len(urls) == 1 and (url := urls.pop()):
+        out["sourceUrl"] = url  # every part cites the same filing: the sum links to it too
     methods = sorted({r["method_version"] for r in rows if r["tag"] == "M" and r.get("method_version")})
     if out["tag"] == "M" and methods:
         out["methodVersion"] = " + ".join(methods)  # an M sum names the methods of its M parts

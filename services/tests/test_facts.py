@@ -177,3 +177,34 @@ def test_current_facts_reads_published_only(conn):
     _add(w, value=1200, status="published", valid_from=date(2026, 9, 2))
     cur = current_facts(conn, "site", "abilene")
     assert cur["facility_mw"]["value"] == 1200
+
+
+def test_supersede_moves_current_to_the_replacement_and_keeps_history(conn):
+    from marden.core.facts import facts_asof
+
+    w = FactWriter(conn)
+    old = _add(w, field="amount_usd", value=18_000_000_000, status="published", producer="seed:instruments")
+    new = _add(w, field="amount_usd", value=18_000_000_000, status="published", producer="seed:instruments",
+               tag="R", source_name="Kfgo", source_url="https://kfgo.com/2026/09/18/x/")
+    conn.execute("DELETE FROM read_model_dirty")
+    assert w.supersede([old.id], "cited filing does not state it", replaced_by={old.id: new.id},
+                       decided_by="test") == [old.id]
+    assert w.supersede([old.id], "again") == []  # only published rows change
+    cur = current_facts(conn, "site", "abilene", ["amount_usd"])["amount_usd"]
+    assert (cur["id"], cur["tag"]) == (new.id, "R")
+    statuses = {r["id"]: r["status"] for r in conn.execute("SELECT id, status FROM fact")}
+    assert statuses == {old.id: "superseded", new.id: "published"}
+    assert facts_asof(conn, latest_today(), "site", "abilene", ["amount_usd"])  # history is still readable
+    log = conn.execute("SELECT action, target, meta FROM audit_log").fetchall()
+    assert [(r["action"], r["target"], r["meta"]["replaced_by"]) for r in log] == [
+        ("fact.supersede", f"fact:{old.id}", new.id)]
+    assert _dirty(conn)  # dependents rebuild
+
+
+def test_supersede_refuses_a_replacement_on_another_field(conn):
+    w = FactWriter(conn)
+    old = _add(w, status="published")
+    other = _add(w, field="critical_it_mw", status="published")
+    with pytest.raises(ValidationError, match="replacement"):
+        w.supersede([old.id], "wrong", replaced_by={old.id: other.id})
+    assert conn.execute("SELECT status FROM fact WHERE id = %s", (old.id,)).fetchone()["status"] == "published"

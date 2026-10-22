@@ -21,6 +21,7 @@ from marden.facilities.curate import (
     apply_spec,
     approve_link,
     propose_link,
+    withdraw_link,
 )
 from marden.readmodels import business_today
 from marden.readmodels.context import building
@@ -98,6 +99,27 @@ def test_propose_then_approve_through_the_review_queue(stored):
     assert ("dc_row", "dalton") in {(r["view"], r["key"]) for r in rows("SELECT view, key FROM read_model_dirty")}
     assert [s["siteSlug"] for s in _dc_row("dalton")["financedSites"]] == ["corz"]
     assert approve_link("corz", "dalton", by="claude-review", reason=note)["already"] == "approved"
+
+
+def test_withdraw_an_approved_link_through_the_review_queue(stored):
+    with db.transaction() as conn:
+        propose_link(conn, "corz", "dalton", url=FILING, quote="Dalton 1 campus", tag="F", basis="address")
+    approve_link("corz", "dalton", by="claude-review", reason="address match")
+    assert [s["siteSlug"] for s in _dc_row("dalton")["financedSites"]] == ["corz"]
+    with pytest.raises(ValidationError, match="reason"):
+        withdraw_link("corz", "dalton", by="claude-review", reason="")
+    with pytest.raises(ValidationError, match="no link"):
+        withdraw_link("corz", "chester", by="claude-review", reason="wrong")
+    out = withdraw_link("corz", "dalton", by="claude-review", reason="tax-abatement bond-lease, not debt")
+    assert out["ok"] and out["site_link"] == "rejected"
+    link = rows("SELECT status, approved_by FROM site_link")[0]
+    assert link == {"status": "rejected", "approved_by": "claude-review"}
+    assert rows("SELECT status FROM review_item WHERE ref_id = 'corz|dalton'")[0]["status"] == "rejected"
+    audit = [a["action"] for a in rows("SELECT action FROM audit_log WHERE user_id = 'claude-review' ORDER BY id")]
+    assert audit == ["review.approve", "review.reopen", "review.reject"]
+    assert len(rows("SELECT * FROM fact WHERE field = 'site_link_evidence'")) == 1  # the evidence stays as history
+    assert _dc_row("dalton")["financedSites"] == []
+    assert withdraw_link("corz", "dalton", by="claude-review", reason="again")["already"] == "rejected"
 
 
 def _spec() -> dict:
