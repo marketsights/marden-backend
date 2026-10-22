@@ -3,15 +3,11 @@
 apps/api/src/contracts/site-tabs.ts).
 
 - Evidence: every published past-dated event on the site (dockets, county agendas, permits, filings,
-  press, capacity auctions) except procedural docket filings (service-list updates, appearances,
-  bare interventions, errata ...: core/relevance, via sites_common.site_events), the dated evidence
-  items of the case research (risk_evidence facts) and the monthly Sentinel-2 images, newest first.
+  press, capacity auctions), the dated evidence items of the case research (risk_evidence facts)
+  and the monthly Sentinel-2 images, newest first.
 - Opposition: opposition events and the court proceedings Marden watches for the site (docket
-  entities whose linked_sites names it). A proceeding's DATE is its own (filed / entered / decided,
-  `case_date`); with none, the day Marden recorded it, marked 'found'. WHAT is its plain summary with
-  the case numbers on a sub-line, WHERE the court, STATUS as a source states it (n/d with the reason).
-  Next hearing from those proceedings' next_dates; latest ruling from their `rulings`; 'if the
-  ordinances are voided' from the site's opposition_if_voided (M). Curated in facilities/proceedings.py.
+  entities whose linked_sites names it); next hearing from those proceedings' next_dates.
+  'Latest ruling' and 'impact if voided' (M) stay n/d until a ruling parser / model exists.
 - Material events: what changed a status or the cushion, and the records behind them, newest first:
   * each change of a chain link's status between two `status` runs (link, rule codes from the
     rule text, 'No flags → Warning', and the site's own change on that run, 'site Watch → At risk'),
@@ -35,8 +31,6 @@ from itertools import pairwise
 from typing import Any
 
 from marden.core.db import Conn, Row
-from marden.core.facts import sourced
-from marden.core.relevance import procedural_reason
 from marden.models.status_labels import chain_label, link_label
 from marden.readmodels.context import business_day, known_fact_rows, known_facts
 from marden.readmodels.registry import builder
@@ -63,7 +57,7 @@ from marden.readmodels.views.sites_links import imagery, last_visible_change, si
 COUNTY_WORDS = ("county", "parish", "city", "planning", "zoning", "commission", "board", "council", "township")
 OPPOSITION_TYPES = (("moratori", "Moratorium"), ("lawsuit", "Lawsuit"), ("suit", "Lawsuit"), ("petition", "Petition"),
                     ("ruling", "Ruling"), ("judge", "Ruling"), ("vote", "Vote"), ("hearing", "Hearing"))
-CLOSED = ("closed", "dismissed", "resolved", "withdrawn", "decided", "settled")
+CLOSED = ("closed", "dismissed", "resolved", "withdrawn", "decided")
 AREA = {"docket": "Permits and power", "permit": "Permits and power", "news": "Press", "opposition": "Opposition",
         "filing": "Filing", "capacity_auction": "Power", "catalyst": "Schedule", "interconnection": "Power"}
 STATUS_TONE = {"Broken": "red", "Strained": "amber", "Holding": "green", "No build": "none"}
@@ -87,8 +81,7 @@ def evidence_records(conn: Conn, slug: str) -> list[Doc]:
     for row in known_fact_rows(conn, "site", slug, ["risk_evidence"])["risk_evidence"]:
         v = row["value"] if isinstance(row["value"], dict) else {}
         when, url, text = v.get("date"), v.get("url") or row.get("source_url") or "", v.get("headline")
-        if not (isinstance(when, str) and text) or when > day().isoformat() or (when, url) in seen \
-                or procedural_reason(text) is not None:
+        if not (isinstance(when, str) and text) or when > day().isoformat() or (when, url) in seen:
             continue
         seen.add((when, url))
         rec = fact_evidence(row, text, when)
@@ -118,21 +111,12 @@ def evidence_tab(conn: Conn, slug: str) -> Doc:
 
 
 # ---------------------------------------------------------------- opposition
-PROCEEDING_FIELDS = ["linked_sites", "proceeding", "proceeding_kind", "status", "list_url", "next_dates", "summary",
-                     "case_numbers", "court", "case_date", "status_note", "rulings"]
-DATE_KINDS = ("filed", "entered", "decided", "voted")
-FOUND_NOTE = ("The day Marden recorded this case. No source found gives its filing or decision date.")
-NO_STATUS = "No source found states the case's status yet."
-EVENT_STATUS = "The record does not state an outcome."
-OPEN_WORDS = ("pending", "no ruling", "open", "filed", "appeal")
-COURT_PART = re.compile(r"^(.*?\b(?:Court|Commission)\b(?: of [A-Z][a-z]+)?(?: \([^)]*\))?)")
-
-
 def site_proceedings(conn: Conn, slug: str, kinds: tuple[str, ...]) -> list[tuple[str, dict[str, Row]]]:
     """Docket entities (court, county board, zoning ...) whose linked_sites names the site."""
     out = []
     for entity_id in subjects_listing(conn, "entity", "linked_sites", slug):
-        facts = known_facts(conn, "entity", entity_id, PROCEEDING_FIELDS)
+        facts = known_facts(conn, "entity", entity_id,
+                            ["linked_sites", "proceeding", "proceeding_kind", "status", "list_url", "next_dates"])
         linked = facts.get("linked_sites")
         kind = (facts.get("proceeding_kind") or {}).get("value")
         if linked and isinstance(linked["value"], list) and slug in linked["value"] and kind in kinds:
@@ -145,116 +129,32 @@ def opposition_type(title: str) -> str:
     return next((label for word, label in OPPOSITION_TYPES if word in low), "Press")
 
 
-def _text(facts: dict[str, Row], field: str) -> str | None:
-    row = facts.get(field)
-    value = row["value"] if row else None
-    return value.strip() if isinstance(value, str) and value.strip() else None
-
-
-def case_date(facts: dict[str, Row]) -> tuple[str, str, str | None, Row]:
-    """(day, kind, note, row): the case's own date (filed / entered / decided / voted) when a source
-    states it, else the day Marden recorded the proceeding, kind 'found', never passed off as a filing."""
-    row = facts.get("case_date")
-    value = row["value"] if row else None
-    if isinstance(value, dict) and value.get("kind") in DATE_KINDS and isinstance(value.get("d"), str):
-        return value["d"], value["kind"], value.get("note") or None, row
-    found = facts["proceeding"]
-    return found["valid_from"].isoformat(), "found", FOUND_NOTE, found
-
-
-def status_tone(status: str) -> str:
-    low = status.lower()
-    return "amber" if any(w in low for w in OPEN_WORDS) else "grey"
-
-
-def court_item(facts: dict[str, Row]) -> Doc:
-    """A watched proceeding as a row: WHAT in plain words (its summary; the case numbers on a sub-line),
-    WHERE the court, DATE the case's own date, STATUS as a source states it (n/d with the reason)."""
-    name = facts["proceeding"]
-    proceeding = str(name["value"])
-    summary = _text(facts, "summary")
-    when, kind, note, date_row = case_date(facts)
-    court = _text(facts, "court")
-    where = court or (m.group(1).strip() if (m := COURT_PART.match(proceeding)) else None) or "n/d"
-    evidence = fact_evidence(date_row, summary or proceeding)
-    if facts.get("list_url") and date_row is name:
-        evidence["sourceUrl"] = str(facts["list_url"]["value"])
-    item: Doc = {"date": when, "dateKind": kind, "type": "Court case", "text": summary or proceeding,
-                 "where": where, "evidence": evidence}
-    if note:
-        item["dateNote"] = note
-    detail = _text(facts, "case_numbers") or (proceeding if summary else None)
-    if detail:
-        item["detail"] = detail
-    status = facts.get("status")
-    if status and isinstance(status["value"], str) and status["value"].strip():
-        item["status"] = status["value"].strip()
-        item["statusTone"] = status_tone(item["status"])
-        item["statusEvidence"] = fact_evidence(status, item["status"])
-        if status_note := _text(facts, "status_note"):
-            item["statusNote"] = status_note
-    else:
-        item.update({"status": "n/d", "statusTone": "grey", "statusNote": NO_STATUS})
-    return item
-
-
 def opposition_items(conn: Conn, slug: str, courts: list[tuple[str, dict[str, Row]]]) -> list[Doc]:
     """Opposition events and watched proceedings, newest first. An event's court or body is its source
     only when the body filed it (F); a press report (R) names an outlet, not where the case sits, so
-    'where' is n/d, and its date is the day the press reported it ('reported'). No event record states
-    the case's status: n/d with the reason, never the tag restated as a word. Proceedings: court_item."""
+    'where' is n/d. No event record states the case's status: n/d, never the tag restated as a word."""
     items = []
     # a step still to come (a hearing set for next week) is listed too: its alert links to this tab
     upcoming = site_events(conn, slug, kinds=["opposition"], future=True)
     for ev in [*site_events(conn, slug, kinds=["opposition"]), *upcoming]:
         tone = {"red": "red", "amber": "amber", "green": "green"}.get(severity(ev), "grey")
-        item = {"date": ev["event_date"].isoformat(), "type": opposition_type(ev["title"]), "text": ev["title"],
-                "where": (ev["source_name"] or "n/d") if ev["tag"] == "F" else "n/d", "status": "n/d",
-                "statusNote": EVENT_STATUS, "statusTone": tone, "evidence": event_evidence(ev)}
-        if ev["tag"] != "F":
-            item["dateKind"] = "reported"
-        items.append(item)
-    items += [court_item(facts) for _, facts in courts if facts.get("proceeding")]
+        items.append({"date": ev["event_date"].isoformat(), "type": opposition_type(ev["title"]), "text": ev["title"],
+                      "where": (ev["source_name"] or "n/d") if ev["tag"] == "F" else "n/d", "status": "n/d",
+                      "statusTone": tone, "evidence": event_evidence(ev)})
+    for _, facts in courts:
+        name = facts.get("proceeding")
+        if not name:
+            continue
+        status = facts.get("status")
+        status_text = str(status["value"]) if status else "n/d"
+        ev = fact_evidence(name, str(name["value"]))
+        if facts.get("list_url"):
+            ev["sourceUrl"] = str(facts["list_url"]["value"])
+        where = str(name["value"]).split("(", 1)[0].strip()
+        items.append({"date": name["valid_from"].isoformat(), "type": "Court case", "text": str(name["value"]),
+                      "where": where, "status": status_text, "statusTone": "grey", "evidence": ev})
     items.sort(key=lambda i: i["date"], reverse=True)
     return items
-
-
-def latest_ruling(proceedings: list[tuple[str, dict[str, Row]]]) -> Doc:
-    """The newest ruling a source dates in the site's court proceedings (`rulings`), as a KPI: what was
-    ruled as the value, the day and court as its note."""
-    best: tuple[str, Doc, Row, dict[str, Row]] | None = None
-    for _, facts in proceedings:
-        row = facts.get("rulings")
-        for item in (row["value"] if row and isinstance(row["value"], list) else []):
-            when = item.get("d") if isinstance(item, dict) else None
-            if isinstance(when, str) and when <= day().isoformat() and (best is None or when > best[0]):
-                best = (when, item, row, facts)
-    if best is None:
-        return {"value": nd("F")}
-    when, item, row, facts = best
-    what = str(item.get("what") or "")
-    short = str(item.get("short") or "") or what
-    value: Doc = {"value": short, "tag": row["tag"], "asOf": when, "sourceName": row.get("source_name") or ""}
-    if row.get("source_url"):
-        value["sourceUrl"] = row["source_url"]
-    court = _text(facts, "court")
-    stamp = date.fromisoformat(when)
-    parts = [what] if short != what else []
-    parts.append(f"{stamp:%b} {stamp.day}, {stamp.year}" + (f" \u00b7 {court}" if court else ""))
-    return {"value": value, "note": ". ".join(parts)}
-
-
-def if_voided(conn: Conn, slug: str) -> Doc:
-    """Marden's statement (M) of what happens to the project and its debt if the challenged ordinances
-    or approvals are voided (site fact opposition_if_voided, facilities/proceedings.py); n/d before."""
-    row = known_facts(conn, "site", slug, ["opposition_if_voided"]).get("opposition_if_voided")
-    value = sourced(row) if row else None
-    if value is None or not isinstance(value.get("value"), str):
-        return {"value": nd("M")}
-    answer, _, why = value["value"].partition(": ")  # '<the answer in a few words>: <why>'
-    if not why:
-        return {"value": value}
-    return {"value": {**value, "value": answer.strip()}, "note": why[:1].upper() + why[1:]}
 
 
 def _count_value(rows: list[Row], count: int) -> Doc:
@@ -310,9 +210,9 @@ def opposition_tab(conn: Conn, slug: str) -> Doc:
     return {
         "openCases": {"value": _count_value(court_rows, len(open_rows)) if court_rows else nd("F"),
                       "note": "court proceedings Marden watches for this site"},
-        "latestRuling": latest_ruling(courts),
+        "latestRuling": {"value": nd("F")},
         "nextHearing": next_hearing(hearings, site_events(conn, slug, kinds=["opposition"], future=True)),
-        "ifVoided": if_voided(conn, slug),
+        "ifVoided": {"value": nd("M")},
         "items": opposition_items(conn, slug, courts),
     }
 

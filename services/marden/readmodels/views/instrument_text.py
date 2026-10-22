@@ -158,8 +158,9 @@ def _covenant(value: Any) -> str | None:
 
 
 def terms(inst: Row, facts: dict[str, Row]) -> dict[str, dict[str, Any]]:
-    """Terms card (spec 07): issuer, coupon, maturity, size, ranking, guarantees, covenants and the
-    other filed terms, each Sourced<string> from its fact. Absent terms are left out."""
+    """Terms card (spec 07): issuer, coupon, maturity, issue date, size, ranking, guarantees, collateral,
+    covenants (the covenant package; one key test beside it) and the other filed terms, each Sourced<string>
+    from its fact. Absent terms are left out (the screen shows n/d with `terms_not_disclosed`)."""
     out: dict[str, dict[str, Any]] = {}
 
     def put(label: str, row: Row | None, text: str | None) -> None:
@@ -176,6 +177,8 @@ def terms(inst: Row, facts: dict[str, Row]) -> dict[str, dict[str, Any]]:
         put("Rate", facts["rate_text"], text_of(facts["rate_text"]["value"]))
     mat = facts.get("maturity") or facts.get("maturity_text")
     put("Maturity", mat, date_words(maturity_text(facts) or "") or None)
+    if facts.get("issue_date"):
+        put("Issued", facts["issue_date"], date_words(text_of(facts["issue_date"]["value"]) or "") or None)
     size = facts.get("amount_usd")
     if size is not None:
         basis = facts.get("amount_basis")
@@ -195,8 +198,11 @@ def terms(inst: Row, facts: dict[str, Row]) -> dict[str, dict[str, Any]]:
         put("Collateral", facts["collateral_text"], text_of(facts["collateral_text"]["value"]))
     if facts.get("backstop"):
         put("Guarantees", facts["backstop"], text_of(facts["backstop"]["value"]))
+    if facts.get("covenants"):
+        put("Covenants", facts["covenants"], text_of(facts["covenants"]["value"]))
     if facts.get("covenant_test"):
-        put("Covenants", facts["covenant_test"], _covenant(facts["covenant_test"]["value"]))
+        label = "Key covenant test" if "Covenants" in out else "Covenants"
+        put(label, facts["covenant_test"], _covenant(facts["covenant_test"]["value"]))
     if facts.get("amortization"):
         put("Amortization", facts["amortization"], text_of(facts["amortization"]["value"]))
     if facts.get("rating"):
@@ -255,3 +261,51 @@ def facts_line(facts: dict[str, Row]) -> str:
     if mat:
         parts.append(f"matures {date_words(mat)}")
     return " · ".join(parts)
+
+
+# ---------------------------------------------------------------- n/d reasons and the lender group
+# Terms the card shows as n/d when no fact gives them, with the reason Marden's terms research recorded
+# (fact `terms_not_disclosed`: {field: reason}, marden.facilities.terms).
+ND_LABELS = {"issuer_name": "Issuer", "backstop": "Guarantees", "covenants": "Covenants",
+             "collateral_text": "Collateral", "issue_date": "Issued", "lenders": "Lenders"}
+
+
+def terms_not_disclosed(facts: dict[str, Row], shown: dict[str, Any], lenders: list[dict[str, Any]]) -> dict[str, str]:
+    """Card label -> why it is n/d ('not disclosed in filings checked: ...'), for terms still missing."""
+    row = facts.get("terms_not_disclosed")
+    if row is None or not isinstance(row["value"], dict):
+        return {}
+    out: dict[str, str] = {}
+    for field, reason in row["value"].items():
+        label = ND_LABELS.get(field)
+        missing = not lenders if field == "lenders" else label not in shown
+        if label and missing and isinstance(reason, str) and reason.strip():
+            out[label] = reason.strip()
+    return out
+
+
+def lenders(facts: dict[str, Row]) -> list[dict[str, Any]]:
+    """The lender group named in filings and reports (facts `lender_<slug>`: {name, role, commitment_usd?}),
+    filed (F) before reported (R), agents and lead banks first, an unnamed group last; each with its source."""
+    out: list[dict[str, Any]] = []
+    for field, row in facts.items():
+        if not field.startswith("lender_") or not isinstance(row["value"], dict) or not row["value"].get("name"):
+            continue
+        value = row["value"]
+        item: dict[str, Any] = {"name": value["name"], "role": value.get("role") or None,
+                                "source": fact_sourced(row, value.get("role") or value["name"])}
+        if num(value.get("commitment_usd")) is not None:
+            item["commitmentUsd"] = num(value["commitment_usd"])
+        out.append(item)
+    out.sort(key=lambda r: (r["source"]["tag"] != "F", "not named" in r["name"], _role_rank(r["role"]),
+                            r["name"].lower()))
+    return out
+
+
+_ROLE_ORDER = ("administrative agent", "lead", "arranger", "agent", "bookrunner")
+
+
+def _role_rank(role: str | None) -> int:
+    """Agents and lead banks first, then arrangers and bookrunners, then the rest of the group."""
+    text = (role or "").lower()
+    return next((i for i, word in enumerate(_ROLE_ORDER) if word in text), len(_ROLE_ORDER))

@@ -1,7 +1,8 @@
 """Inputs of the `mark_gap` model, read point in time (what was public on the run's as-of day).
 
 - Holder lines: `holding` rows linked to the instrument from fund filings that name holders (N-PORT,
-  BDC 10-Q / 10-K schedules; insurer NAIC lines are held for legal review, price-sources.md section 3).
+  BDC 10-Q / 10-K schedules; insurer NAIC lines are held for legal review, price-sources.md section 3),
+  and those of its tranches (instrument fact `tranche_of` naming it: a package's holders are its tranches').
   A filing is usable once public: an N-PORT report 60 days after its period end (pricing-v0.1 "Data";
   never before its filing date), a BDC schedule on its filing date (else 45 days after the period end,
   the 10-Q deadline). Each fund's latest usable filing that lists the instrument counts, and only while
@@ -79,14 +80,28 @@ class Inputs:
     unpriced_lines: dict[str, int]  # instrument id -> lines without a usable mark
 
 
+# A tranche's lines also count for the package it is part of (fact `tranche_of` on the tranche, e.g. PGIM's
+# 'VANTAGE ORACLE TX' and 'WI' loans in the $38B Vantage construction package): the package's holders are
+# the tranches' holders, each fund's lines combined.
+TRANCHE_PARENTS = """SELECT subject_id AS child, value #>> '{}' AS parent FROM fact_current
+                      WHERE subject_type = 'instrument' AND field = 'tranche_of' AND jsonb_typeof(value) = 'string'"""
+
+
 def _lines(conn: Conn, ids: Sequence[str] | None, day: date) -> list[Row]:
     return conn.execute(
-        """SELECT h.id, h.instrument_id, h.fund_entity_id, e.name AS fund_name, h.period_end, h.filing_type,
-                  h.filing_url, h.filed_at, h.par, h.value_usd, h.mark_price, h.pct_nav, h.fund_net_assets
-             FROM holding h JOIN entity e ON e.id = h.fund_entity_id
-            WHERE h.instrument_id IS NOT NULL AND h.filing_type = ANY(%(filings)s) AND h.period_end <= %(day)s
-              AND (%(ids)s::text[] IS NULL OR h.instrument_id = ANY(%(ids)s))
-            ORDER BY h.instrument_id, h.fund_entity_id, h.period_end DESC, h.id""",
+        f"""WITH tranche AS ({TRANCHE_PARENTS}),
+                 linked AS (SELECT h.*, h.instrument_id AS counted_as FROM holding h
+                             WHERE h.instrument_id IS NOT NULL
+                            UNION ALL
+                            SELECT h.*, t.parent AS counted_as FROM holding h
+                              JOIN tranche t ON t.child = h.instrument_id)
+           SELECT h.id, h.counted_as AS instrument_id, h.fund_entity_id, e.name AS fund_name, h.period_end,
+                  h.filing_type, h.filing_url, h.filed_at, h.par, h.value_usd, h.mark_price, h.pct_nav,
+                  h.fund_net_assets
+             FROM linked h JOIN entity e ON e.id = h.fund_entity_id
+            WHERE h.filing_type = ANY(%(filings)s) AND h.period_end <= %(day)s
+              AND (%(ids)s::text[] IS NULL OR h.counted_as = ANY(%(ids)s))
+            ORDER BY h.counted_as, h.fund_entity_id, h.period_end DESC, h.id""",
         {"filings": list(HOLDER_FILINGS), "day": day, "ids": None if ids is None else list(ids)},
     ).fetchall()
 

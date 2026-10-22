@@ -33,7 +33,6 @@ from conftest import BASE_URL, TEST_URL
 from real_rows import _copy, _reset_sequence, copied_rows
 
 from marden.core import db
-from marden.core.relevance import is_procedural
 from marden.readmodels import business_today
 from marden.readmodels.context import building
 from marden.readmodels.registry import get_builder
@@ -284,27 +283,23 @@ def plant() -> None:
 
 
 def test_plant_last_change_ranks_records_and_history_on_one_scale(plant):
-    """Records and History changes are ranked on one date scale, and a procedural filing (a bare motion to
-    intervene, a service-list update: core/relevance) is no change at all: the plant's FERC docket has
-    such filings after its newest History change, and they never become its lastChange."""
-    rows = copied_rows(
+    records = copied_rows(
         """SELECT * FROM event WHERE subject_type = 'plant' AND subject_id = %s AND status = 'published'
                 AND event_date <= CURRENT_DATE ORDER BY event_date DESC, learned_at DESC, id DESC""",
         (OH_FLAGSHIP,),
     )
-    records = [r for r in rows if not is_procedural(r["title"], material=r["material"])]
     history_newest = newest_fact_change(OH_FLAGSHIP)
-    procedural_newer = [r for r in rows if r not in records and r["event_date"] > history_newest]
+    newer = [r for r in records if r["event_date"] > history_newest]
     older = [r for r in records if r["event_date"] < history_newest]
-    assert procedural_newer and older, "procedural filings after, and records before, the newest History change"
-    assert not [r for r in records if r["event_date"] > history_newest]
-    # The newest History change is the plant's lastChange, on the row and the detail page alike.
+    assert newer and older, "FERC records both after and before the plant's newest History change"
+    # The newest record is the plant's lastChange, on the row and the detail page alike.
     row = build("plant_row", OH_FLAGSHIP)["lastChange"]
-    assert row["date"] == history_newest.isoformat()
+    assert row == event_evidence(records[0])
     assert build("plant_detail", OH_FLAGSHIP)["lastChange"] == row
-    history = build("plant_detail", OH_FLAGSHIP)["history"]
-    assert all(h["after"] != r["title"] for h in history for r in procedural_newer)
-    # The older records never pull it back, with all of them present or with only the oldest one.
+    # Without the newer records the History change is the newest; the older records never pull it back,
+    # with all of them present or with only the oldest one.
+    without_newer = build("plant_row", OH_FLAGSHIP, without_events=[r["id"] for r in newer])["lastChange"]
+    assert without_newer["date"] == history_newest.isoformat()
     only_oldest = [r["id"] for r in records if r["id"] != older[-1]["id"]]
-    assert build("plant_row", OH_FLAGSHIP, without_events=only_oldest)["lastChange"] == row
-    assert build("plant_row", OH_FLAGSHIP, without_events=[r["id"] for r in records])["lastChange"] == row
+    assert build("plant_row", OH_FLAGSHIP, without_events=only_oldest)["lastChange"] == without_newer
+    assert build("plant_row", OH_FLAGSHIP, without_events=[r["id"] for r in records])["lastChange"] == without_newer

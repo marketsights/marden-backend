@@ -7,8 +7,7 @@ text names the site, its project, campus, plant, SPV or a chain party, or its do
 a chain party's SEC filing, the source of the site's debt terms). A permit, interconnection or queue
 record of the site's own plant or campus, and the site's own flagged schedule step (catalyst), are
 about the site by construction. Left out whatever they say: market-wide prints (capacity auction
-results, GPU spot prices '$1.99/hr'); procedural docket filings (a service-list update, a notice of
-appearance, a bare motion to intervene: core/relevance); a regulator order, county agenda or press item that names none
+results, GPU spot prices '$1.99/hr'); a regulator order, county agenda or press item that names none
 of the above is noise for this site.
 
 Among the records that count: the latest material event (approved, judged material by the archive,
@@ -26,7 +25,6 @@ from datetime import date
 from typing import Any
 
 from marden.core.db import Conn, Row
-from marden.core.relevance import procedural_reason
 from marden.readmodels.context import known_fact_rows
 from marden.readmodels.views.sites_common import (
     Doc,
@@ -35,7 +33,6 @@ from marden.readmodels.views.sites_common import (
     event_evidence,
     fact_evidence,
     material_events,
-    relevant_events,
     severity,
     site_row,
 )
@@ -66,12 +63,11 @@ def linked_events(conn: Conn, subject_type: str, ids: Sequence[str]) -> list[Row
     """Published events of the site's campuses or plants Marden knew by the build date, past-dated."""
     if not ids:
         return []
-    rows = conn.execute(
+    return conn.execute(
         """SELECT * FROM event WHERE subject_type = %s AND subject_id = ANY(%s) AND status = 'published'
              AND learned_at < %s AND event_date <= %s ORDER BY event_date DESC, id DESC""",
         (subject_type, list(ids), day_end(), day()),
     ).fetchall()
-    return relevant_events(conn, subject_type, rows)  # procedural docket filings are not evidence
 
 
 def market_print(kind: str, *texts: str | None) -> bool:
@@ -100,8 +96,7 @@ def research_candidates(conn: Conn, slug: str, names: SiteNames) -> list[Candida
         when, text, url = v.get("date"), v.get("headline"), v.get("url") or row.get("source_url") or ""
         if not (isinstance(when, str) and DAY.fullmatch(when) and isinstance(text, str) and text and url):
             continue  # undated ('2026'), headless or document-less items are not a dated record
-        if when > day().isoformat() or market_print("", text, row.get("quote"), v.get("summary")) \
-                or procedural_reason(text) is not None:
+        if when > day().isoformat() or market_print("", text, row.get("quote"), v.get("summary")):
             continue
         strength = names.strength(url, text, row.get("quote"), v.get("summary"))
         if strength is None:

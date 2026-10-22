@@ -23,6 +23,7 @@ from typing import Any
 from marden.core.db import Conn, Row
 from marden.core.facts import sourced
 from marden.core.licensing import show_unlicensed_prices, unlicensed_source_names
+from marden.models.mark_gap_inputs import TRANCHE_PARENTS
 from marden.readmodels.context import BUSINESS_TZ, build_date, is_backfill
 
 SOURCED_KEYS = ("value", "tag", "sourceUrl", "sourceName", "asOf", "methodVersion")
@@ -219,14 +220,16 @@ def filed_marks(rows: Sequence[Row]) -> list[Row]:
 def holder_lines(conn: Conn, instrument_id: str) -> list[Row]:
     """Each fund's lines of this instrument in its latest filing known by the build date, kept only
     when that filing is also the fund's newest known filing (a fund whose newer filing no longer
-    lists the instrument no longer holds it). N-PORT and BDC filings only."""
+    lists the instrument no longer holds it). N-PORT and BDC filings only. A package's lines include its
+    tranches' (fact `tranche_of`, marden.models.mark_gap_inputs)."""
     known = (
         " h.period_end <= %(day)s AND (h.filed_at IS NULL OR h.filed_at <= %(day)s)"
         " AND h.filing_type = ANY(%(filings)s)" + _known_by_clause("h.learned_at")
     )
     sql = f"""WITH mine AS (
                  SELECT h.*, max(h.period_end) OVER (PARTITION BY h.fund_entity_id) AS fund_last
-                   FROM holding h WHERE h.instrument_id = %(id)s AND {known}),
+                   FROM holding h WHERE {known} AND (h.instrument_id = %(id)s OR h.instrument_id IN (
+                        SELECT t.child FROM ({TRANCHE_PARENTS}) t WHERE t.parent = %(id)s))),
                newest AS (
                  SELECT h.fund_entity_id, max(h.period_end) AS period_end FROM holding h
                   WHERE h.fund_entity_id IN (SELECT fund_entity_id FROM mine) AND {known}

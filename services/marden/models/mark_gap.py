@@ -31,7 +31,7 @@ from marden import cli
 from marden.core.db import Conn
 from marden.core.queue import app
 from marden.models import triggers
-from marden.models.mark_gap_inputs import BDC_LAG_DAYS, Holder, Inputs, Price, load
+from marden.models.mark_gap_inputs import BDC_LAG_DAYS, TRANCHE_PARENTS, Holder, Inputs, Price, load
 from marden.models.pit import NPORT_LAG_DAYS
 from marden.models.sourced import Batch, m_value, method_version, rounded, run_outputs
 from marden.readmodels.deps import via
@@ -199,11 +199,14 @@ def run_keys(keys: list[str], trigger: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------- triggers and schedule
-_HOLDING_INSTRUMENTS = via(
-    """SELECT DISTINCT o.instrument_id FROM holding h JOIN holding o ON o.fund_entity_id = h.fund_entity_id
-        WHERE h.id = %s AND o.instrument_id IS NOT NULL""",
+_HOLDING_INSTRUMENTS = via(  # the fund's instruments and the packages they are tranches of
+    f"""WITH o AS (SELECT DISTINCT o.instrument_id FROM holding h JOIN holding o ON o.fund_entity_id = h.fund_entity_id
+                    WHERE h.id = %s AND o.instrument_id IS NOT NULL)
+        SELECT instrument_id FROM o
+        UNION SELECT t.parent FROM ({TRANCHE_PARENTS}) t JOIN o ON o.instrument_id = t.child""",
     int_id=True,  # holding.id as an integer: the primary key serves the lookup on every holding write
 )
+_TRANCHE_PARENT = via(f"SELECT parent FROM ({TRANCHE_PARENTS}) t WHERE t.child = %s")
 _FUND_INSTRUMENTS = via(
     "SELECT DISTINCT instrument_id FROM holding WHERE fund_entity_id = %s AND instrument_id IS NOT NULL")
 
@@ -214,6 +217,7 @@ def _install_triggers() -> None:
     triggers.model_depends(MODEL, "holding", "@holding", _HOLDING_INSTRUMENTS)
     triggers.model_depends(MODEL, "holding", "mark_price", _HOLDING_INSTRUMENTS)
     triggers.model_depends(MODEL, "entity", "net_assets_usd", _FUND_INSTRUMENTS)
+    triggers.model_depends(MODEL, "instrument", "tranche_of", _TRANCHE_PARENT)
     triggers.register_runner(MODEL, run_keys)
 
 

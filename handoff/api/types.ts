@@ -180,6 +180,8 @@ export interface Holder {
   name: string; filing: 'N-PORT' | '10-Q'; filingUrl: string; filingDate: string;
   parMm: number; lastMark: number; gapPts: number; navHitMm: number; shareOfNav: number;
 }
+/** A lender, arranger or agent of a loan or bond, from a filing (F) or a report (R): `source.value` is its role. */
+export interface Lender { name: string; role: string | null; commitmentUsd?: number; source: Sourced<string> }
 export interface InstrumentDetail extends InstrumentRow {
   facts: string;
   fundMarks: { low: number; high: number; filing: string; date: string } | null; // null = n/d: no fund filing reports it
@@ -189,6 +191,8 @@ export interface InstrumentDetail extends InstrumentRow {
   holders: { count: number; parMm: number; rows: Holder[] };
   stress: { scenario: string; priceAfter: number; change: number; holderNavHitMm: number }[];
   terms: Record<string, Sourced<string>>;
+  termsNotDisclosed?: Record<string, string>; // Terms label -> why it is n/d ("not disclosed in filings checked: ...")
+  lenders?: Lender[];                         // lender group named in filings (F) and reports (R); [] = none named
   payers: { name: string; share: Sourced<number> }[];
   marketCheck: Record<string, Sourced<string>>;
 }

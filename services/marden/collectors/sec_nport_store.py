@@ -1,7 +1,8 @@
 """Database reads and writes for the `sec_nport` collector (medians are in sec_nport_marks).
 
-- `watched_identifiers`: the join keys of our instruments: `instrument.cusip` / `isin` and the
-  published `identifiers` facts (CUSIP, ISIN, LoanX), plus the CUSIP inside a US/CA ISIN.
+- `watched_identifiers`: the join keys of our instruments: `instrument.cusip` / `isin`, the
+  published `identifiers` facts (CUSIP, ISIN, LoanX) and the CUSIPs / ISINs `sec_nport_terms` learned
+  from positions it linked by their filed terms (`nport_link_keys`), plus the CUSIP inside a US/CA ISIN.
 - `ensure_fund`: one `entity` (kind 'fund') per N-PORT series, found by its EDGAR series id, else by
   the entity the holdings seed loader made for the same series (registrant CIK + series name), else
   created with the series id, registrant name and CIK in `meta`. A new series entity is not given
@@ -75,7 +76,8 @@ def watched_identifiers(conn: Conn) -> Watched:
         out.add(r["isin"], r["id"])
     facts = conn.execute(
         """SELECT subject_id, value FROM fact_current
-           WHERE subject_type = 'instrument' AND field = 'identifiers' ORDER BY subject_id"""
+           WHERE subject_type = 'instrument' AND field IN ('identifiers', 'nport_link_keys')
+           ORDER BY subject_id, field"""
     ).fetchall()
     for r in facts:
         if r["subject_id"] not in known or not isinstance(r["value"], list):

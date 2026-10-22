@@ -16,8 +16,9 @@ from marden.models import mark_gap, triggers
 from marden.models.mark_gap_inputs import Holder, Price, line_public_date
 from marden.readmodels.context import business_today
 
-CRWV32, DDTL1, BARN, EUR, JUPITER = "EX-CRWV-104", "EX-CRWV-091", "EX-SALINE-308", "EX-CRWV-105", "EX-JUPITER-190"
-IDS = [CRWV32, DDTL1, BARN, EUR, JUPITER]
+CRWV32, DDTL1, BARN, EUR, ABILENE = "EX-CRWV-104", "EX-CRWV-091", "EX-SALINE-308", "EX-CRWV-105", "EX-ABILENE-000"
+IDS = [CRWV32, DDTL1, BARN, EUR, ABILENE]  # Abilene's bank loan: no fund files it (Jupiter's now has an N-PORT holder)
+VANTAGE, VANTAGE_TX, VANTAGE_WI = "EX-VANTAGE_ORCL-366", "EX-VANTAGE_ORCL-367", "EX-VANTAGE_ORCL-368"
 
 
 @pytest.fixture
@@ -61,7 +62,26 @@ def test_today_lists_the_funds_whose_latest_public_filing_holds_it(copied):
         for h in out[iid]["holders"]:
             assert date.fromisoformat(h["filingDate"]) + timedelta(days=60 if h["filing"] == "N-PORT" else 0) <= today
             assert h["filing"] in ("N-PORT", "10-Q") and h["filingUrl"].startswith("https://www.sec.gov/")
-    assert out[JUPITER]["markGap"] == "no fund" and out[JUPITER]["count"] == 0 and out[JUPITER]["holders"] == []
+    assert out[ABILENE]["markGap"] == "no fund" and out[ABILENE]["count"] == 0 and out[ABILENE]["holders"] == []
+
+
+def test_a_package_counts_the_holders_of_its_tranches(test_database):
+    """The $38B Vantage package (366) has no lines of its own; PGIM's 'VANTAGE ORACLE TX' (367) and 'WI' (368)
+    lines are its tranches (fact tranche_of), so each PGIM fund holding either is a holder of the package, its
+    par the sum of its tranche lines."""
+    copy_model_rows([VANTAGE, VANTAGE_TX, VANTAGE_WI])
+    if not rows("SELECT 1 FROM fact_current WHERE subject_id = %s AND field = 'tranche_of'", (VANTAGE_TX,)):
+        pytest.skip("the tranche facts are not in the source database")
+    out = mark_gap.run(instruments=[VANTAGE, VANTAGE_TX, VANTAGE_WI], trigger="test")["outputs"]
+    assert not rows("SELECT 1 FROM holding WHERE instrument_id = %s", (VANTAGE,))
+    package = {h["name"]: h for h in out[VANTAGE]["holders"]}
+    tranches: dict[str, float] = {}
+    for iid in (VANTAGE_TX, VANTAGE_WI):
+        for h in out[iid]["holders"]:
+            tranches[h["name"]] = tranches.get(h["name"], 0.0) + h["parMm"]
+    assert set(package) == set(tranches) and out[VANTAGE]["count"] == len(tranches) > 0
+    for name, par in tranches.items():
+        assert package[name]["parMm"] == pytest.approx(par, abs=0.01)
 
 
 def test_last_mark_is_the_filed_value_over_par(copied):

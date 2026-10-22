@@ -8,7 +8,8 @@ The row part is `instruments.instrument_row`, so the page agrees with the list. 
   count and par of the funds whose latest filing lists the instrument, and no rows;
 - priceHistory: the Marden daily price (price_obs kind 'marden');
 - recovery: model 'recovery', else the price output's assumed recovery, else the recovery facts (M);
-- stress: model 'stress' rows; terms: the instrument's facts; payers: end-user share facts;
+- stress: model 'stress' rows; terms: the instrument's facts, with termsNotDisclosed (why a missing term is
+  n/d) and lenders (the lender group named in filings and reports); payers: end-user share facts;
 - marketCheck: the issuer's (or the SPV's parent's) bond-implied CDS named for the company, the
   default odds it implies, the tenant's CDS (the price model's inputs), observed
   prices with their sources (dealer quote, last trade, exchange quote, the N-PORT median) and the price
@@ -38,7 +39,15 @@ from marden.readmodels.views.instrument_inputs import (
     output_field,
     price_sourced,
 )
-from marden.readmodels.views.instrument_text import DASH, facts_line, price_text, terms, yield_text
+from marden.readmodels.views.instrument_text import (
+    DASH,
+    facts_line,
+    lenders,
+    price_text,
+    terms,
+    terms_not_disclosed,
+    yield_text,
+)
 from marden.readmodels.views.instruments import gap_rows, instrument_row
 from marden.readmodels.views.recovery_text import recovery_from_facts, recovery_from_output
 
@@ -331,6 +340,13 @@ def price_event(key: str, doc: dict[str, Any]) -> dict[str, Any] | None:
     return {"type": "price", "instrumentId": key, "price": price, "change1w": change}
 
 
+def terms_block(inst: Row, facts: dict[str, Row]) -> dict[str, Any]:
+    """terms, why the missing ones are n/d (termsNotDisclosed) and the lender group (lenders; spec 07)."""
+    shown = terms(inst, facts)
+    group = lenders(facts)
+    return {"terms": shown, "termsNotDisclosed": terms_not_disclosed(facts, shown, group), "lenders": group}
+
+
 @builder("instrument_detail", keys=all_instrument_ids, event=price_event)
 def build_instrument_detail(conn: Conn, key: str) -> dict[str, Any] | None:
     found = instrument_identity(conn, [key])
@@ -348,7 +364,7 @@ def build_instrument_detail(conn: Conn, key: str) -> dict[str, Any] | None:
         "priceHistory": [{"date": iso(r["obs_date"]), "price": round(float(r["price"]), 4)} for r in ctx["series"]],
         "holders": holders(ctx["gap_out"], ctx["lines"]),
         "stress": stress_rows(conn, key),
-        "terms": terms(inst, facts),
+        **terms_block(inst, facts),
         "payers": payers(facts),
         "marketCheck": market_check(
             ctx["price_out"], ctx["observed"], ctx["marks"], entity_names(conn, cds_entities(ctx["price_out"]))

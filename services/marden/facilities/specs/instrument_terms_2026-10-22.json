@@ -1,0 +1,3697 @@
+{
+ "_about": "Instrument terms (issuer, issue date, guarantors, collateral, covenants, lender group) quoted from stored SEC filings (F) and reports (R), and why the rest stays n/d (marden.facilities.terms). Researched 2026-10-22. Applied in order: filed indentures and credit agreements, then reports and prospectuses, then the remaining instruments.",
+ "instruments": [
+  {
+   "id": "EX-APLD-010",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "APLD ComputeCo LLC (indirect subsidiary of Applied Digital Corporation)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315225024479/ex4-1.htm",
+     "quote": [
+      "among APLD ComputeCo LLC, a Delaware limited liability company (the “Issuer”) and an indirect subsidiary of Applied Digital Corporation"
+     ],
+     "valid_from": "2025-11-20",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-11-20",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315225024479/ex4-1.htm",
+     "quote": [
+      "“Issue Date” means November 20, 2025"
+     ],
+     "valid_from": "2025-11-20",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Each of the issuer's subsidiaries as of the issue date: APLD ELN-02 HoldCo LLC, APLD ELN-03 HoldCo LLC, APLD ELN-02 LLC, APLD ELN-03 LLC, APLD ELN-02 LandCo LLC and APLD ELN-03 LandCo LLC; HoldCo (APLD HPC Holdings 2 LLC) pledges its equity in the issuer",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315225024479/ex4-1.htm",
+     "quote": [
+      "“Subsidiary Guarantor” means each of the Issuer’s Subsidiaries as of the Issue Date",
+      "APLD ELN-02 HOLDCO LLC",
+      "APLD ELN-03 HOLDCO LLC",
+      "APLD ELN-02 LLC",
+      "APLD ELN-03 LLC",
+      "APLD ELN-02 LANDCO LLC",
+      "APLD ELN-03 LANDCO LLC",
+      "relating to the pledge by HoldCo of its Equity Interests of the Issuer"
+     ],
+     "valid_from": "2025-11-20",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "The capital stock of the issuer and each subsidiary guarantor, all property of the company parties (now owned or later acquired) and the project accounts, excluding Excluded Property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315225024479/ex4-1.htm",
+     "quote": [
+      "“Collateral” means (a) the Capital Stock of the Issuer and each Subsidiary Guarantor, (b) all Property of the Company Parties, now owned or hereafter acquired, and (c) the Project Accounts; provided that Excluded Property shall not constitute Collateral."
+     ],
+     "valid_from": "2025-11-20",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; lease termination fee mandatory redemption; excess cash flow offer",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315225024479/ex4-1.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "Datacenter Lease Termination Fee Mandatory Redemption",
+      "Excess Cash Flow Offer"
+     ],
+     "valid_from": "2025-11-20",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-APLD-011",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "APLD ComputeCo 2 LLC (indirect subsidiary of Applied Digital Corporation)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/ex4-1.htm",
+     "quote": [
+      "among APLD ComputeCo 2 LLC, a Delaware limited liability company (the “Issuer”) and an indirect subsidiary of Applied Digital Corporation"
+     ],
+     "valid_from": "2026-03-10",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-03-10",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/ex4-1.htm",
+     "quote": [
+      "“Issue Date” means March 10, 2026"
+     ],
+     "valid_from": "2026-03-10",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Each of the issuer's subsidiaries as of the issue date: APLD FAR-01 HoldCo LLC, APLD FAR-02 HoldCo LLC, APLD FAR-01 LLC, APLD FAR-02 LLC, APLD FAR-01 LandCo LLC and APLD FAR-02 LandCo LLC; HoldCo is APLD FAR Holdings LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/ex4-1.htm",
+     "quote": [
+      "“Subsidiary Guarantor” means each of the Issuer’s Subsidiaries as of the Issue Date",
+      "APLD FAR-01 HOLDCO LLC",
+      "APLD FAR-02 HOLDCO LLC",
+      "APLD FAR-01 LLC",
+      "APLD FAR-02 LLC",
+      "APLD FAR-01 LANDCO LLC",
+      "APLD FAR-02 LANDCO LLC",
+      "APLD FAR Holdings LLC, a Delaware limited liability company and the direct parent company of the Issuer (“HoldCo”)"
+     ],
+     "valid_from": "2026-03-10",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "The capital stock of the issuer and each subsidiary guarantor, all property of the company parties (now owned or later acquired) and the project accounts, excluding Excluded Property; escrowed funds secure the notes under the escrow agreement",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/ex4-1.htm",
+     "quote": [
+      "“Collateral” means (a) the Capital Stock of the Issuer and each Subsidiary Guarantor, (b) all Property of the Company Parties, now owned or hereafter acquired and (c) the Project Accounts; provided that Excluded Property shall not constitute Collateral.",
+      "the Escrowed Funds are not “Collateral”, but will be collateral for the Notes as set forth in the Escrow Agreement"
+     ],
+     "valid_from": "2026-03-10",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/ex4-1.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall"
+     ],
+     "valid_from": "2026-03-10",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-APLD-012",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "APLD ComputeCo 3 LLC (indirect subsidiary of Applied Digital Corporation)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226028899/ex4-1.htm",
+     "quote": [
+      "among APLD ComputeCo 3 LLC, a Delaware limited liability company (the “Issuer”) and an indirect subsidiary of Applied Digital Corporation"
+     ],
+     "valid_from": "2026-06-16",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-06-16",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226028899/ex4-1.htm",
+     "quote": [
+      "“Issue Date” means June 16, 2026"
+     ],
+     "valid_from": "2026-06-16",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Each of the issuer's subsidiaries as of the issue date: APLD ELN-04 HoldCo LLC, APLD ELN-04 LLC and APLD ELN-04 LandCo LLC; HoldCo is APLD HPC Holdings 2 LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226028899/ex4-1.htm",
+     "quote": [
+      "“Subsidiary Guarantor” means each of the Issuer’s Subsidiaries as of the Issue Date",
+      "APLD ELN-04 HOLDCO LLC",
+      "APLD ELN-04 LLC",
+      "APLD ELN-04 LANDCO LLC",
+      "APLD HPC Holdings 2 LLC, a Delaware limited liability company and the direct parent company of the Issuer (“HoldCo”)"
+     ],
+     "valid_from": "2026-06-16",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "The capital stock of the issuer and each subsidiary guarantor, all property of the company parties (now owned or later acquired) and the project accounts, excluding Excluded Property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226028899/ex4-1.htm",
+     "quote": [
+      "“Collateral” means (a) the Capital Stock of the Issuer and each Subsidiary Guarantor, (b) all Property of the Company Parties, now owned or hereafter acquired and (c) the Project Accounts; provided that Excluded Property shall not constitute Collateral."
+     ],
+     "valid_from": "2026-06-16",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226028899/ex4-1.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall"
+     ],
+     "valid_from": "2026-06-16",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CIFR-027",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Cipher Compute LLC (wholly-owned indirect subsidiary of Cipher Mining Inc.)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325014692/dp237330_0401.htm",
+     "quote": [
+      "among Cipher Compute LLC, a Delaware limited liability company (the “Issuer”) and wholly-owned indirect subsidiary of Cipher Mining Inc"
+     ],
+     "valid_from": "2025-11-13",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-11-13",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325014692/dp237330_0401.htm",
+     "quote": [
+      "“Issue Date” means November 13, 2025"
+     ],
+     "valid_from": "2025-11-13",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Cipher Barber Lake LLC (subsidiary guarantor); Cipher Songbird LLC (HoldCo) also signs the indenture",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325014692/dp237330_0401.htm",
+     "quote": [
+      "“Subsidiary Guarantor” means Cipher Barber Lake until a successor replaces it",
+      "CIPHER BARBER LAKE LLC",
+      "CIPHER SONGBIRD LLC"
+     ],
+     "valid_from": "2025-11-13",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "The capital stock of the issuer and each company party, all property of the company parties, the Fluidstack lockbox account once established and, during construction, the warrants; excluding Excluded Property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325014692/dp237330_0401.htm",
+     "quote": [
+      "“Collateral” means (a) the Capital Stock of the Issuer and each Company Party, (b) all Property of the Company Parties, now owned or hereafter acquired, (c) if and when established, the Fluidstack Lockbox Account and (d) solely during the Construction Period, the Warrants; provided that Excluded Property shall not constitute Collateral."
+     ],
+     "valid_from": "2025-11-13",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; HoldCo covenant",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325014692/dp237330_0401.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "Special Covenant for HoldCo"
+     ],
+     "valid_from": "2025-11-13",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CIFR-028",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Black Pearl Compute LLC (wholly-owned indirect subsidiary of Cipher Mining Inc.)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001966/dp241421_ex0401.htm",
+     "quote": [
+      "among Black Pearl Compute LLC, a Delaware limited liability company (the “Issuer”) and wholly-owned indirect subsidiary of Cipher Mining Inc"
+     ],
+     "valid_from": "2026-02-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-02-11",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001966/dp241421_ex0401.htm",
+     "quote": [
+      "“Issue Date” means February 11, 2026"
+     ],
+     "valid_from": "2026-02-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Cipher Black Pearl LLC and 11786 Wink LLC (subsidiary guarantors); Black Pearl Holdings LLC (HoldCo) also signs the indenture",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001966/dp241421_ex0401.htm",
+     "quote": [
+      "“Subsidiary Guarantor” means each of Cipher Black Pearl LLC, a Delaware limited liability company and 11786 Wink LLC, a Delaware limited liability company",
+      "BLACK PEARL HOLDINGS LLC"
+     ],
+     "valid_from": "2026-02-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "The capital stock of the issuer and each company party, and all property of the company parties (now owned or later acquired)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001966/dp241421_ex0401.htm",
+     "quote": [
+      "“Collateral” means (a) the Capital Stock of the Issuer and each Company Party and (b) all Property of the Company Parties, now owned or hereafter acquired."
+     ],
+     "valid_from": "2026-02-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; HoldCo covenant",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001966/dp241421_ex0401.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "Special Covenant for HoldCo"
+     ],
+     "valid_from": "2026-02-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CORZ-065",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Core Scientific Finance I LLC (wholly-owned indirect subsidiary of Core Scientific, Inc.)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526208905/d47435dex41.htm",
+     "quote": [
+      "among Core Scientific Finance I LLC, a Delaware limited liability company (the “Issuer”) and wholly-owned indirect subsidiary of Core Scientific, Inc"
+     ],
+     "valid_from": "2026-05-06",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-05-06",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526208905/d47435dex41.htm",
+     "quote": [
+      "“Issue Date” means May 6, 2026"
+     ],
+     "valid_from": "2026-05-06",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Core Scientific Austin LLC, Core Scientific Dalton LLC, Core Scientific Denton LLC, Core Scientific Marble LLC and Core Scientific Muskogee LLC (subsidiary guarantors); Core Scientific Finance Holding LLC is HoldCo",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526208905/d47435dex41.htm",
+     "quote": [
+      "“Subsidiary Guarantors” means each of Core Scientific Austin LLC, a Delaware limited liability company, Core Scientific Dalton LLC, a Delaware limited liability company, Core Scientific Denton LLC, a Delaware limited liability company, Core Scientific Marble LLC, a Delaware limited liability company and Core Scientific Muskogee LLC",
+      "CORE SCIENTIFIC FINANCE HOLDING LLC"
+     ],
+     "valid_from": "2026-05-06",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "The capital stock of the issuer and each company party, and all property of the company parties (now owned or later acquired)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526208905/d47435dex41.htm",
+     "quote": [
+      "“Collateral” means (a) the Capital Stock of the Issuer and each Company Party and (b) all Property of the Company Parties, now owned or hereafter acquired."
+     ],
+     "valid_from": "2026-05-06",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; HoldCo covenant",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526208905/d47435dex41.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "Special Covenant for HoldCo"
+     ],
+     "valid_from": "2026-05-06",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-FLUIDSTACK-156",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Flash Compute LLC (wholly-owned subsidiary of FS CS I LLC, the JV partners' holding company)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925124839/tm2534384d1_ex4-1.htm",
+     "quote": [
+      "among Flash Compute LLC, a Delaware limited liability company (the “Issuer”) and wholly-owned direct subsidiary of FS CS I LLC, a Delaware limited liability company (“JV Partners HoldCo”)"
+     ],
+     "valid_from": "2025-12-29",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-12-29",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925124839/tm2534384d1_ex4-1.htm",
+     "quote": [
+      "“Issue Date” means December 29, 2025"
+     ],
+     "valid_from": "2025-12-29",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Abernathy Data LLC (subsidiary guarantor)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925124839/tm2534384d1_ex4-1.htm",
+     "quote": [
+      "“Subsidiary Guarantor” means Abernathy until a successor replaces it",
+      "ABERNATHY DATA LLC"
+     ],
+     "valid_from": "2025-12-29",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "The capital stock of the issuer and each company party, all property of the company parties, the Fluidstack USA III lockbox account once established, before completion the JV Partners HoldCo account pledge and, during construction, the warrants; excluding Excluded Property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925124839/tm2534384d1_ex4-1.htm",
+     "quote": [
+      "“Collateral” means (a) the Capital Stock of the Issuer and each Company Party, (b) all Property of the Company Parties, now owned or hereafter acquired, (c) if and when established, the Fluidstack USA III Lockbox Account, (d) solely prior to the Completion Date, the JV Partners HoldCo Account Pledge Agreement and (e) solely during the Construction Period, the Warrants; provided that Excluded Property shall not constitute Collateral."
+     ],
+     "valid_from": "2025-12-29",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; Hypertec bond obligation",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925124839/tm2534384d1_ex4-1.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "Hypertec Bond Obligation"
+     ],
+     "valid_from": "2025-12-29",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-WULF-369",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "WULF Compute LLC (wholly-owned indirect subsidiary of TeraWulf Inc.)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925101866/tm2529300d1_ex4-1.htm",
+     "quote": [
+      "among Wulf Compute LLC, a Delaware limited liability company (the “Issuer”) and wholly-owned indirect subsidiary of TeraWulf Inc"
+     ],
+     "valid_from": "2025-10-23",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-10-23",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925101866/tm2529300d1_ex4-1.htm",
+     "quote": [
+      "“Issue Date” means October 23, 2025"
+     ],
+     "valid_from": "2025-10-23",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "La Lupa Data LLC, Akela Data Holdings LLC and Akela Data LLC (subsidiary guarantors); TeraWulf Brookings LLC also signs the indenture",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925101866/tm2529300d1_ex4-1.htm",
+     "quote": [
+      "“Subsidiary Guarantor” means La Lupa, Akela Holdings, and Akela",
+      "LA LUPA DATA LLC",
+      "AKELA DATA HOLDINGS LLC",
+      "AKELA DATA LLC",
+      "TERAWULF BROOKINGS LLC"
+     ],
+     "valid_from": "2025-10-23",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "The capital stock of the issuer and each operating party, all property of the company parties, the Fluidstack lockbox account and, during construction, TeraWulf (parent) equity pledged under the warrant agreements; excluding Excluded Property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925101866/tm2529300d1_ex4-1.htm",
+     "quote": [
+      "“Collateral” means (a) the Capital Stock of the Issuer and each Operating Party, (b) all Property of the Company Parties, now owned or hereafter acquired, (c) the Fluidstack Lockbox Account and (d) during the Construction Period, the Equity Interests of Parent pledged pursuant to the Warrant Agreements; provided that Excluded Property shall not constitute Collateral."
+     ],
+     "valid_from": "2025-10-23",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; TeraWulf Brookings covenant",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1083301/000110465925101866/tm2529300d1_ex4-1.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "Special Covenant for TeraWulf Brookings"
+     ],
+     "valid_from": "2025-10-23",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-GLXY-163",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Galaxy Helios Data Centers II LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000079/closing8-kxex41indenture.htm",
+     "quote": [
+      "among Galaxy Helios Data Centers II LLC, a Delaware limited liability company (the “Issuer”)"
+     ],
+     "valid_from": "2026-07-28",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-07-28",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000079/closing8-kxex41indenture.htm",
+     "quote": [
+      "“Issue Date” means July 28, 2026"
+     ],
+     "valid_from": "2026-07-28",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Galaxy Helios II LLC (the landlord, subsidiary guarantor); Galaxy Helios II Qualified Opportunity Zone Business, LLC is HoldCo",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000079/closing8-kxex41indenture.htm",
+     "quote": [
+      "“Subsidiary Guarantor” means Landlord and each Subsidiary that provides a Subsidiary Guarantee in accordance with Section 4.17",
+      "GALAXY HELIOS II LLC",
+      "Galaxy Helios II Qualified Opportunity Zone Business, LLC, a Delaware limited liability company (“HoldCo”)"
+     ],
+     "valid_from": "2026-07-28",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "All assets securing the notes, including the equity of the issuer and of any subsidiary guarantor held by a company party, all property of the company parties and the project accounts; excluding Excluded Property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000079/closing8-kxex41indenture.htm",
+     "quote": [
+      "“Collateral” means all assets securing or purporting to secure the Notes, including (a) any Equity Interests of the Issuer and any Equity Interests of any Subsidiary Guarantor held by any Company Party, (b) all Property of the Company Parties, now owned or hereafter acquired by the Company Parties, and (c) the Project Accounts; provided that Excluded Property shall not constitute Collateral."
+     ],
+     "valid_from": "2026-07-28",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; no modification of the data center lease",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000079/closing8-kxex41indenture.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "No Modification of Data Center Lease"
+     ],
+     "valid_from": "2026-07-28",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-HUT-171",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Hut 8 DC LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926053247/tm2613163d1_ex4-1.htm",
+     "quote": [
+      "among Hut 8 DC LLC, a Delaware limited liability company (the “Issuer”)"
+     ],
+     "valid_from": "2026-04-30",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-04-30",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926053247/tm2613163d1_ex4-1.htm",
+     "quote": [
+      "“Issue Date” means April 30, 2026"
+     ],
+     "valid_from": "2026-04-30",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "No subsidiary guarantor: the indenture is among Hut 8 DC LLC (issuer), Hut 8 DC Member LLC (HoldCo) and Wilmington Trust, National Association (trustee and collateral agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926053247/tm2613163d1_ex4-1.htm",
+     "quote": [
+      "among Hut 8 DC LLC, a Delaware limited liability company (the “Issuer”), Hut 8 DC Member LLC, a Delaware limited liability company (“HoldCo”), and Wilmington Trust, National Association, as trustee and collateral agent"
+     ],
+     "valid_from": "2026-04-30",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "All assets securing the notes, including the equity of the issuer, all property of the issuer and the project accounts; excluding Excluded Property and the Adjacent Property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926053247/tm2613163d1_ex4-1.htm",
+     "quote": [
+      "“Collateral” means all assets securing or purporting to secure the Notes, including (a) any Equity Interests of the Issuer, (b) all Property of the Issuer, now owned or hereafter acquired by the Issuer, and (c) the Project Accounts; provided that Excluded Property and the Adjacent Property shall not constitute Collateral."
+     ],
+     "valid_from": "2026-04-30",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; HoldCo negative covenant",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926053247/tm2613163d1_ex4-1.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "HoldCo Negative Covenant"
+     ],
+     "valid_from": "2026-04-30",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-HUT-172",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Beacon Point DC LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926071952/tm2617190d1_ex4-1.htm",
+     "quote": [
+      "among Beacon Point DC LLC, a Delaware limited liability company (the “Issuer”)"
+     ],
+     "valid_from": "2026-06-09",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-06-09",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926071952/tm2617190d1_ex4-1.htm",
+     "quote": [
+      "“Issue Date” means June 9, 2026"
+     ],
+     "valid_from": "2026-06-09",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "No subsidiary guarantor: the indenture is among Beacon Point DC LLC (issuer), Beacon Point Holding LLC (HoldCo) and Wilmington Trust, National Association (trustee and collateral agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926071952/tm2617190d1_ex4-1.htm",
+     "quote": [
+      "among Beacon Point DC LLC, a Delaware limited liability company (the “Issuer”), Beacon Point Holding LLC, a Delaware limited liability company (“HoldCo”), and Wilmington Trust, National Association, as trustee and collateral agent"
+     ],
+     "valid_from": "2026-06-09",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "All assets securing the notes, including the equity of the issuer, all property of the issuer and the project accounts; excluding Excluded Property and the Adjacent Property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926071952/tm2617190d1_ex4-1.htm",
+     "quote": [
+      "“Collateral” means all assets securing or purporting to secure the Notes, including (a) any Equity Interests of the Issuer, (b) all Property of the Issuer, now owned or hereafter acquired by the Issuer, and (c) the Project Accounts; provided that Excluded Property and the Adjacent Property shall not constitute Collateral."
+     ],
+     "valid_from": "2026-06-09",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: limitation on debt; restricted payments; liens; change-of-control repurchase offer; asset sales and casualty events; transactions with affiliates; special-purpose-entity covenants; debt service reserve account; project accounts and cash waterfall; HoldCo negative covenant",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926071952/tm2617190d1_ex4-1.htm",
+     "quote": [
+      "Limitation on Debt",
+      "Limitation on Restricted Payments",
+      "Limitation on Liens",
+      "Offer to Repurchase Upon a Change of Control",
+      "Asset Sales and Casualty Events",
+      "Transactions with Affiliates",
+      "Special Purpose Entity",
+      "Debt Service Reserve Account",
+      "Project Accounts; Cash Waterfall",
+      "HoldCo Negative Covenant"
+     ],
+     "valid_from": "2026-06-09",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-102",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525165924/d73657dex41.htm",
+     "quote": [
+      "among COREWEAVE, INC"
+     ],
+     "valid_from": "2025-07-25",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-07-25",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525165924/d73657dex41.htm",
+     "quote": [
+      "“Issue Date” means July 25, 2025"
+     ],
+     "valid_from": "2025-07-25",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave Cash Management LLC, CoreWeave Debt HoldCo I, LLC and Weights and Biases, LLC (guarantors on the signature pages); later any restricted subsidiary that guarantees the notes",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525165924/d73657dex41.htm",
+     "quote": [
+      "COREWEAVE CASH MANAGEMENT LLC",
+      "COREWEAVE DEBT HOLDCO I, LLC",
+      "WEIGHTS AND BIASES, LLC",
+      "“Guarantor” means any Restricted Subsidiary that Guarantees the Notes"
+     ],
+     "valid_from": "2025-07-25",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "Unsecured: the notes are senior unsecured obligations of CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525165924/d73657dex41.htm",
+     "quote": [
+      "The Notes are senior unsecured obligations of the Company."
+     ],
+     "valid_from": "2025-07-25",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article III covenants: limitation on indebtedness, restricted payments, restrictions on distributions from restricted subsidiaries, sales of assets and subsidiary stock, liens, guarantees and affiliate transactions; change of control; some covenants terminate on investment grade status",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525165924/d73657dex41.htm",
+     "quote": [
+      "Limitation on Indebtedness",
+      "Limitation on Restricted Payments",
+      "Limitation on Restrictions on Distributions from Restricted Subsidiaries",
+      "Limitation on Sales of Assets and Subsidiary Stock",
+      "Limitation on Liens",
+      "Limitation on Guarantees",
+      "Limitation on Affiliate Transactions",
+      "Change of Control",
+      "Termination of Certain Covenants on Achievement of Investment Grade Status"
+     ],
+     "valid_from": "2025-07-25",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ],
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   }
+  },
+  {
+   "id": "EX-CRWV-103",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex41.htm",
+     "quote": [
+      "among COREWEAVE, INC"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-04-14",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex41.htm",
+     "quote": [
+      "“Issue Date” means April 14, 2026"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave Cash Management LLC, CoreWeave Debt HoldCo I, LLC and Weights and Biases, LLC (guarantors on the signature pages); later any restricted subsidiary that guarantees the notes",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex41.htm",
+     "quote": [
+      "COREWEAVE CASH MANAGEMENT LLC",
+      "COREWEAVE DEBT HOLDCO I, LLC",
+      "WEIGHTS AND BIASES, LLC",
+      "“Guarantor” means any Restricted Subsidiary that Guarantees the Notes"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "Unsecured: the notes are senior unsecured obligations of CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex41.htm",
+     "quote": [
+      "The Notes are senior unsecured obligations of the Company."
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article III covenants: limitation on indebtedness, restricted payments, restrictions on distributions from restricted subsidiaries, sales of assets and subsidiary stock, liens, guarantees and affiliate transactions; change of control; some covenants terminate on investment grade status",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex41.htm",
+     "quote": [
+      "Limitation on Indebtedness",
+      "Limitation on Restricted Payments",
+      "Limitation on Restrictions on Distributions from Restricted Subsidiaries",
+      "Limitation on Sales of Assets and Subsidiary Stock",
+      "Limitation on Liens",
+      "Limitation on Guarantees",
+      "Limitation on Affiliate Transactions",
+      "Change of Control",
+      "Termination of Certain Covenants on Achievement of Investment Grade Status"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ],
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   }
+  },
+  {
+   "id": "EX-CRWV-104",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit41.htm",
+     "quote": [
+      "among COREWEAVE, INC"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-06-18",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit41.htm",
+     "quote": [
+      "“Issue Date” means June 18, 2026"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave Cash Management LLC, CoreWeave Debt HoldCo I, LLC and Weights and Biases, LLC (guarantors on the signature pages); later any restricted subsidiary that guarantees the notes",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit41.htm",
+     "quote": [
+      "COREWEAVE CASH MANAGEMENT LLC",
+      "COREWEAVE DEBT HOLDCO I, LLC",
+      "WEIGHTS AND BIASES, LLC",
+      "“Guarantor” means any Restricted Subsidiary that Guarantees the Notes"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "Unsecured: the notes are senior unsecured obligations of CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit41.htm",
+     "quote": [
+      "The Notes are senior unsecured obligations of the Company."
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article III covenants: limitation on indebtedness, restricted payments, restrictions on distributions from restricted subsidiaries, sales of assets and subsidiary stock, liens, guarantees and affiliate transactions; change of control; some covenants terminate on investment grade status",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit41.htm",
+     "quote": [
+      "Limitation on Indebtedness",
+      "Limitation on Restricted Payments",
+      "Limitation on Restrictions on Distributions from Restricted Subsidiaries",
+      "Limitation on Sales of Assets and Subsidiary Stock",
+      "Limitation on Liens",
+      "Limitation on Guarantees",
+      "Limitation on Affiliate Transactions",
+      "Change of Control",
+      "Termination of Certain Covenants on Achievement of Investment Grade Status"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ],
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   }
+  },
+  {
+   "id": "EX-CRWV-105",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit43.htm",
+     "quote": [
+      "among COREWEAVE, INC"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-06-18",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit43.htm",
+     "quote": [
+      "“Issue Date” means June 18, 2026"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave Cash Management LLC, CoreWeave Debt HoldCo I, LLC and Weights and Biases, LLC (guarantors on the signature pages); later any restricted subsidiary that guarantees the notes",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit43.htm",
+     "quote": [
+      "COREWEAVE CASH MANAGEMENT LLC",
+      "COREWEAVE DEBT HOLDCO I, LLC",
+      "WEIGHTS AND BIASES, LLC",
+      "“Guarantor” means any Restricted Subsidiary that Guarantees the Notes"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "Unsecured: the notes are senior unsecured obligations of CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit43.htm",
+     "quote": [
+      "The Notes are senior unsecured obligations of the Company."
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article III covenants: limitation on indebtedness, restricted payments, restrictions on distributions from restricted subsidiaries, sales of assets and subsidiary stock, liens, guarantees and affiliate transactions; change of control; some covenants terminate on investment grade status",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/exhibit43.htm",
+     "quote": [
+      "Limitation on Indebtedness",
+      "Limitation on Restricted Payments",
+      "Limitation on Restrictions on Distributions from Restricted Subsidiaries",
+      "Limitation on Sales of Assets and Subsidiary Stock",
+      "Limitation on Liens",
+      "Limitation on Guarantees",
+      "Limitation on Affiliate Transactions",
+      "Change of Control",
+      "Termination of Certain Covenants on Achievement of Investment Grade Status"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-106",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/exhibit41-indenture.htm",
+     "quote": [
+      "among COREWEAVE, INC"
+     ],
+     "valid_from": "2025-12-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-12-11",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/exhibit41-indenture.htm",
+     "quote": [
+      "INDENTURE dated as of December 11, 2025"
+     ],
+     "valid_from": "2025-12-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave Cash Management LLC, CoreWeave Debt HoldCo I, LLC and Weights and Biases, LLC (guarantors on the signature pages), and future guarantors that sign a supplemental indenture",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/exhibit41-indenture.htm",
+     "quote": [
+      "COREWEAVE CASH MANAGEMENT LLC",
+      "COREWEAVE DEBT HOLDCO I, LLC",
+      "WEIGHTS AND BIASES, LLC",
+      "“Guarantor” means each Subsidiary of the Company that is listed as a Guarantor on the signature pages hereof"
+     ],
+     "valid_from": "2025-12-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "Unsecured: the indenture creates no security interest",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/exhibit41-indenture.htm",
+     "quote": [
+      "No Security Interest Created"
+     ],
+     "valid_from": "2025-12-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: payment of principal and interest, office or agency, existence, Rule 144A information and annual reports, compliance certificate; merger conditions (Article 11); holders' repurchase right on a fundamental change (Article 14)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/exhibit41-indenture.htm",
+     "quote": [
+      "Particular Covenants of the Company",
+      "Payment of Principal and Interest",
+      "Rule 144A Information Requirement and Annual Reports",
+      "Repurchase at Option of Holders Upon a Fundamental Change",
+      "Company May Consolidate, Etc. on Certain Terms",
+      "No Security Interest Created"
+     ],
+     "valid_from": "2025-12-11",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-107",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex43.htm",
+     "quote": [
+      "among COREWEAVE, INC"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-04-14",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex43.htm",
+     "quote": [
+      "INDENTURE dated as of April 14, 2026"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave Cash Management LLC, CoreWeave Debt HoldCo I, LLC and Weights and Biases, LLC (guarantors on the signature pages), and future guarantors that sign a supplemental indenture",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex43.htm",
+     "quote": [
+      "COREWEAVE CASH MANAGEMENT LLC",
+      "COREWEAVE DEBT HOLDCO I, LLC",
+      "WEIGHTS AND BIASES, LLC",
+      "“Guarantor” means each Subsidiary of the Company that is listed as a Guarantor on the signature pages hereof"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "Unsecured: the indenture creates no security interest",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex43.htm",
+     "quote": [
+      "No Security Interest Created"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: payment of principal and interest, office or agency, existence, Rule 144A information and annual reports, compliance certificate; merger conditions (Article 11); holders' repurchase right on a fundamental change (Article 14)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/ex43.htm",
+     "quote": [
+      "Particular Covenants of the Company",
+      "Payment of Principal and Interest",
+      "Rule 144A Information Requirement and Annual Reports",
+      "Repurchase at Option of Holders Upon a Fundamental Change",
+      "Company May Consolidate, Etc. on Certain Terms",
+      "No Security Interest Created"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-108",
+   "replaces": {
+    "issuer_name": "legal name from the indenture replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave, Inc.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/ex41-indenture.htm",
+     "quote": [
+      "among COREWEAVE, INC"
+     ],
+     "valid_from": "2026-09-22",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-09-22",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/ex41-indenture.htm",
+     "quote": [
+      "INDENTURE dated as of September 22, 2026"
+     ],
+     "valid_from": "2026-09-22",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave Cash Management LLC, CoreWeave Debt HoldCo I, LLC and Weights and Biases, LLC (guarantors on the signature pages), and future guarantors that sign a supplemental indenture",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/ex41-indenture.htm",
+     "quote": [
+      "COREWEAVE CASH MANAGEMENT LLC",
+      "COREWEAVE DEBT HOLDCO I, LLC",
+      "WEIGHTS AND BIASES, LLC",
+      "“Guarantor” means each Subsidiary of the Company that is listed as a Guarantor on the signature pages hereof"
+     ],
+     "valid_from": "2026-09-22",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "Unsecured: the indenture creates no security interest",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/ex41-indenture.htm",
+     "quote": [
+      "No Security Interest Created"
+     ],
+     "valid_from": "2026-09-22",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 4 covenants: payment of principal and interest, office or agency, existence, Rule 144A information and annual reports, compliance certificate; merger conditions (Article 11); holders' repurchase right on a fundamental change (Article 14)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/ex41-indenture.htm",
+     "quote": [
+      "Particular Covenants of the Company",
+      "Payment of Principal and Interest",
+      "Rule 144A Information Requirement and Annual Reports",
+      "Repurchase at Option of Holders Upon a Fundamental Change",
+      "Company May Consolidate, Etc. on Certain Terms",
+      "No Security Interest Created"
+     ],
+     "valid_from": "2026-09-22",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-091",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave Compute Acquisition Co. II, LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex108.htm",
+     "quote": [
+      "COREWEAVE COMPUTE ACQUISITION CO. II, LLC, as Borrower"
+     ],
+     "valid_from": "2023-07-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2023-07-30",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex108.htm",
+     "quote": [
+      "CREDIT AGREEMENT dated as of July 30, 2023"
+     ],
+     "valid_from": "2023-07-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave, Inc. (Parent) under the Parent Guarantee and Pledge Agreement with the collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex108.htm",
+     "quote": [
+      "“Parent Guarantee and Pledge Agreement” shall mean that certain Parent Guarantee and Pledge Agreement, dated as of the date hereof, by and among Parent and the Collateral Agent",
+      "“Parent” shall mean CoreWeave"
+     ],
+     "valid_from": "2023-07-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article VI negative covenants: indebtedness, liens, investments, mergers and asset sales, restricted payments, affiliate transactions, negative pledges, material project contracts; minimum liquidity",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex108.htm",
+     "quote": [
+      "Indebtedness",
+      "Liens",
+      "Investments, Loans and Advances",
+      "Mergers, Consolidations, Sales of Assets and Acquisitions",
+      "Restricted Payments",
+      "Transactions with Affiliates",
+      "Negative Pledge Agreements",
+      "Material Project Contracts",
+      "Minimum Liquidity"
+     ],
+     "valid_from": "2023-07-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_blackstone_tactical_opportunities_advisors_l_l_c",
+     "value": {
+      "name": "Blackstone Tactical Opportunities Advisors L.L.C.",
+      "role": "lead arranger and lead lender"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex108.htm",
+     "quote": [
+      "Blackstone Tactical Opportunities Advisors L.L.C. and Imperial Capital LLC, as Lead Arrangers"
+     ],
+     "valid_from": "2023-07-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_imperial_capital_llc",
+     "value": {
+      "name": "Imperial Capital LLC",
+      "role": "lead arranger and bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex108.htm",
+     "quote": [
+      "Imperial Capital LLC, as Bookrunner"
+     ],
+     "valid_from": "2023-07-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_magnetar_financial_llc",
+     "value": {
+      "name": "Magnetar Financial LLC",
+      "role": "lead lender (for funds it manages)"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex108.htm",
+     "quote": [
+      "Magnetar Financial LLC, on behalf of certain funds and entities for which it acts as investment manager, general partner or manager, as Lead Lenders"
+     ],
+     "valid_from": "2023-07-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_u_s_bank_trust_company_national_association",
+     "value": {
+      "name": "U.S. Bank Trust Company, National Association",
+      "role": "administrative agent and collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex108.htm",
+     "quote": [
+      "U.S. BANK TRUST COMPANY, NATIONAL ASSOCIATION, as Administrative Agent and Collateral Agent"
+     ],
+     "valid_from": "2023-07-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-092",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave Compute Acquisition Co. IV, LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex1013.htm",
+     "quote": [
+      "COREWEAVE COMPUTE ACQUISITION CO., IV, LLC, as Borrower"
+     ],
+     "valid_from": "2024-05-16",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2024-05-16",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex1013.htm",
+     "quote": [
+      "CREDIT AGREEMENT dated as of May 16, 2024"
+     ],
+     "valid_from": "2024-05-16",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave, Inc. (Parent) under the Parent Guarantee and Pledge Agreement with the collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex1013.htm",
+     "quote": [
+      "“Parent Guarantee and Pledge Agreement” shall mean that certain Parent Guarantee and Pledge Agreement, dated as of the date hereof, by and among Parent and the Collateral Agent",
+      "“Parent” shall mean CoreWeave"
+     ],
+     "valid_from": "2024-05-16",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article VI negative covenants: indebtedness, liens, investments, mergers and asset sales, restricted payments, affiliate transactions, negative pledges, material project contracts; financial covenants (Section 6.12)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex1013.htm",
+     "quote": [
+      "Indebtedness",
+      "Liens",
+      "Investments, Loans and Advances",
+      "Mergers, Consolidations, Sales of Assets and Acquisitions",
+      "Restricted Payments",
+      "Transactions with Affiliates",
+      "Negative Pledge Agreements",
+      "Material Project Contracts",
+      "Section 6.12. Financial Covenants"
+     ],
+     "valid_from": "2024-05-16",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_blackstone_tactical_opportunities_advisors_l_l_c",
+     "value": {
+      "name": "Blackstone Tactical Opportunities Advisors L.L.C.",
+      "role": "lead lender and co-lead investor"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex1013.htm",
+     "quote": [
+      "Blackstone Tactical Opportunities Advisors L.L.C., Blackstone Alternative Credit Advisors LP, Blackstone Private Investments Advisors L.L.C. and Blackstone Alternative Solutions L.L.C., as Lead Lenders and Co-Lead Investors"
+     ],
+     "valid_from": "2024-05-16",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_blackstone_alternative_credit_advisors_lp",
+     "value": {
+      "name": "Blackstone Alternative Credit Advisors LP",
+      "role": "lead lender and co-lead investor"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex1013.htm",
+     "quote": [
+      "Blackstone Alternative Credit Advisors LP, Blackstone Private Investments Advisors L.L.C. and Blackstone Alternative Solutions L.L.C., as Lead Lenders and Co-Lead Investors"
+     ],
+     "valid_from": "2024-05-16",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_magnetar_financial_llc",
+     "value": {
+      "name": "Magnetar Financial LLC",
+      "role": "co-lead investor"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex1013.htm",
+     "quote": [
+      "Magnetar Financial LLC, as Co-Lead Investors"
+     ],
+     "valid_from": "2024-05-16",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_u_s_bank_trust_company_national_association",
+     "value": {
+      "name": "U.S. Bank Trust Company, National Association",
+      "role": "administrative agent and collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798dex1013.htm",
+     "quote": [
+      "U.S. BANK TRUST COMPANY, NATIONAL ASSOCIATION, as Administrative Agent and Collateral Agent"
+     ],
+     "valid_from": "2024-05-16",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-094",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave Compute Acquisition Co. VII, LLC (initial borrower) with CoreWeave Compute Acquisition Co. V, LLC (co-borrower)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "COREWEAVE COMPUTE ACQUISITION CO. VII, LLC, as the Initial Borrower, COREWEAVE COMPUTE ACQUISITION CO. V, LLC, as the Co-Borrower"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-07-28",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "CREDIT AGREEMENT dated as of July 28, 2025"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave, Inc. (Parent) under the Parent Guarantee and Pledge Agreement (with CCAC VII Holdco LLC as pledgor), until the Parent Guarantee Fallaway Conditions are met, the first being an investment grade rating for OpenAI OpCo, LLC from S&P and Moody's",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "“Parent Guarantee and Pledge Agreement” shall mean that certain Parent Guarantee and Pledge Agreement, dated as of the date hereof, by and among Parent, the Pledgor and the Collateral Agent",
+      "“Pledgor” shall mean CCAC VII Holdco LLC",
+      "“Parent Guarantee Fallaway Conditions” shall mean the first date on which the following conditions are satisfied",
+      "OpenAI OpCo, LLC (or its successor under the Master Services Agreement) (“IG OpenAI Entity”) achieves a public Investment Grade Rating by S&P and Moody’s"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article VI negative covenants: indebtedness, liens, investments, mergers and asset sales, restricted payments, affiliate transactions, negative pledges, material project contracts; swap agreements; financial covenants (Section 6.12)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "Indebtedness",
+      "Liens",
+      "Investments, Loans and Advances",
+      "Mergers, Consolidations, Sales of Assets and Acquisitions",
+      "Restricted Payments",
+      "Transactions with Affiliates",
+      "Negative Pledge Agreements",
+      "Material Project Contracts",
+      "Swap Agreements",
+      "Section 6.12. Financial Covenants"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_mufg_bank_ltd",
+     "value": {
+      "name": "MUFG Bank, Ltd.",
+      "role": "administrative agent, joint lead arranger and joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "MUFG BANK, LTD., as Administrative Agent"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_morgan_stanley_asset_funding_inc",
+     "value": {
+      "name": "Morgan Stanley Asset Funding, Inc.",
+      "role": "joint lead arranger and joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "MORGAN STANLEY ASSET FUNDING, INC., and MUFG BANK, LTD. as Joint Lead Arrangers and Joint Bookrunners"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_goldman_sachs_bank_usa",
+     "value": {
+      "name": "Goldman Sachs Bank USA",
+      "role": "joint lead arranger"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "GOLDMAN SACHS BANK USA, as Joint Lead Arranger"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_jpmorgan_chase_bank_n_a",
+     "value": {
+      "name": "JPMorgan Chase Bank, N.A.",
+      "role": "senior managing agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "JPMORGAN CHASE BANK, N.A., WELLS FARGO BANK, N.A., BANCO BILBAO VIZCAYA ARGENTARIA, S.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, as Senior Managing Agents"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_wells_fargo_bank_n_a",
+     "value": {
+      "name": "Wells Fargo Bank, N.A.",
+      "role": "senior managing agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "WELLS FARGO BANK, N.A., BANCO BILBAO VIZCAYA ARGENTARIA, S.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, as Senior Managing Agents"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_banco_bilbao_vizcaya_argentaria_s_a",
+     "value": {
+      "name": "Banco Bilbao Vizcaya Argentaria, S.A.",
+      "role": "senior managing agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "BANCO BILBAO VIZCAYA ARGENTARIA, S.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, as Senior Managing Agents"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_credit_agricole_corporate_and_investment_bank",
+     "value": {
+      "name": "Credit Agricole Corporate and Investment Bank",
+      "role": "senior managing agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, as Senior Managing Agents"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_sumitomo_mitsui_banking_corporation",
+     "value": {
+      "name": "Sumitomo Mitsui Banking Corporation",
+      "role": "managing agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "SUMITOMO MITSUI BANKING CORPORATION, as Managing Agent"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_u_s_bank_trust_company_national_association",
+     "value": {
+      "name": "U.S. Bank Trust Company, National Association",
+      "role": "collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000033/coreweave30-ex101xtermlo.htm",
+     "quote": [
+      "U.S. BANK TRUST COMPANY, NATIONAL ASSOCIATION, as Collateral Agent"
+     ],
+     "valid_from": "2025-07-28",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-095",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave Compute Acquisition Co. VIII, LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "COREWEAVE COMPUTE ACQUISITION CO. VIII, LLC, as the Borrower"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-03-30",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "CREDIT AGREEMENT dated as of March 30, 2026"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "The borrower's subsidiary guarantors under the collateral agreement; CCAC VIII Holdco LLC pledges the borrower's equity",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "“Collateral Agreement” shall mean a Collateral Agreement among the Borrower, the Subsidiary Guarantors",
+      "“Pledgor” shall mean CCAC VIII Holdco LLC"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Negative covenants incl. indebtedness, liens, restricted payments and affiliate transactions; financial covenants: debt service coverage ratio not below 1.15:1.00 (three-month, tested monthly) and minimum liquidity",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "the Borrower will not permit the Debt Service Coverage Ratio for the most recently ended three full fiscal month period to be less than 1.15:1.00",
+      "Minimum Liquidity Covenant"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_mufg_bank_ltd",
+     "value": {
+      "name": "MUFG Bank, Ltd.",
+      "role": "administrative agent, coordinating lead arranger, joint bookrunner and structuring agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "MUFG BANK, LTD., as Administrative Agent"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_morgan_stanley_asset_funding_inc",
+     "value": {
+      "name": "Morgan Stanley Asset Funding, Inc.",
+      "role": "coordinating lead arranger, joint bookrunner and structuring agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "MORGAN STANLEY ASSET FUNDING, INC. and MUFG BANK, LTD., as Coordinating Lead Arrangers and Joint Bookrunners"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_goldman_sachs_bank_usa",
+     "value": {
+      "name": "Goldman Sachs Bank USA",
+      "role": "coordinating lead arranger"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "GOLDMAN SACHS BANK USA and JPMORGAN CHASE BANK, N.A., as Coordinating Lead Arrangers"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_jpmorgan_chase_bank_n_a",
+     "value": {
+      "name": "JPMorgan Chase Bank, N.A.",
+      "role": "coordinating lead arranger"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "GOLDMAN SACHS BANK USA and JPMORGAN CHASE BANK, N.A., as Coordinating Lead Arrangers"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_u_s_bank_trust_company_national_association",
+     "value": {
+      "name": "U.S. Bank Trust Company, National Association",
+      "role": "collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000129/ex1011.htm",
+     "quote": [
+      "U.S. BANK TRUST COMPANY, NATIONAL ASSOCIATION, as Collateral Agent"
+     ],
+     "valid_from": "2026-03-30",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-096",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave Financing DDTL V, LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "COREWEAVE FINANCING DDTL V, LLC, as the Borrower"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-05-15",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CREDIT AGREEMENT dated as of May 15, 2026"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave, Inc. (Parent) under the Parent Guarantee and Pledge Agreement, with CW Financing DDTL V Holdco, LLC as pledgor",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "“Parent Guarantee and Pledge Agreement” shall mean that certain Parent Guarantee and Pledge Agreement, dated as of the date hereof, by and among the Parent, the Pledgor and the Collateral Agent",
+      "“Pledgor” shall mean CW Financing DDTL V Holdco, LLC"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Negative covenants incl. indebtedness, liens, restricted payments and affiliate transactions; financial covenants: debt service coverage ratio not below 1.35:1.00 (three-month, tested monthly) and minimum liquidity",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "the Borrower will not permit the Debt Service Coverage Ratio for the most recently ended three full fiscal month period to be less than 1.35:1.00",
+      "Minimum Liquidity Covenant"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_morgan_stanley_senior_funding_inc",
+     "value": {
+      "name": "Morgan Stanley Senior Funding, Inc.",
+      "role": "administrative agent, joint lead arranger, joint bookrunner and syndication agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "MORGAN STANLEY SENIOR FUNDING, INC., as Administrative Agent"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_mufg_bank_ltd",
+     "value": {
+      "name": "MUFG Bank, Ltd.",
+      "role": "joint lead arranger, joint bookrunner and syndication agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "MORGAN STANLEY SENIOR FUNDING, INC. and MUFG BANK, LTD., as Joint Lead Arrangers, Joint Bookrunners and Syndication Agents"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_u_s_bank_trust_company_national_association",
+     "value": {
+      "name": "U.S. Bank Trust Company, National Association",
+      "role": "collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "U.S. BANK TRUST COMPANY, NATIONAL ASSOCIATION, as Collateral Agent"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_citibank_n_a",
+     "value": {
+      "name": "Citibank, N.A.",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_credit_agricole_corporate_and_investment_bank",
+     "value": {
+      "name": "Credit Agricole Corporate and Investment Bank",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_deutsche_bank_ag_new_york_branch",
+     "value": {
+      "name": "Deutsche Bank AG, New York Branch",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_goldman_sachs_bank_usa",
+     "value": {
+      "name": "Goldman Sachs Bank USA",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_jpmorgan_chase_bank_n_a",
+     "value": {
+      "name": "JPMorgan Chase Bank, N.A.",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_pnc_capital_markets_llc",
+     "value": {
+      "name": "PNC Capital Markets LLC",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_soci_t_g_n_rale",
+     "value": {
+      "name": "Société Générale",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_sumitomo_mitsui_banking_corporation",
+     "value": {
+      "name": "Sumitomo Mitsui Banking Corporation",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_td_securities_usa_llc",
+     "value": {
+      "name": "TD Securities (USA) LLC",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_u_s_bank_national_association",
+     "value": {
+      "name": "U.S. Bank National Association",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_wells_fargo_securities_llc",
+     "value": {
+      "name": "Wells Fargo Securities, LLC",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000236/ex101.htm",
+     "quote": [
+      "CITIBANK, N.A., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, JPMORGAN CHASE BANK, N.A., PNC CAPITAL MARKETS LLC, SOCIÉTÉ GÉNÉRALE, SUMITOMO MITSUI BANKING",
+      "TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC, as Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CRWV-097",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "CoreWeave Financing DDTL V-V, LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "COREWEAVE FINANCING DDTL V-V, LLC, as the Borrower"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-08-07",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CREDIT AGREEMENT dated as of August 7, 2026"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "CoreWeave, Inc. (Parent) under the Parent Guarantee and Pledge Agreement, with CW Financing DDTL V-V Holdco, LLC as pledgor",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "“Parent Guarantee and Pledge Agreement” shall mean that certain Parent Guarantee and Pledge Agreement, dated as of the date hereof, by and among the Parent, the Pledgor and the Collateral Agent",
+      "“Pledgor” shall mean CW Financing DDTL V-V Holdco, LLC"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Negative covenants incl. indebtedness, liens, restricted payments and affiliate transactions; financial covenants: debt service coverage ratio not below 1.35:1.00 (three-month, tested monthly) and minimum liquidity",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "the Borrower will not permit the Debt Service Coverage Ratio for the most recently ended three full fiscal month period to be less than 1.35:1.00",
+      "Minimum Liquidity Covenant"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_jpmorgan_chase_bank_n_a",
+     "value": {
+      "name": "JPMorgan Chase Bank, N.A.",
+      "role": "administrative agent, joint lead arranger, joint bookrunner and syndication agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "JPMORGAN CHASE BANK, N.A., as Administrative Agent"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_mufg_bank_ltd",
+     "value": {
+      "name": "MUFG Bank, Ltd.",
+      "role": "joint lead arranger, joint bookrunner and syndication agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "JPMORGAN CHASE BANK, N.A. and MUFG BANK, LTD., as Joint Lead Arrangers, Joint Bookrunners and Syndication Agents"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_u_s_bank_trust_company_national_association",
+     "value": {
+      "name": "U.S. Bank Trust Company, National Association",
+      "role": "collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "U.S. BANK TRUST COMPANY, NATIONAL ASSOCIATION, as Collateral Agent"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_citigroup_global_markets_inc",
+     "value": {
+      "name": "Citigroup Global Markets Inc.",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_credit_agricole_corporate_and_investment_bank",
+     "value": {
+      "name": "Credit Agricole Corporate and Investment Bank",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_deutsche_bank_ag_new_york_branch",
+     "value": {
+      "name": "Deutsche Bank AG, New York Branch",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_goldman_sachs_bank_usa",
+     "value": {
+      "name": "Goldman Sachs Bank USA",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_morgan_stanley_senior_funding_inc",
+     "value": {
+      "name": "Morgan Stanley Senior Funding, Inc.",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_pnc_capital_markets_llc",
+     "value": {
+      "name": "PNC Capital Markets LLC",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_soci_t_g_n_rale",
+     "value": {
+      "name": "Société Générale",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_sumitomo_mitsui_banking_corporation",
+     "value": {
+      "name": "Sumitomo Mitsui Banking Corporation",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_td_securities_usa_llc",
+     "value": {
+      "name": "TD Securities (USA) LLC",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_u_s_bank_national_association",
+     "value": {
+      "name": "U.S. Bank National Association",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_wells_fargo_securities_llc",
+     "value": {
+      "name": "Wells Fargo Securities, LLC",
+      "role": "joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000357/ex101creditagreement.htm",
+     "quote": [
+      "CITIGROUP GLOBAL MARKETS INC., CREDIT AGRICOLE CORPORATE AND INVESTMENT BANK, DEUTSCHE BANK AG, NEW YORK BRANCH, GOLDMAN SACHS BANK USA, MORGAN STANLEY SENIOR FUNDING, INC., PNC CAPITAL MARKETS LLC, SOCIÉTÉ",
+      "SUMITOMO MITSUI BANKING CORPORATION, TD SECURITIES (USA) LLC, U.S. BANK NATIONAL ASSOCIATION and WELLS FARGO SECURITIES, LLC as Joint Bookrunners"
+     ],
+     "valid_from": "2026-08-07",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-IREN-184",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "IE US Hardware 3 LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1035creditagreement.htm",
+     "quote": [
+      "by and among IE US HARDWARE 3 LLC, a Delaware limited liability company (the “Company”)"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-05-29",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1035creditagreement.htm",
+     "quote": [
+      "CREDIT AGREEMENT dated as of May 29, 2026"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "The borrower complies with the covenants in Article 6 of the Common Terms Agreement (the credit agreement incorporates them; the Common Terms Agreement itself was not filed with it)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1035creditagreement.htm",
+     "quote": [
+      "the Company will comply with the covenants set forth in Article 6 of the Common Terms Agreement"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "commitment_usd",
+     "value": 1545000000,
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1035creditagreement.htm",
+     "quote": [
+      "Total $1,545,000,000.00"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_csc_delaware_trust_company",
+     "value": {
+      "name": "CSC Delaware Trust Company",
+      "role": "administrative agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1035creditagreement.htm",
+     "quote": [
+      "CSC DELAWARE TRUST COMPANY, as Administrative Agent"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_goldman_sachs_bank_usa",
+     "value": {
+      "name": "Goldman Sachs Bank USA",
+      "role": "joint lead arranger and joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1035creditagreement.htm",
+     "quote": [
+      "GOLDMAN SACHS BANK USA, and JPMORGAN CHASE BANK, N.A. as Joint Lead Arrangers and Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_jpmorgan_chase_bank_n_a",
+     "value": {
+      "name": "JPMorgan Chase Bank, N.A.",
+      "role": "joint lead arranger and joint bookrunner"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1035creditagreement.htm",
+     "quote": [
+      "JPMORGAN CHASE BANK, N.A. as Joint Lead Arrangers and Joint Bookrunners"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-GLXY-162",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Galaxy Helios I LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939225000066/exhibit1023-sx1xcreditagre.htm",
+     "quote": [
+      "GALAXY HELIOS I LLC, a Delaware limited liability company (the “Borrower”)"
+     ],
+     "valid_from": "2025-08-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-08-15",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939225000066/exhibit1023-sx1xcreditagre.htm",
+     "quote": [
+      "THIS CREDIT AGREEMENT (this “Agreement”) dated as of August 15, 2025"
+     ],
+     "valid_from": "2025-08-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "Galaxy Digital Holdings LP (Sponsor: recourse guaranty, debt service guaranty, completion guaranty and environmental indemnity) and Galaxy Helios I Pledgor LLC (HoldCo guaranty and pledge)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939225000066/exhibit1023-sx1xcreditagre.htm",
+     "quote": [
+      "“Guarantor” means Sponsor and HoldCo.",
+      "“Sponsor” means Galaxy Digital Holdings LP",
+      "“Sponsor Guaranty” means, individually or collectively, as the context requires, the (i) Sponsor Recourse Guaranty, (ii) Sponsor Debt Service Guaranty, (iii) Completion Guaranty, and (iv) the Environmental Indemnification Agreement.",
+      "“HoldCo” means Galaxy Helios I Pledgor LLC",
+      "“HoldCo Guaranty” means the Guaranty dated on the date herewith by HoldCo in favor of the Collateral Agent"
+     ],
+     "valid_from": "2025-08-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "collateral_text",
+     "value": "All real and personal property, rights and interests of the borrower and HoldCo subject to the security documents, including the trust property",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939225000066/exhibit1023-sx1xcreditagre.htm",
+     "quote": [
+      "“Collateral” means all of the real and personal property, rights and interests of the Borrower and HoldCo which are subject to the security interest, security title, liens and mortgages created by the Security Documents, including without limitation the Trust Property."
+     ],
+     "valid_from": "2025-08-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Article 6 negative covenants incl. budget and O&M expense, indebtedness, liens, investments, restricted payments, fundamental changes and asset dispositions, amendments of material project documents, affiliate transactions, accounts, guarantees, back-up power; financial covenants (6.24)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939225000066/exhibit1023-sx1xcreditagre.htm",
+     "quote": [
+      "6.1 Budget; O&M Expense",
+      "6.3 Indebtedness",
+      "6.4 Liens, Etc.",
+      "6.7 Restricted Payments",
+      "6.8 Fundamental Changes; Asset Dispositions and Acquisitions",
+      "6.11 Amendment, Termination and Assignments of Material Project Documents",
+      "6.12 Transactions with Affiliates",
+      "6.22 Back-up Power",
+      "6.24 Financial Covenants"
+     ],
+     "valid_from": "2025-08-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_deutsche_bank_ag_new_york_branch",
+     "value": {
+      "name": "Deutsche Bank AG, New York Branch",
+      "role": "initial lender, lead arranger, mandated lead arranger, lead bookrunner and calculation agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939225000066/exhibit1023-sx1xcreditagre.htm",
+     "quote": [
+      "DEUTSCHE BANK AG, NEW YORK BRANCH, as the Initial Lender",
+      "DEUTSCHE BANK AG, NEW YORK BRANCH, as Calculation Agent, Lead Arranger, Joint Lead Arranger, Mandated Lead Arranger, Lead Bookrunner"
+     ],
+     "valid_from": "2025-08-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_glas_usa_llc",
+     "value": {
+      "name": "GLAS USA LLC",
+      "role": "administrative agent and collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939225000066/exhibit1023-sx1xcreditagre.htm",
+     "quote": [
+      "GLAS USA LLC, a limited liability company organized under the laws of the State of New Jersey, as the Administrative Agent"
+     ],
+     "valid_from": "2025-08-15",
+     "source": "SEC EDGAR (credit agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-VANTAGE_ORCL-366",
+   "checked_on": "2026-10-22",
+   "facts": [
+    {
+     "field": "lender_jpmorgan_chase_co",
+     "value": {
+      "name": "JPMorgan Chase & Co.",
+      "role": "lead bank"
+     },
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "JPMorgan Chase & Co. and Mitsubishi UFJ Financial Group are among banks leading the deal"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    },
+    {
+     "field": "lender_mitsubishi_ufj_financial_group",
+     "value": {
+      "name": "Mitsubishi UFJ Financial Group",
+      "role": "lead bank"
+     },
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "JPMorgan Chase & Co. and Mitsubishi UFJ Financial Group are among banks leading the deal"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    },
+    {
+     "field": "lender_wells_fargo_co",
+     "value": {
+      "name": "Wells Fargo & Co.",
+      "role": "allocated a portion (first underwriting round)"
+     },
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "Wells Fargo & Co., BNP Paribas SA, Goldman Sachs Group Inc., Sumitomo Mitsui Banking Corp. and Societe Generale SA have been allocated portions of the financing package after a first round of selecting underwriters"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    },
+    {
+     "field": "lender_bnp_paribas_sa",
+     "value": {
+      "name": "BNP Paribas SA",
+      "role": "allocated a portion (first underwriting round)"
+     },
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "Wells Fargo & Co., BNP Paribas SA, Goldman Sachs Group Inc., Sumitomo Mitsui Banking Corp. and Societe Generale SA have been allocated portions of the financing package after a first round of selecting underwriters"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    },
+    {
+     "field": "lender_goldman_sachs_group_inc",
+     "value": {
+      "name": "Goldman Sachs Group Inc.",
+      "role": "allocated a portion (first underwriting round)"
+     },
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "Wells Fargo & Co., BNP Paribas SA, Goldman Sachs Group Inc., Sumitomo Mitsui Banking Corp. and Societe Generale SA have been allocated portions of the financing package after a first round of selecting underwriters"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    },
+    {
+     "field": "lender_sumitomo_mitsui_banking_corp",
+     "value": {
+      "name": "Sumitomo Mitsui Banking Corp.",
+      "role": "allocated a portion (first underwriting round)"
+     },
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "Wells Fargo & Co., BNP Paribas SA, Goldman Sachs Group Inc., Sumitomo Mitsui Banking Corp. and Societe Generale SA have been allocated portions of the financing package after a first round of selecting underwriters"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    },
+    {
+     "field": "lender_societe_generale_sa",
+     "value": {
+      "name": "Societe Generale SA",
+      "role": "allocated a portion (first underwriting round)"
+     },
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "Wells Fargo & Co., BNP Paribas SA, Goldman Sachs Group Inc., Sumitomo Mitsui Banking Corp. and Societe Generale SA have been allocated portions of the financing package after a first round of selecting underwriters"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    },
+    {
+     "field": "lender_more_than_two_dozen_banks_and_investors_not_named",
+     "value": {
+      "name": "More than two dozen banks and investors (not named)",
+      "role": "syndicate as of Oct 2026; under $1bn left to sell"
+     },
+     "tag": "R",
+     "url": "https://aiweekly.co/alerts/banks-still-working-off-oracles-38b-ai-data-center-loan",
+     "quote": [
+      "after more than two dozen banks and investors joined, lenders are still looking to offload less than $1 billion"
+     ],
+     "valid_from": "2026-10-12",
+     "source": "AI Weekly (Bloomberg report)"
+    },
+    {
+     "field": "amortization",
+     "value": "Interest-only during construction; amortizes once operations begin",
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "the loans will be structured as interest-only during the construction phase but will begin to amortize after operations begin"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    }
+   ],
+   "not_disclosed": {
+    "issuer_name": "Not disclosed in the reports checked (Bloomberg via Tiger Newspress Oct 24, 2025; Bloomberg Law Sep 4, 2025; AI Weekly Oct 12, 2026): they name Vantage Data Centers as developer, not the borrowing entities. PGIM's N-PORT labels the pieces 'VANTAGE ORACLE TX' and 'WI'.",
+    "backstop": "No guarantee named in the reports checked (Bloomberg via Tiger Newspress Oct 24, 2025; AI Weekly Oct 12, 2026); no credit agreement is filed.",
+    "covenants": "Not disclosed: a private bank loan with no filed credit agreement; reports checked give only pricing, tenor and extensions.",
+    "collateral_text": "Not disclosed: reports call the two facilities senior secured but give no lien package.",
+    "issue_date": "Not disclosed: the offering launched in late Oct 2025 and syndication was still open on Oct 12, 2026; no closing date reported."
+   }
+  },
+  {
+   "id": "EX-VANTAGE_ORCL-367",
+   "facts": [
+    {
+     "field": "tranche_of",
+     "value": "EX-VANTAGE_ORCL-366",
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "One $23.25 billion package will go toward financing a data center in Texas"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    }
+   ]
+  },
+  {
+   "id": "EX-VANTAGE_ORCL-368",
+   "facts": [
+    {
+     "field": "tranche_of",
+     "value": "EX-VANTAGE_ORCL-366",
+     "tag": "R",
+     "url": "https://www.itiger.com/news/1137212418",
+     "quote": [
+      "another $14.75 billion facility will help fund a project in Wisconsin"
+     ],
+     "valid_from": "2025-10-24",
+     "source": "Tiger Newspress (Bloomberg report)"
+    }
+   ]
+  },
+  {
+   "id": "EX-JUPITER-190",
+   "checked_on": "2026-10-22",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Red Chiles A, Red Chiles B, Red Chiles C and Red Chiles D (as a holder's SEC filing names the borrowers)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2028436/000202843626000009/ck0002028436-20260630.htm",
+     "quote": [
+      "Red Chiles B (6) S+ 2.50% 6.14% 11/9/2029",
+      "Red Chiles A (6) S+ 2.50% 6.14% 11/9/2029",
+      "Red Chiles C (6) S+ 2.50% 6.14% 11/9/2029",
+      "Red Chiles D (6) S+ 2.50% 6.14% 11/9/2029"
+     ],
+     "valid_from": "2026-06-30",
+     "source": "SEC EDGAR (T. Rowe Price OHA Flexible Credit Income Fund, Form N-CSRS)"
+    },
+    {
+     "field": "lender_sumitomo_mitsui_banking_corp",
+     "value": {
+      "name": "Sumitomo Mitsui Banking Corp",
+      "role": "administrative agent"
+     },
+     "tag": "R",
+     "url": "https://whbl.com/?p=888022",
+     "quote": [
+      "Sumitomo Mitsui Banking Corp, BNP Paribas SA, Goldman Sachs Group, and Mitsubishi UFJ Financial Group are administrative agents on the deal"
+     ],
+     "valid_from": "2025-11-07",
+     "source": "Reuters (Bloomberg News report)"
+    },
+    {
+     "field": "lender_bnp_paribas_sa",
+     "value": {
+      "name": "BNP Paribas SA",
+      "role": "administrative agent"
+     },
+     "tag": "R",
+     "url": "https://whbl.com/?p=888022",
+     "quote": [
+      "Sumitomo Mitsui Banking Corp, BNP Paribas SA, Goldman Sachs Group, and Mitsubishi UFJ Financial Group are administrative agents on the deal"
+     ],
+     "valid_from": "2025-11-07",
+     "source": "Reuters (Bloomberg News report)"
+    },
+    {
+     "field": "lender_goldman_sachs_group",
+     "value": {
+      "name": "Goldman Sachs Group",
+      "role": "administrative agent"
+     },
+     "tag": "R",
+     "url": "https://whbl.com/?p=888022",
+     "quote": [
+      "Sumitomo Mitsui Banking Corp, BNP Paribas SA, Goldman Sachs Group, and Mitsubishi UFJ Financial Group are administrative agents on the deal"
+     ],
+     "valid_from": "2025-11-07",
+     "source": "Reuters (Bloomberg News report)"
+    },
+    {
+     "field": "lender_mitsubishi_ufj_financial_group",
+     "value": {
+      "name": "Mitsubishi UFJ Financial Group",
+      "role": "administrative agent"
+     },
+     "tag": "R",
+     "url": "https://whbl.com/?p=888022",
+     "quote": [
+      "Sumitomo Mitsui Banking Corp, BNP Paribas SA, Goldman Sachs Group, and Mitsubishi UFJ Financial Group are administrative agents on the deal"
+     ],
+     "valid_from": "2025-11-07",
+     "source": "Reuters (Bloomberg News report)"
+    },
+    {
+     "field": "lender_consortium_of_around_20_banks_not_named",
+     "value": {
+      "name": "Consortium of around 20 banks (not named)",
+      "role": "lenders"
+     },
+     "tag": "R",
+     "url": "https://whbl.com/?p=888022",
+     "quote": [
+      "A consortium of around 20 banks is providing a project finance loan of about $18 billion"
+     ],
+     "valid_from": "2025-11-07",
+     "source": "Reuters (Bloomberg News report)"
+    },
+    {
+     "field": "lender_santander",
+     "value": {
+      "name": "Santander",
+      "role": "syndicate bank (quoting the loans at 89-91; banks holding more than planned)"
+     },
+     "tag": "R",
+     "url": "https://kfgo.com/2026/09/18/oracles-18-billion-data-center-debt-under-pressure-ft-reports/",
+     "quote": [
+      "loans quoted at",
+      "89 to 91 cents on the dollar",
+      "by syndicate banks including Santander and Jefferies"
+     ],
+     "valid_from": "2026-09-18",
+     "source": "Reuters (Financial Times report)"
+    },
+    {
+     "field": "lender_jefferies",
+     "value": {
+      "name": "Jefferies",
+      "role": "syndicate bank (quoting the loans at 89-91; banks holding more than planned)"
+     },
+     "tag": "R",
+     "url": "https://kfgo.com/2026/09/18/oracles-18-billion-data-center-debt-under-pressure-ft-reports/",
+     "quote": [
+      "by syndicate banks including Santander and Jefferies"
+     ],
+     "valid_from": "2026-09-18",
+     "source": "Reuters (Financial Times report)"
+    },
+    {
+     "field": "lender_t_rowe_price_oha_flexible_credit_income_fund",
+     "value": {
+      "name": "T. Rowe Price OHA Flexible Credit Income Fund",
+      "role": "lender of record (Red Chiles A-D, $5.0mm par at 30 Jun 2026)"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2028436/000202843626000009/ck0002028436-20260630.htm",
+     "quote": [
+      "T. ROWE PRICE OHA FLEXIBLE CREDIT INCOME FUND",
+      "Red Chiles D (6) S+ 2.50% 6.14% 11/9/2029 1,250 1,179 1,179"
+     ],
+     "valid_from": "2026-06-30",
+     "source": "SEC EDGAR (Form N-CSRS)"
+    }
+   ],
+   "not_disclosed": {
+    "backstop": "No guarantee filed or reported in the sources checked (Reuters Nov 7, 2025 and Sep 18, 2026; holder's N-CSRS Jun 30, 2026); no credit agreement is filed.",
+    "covenants": "Not disclosed: a private bank loan with no filed credit agreement.",
+    "collateral_text": "Not disclosed: reports call it a project finance loan but give no lien package.",
+    "issue_date": "Not disclosed: Reuters reported the ~20-bank loan on Nov 7, 2025 with commitments expected by late November; no closing date stated."
+   }
+  },
+  {
+   "id": "EX-ABILENE-000",
+   "checked_on": "2026-10-22",
+   "facts": [
+    {
+     "field": "lender_jpmorgan_chase",
+     "value": {
+      "name": "JPMorgan Chase",
+      "role": "arranger and lender"
+     },
+     "tag": "R",
+     "url": "https://www.kirkland.com/news/press-release/2025/01/kirkland-ellis-advises-bo-funds-on-jv-and-financing-for-development-of-adc",
+     "quote": [
+      "a $2.3 billion construction loan financing to develop the project, arranged by JPMorgan Chase"
+     ],
+     "valid_from": "2025-01-22",
+     "source": "Kirkland & Ellis (press release)"
+    }
+   ],
+   "not_disclosed": {
+    "issuer_name": "Not disclosed: reports name the Blue Owl, Crusoe and Primary Digital Infrastructure joint venture, not the borrowing entity (Kirkland & Ellis Jan 2025; Commercial Observer Jan 22, 2025).",
+    "backstop": "No guarantee named in the sources checked; no credit agreement is filed.",
+    "covenants": "Not disclosed: a private bank loan with no filed credit agreement.",
+    "collateral_text": "Not disclosed: reported as a construction loan on the project; lien package not given.",
+    "issue_date": "Not disclosed: reported closed in January 2025 (Commercial Observer Jan 22, 2025) without a closing day."
+   }
+  },
+  {
+   "id": "EX-ABILENE-001",
+   "checked_on": "2026-10-22",
+   "facts": [
+    {
+     "field": "lender_j_p_morgan_chase",
+     "value": {
+      "name": "J.P. Morgan Chase",
+      "role": "lead of the lending consortium"
+     },
+     "tag": "R",
+     "url": "https://commercialobserver.com/?p=522608",
+     "quote": [
+      "consortium led by J.P. Morgan Chase for the second phase of a 1.2-gigawatt artificial intelligence data center in Abilene"
+     ],
+     "valid_from": "2025-05-22",
+     "source": "Commercial Observer"
+    }
+   ],
+   "not_disclosed": {
+    "issuer_name": "Not disclosed: reports name the Blue Owl, Crusoe and Primary Digital Infrastructure joint venture, not the borrowing entity (Commercial Observer May 22, 2025).",
+    "backstop": "No guarantee named in the sources checked; no credit agreement is filed.",
+    "covenants": "Not disclosed: a private bank loan with no filed credit agreement.",
+    "collateral_text": "Not disclosed: reported as a construction financing; lien package not given.",
+    "issue_date": "Not disclosed: reported finalized the week of May 22, 2025 (Commercial Observer) without a closing date."
+   }
+  },
+  {
+   "id": "EX-ORCL-228",
+   "checked_on": "2026-10-22",
+   "replaces": {
+    "issuer_name": "legal name from Oracle's 8-K replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Oracle Corporation",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526037840/d23732d8k.htm",
+     "quote": [
+      "On February 4, 2026, Oracle consummated the issuance and sale of"
+     ],
+     "valid_from": "2026-02-04",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-02-04",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526037840/d23732d8k.htm",
+     "quote": [
+      "On February 4, 2026, Oracle consummated the issuance and sale of",
+      "$3,500,000,000 aggregate principal amount of its 4.950% Notes due 2031"
+     ],
+     "valid_from": "2026-02-04",
+     "source": "SEC EDGAR"
+    }
+   ],
+   "not_disclosed": {
+    "backstop": "None named: Oracle's 8-K and the officers' certificate filed with it name Oracle Corporation as the only obligor.",
+    "covenants": "In Oracle's 2006 base indenture as amended in 2007 (Exhibit 10.34 to Oracle Systems Corporation's 8-K of Jan 20, 2006), which Marden has not stored; the officers' certificate adds none.",
+    "collateral_text": "Not stated in the 8-K or the officers' certificate (senior unsecured per the instrument's seniority)."
+   }
+  },
+  {
+   "id": "EX-ORCL-240",
+   "checked_on": "2026-10-22",
+   "replaces": {
+    "issuer_name": "legal name from Oracle's 8-K replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Oracle Corporation",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526037840/d23732d8k.htm",
+     "quote": [
+      "On February 4, 2026, Oracle consummated the issuance and sale of"
+     ],
+     "valid_from": "2026-02-04",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-02-04",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526037840/d23732d8k.htm",
+     "quote": [
+      "On February 4, 2026, Oracle consummated the issuance and sale of",
+      "$5,000,000,000 aggregate principal amount of its 5.700% Notes due 2036"
+     ],
+     "valid_from": "2026-02-04",
+     "source": "SEC EDGAR"
+    }
+   ],
+   "not_disclosed": {
+    "backstop": "None named: Oracle's 8-K and the officers' certificate filed with it name Oracle Corporation as the only obligor.",
+    "covenants": "In Oracle's 2006 base indenture as amended in 2007 (Exhibit 10.34 to Oracle Systems Corporation's 8-K of Jan 20, 2006), which Marden has not stored; the officers' certificate adds none.",
+    "collateral_text": "Not stated in the 8-K or the officers' certificate (senior unsecured per the instrument's seniority)."
+   }
+  },
+  {
+   "id": "EX-ORCL-262",
+   "checked_on": "2026-10-22",
+   "replaces": {
+    "issuer_name": "legal name from Oracle's 8-K replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Oracle Corporation",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526037840/d23732d8k.htm",
+     "quote": [
+      "On February 4, 2026, Oracle consummated the issuance and sale of"
+     ],
+     "valid_from": "2026-02-04",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-02-04",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526037840/d23732d8k.htm",
+     "quote": [
+      "On February 4, 2026, Oracle consummated the issuance and sale of",
+      "$5,000,000,000 aggregate principal amount of its 6.700% Notes due 2056"
+     ],
+     "valid_from": "2026-02-04",
+     "source": "SEC EDGAR"
+    }
+   ],
+   "not_disclosed": {
+    "backstop": "None named: Oracle's 8-K and the officers' certificate filed with it name Oracle Corporation as the only obligor.",
+    "covenants": "In Oracle's 2006 base indenture as amended in 2007 (Exhibit 10.34 to Oracle Systems Corporation's 8-K of Jan 20, 2006), which Marden has not stored; the officers' certificate adds none.",
+    "collateral_text": "Not stated in the 8-K or the officers' certificate (senior unsecured per the instrument's seniority)."
+   }
+  },
+  {
+   "id": "EX-ORCL-239",
+   "checked_on": "2026-10-22",
+   "replaces": {
+    "issuer_name": "legal name from Oracle's 8-K replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Oracle Corporation",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312525220445/d31817d8k.htm",
+     "quote": [
+      "On September 26, 2025, Oracle Corporation (“Oracle”) consummated the issuance and sale of"
+     ],
+     "valid_from": "2025-09-26",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-09-26",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312525220445/d31817d8k.htm",
+     "quote": [
+      "On September 26, 2025, Oracle Corporation (“Oracle”) consummated the issuance and sale of",
+      "$4,000,000,000 aggregate principal amount of its 5.200% Notes due 2035"
+     ],
+     "valid_from": "2025-09-26",
+     "source": "SEC EDGAR"
+    }
+   ],
+   "not_disclosed": {
+    "backstop": "None named: Oracle's 8-K and the officers' certificate filed with it name Oracle Corporation as the only obligor.",
+    "covenants": "In Oracle's 2006 base indenture as amended in 2007 (Exhibit 10.34 to Oracle Systems Corporation's 8-K of Jan 20, 2006), which Marden has not stored; the officers' certificate adds none.",
+    "collateral_text": "Not stated in the 8-K or the officers' certificate (senior unsecured per the instrument's seniority)."
+   }
+  },
+  {
+   "id": "EX-ORCL-261",
+   "checked_on": "2026-10-22",
+   "replaces": {
+    "issuer_name": "legal name from Oracle's 8-K replaces the FINRA TRACE abbreviation"
+   },
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Oracle Corporation",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312525220445/d31817d8k.htm",
+     "quote": [
+      "On September 26, 2025, Oracle Corporation (“Oracle”) consummated the issuance and sale of"
+     ],
+     "valid_from": "2025-09-26",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "issue_date",
+     "value": "2025-09-26",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312525220445/d31817d8k.htm",
+     "quote": [
+      "On September 26, 2025, Oracle Corporation (“Oracle”) consummated the issuance and sale of",
+      "$3,500,000,000 aggregate principal amount of its 5.950% Notes due 2055"
+     ],
+     "valid_from": "2025-09-26",
+     "source": "SEC EDGAR"
+    }
+   ],
+   "not_disclosed": {
+    "backstop": "None named: Oracle's 8-K and the officers' certificate filed with it name Oracle Corporation as the only obligor.",
+    "covenants": "In Oracle's 2006 base indenture as amended in 2007 (Exhibit 10.34 to Oracle Systems Corporation's 8-K of Jan 20, 2006), which Marden has not stored; the officers' certificate adds none.",
+    "collateral_text": "Not stated in the 8-K or the officers' certificate (senior unsecured per the instrument's seniority)."
+   }
+  },
+  {
+   "id": "EX-NBIS-204",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Nebius Compute II, LLC (US borrower) and Nebius Compute II Oy (Finnish borrower), indirect subsidiaries of Nebius Group N.V.",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926084606/tm2620779d1_6ka.htm",
+     "quote": [
+      "Nebius Compute II, LLC, a Delaware limited liability company (the “US Borrower”), and Nebius Compute II Oy, a Finnish limited liability company (the “Finnish Borrower”"
+     ],
+     "valid_from": "2026-07-10",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-07-10",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926084606/tm2620779d1_6ka.htm",
+     "quote": [
+      "On July 10, 2026, Nebius Compute II, LLC"
+     ],
+     "valid_from": "2026-07-10",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "backstop",
+     "value": "Nebius Group N.V.: a non-recourse guaranty for specified 'bad acts' of the borrowers and a performance guarantee of its manager and colocation subsidiaries' obligations",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926084606/tm2620779d1_6ka.htm",
+     "quote": [
+      "the Company has provided (i) a non-recourse guaranty for specified “bad acts” of the Borrowers and (ii) a performance guarantee"
+     ],
+     "valid_from": "2026-07-10",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "collateral_text",
+     "value": "Substantially all of each borrower's assets and the borrowers' shares held indirectly by Nebius Group (subject to exceptions)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926084606/tm2620779d1_6ka.htm",
+     "quote": [
+      "All obligations under the Facility Agreement are secured, subject to certain exceptions, by substantially all of each Borrower’s assets, and the shares of the Borrowers held indirectly by the Company."
+     ],
+     "valid_from": "2026-07-10",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "covenants",
+     "value": "Financial covenants: debt service coverage ratio of 1.15:1.00 and a minimum liquidity requirement; other affirmative and negative covenants",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926084606/tm2620779d1_6ka.htm",
+     "quote": [
+      "The Borrowers are required to comply with certain financial covenants under the Facility Agreement, including a debt service coverage ratio of 1.15:1.00 and a minimum liquidity requirement."
+     ],
+     "valid_from": "2026-07-10",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "lender_mufg_bank_ltd_london_branch",
+     "value": {
+      "name": "MUFG Bank, Ltd., London Branch",
+      "role": "mandated lead arranger, underwriter, sole bookrunner, structuring agent and agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926084606/tm2620779d1_6ka.htm",
+     "quote": [
+      "MUFG Bank, Ltd., London Branch, as mandated lead arranger, underwriter, sole bookrunner and structuring agent"
+     ],
+     "valid_from": "2026-07-10",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "lender_kroll_trustee_services_limited",
+     "value": {
+      "name": "Kroll Trustee Services Limited",
+      "role": "security trustee"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926084606/tm2620779d1_6ka.htm",
+     "quote": [
+      "Kroll Trustee Services Limited, as security trustee for the Lenders"
+     ],
+     "valid_from": "2026-07-10",
+     "source": "SEC EDGAR"
+    }
+   ]
+  },
+  {
+   "id": "EX-NSCALE-210",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Nscale Ward County Borrower SPV, LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "On August 27, 2026, Nscale Ward County Borrower SPV, LLC, as borrower, entered into a credit agreement"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-08-27",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "On August 27, 2026, Nscale Ward County Borrower SPV, LLC, as borrower, entered into a credit agreement"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "backstop",
+     "value": "Nscale Ward County, LLC (affiliate guarantor), with limited guarantees from Nscale Limited",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "The Ward County GPU Facility is guaranteed by Nscale Ward County, LLC, supported by limited guarantees from Nscale Limited"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "collateral_text",
+     "value": "First-priority security interests in substantially all assets of the borrower and the affiliate guarantor, and their equity interests",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "secured, subject to customary exceptions and permitted liens, by first-priority security interests in substantially all assets of the borrower and affiliate guarantor and equity interests of the borrower and affiliate guarantor"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "covenants",
+     "value": "Historical debt service coverage ratio; limits on indebtedness, liens, hedging, acquisitions and investments, mergers and asset sales, restricted payments, affiliate transactions, change of business, negative pledges and amendments of project contracts",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "The Ward County GPU Credit Agreement requires the borrower to maintain a historical debt service coverage ratio",
+      "(i) incur financial indebtedness, (ii) create liens"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "commitment_usd",
+     "value": 1850000000,
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "delayed draw term loan commitments in an aggregate principal amount up to $1.85 billion"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "lender_jpmorgan_chase_bank_n_a",
+     "value": {
+      "name": "JPMorgan Chase Bank, N.A.",
+      "role": "arranger and lender"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "JPMorgan Chase Bank, N.A. and Goldman Sachs Bank USA, among others, as arrangers and lenders"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "lender_goldman_sachs_bank_usa",
+     "value": {
+      "name": "Goldman Sachs Bank USA",
+      "role": "arranger and lender"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "JPMorgan Chase Bank, N.A. and Goldman Sachs Bank USA, among others, as arrangers and lenders"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "lender_u_s_bank_trust_company_national_association",
+     "value": {
+      "name": "U.S. Bank Trust Company, National Association",
+      "role": "administrative agent and collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "U.S. Bank Trust Company, National Association, as administrative agent and collateral agent (the “Ward County GPU Credit Agreement”)"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    }
+   ]
+  },
+  {
+   "id": "EX-NSCALE-211",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "Nscale NC Borrower SPV, LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "On August 27, 2026, Nscale NC Borrower SPV, LLC, as original borrower, entered into a credit agreement"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-08-27",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "On August 27, 2026, Nscale NC Borrower SPV, LLC, as original borrower, entered into a credit agreement"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "backstop",
+     "value": "Nscale Services US Inc. (affiliate guarantor), with limited guarantees from Nscale Limited",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "The North Carolina GPU Facility is guaranteed by Nscale Services US Inc., supported by limited guarantees from Nscale Limited"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "collateral_text",
+     "value": "First-priority security interests in substantially all assets of the borrower and the affiliate guarantor, and their equity interests",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "secured, subject to customary exceptions and permitted liens, by first-priority security interests in substantially all assets of the borrower and affiliate guarantor and equity interests of the borrower and affiliate guarantor"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "covenants",
+     "value": "Historical debt service coverage ratio; limits on indebtedness, liens, hedging, acquisitions and investments, mergers and asset sales, restricted payments, affiliate transactions, change of business, negative pledges and amendments of project contracts",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "The North Carolina GPU Credit Agreement requires the borrower to maintain a historical debt service coverage ratio",
+      "(i) incur financial indebtedness; (ii) create liens"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "commitment_usd",
+     "value": 1200000000,
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "delayed draw term loan commitments in an aggregate principal amount of $1.2 billion"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "lender_goldman_sachs_bank_usa",
+     "value": {
+      "name": "Goldman Sachs Bank USA",
+      "role": "arranger and lender"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "Goldman Sachs Bank USA and JPMorgan Chase Bank, N.A., among others, as arrangers and lenders"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "lender_jpmorgan_chase_bank_n_a",
+     "value": {
+      "name": "JPMorgan Chase Bank, N.A.",
+      "role": "arranger and lender"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "Goldman Sachs Bank USA and JPMorgan Chase Bank, N.A., among others, as arrangers and lenders"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    },
+    {
+     "field": "lender_u_s_bank_trust_company_national_association",
+     "value": {
+      "name": "U.S. Bank Trust Company, National Association",
+      "role": "administrative agent and collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "U.S. Bank Trust Company, National Association, as administrative agent and collateral agent (the “North Carolina GPU Credit Agreement”)"
+     ],
+     "valid_from": "2026-08-27",
+     "source": "SEC EDGAR"
+    }
+   ]
+  },
+  {
+   "id": "EX-NSCALE-212",
+   "checked_on": "2026-10-22",
+   "facts": [
+    {
+     "field": "lender_dell_financial_services_l_l_c",
+     "value": {
+      "name": "Dell Financial Services L.L.C.",
+      "role": "funder under the DFS Framework Agreements (equipment lease financing)"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+     "quote": [
+      "with Dell Financial Services L.L.C. (“DFS”), as funder, providing for equipment lease financing arrangements"
+     ],
+     "valid_from": "2026-09-18",
+     "source": "SEC EDGAR"
+    }
+   ],
+   "not_disclosed": {
+    "issue_date": "Not a single closing: framework agreements signed in April 2026 (no day given) and 40 payment schedules executed by Sep 4, 2026 (Nscale prospectus).",
+    "covenants": "Not described in the Nscale prospectus checked beyond the framework agreements and payment schedules.",
+    "backstop": "Not described in the Nscale prospectus checked."
+   }
+  },
+  {
+   "id": "EX-IREN-184",
+   "replaces": {
+    "covenants": "the Common Terms Agreement is filed (Exhibit 10.37): its covenant list replaces the pointer"
+   },
+   "facts": [
+    {
+     "field": "covenants",
+     "value": "Common Terms Agreement Article 6 negative covenants: indebtedness, liens, swap agreements, investments, mergers and asset sales, restricted payments, affiliate transactions, business and subsidiaries, negative pledges, material project contracts; financial covenants (6.12); cash waterfall with debt service, cash trap and other reserve accounts (Article 9)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1037commontermsagreemen.htm",
+     "quote": [
+      "ARTICLE 6 NEGATIVE COVENANTS",
+      "Section 6.1 Indebtedness",
+      "Section 6.6 Restricted Payments",
+      "Section 6.12 Financial Covenants",
+      "ARTICLE 9 CASH WATERFALL"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (common terms agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "IE US Hardware 3 Holdings LLC (pledgor) and IREN Limited (parent) deliver security documents under the collateral and guarantee requirement",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1037commontermsagreemen.htm",
+     "quote": [
+      "“Pledgor” shall mean IE US Hardware 3 Holdings LLC",
+      "“Parent” shall mean IREN Limited",
+      "duly executed by the Company, Pledgor or the Parent"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (common terms agreement, filed exhibit)"
+    }
+   ]
+  },
+  {
+   "id": "EX-IREN-185",
+   "facts": [
+    {
+     "field": "issuer_name",
+     "value": "IE US Hardware 3 LLC",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1036notepurchaseagreeme.htm",
+     "quote": [
+      "IE US Hardware 3 LLC, a limited liability company formed under the laws of the State of Delaware (“Company”)"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (note purchase agreement, filed exhibit)"
+    },
+    {
+     "field": "issue_date",
+     "value": "2026-05-29",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1036notepurchaseagreeme.htm",
+     "quote": [
+      "NOTE PURCHASE AGREEMENT",
+      "Dated May 29, 2026"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (note purchase agreement, filed exhibit)"
+    },
+    {
+     "field": "commitment_usd",
+     "value": 2100000000,
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1036notepurchaseagreeme.htm",
+     "quote": [
+      "$2,100,000,000 5.96% Senior Notes due December 31, 2031"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (note purchase agreement, filed exhibit)"
+    },
+    {
+     "field": "covenants",
+     "value": "Common Terms Agreement Article 6 negative covenants: indebtedness, liens, swap agreements, investments, mergers and asset sales, restricted payments, affiliate transactions, business and subsidiaries, negative pledges, material project contracts; financial covenants (6.12); cash waterfall with debt service, cash trap and other reserve accounts (Article 9)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1037commontermsagreemen.htm",
+     "quote": [
+      "ARTICLE 6 NEGATIVE COVENANTS",
+      "Section 6.1 Indebtedness",
+      "Section 6.6 Restricted Payments",
+      "Section 6.12 Financial Covenants",
+      "ARTICLE 9 CASH WATERFALL"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (common terms agreement, filed exhibit)"
+    },
+    {
+     "field": "backstop",
+     "value": "IE US Hardware 3 Holdings LLC (pledgor) and IREN Limited (parent) deliver security documents under the collateral and guarantee requirement",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1037commontermsagreemen.htm",
+     "quote": [
+      "“Pledgor” shall mean IE US Hardware 3 Holdings LLC",
+      "“Parent” shall mean IREN Limited",
+      "duly executed by the Company, Pledgor or the Parent"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (common terms agreement, filed exhibit)"
+    },
+    {
+     "field": "lender_csc_delaware_trust_company",
+     "value": {
+      "name": "CSC Delaware Trust Company",
+      "role": "note agent, intercreditor agent and collateral agent"
+     },
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000187884826000052/a1036notepurchaseagreeme.htm",
+     "quote": [
+      "CSC Delaware Trust Company (in its capacity as “Note Agent”)"
+     ],
+     "valid_from": "2026-05-29",
+     "source": "SEC EDGAR (note purchase agreement, filed exhibit)"
+    }
+   ],
+   "not_disclosed": {
+    "lenders": "The note purchasers are on the Purchaser Schedule, which is redacted in the filed note purchase agreement."
+   }
+  },
+  {
+   "id": "EX-BEIGNET-022",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "backstop": "Not public: 144A notes of Beignet Investor LLC (Hyperion); no indenture or offering memorandum is filed with the SEC, and the reports checked name no guarantor.",
+    "covenants": "Not public: 144A notes of Beignet Investor LLC (Hyperion); the indenture is not filed and the reports checked do not list covenants.",
+    "collateral_text": "Not disclosed beyond the ranking the reports give (see Ranking).",
+    "issue_date": "Not in the sources Marden holds: the settlement date of the private placement is not filed or reported in them.",
+    "lenders": "Sold to institutional investors in a private placement; buyers are not named except fund holders on Form N-PORT (below)."
+   }
+  },
+  {
+   "id": "EX-SOPAIPILLA-309",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "backstop": "Not public: 144A notes of Sopaipilla Investor LLC (El Paso); no indenture or offering memorandum is filed with the SEC, and the reports checked name no guarantor.",
+    "covenants": "Not public: 144A notes of Sopaipilla Investor LLC (El Paso); the indenture is not filed and the reports checked do not list covenants.",
+    "collateral_text": "Not disclosed beyond the ranking the reports give (see Ranking).",
+    "issue_date": "Not in the sources Marden holds: the settlement date of the private placement is not filed or reported in them.",
+    "lenders": "Sold to institutional investors in a private placement; buyers are not named except fund holders on Form N-PORT (below)."
+   }
+  },
+  {
+   "id": "EX-SALINE-308",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "backstop": "Not public: project bonds for the Saline campus; no indenture or offering memorandum is filed with the SEC, and the reports checked name no guarantor.",
+    "covenants": "Not public: project bonds for the Saline campus; the indenture is not filed and the reports checked do not list covenants.",
+    "collateral_text": "Not disclosed beyond the ranking the reports give (see Ranking).",
+    "issue_date": "Not in the sources Marden holds: the settlement date of the private placement is not filed or reported in them.",
+    "lenders": "Sold to institutional investors in a private placement; buyers are not named except fund holders on Form N-PORT (below)."
+   }
+  },
+  {
+   "id": "MAN-EDGED-75SeniorSecuredGreenNote",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "backstop": "Not public: 144A green notes of Edged Compute LLC; no indenture or offering memorandum is filed with the SEC, and the reports checked name no guarantor.",
+    "covenants": "Not public: 144A green notes of Edged Compute LLC; the indenture is not filed and the reports checked do not list covenants.",
+    "collateral_text": "Not disclosed beyond the ranking the reports give (see Ranking).",
+    "issue_date": "Not in the sources Marden holds: the settlement date of the private placement is not filed or reported in them.",
+    "lenders": "Sold to institutional investors in a private placement; buyers are not named except fund holders on Form N-PORT (below)."
+   }
+  },
+  {
+   "id": "EX-XAI_VCI-388",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "issuer_name": "Named only in holders' BDC schedules (VCI Asset Holdings); the credit agreement is not public.",
+    "backstop": "Not disclosed: the credit agreement is not public; SpaceX's 10-Q and S-1 checked do not describe a guarantee of this loan.",
+    "covenants": "Not disclosed: the credit agreement is not public; BDC schedules give only coupon and maturity.",
+    "issue_date": "Not disclosed: the closing date is not in the BDC schedules or SpaceX filings checked."
+   }
+  },
+  {
+   "id": "EX-XAI_VCI-389",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "issuer_name": "Named only in holders' BDC schedules (VCI Asset Holdings); the credit agreement is not public.",
+    "backstop": "Not disclosed: the credit agreement is not public; SpaceX's 10-Q and S-1 checked do not describe a guarantee of this loan.",
+    "covenants": "Not disclosed: the credit agreement is not public; BDC schedules give only coupon and maturity.",
+    "issue_date": "Not disclosed: the closing date is not in the BDC schedules or SpaceX filings checked."
+   }
+  },
+  {
+   "id": "EX-XAI_VCI-390",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "issuer_name": "Named only in holders' BDC schedules (VCI Asset Holdings); the credit agreement is not public.",
+    "backstop": "Not disclosed: the credit agreement is not public; SpaceX's 10-Q and S-1 checked do not describe a guarantee of this loan.",
+    "covenants": "Not disclosed: the credit agreement is not public; BDC schedules give only coupon and maturity.",
+    "issue_date": "Not disclosed: the closing date is not in the BDC schedules or SpaceX filings checked."
+   }
+  },
+  {
+   "id": "EX-XAI_VCI-383",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "backstop": "Not disclosed in SpaceX's 10-Q (Jun 30, 2026) and S-1 checked.",
+    "covenants": "Not disclosed: lease terms are not public.",
+    "issue_date": "Not disclosed in the filings checked.",
+    "lenders": "Lessors not named in the filings checked."
+   }
+  },
+  {
+   "id": "EX-VANTAGE-361",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "backstop": "Not disclosed: holders' BDC schedules (Ares Capital, Ares Strategic Income Fund) give only the lien, coupon and maturity.",
+    "covenants": "Not disclosed: the loan agreement is not public.",
+    "issue_date": "Not disclosed in the BDC schedules checked.",
+    "issuer_name": "As named in holders' BDC schedules: Retained Vantage Data Centers Intermediate; the agreement is not public."
+   }
+  },
+  {
+   "id": "EX-CRWV-093",
+   "checked_on": "2026-10-22",
+   "facts": [],
+   "not_disclosed": {
+    "issue_date": "Not determined: DDTL 2.1 is an add-on under the DDTL 2.0 credit agreement of May 16, 2024; the amendment that added it is listed in CoreWeave's filings but its text is not stored.",
+    "lenders": "Not determined: the add-on's lender schedule is not in the documents Marden holds."
+   }
+  }
+ ]
+}
