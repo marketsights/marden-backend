@@ -49,7 +49,8 @@ COMMON_STARTS = _words("""
 a an the this that these those it its their there here ranked behind records record lead main key another
 other latest recent both each also and but while over under after before since from for of on in at with
 by to as so yet then still plus further meanwhile separately elsewhere together alongside against besides
-however overall next why how what which where when all most some not only even""")
+however overall next why how what which where when all most some not only even lastly finally additionally
+moreover""")
 NUMBER_WORDS = _words("""
 zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen
 seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred hundreds thousand
