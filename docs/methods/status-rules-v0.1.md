@@ -1,10 +1,10 @@
-# Status rules v0.3 (model `status`)
+# Status rules v0.4 (model `status`)
 
-Written 2026-10-21 (v0.1); v0.2 the same day: rule L2 reads the Marden price rate-neutral ("Why L1 and L2 are rate-neutral" below); v0.3 on 2026-10-22: rule L1 does too (v0.2 outputs had already been stored, streamed and shown, so the change is a new version). Code: `services/marden/models/status.py` (run, CLI, tasks, triggers), `status_inputs.py` (what it reads), `status_rules.py` (the rules), `status_credit.py` (the rate-neutral price test of L1 and L2), `status_text.py` (text and rating rules), `status_dates.py` (in-service dates), `materiality.py` (the alert engine's test). Spec: `handoff/specs/00-global.md` "Status rules" and "Materiality and alerts".
+Written 2026-10-21 (v0.1); v0.2 the same day: rule L2 reads the Marden price rate-neutral ("Why L1 and L2 are rate-neutral" below); v0.3 on 2026-10-22: rule L1 does too (v0.2 outputs had already been stored, streamed and shown, so the change is a new version); v0.4 the same day: a withdrawn permit or queue position trips T2 only when nothing replaces it ("Why a replaced withdrawal is not a failure" below; v0.3 outputs had been published to funds). Code: `services/marden/models/status.py` (run, CLI, tasks, triggers), `status_inputs.py` (what it reads), `status_rules.py` (the rules), `status_credit.py` (the rate-neutral price test of L1 and L2), `status_power.py` (when a withdrawal is replaced), `status_text.py` (text and rating rules), `status_dates.py` (in-service dates), `materiality.py` (the alert engine's test). Spec: `handoff/specs/00-global.md` "Status rules" and "Materiality and alerts".
 
 ## Output
 
-One `model_output` row per financed site and as-of day: model `status`, version `0.3` (method `status v0.3`), subject `('site', slug)`. The v0.1 and v0.2 rows stay stored; readers take the newest output of a day.
+One `model_output` row per financed site and as-of day: model `status`, version `0.4` (method `status v0.4`), subject `('site', slug)`. The v0.1 to v0.3 rows stay stored; readers take the newest output of a day.
 
 ```
 { "chain": ChainLink[4],      // end_user, tenant, developer, lenders, in that order (types.ts ChainLink)
@@ -12,14 +12,14 @@ One `model_output` row per financed site and as-of day: model `status`, version 
   "missing": string[] }       // inputs that were not on file, e.g. "lenders: Marden price (price model output)"
 ```
 
-`chain` and `status` drop straight into `SiteSummary.chain` / `.status`, `CompletionRow.chain`, `InstrumentRow.chainStatus`, `FinancedLink.chainStatus` and the `status` StreamEvent (each link passes `marden.core.events` validation). Each tripped link carries `ruleCode`, a `reason` (rule, the clause that tripped it, source and public date) and `fact`: the statement as a `Sourced<string>` (tag F or R, its URL, the day it became public). The Marden price, when it trips L1/L2, is the `fact` with tag M and the price model's `methodVersion` (a spread-loss L1 or L2 fact carries `status v0.3 on price v0.1`: the loss is this model's arithmetic on the price model's spread). A green tenant link shows the rating statement it read; a green lenders link names the lowest price and, for a fixed coupon, its spread-only loss since the reference day.
+`chain` and `status` drop straight into `SiteSummary.chain` / `.status`, `CompletionRow.chain`, `InstrumentRow.chainStatus`, `FinancedLink.chainStatus` and the `status` StreamEvent (each link passes `marden.core.events` validation). Each tripped link carries `ruleCode`, a `reason` (rule, the clause that tripped it, source and public date) and `fact`: the statement as a `Sourced<string>` (tag F or R, its URL, the day it became public). The Marden price, when it trips L1/L2, is the `fact` with tag M and the price model's `methodVersion` (a spread-loss L1 or L2 fact carries `status v0.4 on price v0.1`: the loss is this model's arithmetic on the price model's spread). A green tenant link shows the rating statement it read; a tenant link whose power test set a replaced withdrawal aside ends its reason with "Not T2: '<the withdrawal>' (source, day) is replaced by '<the live record>' (source, day)"; a green lenders link names the lowest price and, for a fixed coupon, its spread-only loss since the reference day.
 
 ## The rules (fixed)
 
 | Link | Amber | Red |
 | --- | --- | --- |
 | End user | E1 its plan needs new funding | E2 contract cut, or the end user exits |
-| Tenant | T1 rated BBB- or lower, or must post contested collateral | T2 BBB- or lower and power denied or withdrawn, or force majeure filed |
+| Tenant | T1 rated BBB- or lower, or must post contested collateral | T2 BBB- or lower and power denied or withdrawn (a withdrawal only when nothing replaces it), or force majeure filed |
 | Developer | D1 in-service date slips 3+ months | D2 construction halted |
 | Lenders | L1 Marden price 95–98 on credit alone (fixed rate: the spread move since the reference day is worth 2 up to 5 points; floating rate: the price 95–98), or syndication stalled | L2 Marden price below 95 on credit alone (fixed rate: the spread move since the reference day is worth 5+ points; floating rate: the price below 95), or default notice |
 
@@ -31,7 +31,8 @@ How each rule reads the record:
 - **E2**: a contract cut, termination, cancellation or exit tied to a contract, lease, order, commitment or the project, naming the end user.
 - **T1 rating**: the tenant's latest rating statement, pooled across every site where the same entity is tenant: the sites' `tenant_rating` texts and dated rating headlines (`risk_evidence`, `schedule_change`) that name the tenant. The lowest agency grade stated for the tenant itself counts (S&P / Fitch / DBRS / KBRA letters and Moody's on one notch scale; 'high yield' without a grade counts as BB+ or lower). Clauses about a bond, a backstop or a guarantor, text in brackets and grades a contract or tariff *requires* are not the tenant's rating. 'Unrated' is not 'BBB- or lower'.
 - **T2 force majeure**: a notice, invocation or filing of force majeure (not a contract clause such as "except force majeure") in a site statement naming the tenant, or in the site's own lease terms.
-- **T2 power denied or withdrawn**: a denial / rejection / withdrawal word within eight words of a power object (right-of-way, pipeline, gas, interconnection, permit, PPA, transmission, generation …) in one clause of a power statement, a schedule statement or an event, and not a procedural ruling (a denied motion, rehearing or complaint; a completeness or deficiency letter; a confidentiality ruling) or a voluntary switch of technology. Queue withdrawals on approved campuses / plants count.
+- **T2 power denied or withdrawn**: a denial / rejection / withdrawal word within eight words of a power object (right-of-way, pipeline, gas, interconnection, permit, PPA, transmission, generation …) in one clause of a power statement, a schedule statement or an event, and not a procedural ruling (a denied motion, rehearing or complaint; a completeness or deficiency letter; a confidentiality ruling) or a voluntary switch of technology. Events on approved campuses / plants count. From v0.4 a clause whose only such word is a withdrawal (withdrawn, withdrew, withdraws, withdrawal) counts only when, on the run day, no other permit, application or queue position for the same plant / campus is live (below); a denial, rejection, revocation or cancellation counts as before.
+- **T2 replaced withdrawal** (`status_power`): the records are the permit, queue and interconnection events on the site and its approved campuses and plants (one record per permit number or queue id, in the state of its latest action public on the day: withdrawn, denied, rejected, cancelled, revoked, vacated, expired, terminated or retired ends it; an application, notice, preliminary decision, hearing or decision keeps it live) and the `air_permits` facts on the site and those plants (each permit's own status), plus the plants' `queue_ids` with each queue position's `status_class` (active, under construction, in service: live). A withdrawal on a plant is replaced by a live record on that plant, the campus it serves or the site; on a campus, by one on the campus, its plants or the site; on the site, by any of them. A later live record of the same permit (refiled, reinstated) replaces it; an earlier one does not. The note cites a record on the same subject first, then a pending one (an application in progress), then the latest.
 - **D1**: a site's ready-for-service target moved 3+ months: per project, the latest dated statement (`rfs_statement`) against the first one; and the dossier's `expected_energization` against `original_energization`. Dates are read by `status_dates`: a period counts as its last month (00-global: a year alone is Dec 31), a coarser later statement that still contains the earlier date is no slip, statement dates and labels ('Jun-11-2026 call (DCD): …') are skipped, outside estimates (Epoch, Aterio, satellite tracking) are cut off, and 'no change reported' carries no target. A delivery statement that itself says "delayed N months" counts too; a fuel-supply or permit slip does not (that is the cushion model's input).
 - **D2**: construction halted, paused, stopped or suspended (not "work continuing despite a pause"), a stop-work order, or an expected completion that reads 'cancelled'.
 - **L2 price** (rate-neutral, `status_credit`): each of the site's instruments in the price model's latest `model_output` on or before the day. A floating-rate loan (`basis.terms.couponType` `floating`, or no terms) trips L2 when its Marden price is below 95. A fixed-rate instrument trips L2 when its **spread-only loss** is 5 points or more: the price output's cash flows (on the output's own day) priced at the reference day's Treasury par yield at the remaining maturity plus the output's Marden spread (`spreadBp`, yield minus the Treasury par yield at the same maturity) give the *credit price*; the same with the reference-day spread give the *reference price*; loss = reference price − credit price, i.e. (spread now − spread at reference) × spread duration, revalued in full. 5 points is the move that would take a par-issued instrument below 95. When several instruments trip, the link cites the largest loss (a floating loan's loss counts as 100 − price).
@@ -39,6 +40,12 @@ How each rule reads the record:
 - **L1 price** (rate-neutral from v0.3, same test as L2): when no price L2 fired, a fixed-rate instrument trips L1 when its spread-only loss is 2 points or more and under 5 (the move would take a par-issued instrument to 98 or below); a floating-rate loan (or a price without terms) when its Marden price is 95–98. When several instruments trip, the link cites the largest loss on credit alone (a floating loan's counts as 100 − price). Until the price model writes outputs, only the text rules below apply and `missing` says so.
 - **L1 syndication**: syndication stalled, struggling, failed or pulled, or arrangers holding more than planned, in the site's debt notes, tranche notes or the instruments' terms. Slow syndication alone ("has taken more than six months") is not stalled.
 - **L2 default notice**: a notice of default, a declared event of default, acceleration, a missed payment, or an instrument `status` of default.
+
+### Why a replaced withdrawal is not a failure (v0.4)
+
+Approving the 21 site–campus links on 2026-10-22 made the on-site plants' events inputs, and Stargate Abilene went Strained → Broken on one of them: TCEQ air permit 182267 for the Abilene on-site plant, "withdrawn (project 401169)" on 2026-04-20 (TCEQ's record: an NSR application filed 2025-11-20, agency status CANCELLED). The same plant holds issued permits 177262 (PBR, backup generators), 177263 (standard permit, the Titan 350 / LM2500 turbines) and Title V O4721 (decision 2026-01-16), and its PSD permit 182126 (PSDTX1688 / GHGPSDTX263, Crusoe Energy Systems) went to preliminary decision and public notice on 2026-08-05 and 2026-08-11; the site's own `air_permits` fact (2026-10-17) lists 182126 as pending. A developer withdraws an application to refile it, fold it into another permit or move the same units to another record; that is a replacement, not a lost power source. A withdrawal with nothing live beside it still counts: STACK Danville's three gas units withdrawn from PJM's queue on 2026-09-24 (1,820 MW, no other position or permit on file) stay a power withdrawal for T2 and the alert engine's M3.
+
+The test is point in time like every input: on 2026-08-04, before 182126's first notice, the withdrawal was replaced by the plant's issued permits (the latest, O4721); a record public only after the run day cannot replace anything. The alert engine's M3 ("denies or withdraws a power source") is unchanged: an event that withdraws a permit is still reported, since the reader decides whether the replacement holds.
 
 ### Why L1 and L2 are rate-neutral (v0.2, v0.3)
 
@@ -54,7 +61,7 @@ Every text rule matches inside one clause and skips negated ("no force majeure n
 
 Inputs are published facts and events, read through `marden.models.pit`:
 
-- Site facts: `risk_evidence`, `schedule_change`, `rfs_statement`, `tenant_rating`, lease terms (`lease_termination`, `lease_tenant`, `leases`, `structure_term`, `credit_support`), debt notes (`debt_facility`, `tranches`, `debt_items`), power text (`power_contract`, `power_detail`, `power_status`, `power_supply`, `onsite_generation`), `expected_energization`, `original_energization`. Chain parties (`chain_party`) and their entities' `funding_fact`. The site's instruments' `research_terms` and `status`. Events on the site, its chain-party entities, its instruments, and (approved links only) its campuses and plants; `catalyst` events (scheduled steps) are not inputs.
+- Site facts: `risk_evidence`, `schedule_change`, `rfs_statement`, `tenant_rating`, lease terms (`lease_termination`, `lease_tenant`, `leases`, `structure_term`, `credit_support`), debt notes (`debt_facility`, `tranches`, `debt_items`), power text (`power_contract`, `power_detail`, `power_status`, `power_supply`, `onsite_generation`), `expected_energization`, `original_energization`. Chain parties (`chain_party`) and their entities' `funding_fact`. The site's instruments' `research_terms` and `status`. Events on the site, its chain-party entities, its instruments, and (approved links only) its campuses and plants; `catalyst` events (scheduled steps) are not inputs. For T2's replaced-withdrawal test (v0.4): `air_permits` on the site and its approved plants, the plants' `queue_ids` and those queue positions' `status_class` (Marden's own queue matches, tag M `linked_*` facts, are not used).
 - Only tags F and R can trip a rule. Tag M rows (the archive's legacy judgments, other models' estimates) are never inputs, except the Marden price.
 - A run for today reads every published row. A run for a past day is a backtest: a fact counts once public (`valid_from` plus the source's lag, e.g. N-PORT +60 days); `learned_at` is ignored because the archive and the first collector runs were loaded on 2026-10-21. One extra rule here: a dossier note in the seed archive (debt notes, rating text, lease terms, energization text) is public only from the archive's own date (`document.doc_date`, 2026-10-20), because the note was written then even when its record is older; dated items (risk evidence, schedule changes, RFS statements, events) are public on their own date.
 - Licensing: with `MARDEN_SHOW_UNLICENSED_PRICES=false` rows from unlicensed sources are dropped from the inputs (by `pit`).
@@ -62,7 +69,7 @@ Inputs are published facts and events, read through `marden.models.pit`:
 ## When it runs
 
 - Daily at 09:53 UTC (`models.status`, queue `models`): after the overnight collectors, before the 10:05 UTC screen rebuild.
-- Within a minute of a published input (`models.run_dirty`): the model declares its inputs in `marden.models.triggers` (the site fields above and `@event`; chain-party entities' `funding_fact` and events; the instruments' fields, events and `@model:price`; approved campuses' and plants' events).
+- Within a minute of a published input (`models.run_dirty`): the model declares its inputs in `marden.models.triggers` (the site fields above and `@event`; chain-party entities' `funding_fact` and events; the instruments' fields, events and `@model:price`; approved campuses' and plants' events; the site's and approved plants' `air_permits` and the plants' `queue_ids`). A queue position's own `status_class` change reaches the site at the daily run: a lookup on each of the queue collectors' ~60k rows per run would slow them.
 - After a run for today, each site whose output changed is marked with `mark_dirty_for('site', slug, '@model:status')`: every site screen, the lists that show chain status (sites, completion, home, payers, instruments, data-center rows) and models that read the status.
 - `python -m marden model status [--as-of YYYY-MM-DD] [--site slug ...] [--json]`.
 
@@ -85,6 +92,22 @@ A scheduled step (event kind `catalyst`, e.g. "CoreWeave Q3 10-Q: leverage coven
 
 On the 9,048 published events in the local database (2026-10-21), 14 are material: 10 M4 (nine Jupiter force-majeure headlines, "Microsoft pulls out of UK Nscale data centre deal"), 4 M3 (the Green Chile lateral "rerouted after rejections", three STACK Danville gas units withdrawn from the PJM queue); none of the 8,107 docket items.
 
+## Runs on the local database (2026-10-22, status v0.4)
+
+Re-run for 07-01, 08-17, 09-01, 09-30, 10-14, 10-20 and today (2026-10-21, US Eastern business day) after the 21 site–campus links were approved, so the campus and plant events are inputs on every day:
+
+| As of | Broken | Strained | Holding | Status changes against the stored v0.3 outputs |
+| --- | --- | --- | --- | --- |
+| 2026-07-01 (backtest) | 0 | 0 | 29 | none |
+| 2026-08-17 (backtest) | 0 | 11 | 18 | none (v0.3 with the links would have broken Abilene on the replaced withdrawal) |
+| 2026-09-01 (backtest) | 1 | 10 | 18 | Jupiter Strained → Broken: T2 on the linked Green Chile plant's "Oracle Data Center's Pipeline Plan Is Rerouted After Rejections" (Energyconnects, 2026-08-18), a denial; the v0.3 backtest was stored before the links were approved |
+| 2026-09-30 (backtest) | 1 | 10 | 18 | none |
+| 2026-10-14 (backtest) | 2 | 12 | 15 | none |
+| 2026-10-20 (backtest) | 3 | 15 | 11 | none |
+| 2026-10-21 (today) | 6 | 12 | 11 | Abilene Broken → Strained: T2 → T1, 182267's withdrawal replaced by 182126 |
+
+Abilene is Strained on every day from 08-17 (T1 Oracle BBB-, D1, and E1 from 10-20). Of the v0.3 runs below, the 10-21 one was stored after the link approvals (Abilene Broken); the others before.
+
 ## Runs on the local database (2026-10-22, status v0.3)
 
 Each day reads the price model's latest stored output on or before it (outputs exist for 07-01, 08-17, 09-30, 10-14 and 10-21; 09-01 reads 08-17's, 10-20 reads 10-14's). The price outputs of all five days were re-run on 2026-10-22 after the issue-comp link fix (price-engine-v0.1 "Calibration"); the status backtests of 07-01, 08-17, 09-01, 09-30, 10-14 and 10-20 were re-run with today's, so the stored history (home's week-ago comparison reads 10-14) is on one method.
@@ -103,10 +126,11 @@ Under v0.1 (raw price for L1 and L2) today was 11 / 10 / 8.
 
 Jupiter's construction loan is floating rate (SOFR+250), so its L link is the same under every version: green on 08-17, 09-18 and 09-24 (the stored price output of 08-17, 99.4: Marden's own records, not the methodology's locked path, which is below 95 on 08-17 — pricing-v0.1 "Jupiter backtest"), L2 at 87.7 on 09-30 and 85.8 today.
 
-## Limits (v0.3)
+## Limits (v0.4)
 
 - Most signals are still statements, read by fixed text rules. Structured facts from the extraction agents (a `force_majeure_notice` or `rating` fact) should replace them; the rules then become field checks.
 - A fixed coupon's L1 / L2 reading is only as good as the price model's spread: the Kalman residual lags a fast sell-off by a few days' moves (Galaxy Helios II's model spread 748bp against 800bp at its 2026-10-20 TRACE print; price-engine-v0.1 "Residual"), so a loss crossing 2 or 5 points can show a few days late. Amortization is not modelled (bullet flows), which moves a spread by about 15–20bp on the amortizing project bonds.
 - The reference spread is the price model's own (lp held from issue plus the filtered residual); on an instrument with no issue comp it is the first stored Marden price, which depends on the days the price model has been run.
-- Site → campus links are all `proposed`, so campus and plant events (e.g. the Green Chile lateral's "rerouted after rejections") are not inputs yet.
+- 21 site → campus links were approved on 2026-10-22; the other proposed links' campus and plant events are not inputs until they are approved. Links are read as they stand today, also in backtests (a link has no point-in-time history).
+- A permit 'decision' event is read as issued; the agency's record (`air_permits` status) says when one was a denial, and only from the day Marden read it. Queue positions held only through Marden's own matches (tag M) do not replace a withdrawal.
 - Backtests before 2026-10-20 see only dated items and events; the archive's dossier notes (ratings text, debt notes) appear from 2026-10-20.

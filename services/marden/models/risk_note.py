@@ -33,10 +33,23 @@ def evidence(day: str, text: str, tag: str, source: str, url: str, ref: str) -> 
     return {"date": day, "text": text, "tag": tag, "sourceName": source, "sourceUrl": url, "_ref": ref}
 
 
+UNNAMED_PARTIES = ("", "n/d", "—")  # the status chain's party when no name is on file / no such party
+
+
+def link_head(link: dict[str, Any]) -> str:
+    """'Oracle (tenant, T2)'; the role in words ('end user', not 'end_user'), and a party with no name on
+    file said plainly ('Lenders (not named, L2)'), never the bare 'n/d' as if it were a name."""
+    role = str(link.get("role") or "").replace("_", " ")
+    code = link.get("ruleCode") or ""
+    party = str(link.get("party") or "").strip()
+    if party in UNNAMED_PARTIES:
+        return f"{role[:1].upper()}{role[1:]} (not named, {code})"
+    return f"{party} ({role}, {code})"
+
+
 def status_reason(link: dict[str, Any], site: str, out_day: date) -> dict[str, Any] | None:
     fact = link.get("fact") if isinstance(link.get("fact"), dict) else None
-    code = link.get("ruleCode") or ""
-    head = f"{link.get('party') or link.get('role')} ({link.get('role')}, {code})"
+    head = link_head(link)
     if fact and fact.get("value"):
         return evidence(
             str(fact.get("asOf") or out_day.isoformat()),

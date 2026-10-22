@@ -6,7 +6,9 @@ For each site the four ChainLinks (end_user, tenant, developer, lenders) with Li
 (E1/E2, T1/T2, D1/D2, L1/L2), the reason and the statement that tripped the rule, and the ChainStatus
 (worst link). L2's price test is rate-neutral from v0.2, L1's from v0.3: a fixed coupon's spread move since
 issue (else its first Marden price) worth 5+ points (L2) or 2 up to 5 points (L1), a floating-rate loan's
-price below 95 (L2) or 95-98 (L1) (status_credit). One
+price below 95 (L2) or 95-98 (L1) (status_credit). From v0.4 a withdrawn permit or queue position trips
+T2's power test only when no other permit, application or queue position for the same plant / campus is
+live on the day (status_power). One
 `model_output` per site and as-of day: model 'status', version VERSION, subject ('site', slug), output =
 {chain: ChainLink[], status: ChainStatus, missing: [...]} - the `chain` and `status` pieces of types.ts
 SiteSummary, plus the inputs that were not on file. Rules: status_rules.py; inputs: status_inputs.py;
@@ -20,8 +22,8 @@ instruments, data-center rows) dirty for each site whose output changed, through
 When it runs (spec 22 "What runs when"): daily at 09:53 UTC (05:53 EDT / 04:53 EST), after the overnight
 collectors and before the 10:05 UTC screen rebuild; and within a minute of any published input
 (`models.run_dirty`): the site facts and events it reads, its chain parties' funding facts and events, its
-instruments' terms, status and events, the price model's output on them, and events on approved campuses
-and plants.
+instruments' terms, status and events, the price model's output on them, events on approved campuses
+and plants, and the site's and those plants' permits and queue ids.
 """
 
 from __future__ import annotations
@@ -38,7 +40,16 @@ from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, sha256_hex, to_jsonable
 from marden.core.queue import app
 from marden.models import runs, triggers
-from marden.models.status_inputs import ENTITY_FIELDS, INSTRUMENT_FIELDS, PRICE_MODEL, SITE_FIELDS, Inputs, load
+from marden.models.status_inputs import (
+    AUTH_FIELDS,
+    ENTITY_FIELDS,
+    INSTRUMENT_FIELDS,
+    PRICE_MODEL,
+    QUEUE_FIELDS,
+    SITE_FIELDS,
+    Inputs,
+    load,
+)
 from marden.models.status_rules import METHOD_VERSION, evaluate, rating_pool
 from marden.readmodels.context import business_today
 from marden.readmodels.deps import mark_dirty_for, via
@@ -46,7 +57,8 @@ from marden.readmodels.deps import mark_dirty_for, via
 log = logging.getLogger(__name__)
 
 MODEL = "status"
-VERSION = "0.3"  # 0.2: L2 reads the Marden price rate-neutral (status_credit); 0.3: L1 as well
+VERSION = "0.4"  # 0.2: L2 reads the Marden price rate-neutral (status_credit); 0.3: L1 as well; 0.4: a
+# withdrawn permit or queue position trips T2 only when nothing replaces it (status_power)
 CRON_UTC = "53 9 * * *"
 OUTPUT_FIELD = f"@model:{MODEL}"
 
@@ -56,7 +68,8 @@ def _inputs_hash(inputs: Inputs, slugs: list[str]) -> str:
     for slug in slugs:
         site = inputs.sites[slug]
         used.append([slug, sorted({it.origin for it in site.items + site.instrument_items}),
-                     [[p.instrument_id, p.value, p.as_of.isoformat()] for p in site.prices]])
+                     [[p.instrument_id, p.value, p.as_of.isoformat()] for p in site.prices],
+                     sorted({a.origin for a in site.authorizations})])
     used.append(sorted({it.origin for items in inputs.entity_items.values() for it in items}))
     return sha256_hex(canonical_json(used))
 
@@ -127,7 +140,7 @@ _PLANT_SITES = via(
 
 
 def _install_triggers() -> None:
-    for field in (*SITE_FIELDS, "@event"):
+    for field in (*SITE_FIELDS, *AUTH_FIELDS, "@event"):
         triggers.model_depends(MODEL, "site", field)
     # a site link approved or rejected on the review queue adds or drops the campus and plant events
     # the site's chain reads (status_inputs.load), so the site is re-run
@@ -138,6 +151,11 @@ def _install_triggers() -> None:
         triggers.model_depends(MODEL, "instrument", field, _INSTRUMENT_SITE)
     triggers.model_depends(MODEL, "campus", "@event", _CAMPUS_SITES)
     triggers.model_depends(MODEL, "plant", "@event", _PLANT_SITES)
+    # the permits and queue positions that tell a replaced withdrawal from a failure (status_power); a queue
+    # position's own status_class change reaches the site through the daily run (one lookup per queue row
+    # written would slow the queue collectors' ~60k writes)
+    for field in (*AUTH_FIELDS, *QUEUE_FIELDS):
+        triggers.model_depends(MODEL, "plant", field, _PLANT_SITES)
     triggers.register_runner(MODEL, run_keys)
 
 

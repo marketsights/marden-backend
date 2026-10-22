@@ -10,6 +10,11 @@ legacy judgments and other models' estimates) are never inputs: only filed (F) a
 statements can trip a status rule. The Marden price is the one model input, read from the price model's
 `model_output`; for a fixed coupon it comes with its rate-neutral reading (`status_credit`: the spread move
 since the reference day, on the reference day's Treasury curve), which rule L2 reads instead of the price.
+
+Authorizations (status v0.4): the permits and queue positions on file for the site and its approved plants
+on the day (`air_permits` on the site and plants, the plants' `queue_ids` with each queue position's
+`status_class`), read point in time like every fact. With the permit and queue events they tell whether a
+withdrawn permit or queue position was replaced (`status_power`).
 """
 
 from __future__ import annotations
@@ -34,6 +39,9 @@ SITE_FIELDS = (
 )
 ENTITY_FIELDS = ("funding_fact",)
 INSTRUMENT_FIELDS = ("research_terms", "status")
+AUTH_FIELDS = ("air_permits",)  # site and plant: every matched permit {number, ids, status, ...}
+QUEUE_FIELDS = ("queue_ids",)  # plant: its interconnection queue positions (ISO queue ids)
+QUEUE_STATUS = "status_class"  # queue_project: active | under_construction | in_service | suspended | withdrawn ...
 EXCLUDED_EVENT_KINDS = ("catalyst",)  # scheduled future steps, not things that happened
 PRICE_MODEL = "price"
 CURVES_SINCE = date(2025, 1, 1)  # the Treasury curve archive starts 2025-01-02 (as the price model's)
@@ -84,6 +92,20 @@ class Item:
         return out
 
 
+@dataclass(frozen=True)
+class Authorization:
+    """A permit or queue position on file on the as-of day, as its record states it (status v0.4)."""
+
+    subject: str  # 'site:<slug>' | 'plant:<id>'
+    kind: str  # 'permit' | 'queue'
+    key: str  # the permit number or queue id
+    ids: tuple[str, ...]  # every number the record gives (permit, PSD / GHG ids, project) or the queue id
+    status: str  # the record's status ('issued', 'pending', 'withdrawn'; a queue's status_class)
+    day: date  # the day it became public
+    source_name: str
+    origin: str  # 'fact:<id>'
+
+
 @dataclass
 class Party:
     role: str
@@ -115,6 +137,7 @@ class SiteInputs:
     instrument_items: list[Item] = field(default_factory=list)
     prices: list[Price] = field(default_factory=list)
     links: dict[str, list[str]] = field(default_factory=dict)  # approved campuses and their plants
+    authorizations: list[Authorization] = field(default_factory=list)  # site and plant permits, queue positions
 
 
 @dataclass
@@ -290,6 +313,47 @@ def price_value(output: Any) -> tuple[float | None, str | None, str | None]:
     return None, None, None
 
 
+def _current(rows: list[Row]) -> dict[tuple[str, str], Row]:
+    """(subject_id, field) -> the row a reader takes on the day (`pit.current_of`), tags F and R only."""
+    by_key: dict[tuple[str, str], list[Row]] = defaultdict(list)
+    for r in rows:
+        if r["tag"] in ("F", "R"):
+            by_key[(r["subject_id"], r["field"])].append(r)
+    return {k: row for k, rs in by_key.items() if (row := pit.current_of(rs)) is not None}
+
+
+def authorizations(conn: Conn, as_of: date, slugs: list[str], plant_ids: list[str]) -> list[Authorization]:
+    """The permits and queue positions on file on `as_of` for these sites and plants (point in time)."""
+    rows = list(_current(pit.fact_rows(conn, as_of, "site", slugs, AUTH_FIELDS)).values()) if slugs else []
+    if plant_ids:
+        rows += _current(pit.fact_rows(conn, as_of, "plant", plant_ids, AUTH_FIELDS + QUEUE_FIELDS)).values()
+    out: list[Authorization] = []
+    queues: dict[str, Row] = {}
+    for r in rows:
+        subject, day, origin = f"{r['subject_type']}:{r['subject_id']}", pit.public_date(r), f"fact:{r['id']}"
+        if r["field"] in QUEUE_FIELDS:
+            for qid in r["value"] if isinstance(r["value"], list) else []:
+                if isinstance(qid, str) and qid.strip():
+                    queues[f"{(r['source_name'] or '').lower()}:{qid.strip()}"] = r
+            continue
+        for p in r["value"] if isinstance(r["value"], list) else []:
+            if isinstance(p, dict) and p.get("number"):
+                ids = tuple(str(i) for i in [p["number"], *(p.get("ids") or [])])
+                out.append(Authorization(subject, "permit", str(p["number"]), ids, str(p.get("status") or ""),
+                                         day, r["source_name"], origin))
+    if queues:
+        found = _current(pit.fact_rows(conn, as_of, "queue_project", sorted(queues), [QUEUE_STATUS]))
+        for qid, plant_row in sorted(queues.items()):
+            status = found.get((qid, QUEUE_STATUS))
+            if status is None:
+                continue  # a queue id without a status on file says nothing about the position
+            out.append(Authorization(
+                f"plant:{plant_row['subject_id']}", "queue", qid.split(":", 1)[1], (qid.split(":", 1)[1],),
+                str(status["value"]), max(pit.public_date(plant_row), pit.public_date(status)),
+                status["source_name"], f"fact:{status['id']}"))
+    return out
+
+
 def _mark_generic(items: list[Item]) -> list[Item]:
     """News filed under several sites (the same URL or title) is not about any one of them by itself."""
     sites_by_key: dict[str, set[str]] = defaultdict(set)
@@ -343,6 +407,7 @@ def load(conn: Conn, as_of: date, slugs: list[str] | None = None) -> Inputs:
     inst_items = fact_items(conn, as_of, "instrument", inst_ids, INSTRUMENT_FIELDS)
     inst_items += event_items(conn, as_of, "instrument", inst_ids)
     prices = _prices(conn, as_of, inst_ids)
+    auths = authorizations(conn, as_of, [s["slug"] for s in wanted], plant_ids)
 
     sites: dict[str, SiteInputs] = {}
     for s in wanted:
@@ -359,6 +424,7 @@ def load(conn: Conn, as_of: date, slugs: list[str] | None = None) -> Inputs:
             [it for it in inst_items if it.subject.split(":", 1)[1] in mine],
             [prices[i] for i in sorted(mine) if i in prices],
             {c: plants.get(c, []) for c in campuses},
+            [a for a in auths if a.subject in subjects or a.subject == f"site:{slug}"],
         )
     return Inputs(as_of, sites, dict(entity_items), sum(r["status"] == "approved" for r in links),
                   sum(r["status"] == "proposed" for r in links))

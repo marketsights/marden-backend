@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | end_user | E1 its plan needs new funding | E2 contract cut, or the end user exits |
 | tenant | T1 rated BBB- or lower, or must post contested collateral | T2 BBB- or lower and power denied or |
-| | | withdrawn, or force majeure filed |
+| | | withdrawn (a withdrawal only if nothing replaces it), or force majeure filed |
 | developer | D1 in-service date slips 3+ months | D2 construction halted |
 | lenders | L1 Marden price 95-98 on credit alone, or | L2 Marden price below 95 on credit alone, or |
 | | syndication stalled | default notice |
@@ -16,7 +16,9 @@ when several statements trip one rule, the filed one first, then the earliest. T
 are rate-neutral: a fixed-rate instrument trips L2 when its spread move since the reference day (issue, else
 the first Marden price) alone is worth 5+ points and L1 when it is worth 2 up to 5 points
 (`marden.models.status_credit`); a floating-rate loan trips L2 when its Marden price is below 95 and L1 at
-95-98. Text rules: `marden.models.status_text`; dates:
+95-98. A withdrawn permit or queue position counts for T2 only when no other permit, application or queue
+position for the same plant / campus is live on the day (v0.4, `marden.models.status_power`). Text rules:
+`marden.models.status_text`; dates:
 `marden.models.status_dates`; method: docs/methods/status-rules-v0.1.md.
 """
 
@@ -30,11 +32,12 @@ from datetime import date
 from typing import Any
 
 from marden.models import status_dates as dates
+from marden.models import status_power as sp
 from marden.models import status_text as tx
 from marden.models.status_credit import LOSS_AMBER_POINTS, LOSS_RED_POINTS
 from marden.models.status_inputs import Inputs, Item, Party, Price, SiteInputs
 
-METHOD_VERSION = "status v0.3"
+METHOD_VERSION = "status v0.4"
 PRICE_RED_BELOW = 95.0
 PRICE_AMBER_AT_OR_BELOW = 98.0
 L1_PRICE = "Marden price 95-98"  # a floating-rate loan (or terms not on file)
@@ -160,8 +163,21 @@ def tenant_rating(site: SiteInputs, tenant: Party, pool: dict[str, list[RatingEv
                                         -(e.rating.notch or 0)))
 
 
+def power_failures(site: SiteInputs, notes: list[str] | None = None) -> list[tuple[Item, tx.Hit]]:
+    """T2's power statements: denials, and withdrawals that nothing replaces on the day (v0.4,
+    `status_power`). A replaced withdrawal is left out, with a note naming what replaced it."""
+    out = []
+    for it, hit in _scan(site.items, tx.power_denied, site=site, fields=POWER_FIELDS):
+        if hit.rule == "power_withdrawn" and (by := sp.replacement(site, it)) is not None:
+            if notes is not None:
+                notes.append(f"Not T2: '{hit.clause}' ({_cite(it)}) is replaced by '{by.text}' ({by.cite})")
+            continue
+        out.append((it, hit))
+    return out
+
+
 def tenant(site: SiteInputs, inputs: Inputs, pool: dict[str, list[RatingEvidence]],
-           missing: list[str]) -> tuple[list[Finding], RatingEvidence | None]:
+           missing: list[str], notes: list[str] | None = None) -> tuple[list[Finding], RatingEvidence | None]:
     party = site.parties["tenant"]
     own = inputs.entity_items.get(party.entity_id or "", [])
     found = []
@@ -171,7 +187,7 @@ def tenant(site: SiteInputs, inputs: Inputs, pool: dict[str, list[RatingEvidence
         found.append(Finding("T2", "red", "Force majeure filed", pick[0], pick[1].clause))
     rated = tenant_rating(site, party, pool)
     if rated is not None and rated.rating.at_or_below_bbb_minus:
-        power = _pick(_scan(site.items, tx.power_denied, site=site, fields=POWER_FIELDS))
+        power = _pick(power_failures(site, notes))
         if power:
             found.append(Finding("T2", "red", f"Rated {rated.rating.grade} and power denied or withdrawn", power[0],
                                  f"{power[1].clause}; rating: {rated.rating.clause} ({_cite(rated.item)})"))
@@ -338,9 +354,11 @@ def _price_note(p: Price) -> str:
 
 # ---------------------------------------------------------------- links and chain
 def _link(role: str, party: str, findings: list[Finding], green_reason: str,
-          green_fact: dict[str, Any] | None = None) -> dict[str, Any]:
+          green_fact: dict[str, Any] | None = None, notes: list[str] | None = None) -> dict[str, Any]:
+    """One ChainLink; `notes` (statements a rule read and set aside, e.g. a replaced withdrawal) end the reason."""
+    tail = "".join(f". {n}" for n in dict.fromkeys(notes or []))
     if not findings:
-        out: dict[str, Any] = {"role": role, "party": party, "status": "green", "reason": green_reason}
+        out: dict[str, Any] = {"role": role, "party": party, "status": "green", "reason": green_reason + tail}
         if green_fact:
             out["fact"] = green_fact
         return out
@@ -351,7 +369,7 @@ def _link(role: str, party: str, findings: list[Finding], green_reason: str,
         cite = f" ({_cite(f.item)})" if f.item else ""
         parts.append(f"{f.code} {f.label}: {f.detail}{cite}" if f.detail else f"{f.code} {f.label}{cite}")
     link: dict[str, Any] = {"role": role, "party": party, "status": top.status, "ruleCode": top.code,
-                            "reason": ". ".join(parts)}
+                            "reason": ". ".join(parts) + tail}
     fact = top.fact or (top.item.sourced() if top.item else None)
     if fact:
         link["fact"] = fact
@@ -380,11 +398,13 @@ def evaluate(site: SiteInputs, inputs: Inputs, pool: dict[str, list[RatingEviden
     else:
         chain.append(_none("end_user", "No separate end user is named for this site"))
     if "tenant" in parties:
-        found, rated = tenant(site, inputs, pool, missing)
+        notes: list[str] = []
+        found, rated = tenant(site, inputs, pool, missing, notes)
         grade = (rated.rating.grade or "unrated") if rated else "n/d"
         chain.append(_link("tenant", parties["tenant"].label, found,
                            f"No tenant rule met: rated {grade}; no force majeure or contested collateral on file",
-                           rated.item.sourced() if rated else None))
+                           rated.item.sourced() if rated else None,
+                           notes if not any(f.code == "T2" and f.label.startswith("Rated") for f in found) else []))
     else:
         chain.append(_none("tenant", "No tenant is named for this site"))
     dev = parties.get("developer")

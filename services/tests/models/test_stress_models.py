@@ -123,6 +123,22 @@ def test_risk_note_rounds_odds_half_up():
     assert ev["_ref"] == "model:payer_capacity@entity:oracle:2026-10-21"  # the reference keeps the id
 
 
+def test_risk_note_names_link_parties_in_words():
+    """A tripped link reads 'Oracle (tenant, T2)', the role in words; a party with no name on file says so
+    ('Lenders (not named, L2)'), never the bare 'n/d' as if it were a name."""
+    fact = {"value": "Marden spread loss 6.6 points", "tag": "M", "asOf": "2026-10-21"}
+    named = risk_note.status_reason({"party": "Oracle", "role": "tenant", "ruleCode": "T2", "fact": fact}, "jupiter",
+                                    date(2026, 10, 21))
+    assert named is not None and named["text"] == "Oracle (tenant, T2): Marden spread loss 6.6 points"
+    for party in ("n/d", "—", "", None):
+        ev = risk_note.status_reason({"party": party, "role": "lenders", "ruleCode": "L2", "fact": fact}, "helios",
+                                     date(2026, 10, 21))
+        assert ev is not None and ev["text"] == "Lenders (not named, L2): Marden spread loss 6.6 points"
+    eu = risk_note.status_reason({"party": "OpenAI", "role": "end_user", "ruleCode": "E1",
+                                  "reason": "E1 Funding at risk. More text"}, "abilene", date(2026, 10, 21))
+    assert eu is not None and eu["text"] == "OpenAI (end user, E1): E1 Funding at risk"
+
+
 def test_stress_run_function_contract(area):
     """stress_run(jsonb): a saved scenario at once, a custom one queued once and served once stored."""
     with psycopg.connect(TEST_URL, autocommit=True) as conn:

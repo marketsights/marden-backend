@@ -10,6 +10,8 @@ hit keeps the clause it matched so the chain link can show it.
   (a right or a clause is not an event);
 - procedure: a denied *motion*, *rehearing* or *complaint*, or a withdrawn *counsel*, is not a power
   denial (a denied rehearing request against an approved permit is good news for the project);
+- withdrawal: a power clause whose only denial word is a withdrawal is rule 'power_withdrawn', which the
+  status rules count only when no other permit, application or queue position is live (`status_power`);
 - filing captions: an 8-K item caption ('Item 1.02 Termination of a Material Definitive Agreement') names
   a kind of filing, not a contract cut (with 'Entry into ...' it is the usual refinancing pair).
 
@@ -181,7 +183,10 @@ def syndication_stalled(text: str | None) -> Hit | None:
 
 def power_denied(text: str | None) -> Hit | None:
     """A power source denied or withdrawn: a denial word and a power object in one clause, not a procedural
-    ruling and not a voluntary switch of technology."""
+    ruling and not a voluntary switch of technology. Rule 'power_denied' when a clause denies, rejects,
+    revokes or cancels; 'power_withdrawn' when the only such word is a withdrawal (status v0.4: a withdrawn
+    permit or queue position counts only if nothing replaces it, `status_power.replacement`)."""
+    withdrawn: Hit | None = None
     for clause in clauses(text):
         body = _strip_brackets(clause)  # side notes in brackets are about something else
         if PROCEDURE.search(body) or VOLUNTARY.search(body):
@@ -193,11 +198,14 @@ def power_denied(text: str | None) -> Hit | None:
                 continue
             at = _word_index(body, m.start())
             if any(abs(at - o) <= POWER_WINDOW_WORDS for o in objects):
-                return Hit("power_denied", clause)
-    return None
+                if not WITHDRAWAL.fullmatch(m.group(0)):
+                    return Hit("power_denied", clause)
+                withdrawn = withdrawn or Hit("power_withdrawn", clause)
+    return withdrawn
 
 
 POWER_WINDOW_WORDS = 8  # the denial word and the power object it denies sit within this many words
+WITHDRAWAL = re.compile(r"withdrawn|withdrew|withdraws|withdrawals?", re.I)  # POWER_DENIAL's withdrawal words
 
 
 def _word_index(text: str, pos: int) -> int:
