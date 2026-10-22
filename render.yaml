@@ -31,8 +31,8 @@ services:
         sync: false
       - key: CLERK_WEBHOOK_SIGNING_SECRET
         sync: false
-      - key: WEB_ORIGIN              # e.g. https://app.marden.ai (or the core-web onrender.com URL)
-        sync: false
+      - key: WEB_ORIGIN              # the web app's domain: Clerk's production instance (clerk.marden.ai) only works on marden.ai
+        value: https://app.marden.ai
       - key: TRUST_PROXY             # one hop: Render's proxy
         value: "1"
       - key: ALERT_LINK_SECRET       # verifies the unsubscribe links the worker signs: the worker's value
@@ -74,8 +74,8 @@ services:
         sync: false
       - key: ALERT_LINK_SECRET
         generateValue: true
-      - key: MARDEN_APP_URL          # e.g. https://app.marden.ai
-        sync: false
+      - key: MARDEN_APP_URL          # links in alert emails
+        value: https://app.marden.ai
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
