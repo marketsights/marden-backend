@@ -35,6 +35,7 @@ assert conninfo_to_dict(TEST_URL)["dbname"] != conninfo_to_dict(BASE_URL).get("d
 
 # Configure the environment before any marden module reads settings.
 os.environ["DATABASE_URL"] = TEST_URL
+os.environ.pop("DATABASE_URL_UNPOOLED", None)  # the pool prefers it, which would reach the real database
 os.environ["MARDEN_RAW_DIR"] = RAW_DIR
 for _name in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"):
     os.environ.pop(_name, None)  # tests never write to a real bucket

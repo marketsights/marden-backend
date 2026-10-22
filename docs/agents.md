@@ -165,7 +165,10 @@ recorded in `agent_decision` (one open per item) and applied by the worker withi
 event writers (`review.py`); the API waits up to 3 s and answers 200 with the result or 202 pending. An edit
 needs a quote that is in the document verbatim and passes the hard checks (a field outside the vocabulary
 still needs every number of its value in the quote); it publishes under the person's name
-(`producer = 'review:<user>'`) and rejects the original.
+(`producer = 'review:<user>'`) and rejects the original. An event-like field writes its event with the edited fact
+(the hearing on its corrected date, the opposition step on its corrected subject) and the original's waiting
+event is rejected with it; the edit may move the value to another area's field (a `permits` `hearing_date` re-filed
+as a `local` `opposition_event`), which is then checked against that area's vocabulary.
 
 Re-checking: `python -m marden agents recheck [--doc ID]` re-runs the code checks on every agent candidate that
 is published or waiting (run it after a validator is tightened). A fact the pipeline published that no longer
@@ -295,14 +298,18 @@ not_configured / not_used, and the report it printed). Tables: `db/migrations/20
    (`relevance`): its text names the phrase, and a project name ("Project Jupiter") also needs the filer to be a
    chain party or the text to name one of the subject's parties, its county or an SPV (another company's
    "Project Jupiter" is stored raw and left out). Files over 10 MB and FERC periodic report forms (Form 1, 714,
-   715 ...) are stored raw, not queued. A seed record that only names the URL is not a copy of the file. What
+   715 ...) are stored raw, not queued; a held file a collector never queued gets the same relevance and size
+   checks before the researcher queues it. A seed record that only names the URL is not a copy of the file. What
    passes gets `extract_state = 'queued'` with `meta.research` (run, query, subjects, items) and, with the
    agents configured, an `agent_job` at priority 90 (watched) or 85 (financed); a research find never carries a
    subject link (only a person's upload does). Without a backend the documents wait in the intake and the report
    says so.
-4. **Refusals.** A 401/403/407/429/451, or an answer that is not the API's JSON, stops that endpoint's searches
-   for the run, is recorded on the source (heartbeat) and on the search (`blocked`), and the run ends `partial`.
-   Nothing is retried with other headers.
+4. **Refusals.** A 401/403/407/429/451 or a bot-check page, on a search or on a file (sec.gov's 403 for an
+   undeclared tool, an eLibrary challenge on a download), or a search answer that is not the API's JSON, stops
+   that endpoint's searches and fetches for the run (no request after it), is recorded on the source
+   (heartbeat), on the search (`blocked`) or the find (`failed`, "refused"), and the run ends `partial`. Nothing
+   is retried with other headers. A search that fails otherwise (eLibrary's "Unable to connect to the remote
+   server") is recorded `failed`, the others go on, and the run ends `partial`.
 
 ### Watchdog (daily)
 
@@ -312,20 +319,22 @@ not_configured / not_used, and the report it printed). Tables: `db/migrations/20
 | Check | What it finds |
 | --- | --- |
 | `sums` | a site's debt tranches that add to neither its debt facility's size nor its drawn amount (0.5%); a facility drawn beyond its size; a payer's site-debt total against the sum of its sites |
-| `contradiction` | the value a screen shows is reported (R) while a filed (F) value of the same field and type, dated at most 180 days before it, says otherwise (numbers within 1% are rounding); two producers publishing different values for the same as-of date |
+| `contradiction` | the value a screen shows is reported (R) while a filed (F) value of the same field and type, dated at most 180 days before it, says otherwise (numbers within 1% are rounding; a text whose words all appear in the other is part of the same statement: "ERCOT" against "Denton/Austin: ERCOT (municipal NOIEs); Dalton: ...", "2031-09" against "2031-09-15"); two producers publishing different values for the same as-of date |
 | `screens` | the same value on two screens of the same day: status, cushion and debt on Sites against Site detail; Marden price, chain status and size on Instruments against Instrument detail |
 | `stale_source` | a source that missed its last two scheduled runs (its `collect.<id>` crons), or, without its own task, more than twice its cadence; a source that never ran well two cadences after it was declared (blocked and manual sources are left out) |
 | `stale_read_model` | dirty marks the 30-second rebuild has not consumed for 10 minutes (one issue per view); a Site detail or Instrument detail snapshot built before a fact or event it reads was published, with no mark waiting |
 | `stale_model` | model dirty marks not run for an hour (one issue per model) |
-| `unexplained_move` | a chain status that changed, a completion P50 that moved 2+ months, a Marden price that moved 0.5+ points, between a subject's two newest outputs, with no declared input (`models.triggers.model_depends`) changed in between: facts published, withdrawn or dated in between, events, prices, other models' outputs it reads, review decisions, site links; a model whose inputs cannot be attributed counts as explained |
+| `unexplained_move` | a chain status that changed, a completion P50 that moved 2+ months, a Marden price that moved 0.5+ points, between a subject's two newest outputs, with no declared input (`models.triggers.model_depends`) changed between that subject's own two outputs (each move on its own window): facts published, withdrawn or dated in between, events, prices, other models' outputs it reads, review decisions, site links. A move whose window holds a change that cannot be attributed (an input every subject of the model reads: the price model's comparables, the cushion model's slip history) counts as explained, and the report counts those moves (`broad`) |
 
 Re-runs are idempotent: an open issue found again is refreshed (`last_seen`, new evidence replaces the old); an
 issue a person resolved or dismissed comes back only when its evidence changes; an open issue the check no
 longer finds is closed as resolved by `agent:watchdog` (audit `watchdog.resolve`). A failed check is reported
 and closes nothing. Decisions: approve = resolved or acknowledged, reject (reason) = not an issue; issues are
 never edited. The model may only reword titles (`watch_titles.py`, one call for the new ones): a rewording is
-kept only with exactly the code title's numbers, no name or direction word the code title lacks, at most 140
-characters; the code title is in `payload.code_title`.
+kept only with exactly the code title's numbers, no name, direction, size or number word ("two", "one value")
+or other numeral the code title lacks, no link or markup, at most 140 characters; the code title is in
+`payload.code_title`. Issues are stored under an advisory lock, so a CLI run beside the scheduled one makes no
+duplicates.
 
 ### Note writer (weekly)
 
@@ -333,8 +342,10 @@ characters; the code title is in `payload.code_title`.
 `risk_list`) code writes, for each of the top four rows, the figures: rank, count, odds (half up, as the list
 and the app round), size, Marden price, week change, fund marks, move, and the records behind the ranking with
 their references. The model (`writer`) answers one template per paragraph using the figures only as
-`{{placeholders}}`; `numbers.py` refuses a template with a digit, a number word, a direction or size word
-(rose, fell, sharply ...), a placeholder it was not given, a brace, a capitalized word that is neither in the
+`{{placeholders}}`; `numbers.py` refuses a template with a digit or any other numeral ("½", "Ⅲ"), a number
+word (two, several, first, percent ...), a direction or size word (rose, fell, declined, large, sharply ...), a
+word of advice or forecast (buy, should, will, likely), a link, address or markup, more than 120 words of its
+own, a placeholder it was not given, a brace, a capitalized word (accented ones too) that is neither in the
 figures nor a common sentence opening, or a label repeating its figure's first word; every required figure
 (rank, count, odds, each record) must be used once. Code fills the template and checks the filled text again:
 every number in it must be a number of the figures used. A refused paragraph is asked for once more with the
@@ -342,18 +353,31 @@ problems listed; if it fails again it keeps the code template ("Ranked {{rank}} 
 {{r1}}. ..."), and without a backend every paragraph is the code template (`writer 'code'`, reported as not
 configured). The draft (`weekly_note`: figures, templates, checks, note) waits for a person (review item kind
 `note`): approve makes it the note the `risk_list` read model serves (GET /api/risk-list, the Risk list screen
-and its Home widget; point in time by the approval's ET date); reject (reason) keeps the list's code-written
-note, and `--redraft` asks again with the reason as wording guidance. Notes are never edited: every figure is
-code's. Idempotent: the same list and prompt make no new draft; an approved week is not redrafted.
+and its Home widget; point in time by the approval's ET date) for as long as the list's figures are the ones it
+was drafted from; reject (reason) keeps the list's code-written note, and `--redraft` asks again with the
+reason as wording guidance. Notes are never edited: every figure is code's. Idempotent: the same list and prompt
+make no new draft; an approved week is not redrafted while its list stands. A list recomputed afterwards with
+other figures (`model risk_list --force` rewrites the output in place) serves its own code-written note again,
+the next run drafts from it, and approving a draft whose list has changed since is refused.
 
 ### Live proof (local DB, Anthropic API, 2026-10-22 02:07-02:14 UTC)
 
 | Run | Result |
 | --- | --- |
-| watchdog #1 (9 s) | 10 new issues: 2 sums (Abilene tranches $9.40B vs facility $7.10B; Childress $3.65B vs size $1.54B / drawn $0.41B), 3 contradictions (Childress utility, power utility and the Denton ISO shown from press while SEC EDGAR filings say otherwise), 5 stale sources (ercot_prices, ferc, sec_index, ust_par_curve, yahoo_equity: no worker runs locally). Moves: status 3, cushion 18, price 70 moved, all explained by input changes. 8 of 10 titles reworded by Sonnet, 2 refused ("add up" brought in a direction word); 2,173 tokens, $0.0098 |
+| watchdog #1 (9 s) | 10 new issues: 2 sums (Abilene tranches $9.40B vs facility $7.10B; Childress $3.65B vs size $1.54B / drawn $0.41B), 3 contradictions (Childress utility, power utility and the Denton ISO shown from press while SEC EDGAR filings say otherwise), 5 stale sources (ercot_prices, ferc, sec_index, ust_par_curve, yahoo_equity: no worker runs locally). Moves: status 3, cushion 18, price 70 moved; the 3 status moves had their own input changes, the cushion and price moves count as explained only because an input every subject reads changed (slip history, comparables), which the check cannot attribute. 8 of 10 titles reworded by Sonnet, 2 refused ("add up" brought in a direction word); 2,173 tokens, $0.0098 |
 | watchdog #2 (2 s) | 10 still open, nothing new, no model call |
-| researcher (2 min 23 s) | 120 EDGAR and 20 eLibrary searches (147 requests; 731 + 22 deferred to the next runs), 14 hits taken: queued the Applied Digital 10-K (FY ending 2026-05-31) for Polaris Forge 2's outside date (job 27, priority 85); skipped two other companies' "Project Jupiter" (Enlight 20-F, HASI 10-K) and "Black Pearl" (Selectis 8-K, a FERC comment), six non-public eLibrary filings, one Gulf South EIS without the name; an Oncor FERC Form 1 (22 MB) naming Barber Lake was queued, then withdrawn (job 28 skipped, audit `research.unqueue`) when the size and report-form rules were added. Air permits: TX and LA covered by their collectors, 13 states with no adapter listed. No model calls |
+| researcher (2 min 23 s) | 120 EDGAR and 20 eLibrary searches (147 requests; 731 + 22 deferred to the next runs), 14 hits taken: queued the Applied Digital 10-K (FY ending 2026-05-31) for Polaris Forge 2's outside date (job 27, priority 85); skipped two other companies' "Project Jupiter" (Enlight 20-F, HASI 10-K) and "Black Pearl" (Selectis 8-K, a FERC comment), six non-public eLibrary filings, one Gulf South EIS without the name; an Oncor FERC Form 1 (22 MB) naming Barber Lake was queued, then withdrawn by hand (job 28 skipped, audit `research.unqueue`) when the size and report-form rules were added. Air permits: TX and LA covered by their collectors, 13 states with no adapter listed. No model calls |
 | note writer v1-v3 (9 s each) | v1 model-written but two labels repeated their records' first words ("Cushion: Cushion -2 months"): the repeated-word check was added; v2 every paragraph fell back to the code template (the model opened sentences with "Lead", "Timing"); with the allowed openings named in the prompt, v3 is model-written in all four paragraphs, every number code's, waiting for approval (weekly_note 3, review item 1430); about 10,000 tokens and $0.026 a draft |
+
+### Re-proof after the independent review (2026-10-22 02:47-02:55 UTC, Anthropic API)
+
+| Run | Result |
+| --- | --- |
+| watchdog #3 (run 7, 7 s) | the same 10 issues still open, none new, no model call (`model_status not_used`); moves judged per subject window: status 3 moved, each with its own input change; cushion 18 and price 70 counted `broad` (slip history, comparables) |
+| watchdog #4 (run 8, 7 s) | after the same-statement rule: the Denton ISO "contradiction" ("ERCOT" against "Denton/Austin: ERCOT (municipal NOIEs); ...") closed by `agent:watchdog` (review item 1420, audit `watchdog.resolve`); 9 still open |
+| researcher (run 9, 4 min 21 s) | the next 120 EDGAR queries in the rotation (never searched before; 731 still deferred) and 20 eLibrary searches, 141 requests: the Applied Digital 10-K again (already stored, waiting for the extractor), one non-public eLibrary filing and two NYSEG FERC Form 3-Q reports skipped; two eLibrary searches failed on FERC's side ("Unable to connect to the remote server"), so the run is `partial` (exit 3). No model calls |
+| note writer v4 (run 10, 13 s) | the prompt names the new rules, so new inputs: 3 paragraphs model-written, Galaxy Digital kept the code template ("Lastly" is not an allowed opening); 2 calls, 8,837 tokens, $0.023; v3's review item closed by `agent:note_writer` |
+| note writer v5 (run 11, 8 s) | with "Lastly", "Finally", "Additionally", "Moreover" allowed: all four paragraphs model-written in one call, every number code's (5,398 tokens, $0.016); waiting for approval (weekly_note 5, review item 1432). Run 12: "draft note version 5 already covers these figures". GET /api/risk-list?week=2026-10-19 still serves the list's code-written note (nothing approved) |
 
 ## Approvals at a glance
 
@@ -422,6 +446,7 @@ code's. Idempotent: the same list and prompt make no new draft; an approved week
 | `MARDEN_AGENT_RUN_TOKENS`, `MARDEN_AGENT_DAY_TOKENS` | 3,000,000 / 30,000,000 | |
 | `MARDEN_AGENT_SOURCE_CAP`, `MARDEN_AGENT_SOURCE_CAPS`, `MARDEN_AGENT_CONCURRENCY` | 2 / none / 3 | |
 | `MARDEN_AGENT_FILES_API_MIN_BYTES`, `MARDEN_AGENT_SECTION_CHARS`, `MARDEN_AGENT_MAX_SECTIONS` | 4,000,000 / 120,000 / 16 | |
+| `MARDEN_AGENT_CLI_TIMEOUT` | 900 (seconds) | the local `claude` CLI backend only |
 | `MARDEN_UPLOAD_MAX_BYTES` (API) | 52,428,800 | |
 
 Tables: `db/migrations/20261022001000_agents.sql` (document pipeline), `20261022030000_agent_ops.sql`

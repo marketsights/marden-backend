@@ -2,15 +2,17 @@
 // stood when D ended in New York", midnight Eastern after D; the session is UTC, so `D + 1` alone is 8 pm EDT
 // and anything recorded that evening showed a day late. Every row is real, copied from the local `marden`
 // database (public schema): FERC eLibrary's researcher run, which started at 22:08 New York time on
-// 21 October, an alert the engine wrote, the Stingray site; only the alert's and the site's instant is set,
-// to 22:00 New York time on 21 October (and the alert is unread again). The saved scenario is one this test
-// saves through the API.
+// 21 October, an alert the engine wrote, the Stingray site, HIFLD's SPP boundary; only the alert's, the site's
+// and the boundary's instant is set, to 22:00 New York time on 21 October (and the alert is unread again; the
+// boundary loses its parent link and, in its own test, its HIFLD as-of date). The saved scenario is one this
+// test saves through the API.
 import type { FastifyInstance } from 'fastify';
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { createDb, type Db } from '../src/db.js';
 import { businessDay, businessToday, dayEnd, dayEndAt } from '../src/lib/business-day.js';
 import { asOfDay } from '../src/lib/params.js';
 import { unreadAlerts } from '../src/queries/alerts.js';
+import { resetIsoBoundaryCache } from '../src/queries/grid.js';
 import { dbUrl, makeApp } from './helpers.js';
 
 const DAY = '2026-10-21';
@@ -20,6 +22,7 @@ const RUN_SOURCE = 'ferc_fts';
 const RUN_ID = 311; // FERC eLibrary's first researcher run: started 2026-10-22 02:08:48 UTC = 22:08 EDT on 21 October
 const ALERT_KEY = 'model:cushion:site:jupiter:2026-10-21:a366c184a67a7a9b';
 const SITE = 'stingray';
+const BOUNDARY = 'iso:SPP';
 
 describe('US Eastern business-day cutoff', () => {
   let db: Db;
@@ -54,12 +57,15 @@ describe('US Eastern business-day cutoff', () => {
       set: { at: [EVENING, 'timestamptz'], read_at: [null, 'timestamptz'] }, skip: ['id', 'event_id'],
     });
     await copy('site', 'slug = $1', [SITE], { set: { created_at: [EVENING, 'timestamptz'] } });
+    await copy('grid_region', 'id = $1', [BOUNDARY], { set: { updated_at: [EVENING, 'timestamptz'], parent_id: [null, 'text'] } });
   });
   afterEach(() => { vi.useRealTimers(); });
   afterAll(async () => {
     await db.query(`DELETE FROM stress_saved WHERE org_id = 'dev'`);
     await db.query(`DELETE FROM alert WHERE dedupe_key = $1`, [ALERT_KEY]);
     await db.query(`DELETE FROM site WHERE slug = $1`, [SITE]);
+    await db.query(`DELETE FROM grid_region WHERE id = $1`, [BOUNDARY]);
+    resetIsoBoundaryCache();
     await db.query(`DELETE FROM source_run WHERE source_id = $1`, [RUN_SOURCE]);
     await db.query(`DELETE FROM source WHERE id = $1`, [RUN_SOURCE]);
     await app.close();
@@ -78,7 +84,10 @@ describe('US Eastern business-day cutoff', () => {
       expect(sql.rows[0]!.t.toISOString()).toBe(end);
     }
     expect(businessDay(new Date(EVENING))).toBe(DAY);
+    expect(businessDay(new Date('2026-10-22T03:59:59Z'))).toBe(DAY); // 23:59:59 EDT
     expect(businessDay(new Date('2026-10-22T04:01:00Z'))).toBe('2026-10-22');
+    expect(businessDay(new Date('2026-12-02T04:30:00Z'))).toBe('2026-12-01'); // 23:30 EST: still 1 December
+    expect(businessDay(new Date('2026-12-02T05:00:00Z'))).toBe('2026-12-02'); // midnight EST
   });
 
   it('answers "today" in New York time from 8 pm on, not tomorrow', () => {
@@ -122,5 +131,12 @@ describe('US Eastern business-day cutoff', () => {
       .results.some((r) => r.kind === 'site' && r.id === SITE);
     expect(await found(DAY)).toBe(true);
     expect(await found(BEFORE)).toBe(false);
+  });
+
+  it('dates a boundary with no HIFLD as-of date by the New York day it was updated', async () => {
+    await db.query(`UPDATE grid_region SET meta = meta #- '{hifld,as_of}' WHERE id = $1`, [BOUNDARY]);
+    resetIsoBoundaryCache();
+    const fc = (await get('/api/grid/iso-rto')) as { features: { id: string; properties: { source: { asOf: string } } }[] };
+    expect(fc.features.find((f) => f.id === BOUNDARY)?.properties.source.asOf).toBe(DAY); // not 2026-10-22 (UTC)
   });
 });

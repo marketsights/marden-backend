@@ -30,7 +30,7 @@ export type DcRowDoc = Over<T.DataCenterRow, DcOver>;
 export type DcDetailDoc = Over<T.DataCenterDetail, DcOver>;
 export type DcPageDoc = Over<T.DataCenterPage, { rows: DcRowDoc[]; asOf: N<string> }>;
 type PermitOver = { type: N<string>; status: N<T.PlantStatus> };
-type RowPermit = Over<T.PowerPlantRow['airPermit'], PermitOver>;
+type RowPermit = Over<NonNullable<T.PowerPlantRow['airPermit']>, PermitOver>; // Omit over `X | null` keeps no keys
 export type UnitDoc = Over<T.PowerUnit, {
   oem: N<string>; model: N<string>; totalMw: N<number>; fuel: N<string>; status: N<T.PlantStatus>;
   permitRef: N<string> }>;
@@ -39,7 +39,7 @@ type PlantOver = {
   units: { count: number; byModel: { oem: N<string>; model: N<string>; count: number }[] };
   airPermit: N<RowPermit>; financed: N<Financed>; lastChange: N<T.Evidence> };
 export type PlantRowDoc = Over<T.PowerPlantRow, PlantOver>;
-type Fuel = Over<T.PowerPlantDetail['fuel'], { regulator: N<string>; docket: N<string> }>;
+type Fuel = Over<NonNullable<T.PowerPlantDetail['fuel']>, { regulator: N<string>; docket: N<string> }>;
 type Served = Over<NonNullable<T.PowerPlantDetail['servedCampus']>, { status: N<T.DcStatus> }>;
 // Plant detail additions (spec 15 Air permit card and Fuel supply): the permit's holder, facility, other
 // ids and emission limits as the record states them, and the units' fuel as stated.

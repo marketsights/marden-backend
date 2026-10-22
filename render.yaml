@@ -51,6 +51,9 @@ services:
     dockerfilePath: ./services/Dockerfile
     dockerContext: .
     preDeployCommand: marden-migrate
+    # SIGTERM -> the worker stops fetching and gives running jobs MARDEN_WORKER_SHUTDOWN_TIMEOUT (90 s); Render's
+    # default wait is 30 s, after which it kills the process (Railway's drainingSeconds is 120 for the same reason)
+    maxShutdownDelaySeconds: 120
     buildFilter:
       paths: [services/**, db/migrations/**, scripts/migrate.sh]
     envVars:

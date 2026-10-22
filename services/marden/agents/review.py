@@ -17,7 +17,7 @@ from typing import Any
 
 from marden.agents.extract import Candidate
 from marden.agents.fields import all_fields
-from marden.agents.publish import release_after_link
+from marden.agents.publish import _event, release_after_link
 from marden.agents.text import find_quote, read_text
 from marden.agents.validators import (
     GENERIC_TYPES,
@@ -85,7 +85,7 @@ def edit_fact(conn: db.Conn, item: dict[str, Any], fact: dict[str, Any] | None, 
         raise ValidationError("an edit needs subject_type, subject_id and field")
     if "value" not in edit or edit["value"] is None:
         raise ValidationError("an edit needs a value")
-    area = _area_of((fact or {}).get("producer"), payload)
+    area = _edit_area(_area_of((fact or {}).get("producer"), payload), field)
     spec = all_fields().get((area, field)) if area else None
     if spec is not None:
         cand = Candidate(area=area or "", section="edit", subject_kind=subject_type, subject_name=str(subject_id),
@@ -115,14 +115,38 @@ def edit_fact(conn: db.Conn, item: dict[str, Any], fact: dict[str, Any] | None, 
                      document_id=doc.id, quote=quote, quote_loc=edit.get("quote_loc"),
                      method_version=(fact or {}).get("method_version"), material=bool((fact or {}).get("material")))
     writer.publish([new.id], decided_by=by)
+    events = EventWriter(conn)
+    out: dict[str, Any] = {"fact_id": new.id}
     if fact is not None:
         writer.reject([fact["id"]], f"edited by {by}: fact {new.id}", decided_by=by)
+        # the original's event (a hearing on the wrong date, on the wrong subject) goes with it
+        stale = [r["id"] for r in conn.execute("SELECT id FROM event WHERE fact_id = %s AND status = 'candidate'",
+                                               (fact["id"],)).fetchall()]
+        events.reject(stale, f"edited by {by}: fact {new.id}", decided_by=by)
+    if spec is not None and spec.event is not None:
+        # an event-like field writes its event with the fact (spec 22 layer 5), the edited one included:
+        # without it the corrected hearing or opposition step would be on no screen and alert nobody
+        cand.subject_type, cand.subject_id = subject_type, str(subject_id)
+        event_id = _event(events, cand, new.id, doc, tag, (fact or {}).get("source_name") or doc.source_id,
+                          (fact or {}).get("source_url"), checks.not_future(as_of, "as_of"),
+                          bool((fact or {}).get("material")))
+        if event_id is not None:
+            out["events"] = events.publish([event_id], decided_by=by)
     if payload.get("candidate_id"):
         conn.execute("""UPDATE agent_candidate SET outcome = 'published', outcome_reason = %s, fact_id = %s
                         WHERE id = %s""",
                      (f"edited and approved by {by}", new.id, payload["candidate_id"]))
     _accept_link(conn, (payload.get("subject") or {}).get("link_id"), by)
-    return {"fact_id": new.id}
+    return out
+
+
+def _edit_area(area: str | None, field: str) -> str | None:
+    """The area whose vocabulary the edited field is checked against: the original's, else the first area
+    that has the field (a 'permits' hearing re-filed as a 'local' opposition step)."""
+    fields = all_fields()
+    if area is not None and (area, field) in fields:
+        return area
+    return next((a for a, f in fields if f == field), area)
 
 
 def apply_decision(conn: db.Conn, d: dict[str, Any]) -> dict[str, Any]:

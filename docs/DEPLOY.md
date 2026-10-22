@@ -106,7 +106,8 @@ Credentials live only in Railway variables (and Neon / R2 / Clerk dashboards), n
 | `ANTHROPIC_API_KEY` | Claude API key | for extraction / agents | without it the agents report `not_configured` and nothing is enqueued (a deployed service never uses the local `claude` CLI fallback) |
 | `MARDEN_AGENT_BACKEND` | `auto` | default | `auto`, `api`, `cli` or `off`. On a deployed service `auto` means the Claude API or nothing: the `claude` CLI fallback is refused |
 | `MARDEN_AGENT_CONCURRENCY` (3), `MARDEN_AGENT_RUN_TOKENS` (3,000,000), `MARDEN_AGENT_DAY_TOKENS` (30,000,000), `MARDEN_AGENT_SOURCE_CAP` (2), `MARDEN_AGENT_SOURCE_CAPS` (none; e.g. `sec_index=3,ferc=2`), `MARDEN_AGENT_MAX_SECTIONS` (16), `MARDEN_AGENT_SECTION_CHARS` (120,000), `MARDEN_AGENT_FILES_API_MIN_BYTES` (4,000,000), `MARDEN_AGENT_CLI_TIMEOUT` (900 s) | defaults in brackets | optional | concurrency and token budgets (`services/marden/agents/config.py`, `runner.py`, docs/agents.md); `CLI_TIMEOUT` only matters for the local CLI backend |
-| `MARDEN_AGENT_MODEL_ROUTER`, `_EXTRACTOR`, `_VERIFIER`, `_LINKER`; `MARDEN_AGENT_EFFORT_ROUTER`, `_EXTRACTOR`, `_VERIFIER`, `_LINKER` | defaults: models `claude-haiku-5-5` / `claude-sonnet-5-5` / `claude-opus-5-5` / `claude-sonnet-5-5`, effort `low` / `medium` / `medium` / `low` | optional | override the model id or effort (`low`, `medium`, `high`, `xhigh`, `max`) per agent role |
+| `MARDEN_AGENT_MODEL_ROUTER`, `_EXTRACTOR`, `_VERIFIER`, `_LINKER`, `_WRITER`; `MARDEN_AGENT_EFFORT_ROUTER`, `_EXTRACTOR`, `_VERIFIER`, `_LINKER`, `_WRITER` | defaults: models `claude-haiku-5-5` / `claude-sonnet-5-5` / `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-sonnet-5-5`, effort `low` / `medium` / `medium` / `low` / `low` | optional | override the model id or effort (`low`, `medium`, `high`, `xhigh`, `max`) per agent role; `writer` is the weekly note's prose and the watchdog's titles |
+| `MARDEN_RESEARCH_MAX_QUERIES` (120), `MARDEN_RESEARCH_MAX_FERC` (20), `MARDEN_RESEARCH_MAX_DOCS` (25) | defaults in brackets | optional | per weekly researcher run: EDGAR full-text queries, FERC eLibrary searches, documents stored and queued (docs/agents.md "Researcher") |
 | `FRED_API_KEY` | FRED key | for FRED series | ICE BofA OAS, Treasuries via FRED |
 | `ERCOT_API_KEY`, `ERCOT_API_USERNAME`, `ERCOT_API_PASSWORD` | ERCOT Public API subscription key and account | for ERCOT GIS / API collectors | all three or the collector records "needs key" |
 | `FINRA_CLIENT_ID`, `FINRA_CLIENT_SECRET` | FINRA API | only once TRACE is licensed | |
@@ -132,6 +133,7 @@ Credentials live only in Railway variables (and Neon / R2 / Clerk dashboards), n
 | `CLERK_SECRET_KEY` | same `sk_live_…` as the API | yes | runtime only; never reaches the browser |
 | `CLERK_JWT_KEY` | PEM public key | optional | |
 | `NEXT_PUBLIC_API_BASE` | — | do not set | the older name of `API_ORIGIN`, still honoured when `API_ORIGIN` is empty (`src/lib/api-url.ts`, `next.config.ts`); the browser never reads it |
+| `NEXT_PUBLIC_SUPPORT_EMAIL` | e.g. `support@marden.ai` | optional, **at build** | the address Account > Security offers for single sign-on requests (`mailto:` link); unset, the card says "ask Marden" without a link. A client component reads it, so `next build` inlines it: the Dockerfile declares it as a build arg (`src/test/build-time-env.test.ts` checks every such variable is one) and a value set only at start has no effect |
 | `PORT` | set by Railway | — | |
 | `RAILWAY_GIT_COMMIT_SHA` (Render: `RENDER_GIT_COMMIT`) | set by the host | — | shown (12 characters) by `/healthz` |
 | `RAILWAY_ENVIRONMENT`, `RAILWAY_ENVIRONMENT_NAME`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_PROJECT_ID` (Render: `RENDER`, `RENDER_SERVICE_ID`) | set by the host | — | deploy markers: the development sign-in is refused whatever `NODE_ENV` says |
@@ -164,6 +166,8 @@ Install the Railway CLI on your machine (`npm i -g @railway/cli`, `railway login
 
 1. **Variables** for all three services (section 4).
 2. **api** → Deploy. Its pre-deploy runs `marden-migrate` against Neon: watch the deploy log for `migrate: dbmate migrate (N migration files …)` and one `Applied:` line per migration. `/healthz` must turn 200. Check: `railway ssh --service api`, then `marden-migrate status` shows `Pending: 0`.
+
+   Neon is not empty: on 2026-10-22 (02:13 UTC, owner's go-ahead) it was loaded with a full copy of the local database (schema, data, indexes, triggers, every `schema_migrations` row; the dev user and org, their watchlist and alerts, and the job queue left out; STATUS.md "Neon data load"). If that copy is still in place, steps 3 and 5–7 only bring it current (every loader and collector is idempotent), and STATUS.md asks for a re-sync from the local database just before launch instead. The documents that copy holds with `extract_state = 'queued'` (about 120 in the local database it was copied from, among them CoreWeave credit agreements and indentures of up to 1.5 MB) are queued for the agents by the worker's first sweep once `ANTHROPIC_API_KEY` is set; `MARDEN_AGENT_DAY_TOKENS` (30,000,000 a UTC day) caps what that backlog can spend, so lower it for the first days if you want the spend spread out.
 3. **Seed** (`seed all`: sites, instruments, holdings, facilities, cases) from your machine, because the seed archive `marden_data_2026-10-20.zip` is not in any image. `railway run` injects the worker's variables (Neon direct URL, R2) into a local process:
    ```sh
    unzip marden_data_2026-10-20.zip -d ~/marden-seed
@@ -205,6 +209,25 @@ Later deploys: push to the branch. The api and worker migrate in their pre-deplo
 - Backups: `python -m marden backup list` (latest runs: ok / failed / not_configured with the reason). The nightly job (`ops.backup_db`, 07:23 UTC) streams `pg_dump --format=custom` of the direct endpoint straight into `r2://core-backups/pg/<db>/<YYYY>/<MM>/<db>-<timestamp>.dump`, records size and sha256 in `backup_run`, and aborts the upload if pg_dump fails. Queue tables are dumped without their rows. Run one now with `python -m marden backup run`.
 - The worker image's `pg_dump` is PostgreSQL 18 (build arg `PG_CLIENT_MAJOR`); it must be at least the Neon server's major version.
 
+### Worker schedule (UTC)
+
+`python -m marden worker` (the image's command; no `--queue`, so every queue: `default`, `collect`, `agents`, `models`, `readmodels`, `alerts`) registers 74 periodic schedules; each task has a queueing lock (at most one waiting run) and a lock (never two at once), so a run that overlaps its next tick delays it instead of doubling it. Listed by `python -m marden worker` at start (`Registering task …`).
+
+| Cadence | Tasks |
+| --- | --- |
+| every 30 s | `readmodels.rebuild_dirty`, `agents.sweep` |
+| every minute | `alerts.scan`, `models.run_dirty`, `agents.work` (a run stops claiming after 10 min) |
+| every 5 / 10 / 15 min | `queue.retry_stalled`, `agents.batch_poll` (5); `agents.r2_inbox` (10); `alerts.digests` (`3,18,33,48`: builds the 07:00 ET digests once); `collect.sec_xbrl_on_filing` (`2-59/15`) |
+| SEC filings | `collect.sec_index` every 10 min 10:00–23:50 Mon–Fri and 00:00–04:50 Tue–Sat (06:00 to 00:50 New York time in summer) |
+| hourly | `collect.ferc` at :23 |
+| daily, models (05–06 ET) | `models.gpu_index` 09:23, `obligations` 09:25, `gpu_collateral` 09:27, `payer_capacity` 09:29, `gpu_deployment` 09:31, `leases` 09:33, `cushion_daily` 09:35, `price_daily` 09:40, `mark_gap` 09:48, `status` 09:53; then `readmodels.rebuild_all` 10:05 (shares the dirty rebuild's lock) and `agents.watchdog` 10:41 |
+| daily, other | `models.stress` 06:17; `collect.ercot_prices` 05:47, 06:47, 19:07, 20:07; `ops.backup_db` 07:23; `queue.prune_jobs` 08:17; `collect.plant_locate` 10:37, `grid_join` 10:47, `grid_evidence` 10:57 (one `collect.grid` lock); `collect.sec_nport` 11:00, 12:00; `sec_bdc` 11:17; `nyfed_sofr` 12:30, 13:30; `fred` 22:00, 23:00; `ust_par_curve` 22:30, 23:30 |
+| weekdays | `collect.boerse_frankfurt` 16:05, 17:05; `yahoo_equity` 22:20, 23:20; `etf_oas` 22:30, 23:30; `finra_trace` 22:45, 23:45 |
+| weekly | Mon: `models.risk_list` 03:40, `agents.note` 04:07, `collect.capacity_zones` and `models.recovery` 09:41, `models.capacity` 09:45, `collect.miso_queue` 11:13, `collect.ercot` 13:41; Tue: `collect.pjm_queue` 11:23, `ercot_gis` 13:17; Wed: `nyiso_queue` 11:37, `air_permits` 12:29; Thu: `isone_queue` 11:47; Fri: `bpa_queue` 11:41, `spp_queue` 11:53, `caiso_queue` 12:41, `eia_860m` 13:37; Sat: `agents.research` 11:13; Sun: `collect.sec_xbrl` 09:23, `models.track_record` 21:17 |
+| monthly / every 5 days | 2nd: `eia930_ref` 11:13, `nyiso_icap` 11:17, `eia861_ba` 11:19, `hifld_grid` 11:29, `census_counties` 11:41 (one `collect.grid` lock), `pjm_rpm` 13:53; 3rd: `miso_pra` 11:29, `pjm_load_forecast` 12:29; 4th: `isone_fca` 14:53; 6th: `epe_queue` 12:29; 9th: `lbnl_queued_up` 12:07; 12th: `oati_oasis` 12:19; every 5th day: `collect.sentinel2` 07:17 |
+
+Order holds where it matters: the evening price and rate feeds (16:05–23:45) land before the 09:40 price run; price runs before `mark_gap` and `status`, which read it; every model runs before the 10:05 full rebuild, which starts about an hour before the 07:00 ET digest run (11:03 in summer, 12:03 in winter). Where two ticks share a minute (`collect.ferc` at :23 with the 07:23 backup and the 09:23 `gpu_index`; Mondays 09:41) one of them is short (`ferc` ran 37 s on average, 95 s at most). The worker runs four jobs at once (`--concurrency`, default 4): the longest runs measured locally are `collect.sec_nport` (18 min on average, 71 min at most, 11:00–12:10), `collect.ercot_prices` (up to 24 min) and, while documents are queued, `agents.work` (10 min a run); with two of those and a collector going at once, the 30-second and one-minute tasks wait for a free slot (alerts and screens then lag by up to a minute or two, never stop). Watch `python -m marden sources` and the worker log at 11:00–12:15 UTC on the first weekdays; on Pro, a second worker service running `python -m marden worker --queue collect` would take the collectors off the live path.
+
 ## 9. Restore
 
 Pick the restore that fits:
@@ -232,14 +255,15 @@ Restore an R2 dump into a fresh database (never over `app`), from inside the wor
 
 | What | For | Without it |
 | --- | --- | --- |
-| `RAILWAY_TOKEN` or a logged-in Railway CLI | creating project `core` and deploying | nothing deploys (this file's steps are manual until then) |
+| A Render account with access to both GitHub repositories (Railway's builds are paused since 2026-10-21; docs/DEPLOY-render.md), or later `RAILWAY_TOKEN` / a logged-in Railway CLI | creating the three services and deploying; one host at a time against Neon | nothing deploys (this file's steps are manual until then) |
 | Rotated Neon `app_rw` password, pooled + direct URLs | api, worker | API refuses to start; worker cannot connect |
 | Clerk production `pk_live_` / `sk_live_` and the webhook signing secret | api, web | API refuses to start; web shows "Sign-in is not configured" and fails its healthcheck |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (+ the three buckets) | worker | collectors fail their runs (raw-first needs R2), backups `not_configured` |
 | `ANTHROPIC_API_KEY` | worker (extraction / agents) | agent jobs record "not configured" |
 | `POSTMARK_TOKEN` or `RESEND_API_KEY`, `ALERT_FROM_EMAIL`, `ALERT_LINK_SECRET` (same value on the api), `MARDEN_APP_URL` | worker (+ api for the secret) | in-app alerts only; email rows end `not_configured` and Account > Alerts says email is not set up |
 | `FRED_API_KEY`, ERCOT API key/account (and FINRA once licensed) | worker | those collectors record a missing credential |
-| DNS CNAMEs for `app` and `api` | custom domains | use the `*.up.railway.app` domains meanwhile (set `WEB_ORIGIN` to the web's) |
+| DNS CNAME for `app` (and optionally `api`) | custom domains | nobody can sign in: Clerk's production keys work only on `marden.ai` and its subdomains, so the web must be served at `app.marden.ai` (the API can stay on its host URL; docs/DEPLOY-render.md step 5) |
+| Optional: `NEXT_PUBLIC_SUPPORT_EMAIL` (web, at build) | the single sign-on request link on Account > Security | the card says "ask Marden" without a link |
 
 ## What was proved locally, third pass (independent review, 2026-10-22 ~00:00–00:45 UTC, with Docker)
 
@@ -289,3 +313,22 @@ The images were built from a snapshot (git HEAD plus these deploy changes), with
 | Web without Clerk keys | `docker run -e API_ORIGIN=http://127.0.0.1:4610 -e RAILWAY_ENVIRONMENT_NAME=local-proof marden-web` | `/` 200 "Sign-in is not configured" (names the missing variables, no development sign-in); `/healthz` 503 `{"ok":false,"auth":"unconfigured"}`; `/api/me` through the rewrite → the API's 401; SIGTERM exit 0 in 0.2 s |
 | Smoke test | `SMOKE_TOKEN=<local test token> scripts/smoke.sh --api http://127.0.0.1:4610 --web http://127.0.0.1:3610 --expect-auth unconfigured` | 21 passed, 0 failed, including `/api/me` 200 and `/api/stream` opening a `text/event-stream` both directly and through the web app's rewrite with a signed token; the token never appears in the output. Against the shared dev API (dev auth on) the same script fails 3 checks and exits 1 |
 | Backup with the image's tools | `marden.core.backup.dump_to_file` in the worker image | pg_dump 18.6 against Postgres 16: 176 kB custom-format archive, 393 entries by `pg_restore --list` |
+
+## End to end on the local stack (integration check, 2026-10-22 03:20–04:00 UTC)
+
+Document → agents → fact → model → read model → alert → browser, on the local database with the shared dev servers
+(API :4000 dev auth, web :3000), the Anthropic API for the agents, and a worker running every queue but `collect`
+(no collector traffic from this check) with the agents backend off once the uploads were read (so the ~120 waiting
+documents were not spent on). Logs and screenshots: the integration scratchpad (`integrate/`).
+
+| Step | What happened |
+| --- | --- |
+| Upload | NMED's Second Amended Scheduling Order and Notice of Hearing on Motions to Dismiss in AQB 26-57 (P) (Yucca Growth Infrastructure, air permit NSR 10883, Project Jupiter's microgrid; fetched from env.nm.gov) through `POST /api/documents` with `site=jupiter`, `filed=true`: answered `status: pending`, honestly `configured: false, stale: true` while no worker ran |
+| Agents (live, Anthropic API) | sweep stored both raw and queued them at priority 90 (watched subject); router (Haiku) → `permits`; extractor (Sonnet) → verifier (Opus); 48,181 tokens, $0.10. The linker accepted plant `n-jupiter-microgrid` by the permit number. Per document: `hearing_date` (Dec 7 public hearing; Oct 26 hearing on the motions), verifier agree, held for review as `model_input`; an `air_permit` candidate rejected by the code check (its quote spans the caption's two columns, not one passage of the text) |
+| Review (staff, `/api/review`) | approved the Dec 7 hearing; edited the Oct 26 one into a `local` `opposition_event` on site jupiter (the hearing on opponents' motions to dismiss the permit), with the notice's sentence as the quote. **Found and fixed**: an edit published the fact but wrote no event, so an edited hearing reached no screen and no alert (`agents/review.py`, tests `tests/agents/test_review_edit_events.py`) |
+| Facts and events | fact 1474210 (plant, `hearing_date` 2026-12-07) + `permit` event; fact 1474212 (site, `opposition_event`) + `opposition` event dated 2026-10-26; the original Oct 26 fact and its event rejected |
+| Models and read models | the published events marked `cushion` dirty for jupiter; `models.run_dirty` ran it (run 422) and marked the views that read it (jupiter's detail, tabs, schedule and project file; its campus, plants and payers; Completion, Sites, Home); `readmodels.rebuild_dirty` rebuilt them within 30 s. **Found and fixed**: the opposition tab listed only past-dated events, so the alert's link (`?tab=opposition`) showed nothing; it now lists a step still to come and takes it as the next hearing when it is the earliest (`readmodels/views/sites_tabs.py`, tests `tests/readmodels/test_opposition_upcoming.py`) |
+| Alert | the live `alerts.scan` evaluated both events: the plant's `permit` event is not material (no alert, correctly); the site's opposition event → alert 94 (OP, green) for the dev firm's member, and one stream event `{type: 'alert'}` scoped to org and user. The same scan's model triggers produced alert 95 (PX: "Project Jupiter · Construction loans down 2.4 pts to 85.3", from the price model the worker re-ran) |
+| Email | neither alert is red, so no instant email (spec: instant for red, the rest in the 07:00 ET digest). The digest the worker builds at 11:03 UTC, computed now with the real code in a rolled-back transaction: one `daily_digest` row for alerts 94 and 95, ended `not_configured` ("email is not configured: set POSTMARK_TOKEN or RESEND_API_KEY, ALERT_FROM_EMAIL, ALERT_LINK_SECRET (at least 32 characters), MARDEN_APP_URL"), alerts not marked emailed; nothing kept |
+| Browser (Playwright, `/watchlist` open before the alert) | 2.1 s after the alert row: the sidebar Watchlist badge went from none to "1 new" (title "1 unread alert") and the alert is first in "Alerts this week", unread; no reload (window marker kept), no navigation, no API request during the wait (applied from the stream event), no console error. `/sites/jupiter?tab=opposition` lists the Oct 26 hearing; Account > Alerts says email is not set up and names the missing variables to staff |
+| Worker start command, 100 s on a scratch database migrated from empty (18 migrations) | `python -m marden worker` with `RENDER` set and no credentials: "Starting worker on all queues", 74 schedules; agents `not_configured` ("RENDER is set: no CLI fallback"), R2 inbox and Batch API `not_configured`; `collect.sec_index` failed its run with "R2 is not configured … a deployed service keeps no raw files on local disk" recorded on `source_run` (set R2 before the worker's first deploy: every collector fails the same way without it); SIGTERM → "worker stopped", exit 0; 155 JSON log lines, no password |

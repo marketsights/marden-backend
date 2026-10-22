@@ -95,7 +95,7 @@ Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `
 | `payers` | `all` | GET /api/payers; export `payers` | site, instrument, entity, obligation, contract; holdings of debt on an edge |
 | `payer` | `entity.id` | GET /api/payers/:slug | entity; sites and instruments it is a chain party of; obligations it owes or is owed, the sites they link and the debt behind them (with holdings); its own notes and their holdings; its co-parties' and counterparties' facts and status outputs (paid by) |
 | `payer_capacity` | `entity.id` | GET /api/payers/:slug/capacity | as `payer`; its `payer_capacity` model output |
-| `risk_list` | `week` | GET /api/risk-list?week= (default: the highest key); export `risk-list` | the risk-ranking task (Sunday night); a weekly note approved in the review queue (its note replaces the list's code-written one: docs/agents.md "Note writer") |
+| `risk_list` | `week` | GET /api/risk-list?week= (default: the highest key); export `risk-list` | the risk-ranking task (Sunday night); a weekly note approved in the review queue (its note replaces the list's code-written one while the list's figures are the ones it was drafted from: docs/agents.md "Note writer") |
 | `track_record` | `all` | GET /api/track-record | the backtest task |
 | `dc_row` | `campus.id` | GET /api/data-centers (filters and sort in SQL, 50 a page, `?format=geojson`), GET /api/data-centers/summary (computed from the filtered rows), GET /api/data-centers/:id/row (one row, for live updates); export `data-centers` | campus, its buildings, plants serving it, its approved site and that site's instruments |
 | `dc_detail` | `campus.id` | GET /api/data-centers/:id | as `dc_row` |

@@ -31,7 +31,7 @@ from itertools import pairwise
 from typing import Any
 
 from marden.core.db import Conn, Row
-from marden.readmodels.context import known_fact_rows, known_facts
+from marden.readmodels.context import business_day, known_fact_rows, known_facts
 from marden.readmodels.registry import builder
 from marden.readmodels.views.sites_common import (
     ROLES,
@@ -126,7 +126,9 @@ def opposition_items(conn: Conn, slug: str, courts: list[tuple[str, dict[str, Ro
     only when the body filed it (F); a press report (R) names an outlet, not where the case sits, so
     'where' is n/d. No event record states the case's status: n/d, never the tag restated as a word."""
     items = []
-    for ev in site_events(conn, slug, kinds=["opposition"]):
+    # a step still to come (a hearing set for next week) is listed too: its alert links to this tab
+    upcoming = site_events(conn, slug, kinds=["opposition"], future=True)
+    for ev in [*site_events(conn, slug, kinds=["opposition"]), *upcoming]:
         tone = {"red": "red", "amber": "amber", "green": "green"}.get(severity(ev), "grey")
         items.append({"date": ev["event_date"].isoformat(), "type": opposition_type(ev["title"]), "text": ev["title"],
                       "where": (ev["source_name"] or "n/d") if ev["tag"] == "F" else "n/d", "status": "n/d",
@@ -153,9 +155,10 @@ def _count_value(rows: list[Row], count: int) -> Doc:
             "asOf": max(r["valid_from"] for r in rows).isoformat(), "sourceName": " + ".join(names)}
 
 
-def next_hearing(proceedings: list[tuple[str, dict[str, Row]]]) -> Doc:
+def next_hearing(proceedings: list[tuple[str, dict[str, Row]]], upcoming: list[Row] | None = None) -> Doc:
     """The next hearing as a KPI: the date as the value (ISO day, tagged by the proceeding's
-    next_dates fact) and what is heard as its one-line note."""
+    next_dates fact, or by the published opposition event that sets it: a hearing on motions to dismiss a
+    permit) and what is heard as its one-line note."""
     best: tuple[str, str, Row] | None = None
     for _, facts in proceedings:
         row = facts.get("next_dates")
@@ -163,6 +166,12 @@ def next_hearing(proceedings: list[tuple[str, dict[str, Row]]]) -> Doc:
             when = item.get("d") if isinstance(item, dict) else None
             if isinstance(when, str) and when >= day().isoformat() and (best is None or when < best[0]):
                 best = (when, str(item.get("what") or ""), row)
+    for ev in upcoming or []:
+        when = ev["event_date"].isoformat()
+        if when >= day().isoformat() and (best is None or when < best[0]):
+            best = (when, str(ev["title"] or ""), {
+                "tag": ev["tag"], "valid_from": business_day(ev["learned_at"]), "source_name": ev["source_name"],
+                "source_url": ev.get("source_url")})
     if best is None:
         return {"value": nd("F")}
     when, what, row = best
@@ -194,7 +203,7 @@ def opposition_tab(conn: Conn, slug: str) -> Doc:
         "openCases": {"value": _count_value(court_rows, len(open_rows)) if court_rows else nd("F"),
                       "note": "court proceedings Marden watches for this site"},
         "latestRuling": {"value": nd("F")},
-        "nextHearing": next_hearing(hearings),
+        "nextHearing": next_hearing(hearings, site_events(conn, slug, kinds=["opposition"], future=True)),
         "ifVoided": {"value": nd("M")},
         "items": opposition_items(conn, slug, courts),
     }

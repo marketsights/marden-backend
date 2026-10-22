@@ -43,8 +43,9 @@ export interface RowViewDef {
   /**
    * A second read model per key joined onto each served row (its latest doc as of the same date, or
    * null when not built): plant rows carry their plant_debt roll-up (spec 20 table columns).
+   * `never` takes any doc type; `null` (what `never | null` reduces to) makes the merge accept a missing companion.
    */
-  companion?: { view: string; merge: (doc: never, companion: never | null) => unknown };
+  companion?: { view: string; merge: (doc: never, companion: null) => unknown };
 }
 
 // ---- jsonb expression helpers (alias r = one latest read_model row) ----

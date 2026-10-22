@@ -9,7 +9,8 @@ models' `pit` reads), events, campus rows, Home's week of filings and scheduled 
 step became public in a backtest's input audit) is its Eastern day, not `.date()` in the UTC session. The rows
 are real ones copied from the local database (Abilene's withdrawn-permit event and an SEC risk statement,
 Southgate's listing-deadline catalyst, the Stargate Abilene campus, an Amazon-Cipher lease fact, a status model
-run that started at 22:03 New York time); only their learned / created instant is set.
+run that started at 22:03 New York time, Abernathy's ISO fact for a day in standard time); only their learned /
+created instant is set. Midnight Eastern is 04:00 UTC in daylight time and 05:00 UTC in standard time.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from psycopg.rows import dict_row
 from marden.core.jsonutil import jsonb
 from marden.models import pit
 from marden.readmodels import context
-from marden.readmodels.context import building, day_end, known_fact_rows, known_facts
+from marden.readmodels.context import building, business_day, day_end, known_fact_rows, known_facts
 from marden.readmodels.views.facilities_common import campus_row, subject_events
 from marden.readmodels.views.home_parts import week_events
 from marden.readmodels.views.instrument_inputs import DAY_END_SQL
@@ -44,6 +45,9 @@ LATER = date(2026, 10, 20)  # obligation facts start 2026-10-14
 LATER_CASES = [("2026-10-21 02:00+00", True), ("2026-10-21 04:01+00", False)]  # 22:00 / 00:01 EDT
 EDGE_FACT_ID = 15819  # obligation amazon-aws--cipher-digital-inc--lease, linked_sites, SEC EDGAR, valid_from 2026-10-14
 RUN_ID = 341  # model 'status' v0.4, started 2026-10-22 02:03:56 UTC = 22:03 EDT on 21 October
+EST_DAY = date(2026, 3, 5)  # a past business day in Eastern standard time (daylight time starts 8 March)
+EST_CASES = [("2026-03-06 04:30+00", True), ("2026-03-06 05:01+00", False)]  # 23:30 EST on 5 / 00:01 EST on 6 March
+EST_FACT_ID = 1471381  # site abernathy, iso "SPP", SEC EDGAR, valid_from 2026-02-27
 
 
 def _real(table: str, row_id: int | str) -> dict:
@@ -69,8 +73,37 @@ def _insert(conn, table: str, row: dict, **override) -> None:
 def test_day_end_is_midnight_eastern():
     assert day_end(DAY) == datetime(2026, 10, 2, 4, 0, tzinfo=UTC)  # EDT
     assert day_end(date(2026, 12, 1)) == datetime(2026, 12, 2, 5, 0, tzinfo=UTC)  # EST
+    assert day_end(date(2026, 3, 7)) == datetime(2026, 3, 8, 5, 0, tzinfo=UTC)  # daylight time starts 8 March
+    assert day_end(date(2026, 3, 8)) == datetime(2026, 3, 9, 4, 0, tzinfo=UTC)
+    assert day_end(date(2026, 10, 31)) == datetime(2026, 11, 1, 4, 0, tzinfo=UTC)  # and ends 1 November
+    assert day_end(date(2026, 11, 1)) == datetime(2026, 11, 2, 5, 0, tzinfo=UTC)
     with building(DAY):
         assert day_end() == day_end(DAY)
+
+
+def test_business_day_is_the_eastern_date_in_daylight_and_standard_time():
+    assert business_day(datetime(2026, 10, 22, 3, 59, 59, tzinfo=UTC)) == date(2026, 10, 21)  # 23:59:59 EDT
+    assert business_day(datetime(2026, 10, 22, 4, 0, tzinfo=UTC)) == date(2026, 10, 22)  # midnight EDT
+    assert business_day(datetime(2026, 12, 2, 4, 30, tzinfo=UTC)) == date(2026, 12, 1)  # 23:30 EST
+    assert business_day(datetime(2026, 12, 2, 5, 0, tzinfo=UTC)) == date(2026, 12, 2)  # midnight EST
+
+
+@pytest.mark.parametrize(("learned_at", "seen"), EST_CASES)
+def test_a_day_in_standard_time_ends_at_midnight_est(conn, monkeypatch, learned_at, seen):
+    """05:00 UTC, not 04:00: a fact learned at 23:30 EST is known that day (a fixed EDT offset would drop it)."""
+    conn.execute("SET TIME ZONE 'UTC'")
+    row = conn.execute(f"SELECT %(at)s::timestamptz < {DAY_END_SQL} AS known", {"at": learned_at, "day": EST_DAY})
+    assert row.fetchone()["known"] is seen
+    fact = _real("fact", EST_FACT_ID)
+    _insert(conn, "fact", fact, value=jsonb(fact["value"]), learned_at=learned_at, document_id=None)  # a JSON string
+    site, field = fact["subject_id"], fact["field"]
+    with building(EST_DAY):
+        assert (field in known_facts(conn, "site", site, [field])) is seen  # fact_asof(day)
+        assert bool(known_fact_rows(conn, "site", site, [field])[field]) is seen
+        monkeypatch.setattr(context, "hidden_source_names", lambda: ["a source the licence switch hides"])
+        assert (field in known_facts(conn, "site", site, [field])) is seen  # the licence switch's query
+    rows = pit.fact_rows(conn, EST_DAY, "site", [site], [field], mode="known")
+    assert any(r["id"] == EST_FACT_ID for r in rows) is seen
 
 
 @pytest.mark.parametrize(("learned_at", "seen"), CASES)

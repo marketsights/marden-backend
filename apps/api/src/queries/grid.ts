@@ -4,6 +4,7 @@
 // simplified in PostGIS (0.02 degrees, about 2 km) and the result is kept until the rows change.
 import type { IsoBoundaries, IsoBoundaryProps } from '../contracts/app.js';
 import type { Db } from '../db.js';
+import { businessDay } from '../lib/business-day.js';
 
 /** Simplification tolerance in degrees and coordinate precision (3 decimals, about 100 m). */
 export const SIMPLIFY_DEGREES = 0.02;
@@ -15,7 +16,7 @@ interface BoundaryRow {
   label: string | null;
   as_of: string | null;
   source_url: string | null;
-  updated: string;
+  updated: Date;
   label_point: { coordinates: [number, number] } | null;
   geometry: IsoBoundaries['features'][number]['geometry'];
 }
@@ -39,7 +40,7 @@ function feature(row: BoundaryRow): IsoBoundaries['features'][number] {
       tag: 'F',
       sourceName: 'HIFLD Independent System Operators',
       ...(row.source_url ? { sourceUrl: row.source_url } : {}),
-      asOf: row.as_of ?? row.updated.slice(0, 10),
+      asOf: row.as_of ?? businessDay(row.updated), // the US Eastern day of the update, not its UTC date
     },
   };
   return { type: 'Feature', id: row.id, geometry: row.geometry, properties };
@@ -55,7 +56,7 @@ export async function isoBoundaries(db: Db): Promise<IsoBoundaries> {
   if (cache && cache.stamp === stamp) return cache.body;
   const res = await db.query<BoundaryRow>(
     `SELECT id, name, meta ->> 'label' AS label, meta #>> '{hifld,as_of}' AS as_of,
-            meta #>> '{hifld,source_url}' AS source_url, updated_at::text AS updated,
+            meta #>> '{hifld,source_url}' AS source_url, updated_at AS updated,
             -- One label per ISO/RTO: a point inside its largest part (not one per island or exclave).
             (SELECT ST_AsGeoJSON(ST_PointOnSurface(d.geom), $2)::jsonb FROM ST_Dump(geom) d
               ORDER BY ST_Area(d.geom) DESC LIMIT 1) AS label_point,
