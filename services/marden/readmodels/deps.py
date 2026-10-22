@@ -413,6 +413,7 @@ def _install_facility_deps() -> None:
 _install_facility_deps()
 
 
-# Payers and obligations area: its rules live in deps_payers.py (kept under the 400-line limit); imported
-# here so every writer that marks dirty sees them.
+# Payers and obligations area: its rules live in deps_payers.py (kept under the 400-line limit), and the moves
+# and event-effect views' in deps_moves.py; imported here so every writer that marks dirty sees them.
+from marden.readmodels import deps_moves as _deps_moves  # noqa: E402,F401
 from marden.readmodels import deps_payers as _deps_payers  # noqa: E402,F401

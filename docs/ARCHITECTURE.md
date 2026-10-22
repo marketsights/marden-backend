@@ -109,6 +109,9 @@ Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `
 | `gpu_deployment` | `all` | GET /api/gpus/deployment | campus; company `construction_in_progress` / `ppe_*` facts (entity) |
 | `gpu_model` | `gpu_model` | GET /api/gpus/:model | the GPU-index task |
 | `leases` | `all` | GET /api/leases, GET /api/leases/:id (404 when the id is not in the doc); export `leases` | obligation, contract, site, campus; the debt behind each lease (instrument, holding); lessees' `payer_capacity` output; the `leases` model output |
+| `moves` | `all` | GET /api/moves (type, site, tenant, endUser; sort and the window picked in the app) | the `moves` model's output per instrument; instrument facts (names, sizes) |
+| `instrument_moves` | `instrument.id` | GET /api/instruments/:id/moves | the `moves` model's output for the instrument; the `event_impact` output of its site and of the sites whose tenant or end user issued it |
+| `site_debt_effects` | `site.slug` | GET /api/sites/:slug/debt-effects | site events; the `event_impact` model's output for the site |
 
 Read without a read model:
 
@@ -150,6 +153,8 @@ Credit, stress and ranking models (same helper and conventions; outputs are the 
 | `capacity` | `campus`; `building` | `CapacityEstimate` per subject (the dc_tab:capacity view lists the campus, then its buildings) | Mondays 09:45 | `capacity-v0.1.md` |
 | `stress` | `scenario` / `<scenario>:<severity>`, `contagion:<company>:<severity>`, `custom:<md5>`; `instrument`; `entity` | `StressResult` / `ContagionResult` (+ `request`); per instrument `{rows: InstrumentDetail.stress}`; per payer `{stressSummary}`; fills `stress_saved.result`; marks `home` | nightly 06:17 | `stress-v0.1.md` |
 | `risk_list` | `week` / Monday | `RiskList` (frozen once published); marks `risk_list` | Mondays 03:40 (Sunday night ET) | `risk-list-v0.1.md` |
+| `event_impact` | `site` | per priced change in the site's event inputs (power and permit signals, projected completion, dealer quotes): the Marden price that day with and without it per instrument (the price engine's own functions, `marden.models.event_impact_price`), the yields at both, and the trades around it; marks `site_debt_effects`, `instrument_moves` | daily 09:52; on site events, signal facts, cushion runs, prices of its debt | `event-impact-v0.1.md` |
+| `moves` | `instrument` | per window (1D, 1W, 1M, QTD, YTD): the two prices compared (traded if it traded in the window, else Marden), their yields, and the split into priced events, rates and spreads; marks `moves`, `instrument_moves` | daily 09:56; on prices, price, yield and event impact outputs | `moves-v0.1.md` |
 
 Contagion (`ContagionResult`) is computed in-process by the stress model (`marden.models.contagion`); the stress model re-prices with the price engine's own functions (`marden.models.stress_price`) and re-runs the cushion simulation for power delays.
 

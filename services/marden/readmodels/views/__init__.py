@@ -49,6 +49,9 @@ VIEWS: dict[str, str] = {
     "gpu_deployment": "all",
     "gpu_model": "gpu_model",
     "leases": "all",
+    "moves": "all",
+    "instrument_moves": INSTRUMENT,
+    "site_debt_effects": SITE,
 }
 
 # Rebuilt by their own model or collector task (which calls mark_dirty), not by fact dependencies:
