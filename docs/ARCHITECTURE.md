@@ -26,7 +26,8 @@ services/             Python 3.12+ package `marden` (uv): collectors, extraction
   marden/seed/        loaders for marden_data_2026-10-20.zip (MARDEN_SEED_DIR)
   marden/collectors/  one module per source: <source>.py (fetch, store raw, parse, write)
   marden/agents/      document agents (Claude API): intake, router, specialist extractors with domain briefs,
-                      code validators, verifier, linker, publishing and the review queue (docs/agents.md)
+                      code validators, verifier, linker, publishing and the review queue; ops/: researcher,
+                      watchdog and note writer (docs/agents.md)
   marden/models/      status rules, cushion, price, mark gap, recovery, stress, risk rank, GPU, capacity, ...
   marden/readmodels/  one builder per screen document -> read_model rows + stream events
   marden/worker.py    Procrastinate worker: task registry and periodic schedules
@@ -69,7 +70,7 @@ API ──SELECT doc FROM read_model──> app;  GET /api/stream LISTENs on mar
 ## Read models
 
 - `read_model(view, key, as_of, doc)`: one precomputed document per screen piece. The `doc` is exactly the response type in `handoff/api/types.ts`; the API adds only per-user data (watchlist, unread alerts) and filtering, and never recomputes a value.
-- Snapshots: one row per view/key per day (US Eastern). The API serves the latest snapshot, or with `?asOf=` the latest on or before that date. Today's snapshot is built from `fact_current`. `rebuild_all(view, as_of=<past day>)` backfills a past day from `fact_asof(day)` (builders read facts with `known_facts` and date other reads with `build_date()`), sends no live event and leaves today's dirty marks. A snapshot dated after today is refused.
+- Snapshots: one row per view/key per day (US Eastern). The API serves the latest snapshot, or with `?asOf=` the latest on or before that date. Today's snapshot is built from `fact_current`. `rebuild_all(view, as_of=<past day>)` backfills a past day from `fact_asof(day)` (builders read facts with `known_facts` and date other reads with `build_date()`), sends no live event and leaves today's dirty marks. A row learned, created or approved on a day counts from that US Eastern day: timestamps compare with the instant the day ends in Eastern time (`readmodels.context.day_end`; `fact_asof` and the models' `pit` reads use the same instant), never with `day + 1` as a date, which in the UTC session is 8 pm Eastern. A snapshot dated after today is refused.
 - Builders mark nothing themselves: the writers (`FactWriter`, `PriceWriter`, `EventWriter`, `HoldingWriter`) mark dependents dirty through `marden.readmodels.deps` when a value is published; the risk-list, backtest and GPU-index tasks call `mark_dirty` for their own views.
 - A keyed GET answers 404 when the id is not in its identity table, and 503 `{error: 'not_ready', view, key}` while the read model has not been built.
 - View names live in `marden.readmodels.views.VIEWS`. Builders, dependencies and dirty marks are checked against it; `services/tests/test_readmodels.py` checks it against the table below, and `apps/api/test/views.test.ts` checks every API read-model route against the same table.
@@ -94,7 +95,7 @@ Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `
 | `payers` | `all` | GET /api/payers; export `payers` | site, instrument, entity, obligation, contract; holdings of debt on an edge |
 | `payer` | `entity.id` | GET /api/payers/:slug | entity; sites and instruments it is a chain party of; obligations it owes or is owed, the sites they link and the debt behind them (with holdings); its own notes and their holdings; its co-parties' and counterparties' facts and status outputs (paid by) |
 | `payer_capacity` | `entity.id` | GET /api/payers/:slug/capacity | as `payer`; its `payer_capacity` model output |
-| `risk_list` | `week` | GET /api/risk-list?week= (default: the highest key); export `risk-list` | the risk-ranking task (Sunday night) |
+| `risk_list` | `week` | GET /api/risk-list?week= (default: the highest key); export `risk-list` | the risk-ranking task (Sunday night); a weekly note approved in the review queue (its note replaces the list's code-written one: docs/agents.md "Note writer") |
 | `track_record` | `all` | GET /api/track-record | the backtest task |
 | `dc_row` | `campus.id` | GET /api/data-centers (filters and sort in SQL, 50 a page, `?format=geojson`), GET /api/data-centers/summary (computed from the filtered rows), GET /api/data-centers/:id/row (one row, for live updates); export `data-centers` | campus, its buildings, plants serving it, its approved site and that site's instruments |
 | `dc_detail` | `campus.id` | GET /api/data-centers/:id | as `dc_row` |

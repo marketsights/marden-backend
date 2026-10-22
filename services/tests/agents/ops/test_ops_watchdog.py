@@ -236,3 +236,15 @@ def test_issue_decisions(action):
         assert out["ok"] and out["issue"] == "resolved"
     else:
         assert not out["ok"] and "not edited" in out["error"]
+
+
+def test_evidence_back_to_a_decided_one_closes_the_open_item():
+    a = wc.Issue("sums", "site:x:tranches_vs_facility", "x: tranches add to $1.00B, not $2.00B", {"v": 1})
+    b = wc.Issue("sums", "site:x:tranches_vs_facility", "x: tranches add to $1.00B, not $3.00B", {"v": 2})
+    with db.transaction() as conn:
+        assert watchdog.store(conn, a, a.title, "code", 1)[0] == "new"
+        conn.execute("UPDATE review_item SET status = 'rejected' WHERE kind = 'issue'")
+        assert watchdog.store(conn, b, b.title, "code", 2)[0] == "new"
+        assert watchdog.store(conn, a, a.title, "code", 3) == ("already_decided", None)
+        rows = conn.execute("SELECT status, decided_by FROM review_item ORDER BY id").fetchall()
+    assert [(r["status"], r["decided_by"]) for r in rows] == [("rejected", None), ("approved", "agent:watchdog")]

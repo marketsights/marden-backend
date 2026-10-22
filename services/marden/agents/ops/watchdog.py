@@ -92,6 +92,15 @@ def store(conn: Conn, issue: Issue, title: str, writer: str, run_id: int) -> tup
            AND split_part(ref_id, '#', 1) = %s ORDER BY created_at DESC, id DESC""", (ref_type, issue.key)).fetchall()
     body = payload(issue, issue.title, writer, run_id, ehash)
     opened = next((r for r in rows if r["status"] == "open"), None)
+    decided = any(r["ref_id"] == ref_id and r["status"] != "open" for r in rows)
+    if opened is not None and opened["ref_id"] != ref_id and decided:
+        # the evidence went back to what a person already decided on: the open item's evidence is gone
+        conn.execute("""UPDATE review_item SET status = 'approved', decided_by = %s, decided_at = now(),
+                               payload = payload || jsonb_build_object('resolved', jsonb_build_object(
+                                   'by', %s::text, 'run_id', %s::bigint,
+                                   'reason', 'the evidence returned to a decided one'))
+                        WHERE id = %s""", (BY, BY, run_id, opened["id"]))
+        return "already_decided", None
     if opened is not None:
         if opened["ref_id"] == ref_id:
             first = (opened["payload"] or {}).get("first_seen")

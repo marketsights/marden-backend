@@ -252,6 +252,138 @@ with, DDTL 5.5 matures 2031-09 and DDTL 4.0 matures 2032-03 ("The DDTL 5.5 Facil
 2031."), waiting in review with their proposed instrument links (EX-CRWV-097, EX-CRWV-095); 0 rejected, 46 to
 review, 6 already published.
 
+## The operations agents (`services/marden/agents/ops/`)
+
+Each run writes one `agent_ops_run` row (role, trigger, status ok / partial / failed, `model_status` api / cli /
+not_configured / not_used, and the report it printed). Tables: `db/migrations/20261022030000_agent_ops.sql`
+(`agent_ops_run`, `research_search`, `research_find`, `weekly_note`; review item kind `issue`).
+
+### Researcher (weekly)
+
+`python -m marden agents research [--max-queries N] [--max-ferc N] [--max-docs N] [--no-collectors] [--plan]`
+
+1. **Worklist** (`gaps.py`), read from what Marden already shows: the n/d items of each financed site's
+   project-file checklist (read model `project_file`; 'n/p' items are never public and are left out), the cushion
+   model's missing inputs (no outside date, no rent), and every instrument on a financed site or a watchlist
+   with no published size, pricing or maturity fact. Watched subjects first. On the local DB: 1,048 gaps on 55
+   subjects (1,006 checklist, 34 instrument terms, 8 cushion inputs), 4 watched.
+2. **Searches** (`research_plan.py`, `PLANS` in `gaps.py` says how each item can be found):
+   - EDGAR full-text search (`search_edgar.py`: `efts.sec.gov/LATEST/search-index`, the declared SEC_USER_AGENT,
+     the 5 req/s bucket every SEC collector shares): one query per subject phrase and gap term, both exact
+     phrases (`"Polaris Forge 2" "outside date"`; EDGAR's search takes no OR), limited to the root forms 8-K,
+     10-Q, 10-K, S-1, S-4, F-1, 6-K, 20-F, 424B1-5, ABS-15G, SC 13D, DEFM14A (fund holdings reports left out). A
+     subject's phrases are its name (qualifiers and descriptors cut: "Polaris Forge 1, Buildings 2 and 3" ->
+     "Polaris Forge 1") and its SPVs' exact legal names; a one-word name ("Stingray") is searched only inside
+     its chain parties' filings (`ciks=`).
+   - FERC eLibrary text search (`search_ferc.py`: the docket collector's AdvancedSearch with `searchText` and
+     no docket) on the subject's names, for power, fuel and environmental gaps on US subjects; the docket
+     collector already follows the dockets tied to our subjects hourly.
+   - Items an existing collector covers (air permits: `collect.air_permits` for TX, NM, IA, LA; satellite
+     change: `collect.sentinel2`) are checked on that collector's source; a collector that missed its cadence
+     is run for the state (`--no-collectors` only reports it). Other states are listed with why.
+   - Items nothing Marden may read covers (county permits, inspections, liens, agendas; court dockets; state
+     WARN notices and legislation) are listed under `not_searched` with the reason, never guessed.
+   - Order: watched first, then queries never or least recently run, heavier gaps first (outside date and
+     commencement before escalators); at most `MARDEN_RESEARCH_MAX_QUERIES` (120) EDGAR and
+     `MARDEN_RESEARCH_MAX_FERC` (20) eLibrary queries a run, the rest wait for the next run (851 EDGAR queries
+     rotate through about seven weeks). Each query's window starts where its last good search ended, less 7 days;
+     a year back the first time.
+3. **Raw first, then a check, then the intake.** Every search answer is stored raw (`edgar_fts` /
+   `ferc_fts` sources, doc_type `edgar_fts` / `ferc_search`). For at most 3 wanted hits a query and
+   `MARDEN_RESEARCH_MAX_DOCS` (25) new files a run: a file Marden already holds is recorded as read or waiting
+   (or queued, if it was stored but never queued); a new one is fetched raw and must be about the subject
+   (`relevance`): its text names the phrase, and a project name ("Project Jupiter") also needs the filer to be a
+   chain party or the text to name one of the subject's parties, its county or an SPV (another company's
+   "Project Jupiter" is stored raw and left out). Files over 10 MB and FERC periodic report forms (Form 1, 714,
+   715 ...) are stored raw, not queued. A seed record that only names the URL is not a copy of the file. What
+   passes gets `extract_state = 'queued'` with `meta.research` (run, query, subjects, items) and, with the
+   agents configured, an `agent_job` at priority 90 (watched) or 85 (financed); a research find never carries a
+   subject link (only a person's upload does). Without a backend the documents wait in the intake and the report
+   says so.
+4. **Refusals.** A 401/403/407/429/451, or an answer that is not the API's JSON, stops that endpoint's searches
+   for the run, is recorded on the source (heartbeat) and on the search (`blocked`), and the run ends `partial`.
+   Nothing is retried with other headers.
+
+### Watchdog (daily)
+
+`python -m marden agents watchdog [--no-model]`. Every check is code; each finding is one review item of kind
+`issue` (`ref_type 'watchdog:<check>'`, `ref_id '<issue key>#<evidence hash>'`, the evidence in the payload).
+
+| Check | What it finds |
+| --- | --- |
+| `sums` | a site's debt tranches that add to neither its debt facility's size nor its drawn amount (0.5%); a facility drawn beyond its size; a payer's site-debt total against the sum of its sites |
+| `contradiction` | the value a screen shows is reported (R) while a filed (F) value of the same field and type, dated at most 180 days before it, says otherwise (numbers within 1% are rounding); two producers publishing different values for the same as-of date |
+| `screens` | the same value on two screens of the same day: status, cushion and debt on Sites against Site detail; Marden price, chain status and size on Instruments against Instrument detail |
+| `stale_source` | a source that missed its last two scheduled runs (its `collect.<id>` crons), or, without its own task, more than twice its cadence; a source that never ran well two cadences after it was declared (blocked and manual sources are left out) |
+| `stale_read_model` | dirty marks the 30-second rebuild has not consumed for 10 minutes (one issue per view); a Site detail or Instrument detail snapshot built before a fact or event it reads was published, with no mark waiting |
+| `stale_model` | model dirty marks not run for an hour (one issue per model) |
+| `unexplained_move` | a chain status that changed, a completion P50 that moved 2+ months, a Marden price that moved 0.5+ points, between a subject's two newest outputs, with no declared input (`models.triggers.model_depends`) changed in between: facts published, withdrawn or dated in between, events, prices, other models' outputs it reads, review decisions, site links; a model whose inputs cannot be attributed counts as explained |
+
+Re-runs are idempotent: an open issue found again is refreshed (`last_seen`, new evidence replaces the old); an
+issue a person resolved or dismissed comes back only when its evidence changes; an open issue the check no
+longer finds is closed as resolved by `agent:watchdog` (audit `watchdog.resolve`). A failed check is reported
+and closes nothing. Decisions: approve = resolved or acknowledged, reject (reason) = not an issue; issues are
+never edited. The model may only reword titles (`watch_titles.py`, one call for the new ones): a rewording is
+kept only with exactly the code title's numbers, no name or direction word the code title lacks, at most 140
+characters; the code title is in `payload.code_title`.
+
+### Note writer (weekly)
+
+`python -m marden agents note [--week YYYY-MM-DD] [--redraft]`. From the week's published risk list (model
+`risk_list`) code writes, for each of the top four rows, the figures: rank, count, odds (half up, as the list
+and the app round), size, Marden price, week change, fund marks, move, and the records behind the ranking with
+their references. The model (`writer`) answers one template per paragraph using the figures only as
+`{{placeholders}}`; `numbers.py` refuses a template with a digit, a number word, a direction or size word
+(rose, fell, sharply ...), a placeholder it was not given, a brace, a capitalized word that is neither in the
+figures nor a common sentence opening, or a label repeating its figure's first word; every required figure
+(rank, count, odds, each record) must be used once. Code fills the template and checks the filled text again:
+every number in it must be a number of the figures used. A refused paragraph is asked for once more with the
+problems listed; if it fails again it keeps the code template ("Ranked {{rank}} of {{count}}, with {{odds}}.
+{{r1}}. ..."), and without a backend every paragraph is the code template (`writer 'code'`, reported as not
+configured). The draft (`weekly_note`: figures, templates, checks, note) waits for a person (review item kind
+`note`): approve makes it the note the `risk_list` read model serves (GET /api/risk-list, the Risk list screen
+and its Home widget; point in time by the approval's ET date); reject (reason) keeps the list's code-written
+note, and `--redraft` asks again with the reason as wording guidance. Notes are never edited: every figure is
+code's. Idempotent: the same list and prompt make no new draft; an approved week is not redrafted.
+
+### Live proof (local DB, Anthropic API, 2026-10-22 02:07-02:14 UTC)
+
+| Run | Result |
+| --- | --- |
+| watchdog #1 (9 s) | 10 new issues: 2 sums (Abilene tranches $9.40B vs facility $7.10B; Childress $3.65B vs size $1.54B / drawn $0.41B), 3 contradictions (Childress utility, power utility and the Denton ISO shown from press while SEC EDGAR filings say otherwise), 5 stale sources (ercot_prices, ferc, sec_index, ust_par_curve, yahoo_equity: no worker runs locally). Moves: status 3, cushion 18, price 70 moved, all explained by input changes. 8 of 10 titles reworded by Sonnet, 2 refused ("add up" brought in a direction word); 2,173 tokens, $0.0098 |
+| watchdog #2 (2 s) | 10 still open, nothing new, no model call |
+| researcher (2 min 23 s) | 120 EDGAR and 20 eLibrary searches (147 requests; 731 + 22 deferred to the next runs), 14 hits taken: queued the Applied Digital 10-K (FY ending 2026-05-31) for Polaris Forge 2's outside date (job 27, priority 85); skipped two other companies' "Project Jupiter" (Enlight 20-F, HASI 10-K) and "Black Pearl" (Selectis 8-K, a FERC comment), six non-public eLibrary filings, one Gulf South EIS without the name; an Oncor FERC Form 1 (22 MB) naming Barber Lake was queued, then withdrawn (job 28 skipped, audit `research.unqueue`) when the size and report-form rules were added. Air permits: TX and LA covered by their collectors, 13 states with no adapter listed. No model calls |
+| note writer v1-v3 (9 s each) | v1 model-written but two labels repeated their records' first words ("Cushion: Cushion -2 months"): the repeated-word check was added; v2 every paragraph fell back to the code template (the model opened sentences with "Lead", "Timing"); with the allowed openings named in the prompt, v3 is model-written in all four paragraphs, every number code's, waiting for approval (weekly_note 3, review item 1430); about 10,000 tokens and $0.026 a draft |
+
+## Approvals at a glance
+
+| What | Waits for a person | Publishes by itself |
+| --- | --- | --- |
+| Extracted facts | material ones (status, cushion, price inputs, alerting events), reported (R) ones, conflicts, anything the verifier did not agree with, anything on a proposed subject | routine filed facts on an accepted subject that pass every check |
+| Links | every proposed link | exact identifiers |
+| Researcher finds | nothing to approve: they are documents for the extractor, whose facts follow the row above | - |
+| Watchdog issues | every issue (resolve or dismiss) | - (cleared issues are closed by the watchdog) |
+| Weekly note | every draft | never |
+
+## Adding a new area brief
+
+1. Fields: add the area's fields to `services/marden/agents/fields.py` (a list like `DEBT`, and its entry in
+   `AREA_FIELDS`): reuse the fact store's existing field names; each new field gets a definition, unit or value
+   type, and subject kinds; mark material ones.
+2. Area: add an `Area(id, title, scope)` to `AREAS` in `areas.py`; the scope line is what the router reads.
+3. Brief: write `briefs/<area>.md`: what matters for credit on data-center and infrastructure debt, where the
+   facts sit in such documents, the traps, and examples quoted verbatim from real stored documents (quotes for
+   list and object values must hold every number).
+4. Materiality: if the area's facts can change a status, a cushion band, a price input or fire an alert, add
+   them to the rules in `publish.materiality()`.
+5. Eval: add cases under `services/tests/agents/eval/` (excerpts of real stored documents with the facts a
+   careful analyst records and their quotes), run `python -m marden agents eval --area <area>` live, then
+   `--record` to save the answers the tests replay.
+6. Prompt version: bump `PROMPT_VERSION` in `config.py` when a brief or schema changes, so documents re-read;
+   the request cache keeps every other call free.
+7. Researcher: give the area's n/d items a plan in `ops/gaps.py` (`PLANS`: EDGAR terms, eLibrary, a collector,
+   or why nothing covers it).
+
 ## Cost and safety
 
 - Budgets: `MARDEN_AGENT_RUN_TOKENS` per run (default 3,000,000) and `MARDEN_AGENT_DAY_TOKENS` per UTC day
@@ -284,11 +416,13 @@ review, 6 already published.
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | none | the production backend. Without it a local run uses the `claude` CLI if `claude -p "say ok" --output-format json` answers; a deployed service (Railway or Render: any deploy marker) reports not configured and queues nothing |
 | `MARDEN_AGENT_BACKEND` | auto | auto, api, cli, off |
-| `MARDEN_AGENT_MODEL_ROUTER` / `_EXTRACTOR` / `_VERIFIER` / `_LINKER` | claude-haiku-5-5 / claude-sonnet-5-5 / claude-opus-5-5 / claude-sonnet-5-5 | |
-| `MARDEN_AGENT_EFFORT_<ROLE>` | low / medium / medium / low | |
+| `MARDEN_AGENT_MODEL_ROUTER` / `_EXTRACTOR` / `_VERIFIER` / `_LINKER` / `_WRITER` | claude-haiku-5-5 / claude-sonnet-5-5 / claude-opus-5-5 / claude-sonnet-5-5 / claude-sonnet-5-5 | `writer`: the note's prose and the watchdog's titles |
+| `MARDEN_AGENT_EFFORT_<ROLE>` | low / medium / medium / low / low | |
+| `MARDEN_RESEARCH_MAX_QUERIES`, `MARDEN_RESEARCH_MAX_FERC`, `MARDEN_RESEARCH_MAX_DOCS` | 120 / 20 / 25 | per researcher run |
 | `MARDEN_AGENT_RUN_TOKENS`, `MARDEN_AGENT_DAY_TOKENS` | 3,000,000 / 30,000,000 | |
 | `MARDEN_AGENT_SOURCE_CAP`, `MARDEN_AGENT_SOURCE_CAPS`, `MARDEN_AGENT_CONCURRENCY` | 2 / none / 3 | |
 | `MARDEN_AGENT_FILES_API_MIN_BYTES`, `MARDEN_AGENT_SECTION_CHARS`, `MARDEN_AGENT_MAX_SECTIONS` | 4,000,000 / 120,000 / 16 | |
 | `MARDEN_UPLOAD_MAX_BYTES` (API) | 52,428,800 | |
 
-Tables: `db/migrations/20261022001000_agents.sql`.
+Tables: `db/migrations/20261022001000_agents.sql` (document pipeline), `20261022030000_agent_ops.sql`
+(operations agents).
