@@ -129,6 +129,9 @@ _PLANT_SITES = via(
 def _install_triggers() -> None:
     for field in (*SITE_FIELDS, "@event"):
         triggers.model_depends(MODEL, "site", field)
+    # a site link approved or rejected on the review queue adds or drops the campus and plant events
+    # the site's chain reads (status_inputs.load), so the site is re-run
+    triggers.model_depends(MODEL, "site", "site_link")
     for field in (*ENTITY_FIELDS, "@event"):
         triggers.model_depends(MODEL, "entity", field, _ENTITY_SITES)
     for field in (*INSTRUMENT_FIELDS, "@event", f"@model:{PRICE_MODEL}"):

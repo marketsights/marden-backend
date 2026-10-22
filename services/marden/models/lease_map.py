@@ -259,6 +259,7 @@ def _install_triggers() -> None:
     ):
         triggers.model_depends(MODEL, "obligation", fld, triggers.everything)
     triggers.model_depends(MODEL, "entity", "@model:payer_capacity", triggers.everything)
+    triggers.model_depends(MODEL, "site", "site_link", triggers.everything)  # a lease's campus (_campus)
     triggers.register_runner(MODEL, _run_keys)
 
 

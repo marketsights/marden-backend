@@ -184,3 +184,28 @@ def test_api_decisions_wait_for_the_worker_and_site_links_are_approved():
                      "site_link": "approved"}]
     assert rows("SELECT status, approved_by FROM site_link")[0] == {"status": "approved", "approved_by": "u1"}
     assert {"site_detail", "dc_row"} <= {r["view"] for r in rows("SELECT view FROM read_model_dirty")}
+
+
+def test_a_site_link_decision_reruns_the_models_that_read_approved_links():
+    """Approving a link feeds the campus's events into the site's chain (status) and gives the site's leases
+    a campus (leases), so both are marked; the reviewer and the evidence note are in the audit log."""
+    import marden.models.lease_map
+    import marden.models.status  # noqa: F401  (registers the model triggers)
+
+    with db.transaction() as conn:
+        conn.execute("INSERT INTO site (slug, name) VALUES ('abilene', 'Stargate Abilene')")
+        conn.execute("INSERT INTO campus (id, name) VALUES ('stargate-abilene', 'Stargate Abilene')")
+        conn.execute("INSERT INTO site_link (site_slug, campus_id) VALUES ('abilene', 'stargate-abilene')")
+        item = conn.execute(
+            """INSERT INTO review_item (kind, ref_type, ref_id, title, reason) VALUES ('link', 'site_link',
+               'abilene|stargate-abilene', 'Link site abilene', 'material') RETURNING id""").fetchone()["id"]
+    note = "developer Crusoe on both; Taylor County TX on both"
+    assert decide(item, "approve", "claude-review", reason=note)["site_link"] == "approved"
+    marks = {(r["model"], r["key"]) for r in rows("SELECT model, key FROM model_dirty")}
+    assert {("status", "abilene"), ("leases", "*")} <= marks
+    assert rows("SELECT status, decided_by FROM review_item")[0] == {"status": "approved",
+                                                                    "decided_by": "claude-review"}
+    audit = rows("SELECT action, target, meta FROM audit_log WHERE user_id = 'claude-review'")
+    assert audit == [{"action": "review.approve", "target": f"review_item:{item}",
+                      "meta": {"reason": note, "review_item_id": item, "action": "approve",
+                               "site_link": "approved"}}]
