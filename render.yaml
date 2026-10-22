@@ -105,3 +105,5 @@ services:
         sync: false
       - key: CLERK_SECRET_KEY
         sync: false
+      - key: MARDEN_SIGN_IN_URL      # a bare /sign-in goes to the marketing site's sign-in (same Clerk instance)
+        value: https://marden.ai/sign-in
