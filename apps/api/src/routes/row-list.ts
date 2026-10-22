@@ -16,6 +16,7 @@ export const rowScope = (req: FastifyRequest): RowScope => ({
   q: queryOf(req),
   orgId: authOf(req).orgId,
   asOf: asOfOf(req),
+  hidden: req.server.hiddenSources,
 });
 
 export async function listRows(db: Db, def: RowViewDef, req: FastifyRequest, reply: FastifyReply): Promise<unknown> {

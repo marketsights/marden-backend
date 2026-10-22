@@ -44,7 +44,7 @@ export interface CompletionRow {
   slug: string; name: string; state: string;
   chain: ChainLink[];                         // always 4, in role order
   projection: CushionProjection | null;
-  driver: 'Power' | 'Build' | 'Delivery' | 'Permits' | 'Funding';
+  driver: 'Power' | 'Build' | 'Delivery' | 'Permits' | 'Funding' | null; // null = n/d: the cushion model named no driver
   lastEvidence: Evidence;
   debtB: Sourced<number>;
   leadLenders: string;
@@ -77,7 +77,7 @@ export interface Milestone {
   latestEvidence?: Evidence;
 }
 export interface SiteSchedule {
-  projection: CushionProjection;
+  projection: CushionProjection | null;       // null = n/d: the cushion model has not projected this site
   milestones: Milestone[];
   cushionHistory: { date: string; months: number; event?: string }[];
   imagery: { month: string; url: string; caption: string; changeScore?: number }[];
@@ -96,7 +96,7 @@ export interface InstrumentRow {
   id: string; name: string; type: string; sizeB: Sourced<number>;
   matures: string | null; mardenPrice: Sourced<number>; yieldPct: Sourced<string> | null;
   change1w: Sourced<number>; markGap: Sourced<number> | 'no fund' | 'traded' | 'private' | null;
-  chainStatus: ChainStatus;
+  chainStatus: ChainStatus | null;           // null = n/d: no status judged for its site or issuer
 }
 export interface Holder {
   name: string; filing: 'N-PORT' | '10-Q'; filingUrl: string; filingDate: string;
@@ -104,8 +104,8 @@ export interface Holder {
 }
 export interface InstrumentDetail extends InstrumentRow {
   facts: string;
-  fundMarks: { low: number; high: number; filing: string; date: string };
-  nextMarksPublic: string;
+  fundMarks: { low: number; high: number; filing: string; date: string } | null; // null = n/d: no fund filing reports it
+  nextMarksPublic: string | null;             // null = n/d: no fund files marks for it
   recovery: Sourced<string>;
   priceHistory: { date: string; price: number }[];
   holders: { count: number; parMm: number; rows: Holder[] };
@@ -246,9 +246,9 @@ export type PlantStatus = 'Permit pending' | 'Permitted' | 'Under construction' 
 export type PlantTech = 'Simple-cycle turbine' | 'Reciprocating engine' | 'Fuel cell' | 'Combined cycle' | 'Other';
 
 export interface PowerUnit {
-  oem: string; model: string; count: number;
-  ratingMwEach: Sourced<number>; totalMw: number;      // totalMw computed in code
-  fuel: string; status: PlantStatus; onlineYear: number | null; permitRef: string;
+  oem: string | null; model: string | null; count: number;   // null = n/d (not in the permit or filing)
+  ratingMwEach: Sourced<number>; totalMw: number | null;    // totalMw computed in code; null when count or rating is n/d
+  fuel: string | null; status: PlantStatus; onlineYear: number | null; permitRef: string | null;
 }
 export interface AirPermit {
   agency: string; number: string; type: 'Standard' | 'Minor' | 'Major' | 'Title V' | string;
@@ -258,13 +258,13 @@ export interface AirPermit {
 
 // GET /api/power-plants  (?state=&status=&tech=&oem=&model=&operator=&servesId=&agency=&permitType=&gridMode=&financed=&watchlist=&q=&sort=&page=&format=json|geojson)
 export interface PowerPlantRow {
-  id: string; name: string; county: string; state: string; lat: number; lon: number;
+  id: string; name: string; county: string | null; state: string; lat: number | null; lon: number | null; // null = n/d (not located yet)
   serves: { id: string; name: string } | null;
   operator: Sourced<string>;
-  technology: PlantTech; units: { count: number; byModel: { oem: string; model: string; count: number }[] };
+  technology: PlantTech | null; units: { count: number; byModel: { oem: string; model: string; count: number }[] };
   permittedMw: Sourced<number>;                        // sum of unit ratings
   status: Sourced<PlantStatus>;
-  airPermit: Pick<AirPermit, 'agency' | 'number' | 'type' | 'status' | 'decided' | 'url'>;
+  airPermit: Pick<AirPermit, 'agency' | 'number' | 'type' | 'status' | 'decided' | 'url'> | null; // null = n/d: no air permit found yet
   fuelSupply: Sourced<string>;
   gridMode: 'Islanded' | 'Grid-tied' | 'Unknown';
   financed: FinancedLink | null;
@@ -284,8 +284,8 @@ export interface PowerPlantSummary {
 // GET /api/power-plants/:id
 export interface PowerPlantDetail extends PowerPlantRow {
   unitRows: PowerUnit[];
-  permit: AirPermit;
-  fuel: { pipeline: Sourced<string>; regulator: string; docket: string; inService: { date: string; evidence: Evidence }[] };
+  permit: AirPermit | null;                   // null = n/d: no air permit found yet
+  fuel: { pipeline: Sourced<string>; regulator: string; docket: string; inService: { date: string; evidence: Evidence }[] } | null; // null = n/d
   servedCampus: { id: string; name: string; status: DcStatus; facilityMw: Sourced<number>; buildings: number; loadCoverPct: Sourced<number> } | null;
   history: DcHistoryEvent[];
 }
@@ -433,9 +433,9 @@ export interface MechanicsLien { claimant: string; amountM: Sourced<number>; rec
 export interface ProjectConstruction {
   declaredCostB: Sourced<number>; announcedCostB: Sourced<number>; costPerMwM: Sourced<number>; peerCostPerMwM: Sourced<number>;
   costToCompleteGapB: Sourced<number>; fundingGapB: Sourced<number>;
-  drawsVsProgress: { date: string; drawnShare: number | null; builtShare: number | null }[]; drawPaceFlag: boolean;
+  drawsVsProgress: { date: string; drawnShare: number | null; builtShare: number | null }[]; drawPaceFlag: boolean | null; // null = n/d: no draw or progress series to compare
   generalContractor: Sourced<string>; liens: MechanicsLien[]; contractorStress: Sourced<'None' | 'Watch' | 'High'>;
-  equipment: { item: string; oem: string; units: number | null; neededBy: string | null; delivery: Sourced<string>; late: boolean }[];
+  equipment: { item: string; oem: string; units: number | null; neededBy: string | null; delivery: Sourced<string>; late: boolean | null }[]; // late null = n/d: no need-by or delivery date
 }
 // GET /api/sites/:slug/project-file
 export interface ProjectFile {

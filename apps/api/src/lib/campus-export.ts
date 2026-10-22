@@ -62,7 +62,9 @@ async function powerRows(ctx: CampusExportCtx, id: string, doc: Json): Promise<R
     { table: 'Backup generators', field: 'MW', value: gens.mw ?? 'n/d' },
     { table: 'Backup generators', field: 'Fuel', value: gens.fuel ?? 'n/d' },
   ];
-  const plants = await queryRows<Json>(ctx.db, PLANT_ROWS, { q: { servesId: id }, orgId: ctx.orgId, asOf: ctx.asOf }, { limit: 500, offset: 0 });
+  const plants = await queryRows<Json>(
+    ctx.db, PLANT_ROWS, { q: { servesId: id }, orgId: ctx.orgId, asOf: ctx.asOf, hidden: ctx.hidden }, { limit: 500, offset: 0 },
+  );
   const plantRows = plants.rows.map((p) => {
     const units = obj(p.units);
     return {
@@ -97,7 +99,7 @@ export const CAMPUS_EXPORT_TABS: Readonly<Record<string, TabExport>> = {
   history: { view: 'dc_tab:history', rows: (doc) => list(doc) },
 };
 
-export interface CampusExportCtx { db: Db; q: Query; orgId: string; asOf: string | null }
+export interface CampusExportCtx { db: Db; q: Query; orgId: string; asOf: string | null; hidden: readonly string[] }
 
 export async function campusExport(ctx: CampusExportCtx): Promise<{ view: string; asOf: string | null; rows: Rows }> {
   const id = first(ctx.q, 'id');

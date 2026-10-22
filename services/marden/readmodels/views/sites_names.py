@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from marden.core.db import Conn, Row
+from marden.core.licensing import hidden_source_names
 
 US_STATES = frozenset((
     "alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut", "delaware", "florida",
@@ -181,8 +182,8 @@ def site_names(conn: Conn, site: Row, campuses: list[Row], plants: list[Row], kn
     sources = conn.execute(
         """SELECT DISTINCT source_url FROM fact WHERE subject_type = 'instrument' AND source_url IS NOT NULL
              AND subject_id IN (SELECT id FROM instrument WHERE site_slug = %s)
-             AND status IN ('published', 'superseded') AND learned_at < %s::date""",
-        (site["slug"], known_by),
+             AND status IN ('published', 'superseded') AND learned_at < %s::date AND source_name <> ALL(%s)""",
+        (site["slug"], known_by, hidden_source_names()),
     ).fetchall()
     return SiteNames(names_pattern(names), names_pattern(names, any_case=True), ciks,
                      frozenset(r["source_url"] for r in sources))

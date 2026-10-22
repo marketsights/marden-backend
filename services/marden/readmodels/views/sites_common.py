@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Sequence
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.core.facts import sourced
 from marden.core.jsonutil import jsonb
-from marden.readmodels.context import build_date, known_fact_rows, known_facts
+from marden.core.licensing import hidden_source_names
+from marden.readmodels.context import BUSINESS_TZ, build_date, known_fact_rows, known_facts
 from marden.readmodels.views.sites_text import text_of
 
 Doc = dict[str, Any]
@@ -43,6 +44,13 @@ def day() -> date:
 def next_day() -> date:
     """Rows learned before this instant were known on the build date."""
     return build_date() + timedelta(days=1)
+
+
+def day_end() -> datetime:
+    """The instant the build date ends in business time (US Eastern, as snapshots are dated): a row
+    approved before it was known on the build date. A bare `next_day()` date compares as midnight UTC,
+    which is still the evening of the build date in Eastern time."""
+    return datetime.combine(next_day(), time.min, tzinfo=BUSINESS_TZ)
 
 
 def nd(tag: str = "R") -> Doc:
@@ -236,10 +244,11 @@ def main_instrument(instruments: Sequence[Doc]) -> Doc | None:
 
 
 def dealer_quote(conn: Conn, instrument_id: str) -> Row | None:
+    """The newest dealer quote known by the build date (licence switch applied)."""
     return conn.execute(
         """SELECT * FROM price_obs WHERE instrument_id = %s AND kind = 'dealer' AND obs_date <= %s
-             AND learned_at < %s::date ORDER BY obs_date DESC, id DESC LIMIT 1""",
-        (instrument_id, day(), next_day()),
+             AND learned_at < %s::date AND source_name <> ALL(%s) ORDER BY obs_date DESC, id DESC LIMIT 1""",
+        (instrument_id, day(), next_day(), hidden_source_names()),
     ).fetchone()
 
 
@@ -293,11 +302,11 @@ def subjects_listing(conn: Conn, subject_type: str, field: str, item: Any) -> li
     probe = jsonb([item])
     rows = conn.execute(
         """SELECT subject_id FROM fact WHERE subject_type = %(t)s AND field = %(f)s AND status = 'published'
-             AND jsonb_typeof(value) = 'array' AND value @> %(v)s
+             AND jsonb_typeof(value) = 'array' AND value @> %(v)s AND source_name <> ALL(%(hidden)s)
            UNION SELECT subject_id FROM fact WHERE status = 'superseded' AND subject_type = %(t)s
-             AND field = %(f)s AND jsonb_typeof(value) = 'array' AND value @> %(v)s
+             AND field = %(f)s AND jsonb_typeof(value) = 'array' AND value @> %(v)s AND source_name <> ALL(%(hidden)s)
            ORDER BY 1""",
-        {"t": subject_type, "f": field, "v": probe},
+        {"t": subject_type, "f": field, "v": probe, "hidden": hidden_source_names()},
     ).fetchall()
     return [r["subject_id"] for r in rows]
 

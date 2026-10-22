@@ -166,12 +166,12 @@ function reviewRoutes(app: FastifyInstance, db: Db): void {
     const area = typeof q.area === 'string' ? q.area : null;
     const limit = Math.min(Math.max(Math.trunc(num(q, 'limit') ?? 50), 1), 200);
     const offset = Math.max(Math.trunc(num(q, 'offset') ?? 0), 0);
-    return listReview(db, { status, kind, area, limit, offset });
+    return listReview(db, { status, kind, area, limit, offset, hidden: app.hiddenSources });
   });
 
   app.get('/api/review/:id', async (req) => {
     const id = param(req, 'id');
-    const item = /^\d+$/.test(id) ? await reviewItem(db, id) : null;
+    const item = /^\d+$/.test(id) ? await reviewItem(db, id, app.hiddenSources) : null;
     if (!item) throw notFound('review_item');
     return item;
   });
@@ -180,7 +180,7 @@ function reviewRoutes(app: FastifyInstance, db: Db): void {
     app.post(`/api/review/:id/${action}`, async (req, reply) => {
       const auth = authOf(req);
       const id = param(req, 'id');
-      const item = /^\d+$/.test(id) ? await reviewItem(db, id) : null;
+      const item = /^\d+$/.test(id) ? await reviewItem(db, id, app.hiddenSources) : null;
       if (!item) throw notFound('review_item');
       if (item.status !== 'open') throw conflict(`already_${item.status as string}`);
       let reason: string | null = null;

@@ -7,6 +7,8 @@ export interface RowScope {
   q: Query;
   orgId: string;
   asOf: string | null;
+  /** Source names left out of fact reads (FastifyInstance.hiddenSources: the unlicensed-price switch). */
+  hidden: readonly string[];
 }
 
 export interface FilteredRows {
@@ -20,7 +22,9 @@ export function filteredRows(def: RowViewDef, scope: RowScope): FilteredRows {
   const params = new SqlParams();
   const viewPh = params.add(def.view);
   const asOfPh = params.add(scope.asOf);
-  const where = buildWhere(def, scope.q, params, { orgId: scope.orgId, day: asOfDay(scope.asOf), asOf: scope.asOf });
+  const where = buildWhere(def, scope.q, params, {
+    orgId: scope.orgId, day: asOfDay(scope.asOf), asOf: scope.asOf, hidden: scope.hidden,
+  });
   const cte = `WITH latest AS (${latestRowsSql(viewPh, asOfPh)}),
     filtered AS (SELECT r.key, r.as_of, r.doc FROM latest r WHERE ${where})`;
   return { params, cte };

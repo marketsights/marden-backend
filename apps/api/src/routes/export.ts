@@ -15,7 +15,7 @@ export function exportRoutes(app: FastifyInstance, db: Db): void {
     const auth = authOf(req);
     const table = param(req, 'table');
     const load = loaderFor(table);
-    const data = await load({ db, q: queryOf(req), orgId: auth.orgId, asOf: asOfOf(req) });
+    const data = await load({ db, q: queryOf(req), orgId: auth.orgId, asOf: asOfOf(req), hidden: app.hiddenSources });
     const file = await buildWorkbook({ table, view: data.view, asOf: data.asOf }, data.rows, data.sheets);
     await audit(db, {
       orgId: auth.orgId, userId: auth.userId, action: 'export.xlsx', target: table, ip: req.ip,

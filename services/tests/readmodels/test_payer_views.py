@@ -252,8 +252,19 @@ def test_payer_page_totals_match_its_sites(edges):
     paid = {p["name"]: p for p in oracle["paidBy"]}
     if "OpenAI" in paid:
         assert paid["OpenAI"]["status"] == _worst_link("openai", ("end_user",))
-    if output("payer_capacity", "entity", "oracle") is None:
-        assert oracle["kpis"]["cds5y"]["value"] is None
+    for key in ("oracle", "coreweave"):  # the 5y CDS is the price engine's bond-implied `cds` output
+        cds = output("cds", "entity", key)
+        kpi = (oracle if key == "oracle" else build("payer", key))["kpis"]["cds5y"]
+        if cds is None or cds["output"].get("spreadBp") is None:
+            assert kpi["value"] is None and kpi["tag"] == "M"
+        else:
+            assert kpi == {
+                "value": f"{cds['output']['spreadBp']:.0f}bp",
+                "tag": "M",
+                "asOf": cds["as_of"].isoformat(),
+                "methodVersion": cds["version"],
+                "sourceName": cds["output"].get("label") or "Marden bond-implied CDS",
+            }
     assert "stressSummary" not in oracle or output("stress", "entity", "oracle") is not None
     assert build("payer", "blackrock") is None  # a fund is not a payer
 

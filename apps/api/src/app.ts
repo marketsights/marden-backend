@@ -16,6 +16,7 @@ import { PRODUCTS, type ProductRegistry } from './auth/products/index.js';
 import { assertDevAuthAllowed, type AppConfig } from './config.js';
 import { createDb, type Db } from './db.js';
 import { HttpError } from './errors.js';
+import { hiddenSources } from './lib/licensing.js';
 import { loggerOptions } from './lib/log-redact.js';
 import { asOfOf } from './lib/params.js';
 import { accountRoutes } from './routes/account.js';
@@ -40,6 +41,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     db: Db;
     streams: StreamHub;
+    /** Source names the API's own fact reads leave out (MARDEN_SHOW_UNLICENSED_PRICES; lib/licensing.ts). */
+    hiddenSources: readonly string[];
   }
 }
 
@@ -141,6 +144,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     trustProxy: trustProxyOption(config.trustProxy),
   });
   app.decorate('db', db);
+  app.decorate('hiddenSources', hiddenSources(config.showUnlicensedPrices));
 
   // Route tracking first so it sees every route registered below (including plugin routes).
   trackRoutes(app);

@@ -1,6 +1,7 @@
 // Builds SQL WHERE / ORDER BY clauses for row read models (dc_row, plant_row) from query params.
 // Filter expressions are constants in code; only values travel as bind parameters.
 import { badRequest } from '../errors.js';
+import { factSource } from './licensing.js';
 import { first, flag, isoDate, likePattern, list, num, type Query } from './params.js';
 
 export class SqlParams {
@@ -15,7 +16,10 @@ export class SqlParams {
 export interface FilterCtx {
   org(): string;   // placeholder for the caller's org id
   day(): string;   // placeholder for the as-of day (YYYY-MM-DD)
-  /** SQL source of facts as known on the as-of day: fact_current, or fact_asof(day) for ?asOf reads. */
+  /**
+   * SQL source of facts as known on the as-of day: fact_current, or fact_asof(day) for ?asOf reads, without
+   * the rows of sources the unlicensed-price switch hides (lib/licensing.ts factSource).
+   */
   facts(): string;
   /** SQL condition: a row learned at `learnedAt` was known on the as-of day (TRUE without ?asOf). */
   known(learnedAt: string): string;
@@ -85,16 +89,19 @@ function bindFilter(def: FilterDef, q: Query, params: SqlParams, ctx: FilterCtx)
   }
 }
 
-export interface WhereScope { orgId: string; day: string; asOf: string | null }
+/** hidden: source names left out of fact reads (FastifyInstance.hiddenSources). */
+export interface WhereScope { orgId: string; day: string; asOf: string | null; hidden: readonly string[] }
 
 export function buildWhere(def: RowViewDef, q: Query, params: SqlParams, scope: WhereScope): string {
   let orgPh: string | null = null;
   let dayPh: string | null = null;
+  let hiddenPh: string | null = null;
   const day = (): string => (dayPh ??= params.add(scope.day));
+  const hidden = (): string | null => (scope.hidden.length ? (hiddenPh ??= params.add(scope.hidden)) : null);
   const ctx: FilterCtx = {
     org: () => (orgPh ??= params.add(scope.orgId)),
     day,
-    facts: () => (scope.asOf === null ? 'fact_current' : `fact_asof(${day()}::date)`),
+    facts: () => factSource(scope.asOf === null ? null : day(), hidden()),
     known: (learnedAt) => (scope.asOf === null ? 'TRUE' : `${learnedAt} < (${day()}::date + 1)`),
   };
   const conds = def.filters.map((f) => bindFilter(f, q, params, ctx)).filter((c): c is string => c !== null);

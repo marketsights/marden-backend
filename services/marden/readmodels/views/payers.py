@@ -11,7 +11,8 @@ totals are sums of those rows (spec 08 acceptance), so site debt and GW always m
   model's T1 rule reads), else the entity's `rating_summary`; n/d when neither exists.
 - notesB / noteHolders: its own bonds and converts (issuer = the entity or its subsidiaries), sizes
   summed; funds holding them from N-PORT / BDC filings.
-- cds5y: the payer_capacity model's `cds5y` (bond-implied CDS from the price engine); n/d until it runs.
+- cds5y: the bond-implied 5y CDS of the price engine's `cds` output for the entity (`spreadBp`, its as-of
+  and method version, tag M); n/d where the price engine has no CDS for the payer (no traded bonds).
 - paidBy: the next link up (payers_paid_by.py): the end users of the sites it is tenant of, and payers of
   the leases and compute contracts it is owed; each with its own worst link in the status model's outputs
   (a party with no judged link has no status and is not listed), the rule and statement behind it, and
@@ -34,7 +35,6 @@ from marden.readmodels.views.payers_common import (
     edge_sites,
     entity_row,
     latest_output,
-    model_field,
     nd,
     num,
     obligation_rows,
@@ -153,10 +153,18 @@ def notes_kpis(conn: Conn, entity_id: str) -> tuple[Doc, Doc]:
 
 
 def cds_text(out: Row | None) -> Doc:
-    value = model_field(out, "cds5y")
-    if isinstance(value.get("value"), int | float):
-        value["value"] = f"{value['value']:.0f}bp"
-    return value
+    """The 5y CDS KPI from the price engine's `cds` output (subject ('entity', id)): `spreadBp`, the
+    bond-implied 5-year spread, shown as '240bp' with the output's as-of and method ('price v0.1')."""
+    spread = num(output_field(out, "spreadBp"))
+    if out is None or spread is None:
+        return nd("M")
+    return {
+        "value": f"{float(spread):.0f}bp",
+        "tag": "M",
+        "asOf": out["as_of"].isoformat(),
+        "methodVersion": str(out["version"]),
+        "sourceName": str(output_field(out, "label") or "Marden bond-implied CDS"),
+    }
 
 
 # ---------------------------------------------------------------- rail
@@ -198,7 +206,6 @@ def payer_doc(conn: Conn, entity: Row) -> Doc:
         summaries.append(summary)
     rows.sort(key=_site_order)
     notes, holders = notes_kpis(conn, entity["id"])
-    capacity_out = latest_output(conn, "payer_capacity", "entity", entity["id"])
     doc: Doc = {
         "slug": entity["id"],
         "name": entity["name"],
@@ -207,7 +214,7 @@ def payer_doc(conn: Conn, entity: Row) -> Doc:
             "siteDebtB": summed([s["debtB"] for s in summaries]),
             "gwLeased": gw_leased(conn, [s["slug"] for s in sites]),
             "rating": rating_statement(conn, entity["id"]),
-            "cds5y": cds_text(capacity_out),
+            "cds5y": cds_text(latest_output(conn, "cds", "entity", entity["id"])),
             "notesB": notes,
             "noteHolders": holders,
         },

@@ -24,12 +24,14 @@ from datetime import date, datetime
 from typing import Any, NamedTuple
 
 from marden.core.db import Conn, Row
+from marden.core.licensing import hidden_source_names
 from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.views.sites_common import (
     US_STATES,
     Doc,
     chain_status,
     day,
+    day_end,
     debt_value,
     event_evidence,
     fact_evidence,
@@ -157,27 +159,31 @@ def _label_order(label: str) -> tuple[int, str]:
     return (int(digits) if digits else 10**6, label)
 
 
+# A plant_serves link counts once its evidence fact was known by the build date and is not from a source
+# the licence switch hides.
+_SERVES_EVIDENCE = """(ps.evidence_fact_id IS NULL OR (f.status IN ('published', 'superseded')
+                      AND f.learned_at < %s::date AND f.source_name <> ALL(%s)))"""
+
+
 def serving_plants(conn: Conn, campus_id: str) -> list[Row]:
     """Plants serving the campus (plant_serves) whose evidence Marden had by the build date."""
     return conn.execute(
-        """SELECT p.* FROM plant_serves ps JOIN power_plant p ON p.id = ps.plant_id
+        f"""SELECT p.* FROM plant_serves ps JOIN power_plant p ON p.id = ps.plant_id
              LEFT JOIN fact f ON f.id = ps.evidence_fact_id
-            WHERE ps.campus_id = %s AND p.created_at < %s::date
-              AND (ps.evidence_fact_id IS NULL OR (f.status IN ('published', 'superseded') AND f.learned_at < %s::date))
+            WHERE ps.campus_id = %s AND p.created_at < %s::date AND {_SERVES_EVIDENCE}
             ORDER BY p.id""",
-        (campus_id, next_day(), next_day()),
+        (campus_id, next_day(), next_day(), hidden_source_names()),
     ).fetchall()
 
 
 def served_campuses(conn: Conn, plant_id: str) -> list[Row]:
     """Campuses the plant serves (plant_serves, evidence known by the build date), US campuses first."""
     rows = conn.execute(
-        """SELECT c.id, c.name, c.state FROM plant_serves ps JOIN campus c ON c.id = ps.campus_id
+        f"""SELECT c.id, c.name, c.state FROM plant_serves ps JOIN campus c ON c.id = ps.campus_id
              LEFT JOIN fact f ON f.id = ps.evidence_fact_id
-            WHERE ps.plant_id = %s AND c.created_at < %s::date
-              AND (ps.evidence_fact_id IS NULL OR (f.status IN ('published', 'superseded') AND f.learned_at < %s::date))
+            WHERE ps.plant_id = %s AND c.created_at < %s::date AND {_SERVES_EVIDENCE}
             ORDER BY c.id""",
-        (plant_id, next_day(), next_day()),
+        (plant_id, next_day(), next_day(), hidden_source_names()),
     ).fetchall()
     return sorted(rows, key=lambda c: (c["state"] not in US_STATES, c["id"]))
 
@@ -235,8 +241,8 @@ def approved_sites(conn: Conn, campus_ids: Iterable[str]) -> list[Row]:
     return conn.execute(
         """SELECT DISTINCT s.slug, s.name FROM site_link l JOIN site s ON s.slug = l.site_slug
             WHERE l.campus_id = ANY(%s) AND l.status = 'approved'
-              AND (l.approved_at IS NULL OR l.approved_at < %s::date) ORDER BY s.slug""",
-        (list(campus_ids), next_day()),
+              AND (l.approved_at IS NULL OR l.approved_at < %s) ORDER BY s.slug""",
+        (list(campus_ids), day_end()),
     ).fetchall()
 
 

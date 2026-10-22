@@ -14,7 +14,7 @@ from typing import Any
 from marden.core.db import Conn, Row
 from marden.readmodels.context import known_fact_rows, known_facts
 from marden.readmodels.registry import get_builder
-from marden.readmodels.views.sites_common import Doc, day, next_day, src_or_nd, subjects_listing
+from marden.readmodels.views.sites_common import Doc, day, day_end, src_or_nd, subjects_listing
 
 BUILDING_FACTS = ("status", "sqft", "facility_mw", "it_mw", "building_permit", "co_date", "construction_start",
                   "change_score", "construction_complete")
@@ -25,9 +25,9 @@ def linked_campuses(conn: Conn, slug: str) -> tuple[list[Row], bool]:
     rows = conn.execute(
         """SELECT l.status AS link_status, l.building_ids, c.* FROM site_link l JOIN campus c ON c.id = l.campus_id
            WHERE l.site_slug = %s AND (l.status = 'proposed'
-                 OR (l.status = 'approved' AND (l.approved_at IS NULL OR l.approved_at < %s::date)))
+                 OR (l.status = 'approved' AND (l.approved_at IS NULL OR l.approved_at < %s)))
            ORDER BY c.id""",
-        (slug, next_day()),
+        (slug, day_end()),
     ).fetchall()
     approved = [r for r in rows if r["link_status"] == "approved"]
     if approved:

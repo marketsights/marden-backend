@@ -36,6 +36,11 @@ export interface AppConfig {
    * null when ALERT_LINK_SECRET is unset or shorter than 32 characters: the links then answer 503.
    */
   alertLinkSecret: string | null;
+  /**
+   * MARDEN_SHOW_UNLICENSED_PRICES (default true), the same switch the Python services read: false leaves
+   * every fact row from an 'unlicensed-commercial' source out of the API's own fact reads (lib/licensing.ts).
+   */
+  showUnlicensedPrices: boolean;
   host: string;
   port: number;
 }
@@ -59,6 +64,7 @@ const envSchema = z.object({
   TRUST_PROXY: z.string().regex(/^(true|false|[0-9]{1,2})$/, 'must be true, false or a hop count').default('false'),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(20_000),
   ALERT_LINK_SECRET: z.string().optional(),
+  MARDEN_SHOW_UNLICENSED_PRICES: z.string().optional(),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(4000),
 });
@@ -77,6 +83,16 @@ const linkSecret = (v: string | undefined): string | null => {
   const s = blank(v);
   return s !== null && s.length >= 32 ? s : null;
 };
+
+/** As services/marden/core/config.py: true/1/yes or false/0/no (any case); unset or blank = true; else an error. */
+const BOOLS: Readonly<Record<string, boolean>> = { true: true, '1': true, yes: true, false: false, '0': false, no: false };
+export function parseShowUnlicensed(v: string | undefined): boolean {
+  const s = blank(v);
+  if (s === null) return true;
+  const value = BOOLS[s.toLowerCase()];
+  if (value === undefined) throw new Error('MARDEN_SHOW_UNLICENSED_PRICES must be true or false');
+  return value;
+}
 
 /** Clerk publishable keys are `pk_(test|live)_` + base64("<frontend api>$"). */
 export function issuerFromPublishableKey(key: string | null): string | null {
@@ -149,6 +165,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     trustProxy: parseTrustProxy(e.TRUST_PROXY),
     shutdownTimeoutMs: e.SHUTDOWN_TIMEOUT_MS,
     alertLinkSecret: linkSecret(e.ALERT_LINK_SECRET),
+    showUnlicensedPrices: parseShowUnlicensed(e.MARDEN_SHOW_UNLICENSED_PRICES),
     host: e.HOST,
     port: e.PORT,
   };

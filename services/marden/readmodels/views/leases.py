@@ -48,7 +48,7 @@ from marden.readmodels.views.payers_common import (
     with_value,
 )
 from marden.readmodels.views.payers_debt import instrument_info
-from marden.readmodels.views.sites_common import next_day, site_slugs
+from marden.readmodels.views.sites_common import day_end, site_slugs
 
 STATUS_LABELS = {
     "Started": "Commenced",
@@ -73,8 +73,8 @@ def site_campus(conn: Conn, slug: str | None) -> str | None:
         return None
     rows = conn.execute(
         """SELECT campus_id FROM site_link WHERE site_slug = %s AND status = 'approved'
-             AND (approved_at IS NULL OR approved_at < %s::date)""",
-        (slug, next_day()),
+             AND (approved_at IS NULL OR approved_at < %s)""",
+        (slug, day_end()),
     ).fetchall()
     return rows[0]["campus_id"] if len(rows) == 1 else None
 

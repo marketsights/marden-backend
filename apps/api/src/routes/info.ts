@@ -12,7 +12,9 @@ export function infoRoutes(app: FastifyInstance, db: Db): void {
   app.get('/api/search', async (req): Promise<SearchResponse> => {
     const q = first(queryOf(req), 'q') ?? '';
     if (q.length < 2 || q.length > 100) throw badRequest('q must be 2 to 100 characters');
-    const results = await search(db, q, { pattern: likePattern(q), asOf: asOfOf(req), perKind: 8, limit: 30 });
+    const results = await search(db, q, {
+      pattern: likePattern(q), asOf: asOfOf(req), perKind: 8, limit: 30, hidden: app.hiddenSources,
+    });
     return { q, results };
   });
 

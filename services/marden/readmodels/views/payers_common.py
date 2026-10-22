@@ -21,6 +21,7 @@ from datetime import date, datetime
 from typing import Any
 
 from marden.core.db import Conn, Row
+from marden.core.licensing import hidden_source_names
 from marden.readmodels.context import BUSINESS_TZ, known_fact_rows, known_facts
 from marden.readmodels.views.instrument_inputs import num
 from marden.readmodels.views.sites_common import (
@@ -336,8 +337,8 @@ def edges_changed_since(conn: Conn, ids: Sequence[str], since: date) -> set[str]
         return set()
     rows = conn.execute(
         """SELECT DISTINCT subject_id FROM fact WHERE subject_type = 'obligation' AND subject_id = ANY(%s)
-             AND status IN ('published', 'superseded')
+             AND status IN ('published', 'superseded') AND source_name <> ALL(%s)
              AND learned_at >= %s::timestamptz AND learned_at < (%s::date + 1)::timestamptz""",
-        (list(ids), datetime.combine(since, datetime.min.time(), BUSINESS_TZ), day()),
+        (list(ids), hidden_source_names(), datetime.combine(since, datetime.min.time(), BUSINESS_TZ), day()),
     ).fetchall()
     return {r["subject_id"] for r in rows}

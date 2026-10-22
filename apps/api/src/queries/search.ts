@@ -1,10 +1,13 @@
 // Sidebar search (spec 00, 16): sites, instruments (name, CUSIP, ISIN, issuer and site words), campuses, buildings (label,
 // parcel ID), plants, entities and permit numbers, ranked by trigram word similarity. Permit numbers
-// are facts, read through fact_current (or fact_asof for ?asOf), never from `fact` directly.
+// are facts, read through fact_current (or fact_asof for ?asOf) with the unlicensed-price switch applied
+// (lib/licensing.ts factSource), never from `fact` directly.
 import type { SearchResult } from '../contracts/app.js';
 import type { Db } from '../db.js';
+import { factSource } from '../lib/licensing.js';
 
-// $1 = query text, $2 = ILIKE pattern, $3 = as-of date or null, $4 = rows per kind.
+// $1 = query text, $2 = ILIKE pattern, $3 = as-of date or null, $4 = rows per kind, $5 = limit,
+// $6 = hidden source names (bound only when the switch hides some).
 const sim = (expr: string): string => `word_similarity($1, coalesce(${expr}, ''))`;
 const hit = (expr: string): string => `(${expr} ILIKE $2 OR $1 <% coalesce(${expr}, ''))`;
 const anyHit = (arr: string): string => `EXISTS (SELECT 1 FROM unnest(${arr}) x WHERE x ILIKE $2 OR $1 <% x)`;
@@ -18,7 +21,7 @@ const allWords = (expr: string): string =>
 // An instrument is found by its issuer and its financed site too: its own name is often only "DDTL 3.0".
 const INSTRUMENT_TEXT = `concat_ws(' ', i.issuer_name, s.name, i.name)`;
 
-const BRANCHES = [
+const branches = (hiddenPh: string | null): string[] => [
   `SELECT 'site' AS kind, s.slug AS id, s.name AS label, nullif(concat_ws(', ', s.county, s.state), '') AS sub,
           '/sites/' || s.slug AS href, ${score(sim('s.name'), exact('s.name'), bestOf('s.tracking_names'))} AS score
    FROM site s WHERE (${hit('s.name')} OR ${anyHit('s.tracking_names')}) AND ${known('s')}`,
@@ -45,9 +48,9 @@ const BRANCHES = [
           CASE f.subject_type WHEN 'plant' THEN '/power/' WHEN 'campus' THEN '/data-centers/' WHEN 'site' THEN '/sites/' END
             || f.subject_id,
           CASE WHEN (f.value #>> '{}') ILIKE $2 THEN 1 ELSE ${sim(`f.value #>> '{}'`)} END::float8
-   FROM (SELECT * FROM fact_current WHERE $3::date IS NULL AND field = 'air_permit_number'
+   FROM (SELECT * FROM ${factSource(null, hiddenPh)} cur WHERE $3::date IS NULL AND field = 'air_permit_number'
          UNION ALL
-         SELECT * FROM fact_asof($3::date) WHERE $3::date IS NOT NULL AND field = 'air_permit_number') f
+         SELECT * FROM ${factSource('$3', hiddenPh)} past WHERE $3::date IS NOT NULL AND field = 'air_permit_number') f
    LEFT JOIN power_plant pp ON f.subject_type = 'plant' AND pp.id = f.subject_id
    LEFT JOIN campus c ON f.subject_type = 'campus' AND c.id = f.subject_id
    LEFT JOIN site s ON f.subject_type = 'site' AND s.slug = f.subject_id
@@ -58,13 +61,15 @@ const BRANCHES = [
 export async function search(
   db: Db,
   q: string,
-  opts: { pattern: string; asOf: string | null; perKind: number; limit: number },
+  opts: { pattern: string; asOf: string | null; perKind: number; limit: number; hidden: readonly string[] },
 ): Promise<SearchResult[]> {
-  const union = BRANCHES.map((b) => `(SELECT * FROM (${b}) t ORDER BY 6 DESC, 3 LIMIT $4)`).join('\nUNION ALL\n');
+  const hide = opts.hidden.length > 0;
+  const union = branches(hide ? '$6' : null)
+    .map((b) => `(SELECT * FROM (${b}) t ORDER BY 6 DESC, 3 LIMIT $4)`).join('\nUNION ALL\n');
   const res = await db.query<SearchResult>(
     `SELECT kind, id, label, sub, href, round(score::numeric, 3)::float8 AS score
      FROM (${union}) u ORDER BY score DESC, label LIMIT $5`,
-    [q, opts.pattern, opts.asOf, opts.perKind, opts.limit],
+    [q, opts.pattern, opts.asOf, opts.perKind, opts.limit, ...(hide ? [opts.hidden] : [])],
   );
   return res.rows;
 }

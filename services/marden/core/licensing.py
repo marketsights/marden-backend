@@ -223,6 +223,13 @@ def show_unlicensed_prices(settings: Settings | None = None) -> bool:
     return (settings or get_settings()).show_unlicensed_prices
 
 
+def hidden_source_names(settings: Settings | None = None) -> list[str]:
+    """The exact source names a reader leaves out under the current switch: none while it is true,
+    every unlicensed name when it is false. For SQL: `source_name <> ALL(%s)` (an empty list keeps all).
+    The API keeps the same list (apps/api/src/lib/licensing.ts); tests/test_licensing.py compares them."""
+    return [] if show_unlicensed_prices(settings) else unlicensed_source_names()
+
+
 def visible(source_name: str | None, settings: Settings | None = None) -> bool:
     """Whether a row from this source may be served or used under the current switch."""
     return show_unlicensed_prices(settings) or not is_unlicensed(source_name)

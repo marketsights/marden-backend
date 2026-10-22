@@ -216,27 +216,65 @@ class FactWriter:
 
 
 # ---------------------------------------------------------------- reads
+# The ORDER BY of the `fact_current` view and the `fact_asof` function after (subject, field): model
+# values last, newest valid_from, filed over reported, newest learned. Used when rows of some sources are
+# left out (`hidden`), so the next value of the same field takes over as both views would pick it.
+# tests/test_fact_current.py checks it against the views on real rows.
+PRECEDENCE = (
+    "(tag = 'M'), valid_from DESC, (CASE tag WHEN 'F' THEN 0 WHEN 'R' THEN 1 ELSE 2 END), learned_at DESC, id DESC"
+)
+
+
 def current_facts(
-    conn: Conn, subject_type: str, subject_id: str, fields: Sequence[str] | None = None
+    conn: Conn,
+    subject_type: str,
+    subject_id: str,
+    fields: Sequence[str] | None = None,
+    *,
+    hidden: Sequence[str] = (),
 ) -> dict[str, Row]:
-    """field -> current published fact row (fact_current precedence)."""
-    sql = "SELECT * FROM fact_current WHERE subject_type = %s AND subject_id = %s"
+    """field -> current published fact row (fact_current precedence). Rows whose source_name is in
+    `hidden` are left out before the precedence picks (marden.core.licensing.hidden_source_names)."""
     params: list[Any] = [subject_type, subject_id]
+    if hidden:
+        sql = """SELECT DISTINCT ON (field) * FROM fact WHERE subject_type = %s AND subject_id = %s
+                   AND status = 'published' AND (valid_to IS NULL OR valid_to > CURRENT_DATE)
+                   AND source_name <> ALL(%s)"""
+        params.append(list(hidden))
+    else:
+        sql = "SELECT * FROM fact_current WHERE subject_type = %s AND subject_id = %s"
     if fields is not None:
         sql += " AND field = ANY(%s)"
         params.append(list(fields))
+    if hidden:
+        sql += f" ORDER BY field, {PRECEDENCE}"
     return {r["field"]: r for r in conn.execute(sql, params).fetchall()}
 
 
 def facts_asof(
-    conn: Conn, as_of: date, subject_type: str, subject_id: str, fields: Sequence[str] | None = None
+    conn: Conn,
+    as_of: date,
+    subject_type: str,
+    subject_id: str,
+    fields: Sequence[str] | None = None,
+    *,
+    hidden: Sequence[str] = (),
 ) -> dict[str, Row]:
-    """field -> the fact Marden knew on `as_of` (fact_asof precedence)."""
-    sql = "SELECT * FROM fact_asof(%s) WHERE subject_type = %s AND subject_id = %s"
-    params: list[Any] = [as_of, subject_type, subject_id]
+    """field -> the fact Marden knew on `as_of` (fact_asof precedence), rows from `hidden` sources left out."""
+    if hidden:
+        sql = """SELECT DISTINCT ON (field) * FROM fact WHERE subject_type = %s AND subject_id = %s
+                   AND status IN ('published', 'superseded') AND valid_from <= %s
+                   AND learned_at < (%s::date + 1)::timestamptz AND (valid_to IS NULL OR valid_to > %s)
+                   AND source_name <> ALL(%s)"""
+        params: list[Any] = [subject_type, subject_id, as_of, as_of, as_of, list(hidden)]
+    else:
+        sql = "SELECT * FROM fact_asof(%s) WHERE subject_type = %s AND subject_id = %s"
+        params = [as_of, subject_type, subject_id]
     if fields is not None:
         sql += " AND field = ANY(%s)"
         params.append(list(fields))
+    if hidden:
+        sql += f" ORDER BY field, {PRECEDENCE}"
     return {r["field"]: r for r in conn.execute(sql, params).fetchall()}
 
 

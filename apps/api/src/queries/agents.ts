@@ -139,24 +139,32 @@ const REVIEW_SELECT = `
   LEFT JOIN fact f ON r.kind = 'fact' AND r.ref_type = 'fact' AND f.id::text = r.ref_id
   LEFT JOIN agent_decision dec ON dec.review_item_id = r.id AND dec.applied_at IS NULL`;
 
-export interface ReviewFilter { status: string; kind: string | null; area: string | null; limit: number; offset: number }
+/** A review item about a fact from a source the unlicensed-price switch hides is left out (lib/licensing.ts). */
+const LICENSED = (hiddenPh: string): string => `NOT EXISTS (SELECT 1 FROM fact h WHERE r.kind = 'fact'
+  AND r.ref_type = 'fact' AND h.id::text = r.ref_id AND h.source_name = ANY(${hiddenPh}::text[]))`;
+
+/** hidden: FastifyInstance.hiddenSources. */
+export interface ReviewFilter {
+  status: string; kind: string | null; area: string | null; limit: number; offset: number; hidden: readonly string[];
+}
 
 export async function listReview(c: Queryable, f: ReviewFilter) {
   const res = await c.query(
     `${REVIEW_SELECT}
      WHERE r.status = $1 AND ($2::text IS NULL OR r.kind = $2) AND ($3::text IS NULL OR r.payload->>'area' = $3)
+       AND ${LICENSED('$6')}
      ORDER BY (r.payload->'material_codes' IS NOT NULL AND r.payload->'material_codes' <> '[]'::jsonb) DESC,
               r.created_at DESC, r.id DESC
      LIMIT $4 OFFSET $5`,
-    [f.status, f.kind, f.area, f.limit, f.offset]);
+    [f.status, f.kind, f.area, f.limit, f.offset, f.hidden]);
   const total = await c.query<{ n: string }>(
     `SELECT count(*)::text AS n FROM review_item r WHERE r.status = $1 AND ($2::text IS NULL OR r.kind = $2)
-       AND ($3::text IS NULL OR r.payload->>'area' = $3)`, [f.status, f.kind, f.area]);
+       AND ($3::text IS NULL OR r.payload->>'area' = $3) AND ${LICENSED('$4')}`, [f.status, f.kind, f.area, f.hidden]);
   return { items: res.rows, total: Number(total.rows[0]?.n ?? 0) };
 }
 
-export async function reviewItem(c: Queryable, id: string) {
-  const res = await c.query(`${REVIEW_SELECT} WHERE r.id = $1`, [id]);
+export async function reviewItem(c: Queryable, id: string, hidden: readonly string[]) {
+  const res = await c.query(`${REVIEW_SELECT} WHERE r.id = $1 AND ${LICENSED('$2')}`, [id, hidden]);
   return res.rows[0] ?? null;
 }
 

@@ -29,7 +29,8 @@ import { siteExport } from './site-export.js';
 import { stressExportRows } from './stress-export.js';
 import { toWatchItem } from './watch-items.js';
 
-export interface ExportCtx { db: Db; q: Query; orgId: string; asOf: string | null }
+/** hidden: source names left out of fact reads (FastifyInstance.hiddenSources: the unlicensed-price switch). */
+export interface ExportCtx { db: Db; q: Query; orgId: string; asOf: string | null; hidden: readonly string[] }
 export interface ExportData {
   view: string; asOf: string | null; rows: Record<string, unknown>[];
   /** Further tables written between the data and sources sheets. */
