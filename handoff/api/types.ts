@@ -183,7 +183,8 @@ export type StreamEvent =
   | { type: 'mark'; instrumentId: string; holder: string; mark: Sourced<number> }
   | { type: 'pipeline'; source: string; status: 'ok' | 'delayed' | 'down'; at: string }
   | { type: 'campus'; campusId: string }          // a data center fact published; refetch that campus or row
-  | { type: 'plant'; plantId: string };           // a power plant fact published
+  | { type: 'plant'; plantId: string }            // a power plant fact published
+  | { type: 'home'; asOf: string };              // the Home read model was rebuilt; refetch GET /api/home
 
 // ---------- Data centers and on-site power (specs 14–17) ----------
 
@@ -315,6 +316,8 @@ export interface CompanyObligations {
   owesByYear: { year: number; byCounterparty: { id: string; amountB: number }[] }[];
   concentration: { payerId: string; share: Sourced<number> }[];
   fundingGap: { year: number; committedB: number; fundedB: number; gapB: Sourced<number> }[];
+  // Plain-words reason for a list left empty (nobody owes the company; owed contracts with no payment schedule).
+  ndReasons?: { concentration?: string; fundingGap?: string };
 }
 // POST /api/stress/run with scenario 'contagion': params { company, payPct }
 export interface ContagionResult {

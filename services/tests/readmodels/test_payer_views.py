@@ -193,14 +193,20 @@ def _worst_link(entity_id: str, roles: tuple[str, ...] | None = None) -> str | N
 
 def test_company_page_splits_the_edges_and_waits_for_its_model(edges):
     graph = build("obligations")
-    for key in ("oracle", "coreweave", "openai"):
+    for key in ("oracle", "coreweave", "openai", "meta"):
         page = build("obligation_company", key)
         assert {e["id"] for e in page["owes"]} == {e["id"] for e in graph["edges"] if e["from"] == key}
         assert {e["id"] for e in page["isOwed"]} == {e["id"] for e in graph["edges"] if e["to"] == key}
         assert page["node"] == next(n for n in graph["nodes"] if n["id"] == key)
         assert page["node"]["status"] == _worst_link(key)
-        if output("obligation_company", "entity", key) is None:
-            assert page["concentration"] == [] and page["fundingGap"] == []
+        out = output("obligation_company", "entity", key)
+        if out is None:
+            assert page["concentration"] == [] and page["fundingGap"] == [] and "ndReasons" not in page
+        else:  # the model's plain reason shows only for a list the page leaves empty
+            given = out["output"].get("ndReasons") or {}
+            expected = {k: given[k] for k in ("concentration", "fundingGap") if not page[k] and given.get(k)}
+            assert page.get("ndReasons", {}) == expected
+            assert all(g["gapB"]["value"] is not None for g in page["fundingGap"])  # n/d gap rows left out
         by_year: dict[int, dict[str, float]] = {}
         for e in page["owes"]:  # annual commitments by year and counterparty: the edges' schedules summed
             for a in e["annual"]:
@@ -284,6 +290,16 @@ def test_capacity_shows_filed_cash_flow_and_waits_for_the_model(edges):
             assert doc[key]["value"] is None and doc[key]["tag"] == "M", key
         assert doc["ratings"] == [] and doc["topCounterparty"] is None
         assert all(y["fundingGapB"]["value"] is None for y in doc["years"])
+    out = output("payer_capacity", "entity", "oracle")
+    reasons = (out or {"output": {}})["output"].get("ndReasons")
+    if isinstance(reasons, dict):  # the model's plain-words n/d reasons pass through as written
+        assert doc["ndReasons"] == {k: v for k, v in reasons.items() if k in payer_capacity.ND_REASONS}
+        modeled = {y["fiscalYear"]: y for y in out["output"]["years"]}
+        for label, year in years.items():  # filed years carry the model's filed leverage too
+            if label in modeled:
+                assert year["leaseAdjLeverage"]["value"] == modeled[label]["leaseAdjLeverage"]["value"]
+    else:
+        assert "ndReasons" not in doc
     owed = copied_rows("""SELECT DISTINCT unnest(instrument_ids) AS id FROM obligation WHERE from_entity_id = 'oracle'
                             AND type IN ('Lease', 'Compute purchase', 'Guarantee or backstop')""")
     assert {r["id"] for r in owed} <= {x["instrumentId"] for x in doc["exposed"]}

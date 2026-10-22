@@ -27,17 +27,19 @@ from marden.core.config import ConfigError, deploy_marker, get_settings
 
 PROMPT_VERSION = "0.2"
 METHOD = f"agents v{PROMPT_VERSION}"
-ROLES = ("router", "extractor", "verifier", "linker")
+ROLES = ("router", "extractor", "verifier", "linker", "writer")
 
 # Current model ids (claude-api skill, 2026-10): Haiku for triage, Sonnet for extraction (spec 21), and a
-# different, stronger model for the independent verifier pass.
+# different, stronger model for the independent verifier pass. `writer` drafts the weekly note's connective
+# prose and the watchdog's issue titles (marden.agents.ops): words only, every figure is filled by code.
 DEFAULT_MODELS = {
     "router": "claude-haiku-5-5",
     "extractor": "claude-sonnet-5-5",
     "verifier": "claude-opus-5-5",
     "linker": "claude-sonnet-5-5",
+    "writer": "claude-sonnet-5-5",
 }
-DEFAULT_EFFORT = {"router": "low", "extractor": "medium", "verifier": "medium", "linker": "low"}
+DEFAULT_EFFORT = {"router": "low", "extractor": "medium", "verifier": "medium", "linker": "low", "writer": "low"}
 EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max"})
 
 # USD per million tokens (input, output); cache writes 1.25x input, cache reads 0.1x input, batches half.

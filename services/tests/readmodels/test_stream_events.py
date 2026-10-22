@@ -98,3 +98,34 @@ def test_a_changed_holder_mark_sends_one_mark_event(committed, take_view):
         "mark": {"value": 96.25, "tag": "F", "asOf": "2026-09-30", "sourceName": "N-PORT",
                  "sourceUrl": "https://www.sec.gov/B Fund.xml"},
     }]
+
+
+def test_a_rebuilt_home_sends_one_home_event(committed, take_view):
+    """The Home headline sums live in the `home` read model, rebuilt after the site and instrument views
+    whose events made an open Home refetch: a changed Home doc sends `home` so the screen refetches once
+    more and shows the new sums; an unchanged rebuild sends nothing."""
+    from marden.readmodels import business_today
+    from marden.readmodels.registry import DEFAULT_EVENTS
+    from marden.readmodels.views import home  # noqa: F401 (registers the real builder)
+
+    assert DEFAULT_EVENTS["home"]("all", {"asOf": "2026-10-21", "under3": []}) == {"type": "home", "asOf": "2026-10-21"}
+    assert DEFAULT_EVENTS["home"]("all", {"under3": []}) is None  # no build date: nothing to send
+    take_view("home")
+    today = business_today().isoformat()
+    state: dict[str, Any] = {"under3": [{"name": "Stargate Abilene", "debtB": 9.4}]}
+
+    @builder("home", many=True)
+    def build(conn):
+        yield "all", {"asOf": today, "under3": state["under3"]}
+
+    stats = rebuild_all("home")
+    assert not stats.errors and stats.events == 1
+    assert _events(committed, "home") == [{"type": "home", "asOf": today}]
+
+    rebuild_all("home")  # unchanged doc: nothing sent
+    assert len(_events(committed, "home")) == 1
+
+    state["under3"] = []  # the headline sum moved
+    mark_dirty("home", "all")
+    rebuild_dirty()
+    assert _events(committed, "home") == [{"type": "home", "asOf": today}] * 2

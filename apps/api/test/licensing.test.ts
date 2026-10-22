@@ -132,7 +132,7 @@ describe('unlicensed-price switch in the API', () => {
     const list = async (app: FastifyInstance) => {
       const res = await app.inject({ method: 'GET', url: '/api/review?area=licensing-test' });
       expect(res.statusCode).toBe(200);
-      return res.json() as { items: { id: string; sourceName: string }[]; total: number };
+      return res.json<{ items: { id: string; sourceName: string }[]; total: number }>();
     };
     const open = await list(shown);
     expect(open.items.map((i) => [i.id, i.sourceName])).toEqual([[reviewId, TRACE]]);

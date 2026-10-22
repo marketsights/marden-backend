@@ -10,7 +10,8 @@ A builder returns the exact response type from handoff/api/types.ts, or None whe
 no longer has a document. `event(key, doc)` returns the StreamEvent to emit when the doc changes;
 dc_*/plant_* views default to the campus/plant events, and a view may add companion events that
 carry another value the doc holds (site_detail: the site's `cushion`; instrument_detail: a
-`mark` per holder whose last mark changed since the previous snapshot). Views must be in `views.VIEWS`.
+`mark` per holder whose last mark changed since the previous snapshot). `home` sends a `home` event
+(refetch GET /api/home) whenever its doc changes. Views must be in `views.VIEWS`.
 
 Builders read facts with `marden.readmodels.known_facts` (fact_current for today's snapshot,
 fact_asof(day) when a past day is backfilled) and date every other read with `build_date()`;
@@ -75,9 +76,25 @@ def _plant_event(key: str, doc: Doc) -> dict[str, Any]:
     return {"type": "plant", "plantId": key}
 
 
+def _home_event(key: str, doc: Doc) -> dict[str, Any] | None:
+    """types.ts StreamEvent 'home': the Home read model was rebuilt. Its headline sums (watched debt under 3
+    months, status changes this week, fund marks 5+ pts high) are cut per member by GET /api/home, so the
+    event carries no values: an open Home refetches /api/home once. The item events that changed those sums
+    arrive before this rebuild (the site and instrument views are rebuilt first), and the refetch they cause
+    can read the previous Home snapshot; this event is what brings the sums up to date."""
+    as_of = doc.get("asOf")
+    if not isinstance(as_of, str):
+        return None
+    try:
+        return events.validate({"type": "home", "asOf": as_of})
+    except events.InvalidStreamEvent:
+        return None
+
+
 DEFAULT_EVENTS: dict[str, EventFn] = {
     **{view: _campus_event for view in VIEWS if view.startswith(("dc_row", "dc_detail", "dc_tab:"))},
     **{view: _plant_event for view in VIEWS if view.startswith("plant_")},
+    "home": _home_event,
 }
 
 

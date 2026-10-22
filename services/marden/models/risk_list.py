@@ -124,7 +124,8 @@ def score_one(conn: Conn, inst: dict[str, Any], day: date, ctx: dict[str, Any]) 
     band = ((band_out or {}).get("downgradeRisk") or {}).get("value")
     if band in ("High", "Watch"):
         points += 2 if band == "High" else 1
-        reasons.append(risk_note.band_reason(tenant, band, (band_out.get("basis") or {}).get("bandReasons") or [], day))
+        why = (band_out.get("basis") or {}).get("bandReasons") or []
+        reasons.append(risk_note.band_reason(tenant, band, why, day, ctx["names"].get(tenant)))
     change = num(px.get("change1w"))
     if change is not None and abs(change) >= 2:
         points += 1
@@ -194,6 +195,7 @@ def compute(conn: Conn, day: date) -> Batch:
                 "SELECT site_slug, entity_id FROM chain_party WHERE role = 'tenant' AND site_slug = ANY(%s)", (sites,)
             ).fetchall()
         },
+        "names": {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM entity").fetchall()},
         "sizes": {},
         "slips": {},
     }

@@ -12,6 +12,7 @@ the model output it comes from).
 from __future__ import annotations
 
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 METHOD_URLS = {
@@ -21,6 +22,11 @@ METHOD_URLS = {
     "price": "docs/methods/pricing-v0.1.md",
 }
 NOTE_PARAGRAPHS = 4
+
+
+def percent(share: float) -> int:
+    """A share as a whole percent, half up as the web app rounds it (0.625 -> 63, where round() gives 62)."""
+    return int((Decimal(str(share)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 def evidence(day: str, text: str, tag: str, source: str, url: str, ref: str) -> dict[str, Any]:
@@ -94,11 +100,12 @@ def gap_reason(
     )
 
 
-def band_reason(tenant: str, band: str, reasons: list[str], out_day: date) -> dict[str, Any]:
+def band_reason(tenant: str, band: str, reasons: list[str], out_day: date, name: str | None = None) -> dict[str, Any]:
+    """`tenant` is the entity id (the reference); the text names it as screens do (`name`)."""
     why = f": {reasons[0]}" if reasons else ""
     return evidence(
         out_day.isoformat(),
-        f"Tenant {tenant} downgrade risk {band} (Marden view, not a rating){why}",
+        f"Tenant {name or tenant} downgrade risk {band} (Marden view, not a rating){why}",
         "M",
         "Marden payer capacity",
         METHOD_URLS["payer_capacity"],
@@ -127,7 +134,7 @@ def note(week: date, rows: list[dict[str, Any]], reasons: dict[str, list[dict[st
     for r in rows[:NOTE_PARAGRAPHS]:
         evs = reasons.get(r["instrumentId"], [])
         sentences = [
-            f"Ranked {r['rank']} of {len(rows)}, with {round(r['odds']['value'] * 100)}% odds of a 3-point move "
+            f"Ranked {r['rank']} of {len(rows)}, with {percent(r['odds']['value'])}% odds of a 3-point move "
             f"in 90 days (odds v0, uncalibrated)."
         ]
         sentences += [f"{e['text']} ({e['date']})." for e in evs[:3]]

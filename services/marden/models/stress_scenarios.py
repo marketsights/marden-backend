@@ -50,6 +50,8 @@ from marden.models.cushion_sim import simulate
 from marden.models.stress_price import Book, Shock
 
 POWER_KEYS = ("utility_agreement", "gas_or_grid", "onsite_generation")
+POWER_LABELS = {"utility_agreement": "utility agreement", "gas_or_grid": "gas or grid power",
+                "onsite_generation": "on-site generation"}
 BUCKETS = ((3, "aa"), (6, "a"), (9, "bbb"), (12, "bb"), (15, "b"))  # notch ceiling -> index bucket
 DEFAULTS: dict[str, dict[str, Any]] = {
     "end_user_funding_miss": {"endUser": "openai", "cutPct": 30},
@@ -148,6 +150,12 @@ def severe_spread_bp(conn: Conn, day: date, rating_notch: int | None) -> tuple[f
     return round((max(peak) - float(now[0]["value"])) * 100.0, 1), sid  # percent -> bp
 
 
+def display_name(conn: Conn, entity_id: str) -> str:
+    """The entity's name as screens show it ('Oracle', not the slug 'oracle'); the id when it has none."""
+    row = conn.execute("SELECT name FROM entity WHERE id = %s", (entity_id,)).fetchone()
+    return str(row["name"]) if row and row["name"] else entity_id
+
+
 def _sites_of(conn: Conn, entity_id: str, roles: tuple[str, ...]) -> list[str]:
     rows = conn.execute(
         "SELECT site_slug FROM chain_party WHERE entity_id = %s AND role = ANY(%s) ORDER BY 1", (entity_id, list(roles))
@@ -166,7 +174,8 @@ def _pv(edge: graph.Edge, day: date, rate: float) -> tuple[float | None, str]:
 
 def end_user_funding_miss(conn: Conn, book: Book, params: dict[str, Any]) -> Scenario:
     eu, cut = str(params["endUser"]), float(params["cutPct"]) / 100.0
-    sc = Scenario("end_user_funding_miss", f"{eu} cuts {params['cutPct']:g}% of its contracts")
+    eu_name = display_name(conn, eu)
+    sc = Scenario("end_user_funding_miss", f"{eu_name} cuts {params['cutPct']:g}% of its contracts")
     rate = book.ctx.book.curve(book.day).par_yield(10.0) / 100.0  # type: ignore[union-attr]
     payees: dict[str, list[dict[str, Any]]] = {}
     for e in graph.load_edges(conn, book.day):
@@ -189,17 +198,19 @@ def end_user_funding_miss(conn: Conn, book: Book, params: dict[str, Any]) -> Sce
             "hazardMultiplier": None if mult is None else round(mult, 4),
         }
     for slug in sorted(set(_sites_of(conn, eu, ("end_user", "tenant")))):
-        sc.sites[slug] = SiteHit(slug, "E2", f"End user {eu} cuts {params['cutPct']:g}% of its contracts", "red")
+        sc.sites[slug] = SiteHit(slug, "E2", f"End user {eu_name} cuts {params['cutPct']:g}% of its contracts", "red")
     for t in sc.tenants:
+        t_name = display_name(conn, t)
         for slug in _sites_of(conn, t, ("tenant",)):
-            sc.sites.setdefault(slug, SiteHit(slug, None, f"Tenant {t} loses revenue from {eu}", "amber"))
+            sc.sites.setdefault(slug, SiteHit(slug, None, f"Tenant {t_name} loses revenue from {eu_name}", "amber"))
     sc.basis["discountRate"] = round(rate, 5)
     return sc
 
 
 def tenant_downgrade(conn: Conn, book: Book, params: dict[str, Any]) -> Scenario:
     tenant, target = str(params["tenant"]), str(params["rating"])
-    sc = Scenario("tenant_downgrade", f"{tenant} cut to {target}")
+    tenant_name = display_name(conn, tenant)
+    sc = Scenario("tenant_downgrade", f"{tenant_name} cut to {target}")
     now = _rating_of(ratings(conn, book.day, tenant))
     beta, pts = rating_beta(conn, book)
     sc.basis.update({"ratingNow": now.rating if now else None, "target": target, "beta": beta, "points": pts})
@@ -215,7 +226,7 @@ def tenant_downgrade(conn: Conn, book: Book, params: dict[str, Any]) -> Scenario
         sc.basis["hazardMultiplier"] = round(sc.shock.hazard_mult[tenant], 4)
     sc.tenants.append(tenant)
     for slug in _sites_of(conn, tenant, ("tenant",)):
-        sc.sites[slug] = SiteHit(slug, "T1", f"Tenant {tenant} cut to {target}", "amber")
+        sc.sites[slug] = SiteHit(slug, "T1", f"Tenant {tenant_name} cut to {target}", "amber")
     return sc
 
 
@@ -256,7 +267,8 @@ def power_delay(conn: Conn, book: Book, params: dict[str, Any]) -> Scenario:
         sc.sites[site.slug] = SiteHit(
             site.slug,
             rule,
-            f"Power {', '.join(moved)} {months} months later: rent start P50 {before.get('p50')} -> {after.get('p50')}",
+            f"Power ({', '.join(POWER_LABELS.get(k, k) for k in moved)}) {months} months later: rent start P50 "
+            f"{before.get('p50')} -> {after.get('p50')}",
             sev,
             (c0, c1),
         )

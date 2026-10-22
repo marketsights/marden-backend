@@ -22,6 +22,7 @@ VALID = [
     {"type": "pipeline", "source": "sec_edgar", "status": "down", "at": "2026-10-21T10:00:00+00:00"},
     {"type": "campus", "campusId": "stargate-abilene"},
     {"type": "plant", "plantId": "abilene-gas"},
+    {"type": "home", "asOf": "2026-10-21"},
 ]
 
 
@@ -37,6 +38,8 @@ def test_valid_payloads(payload):
         ({"campusId": "x"}, "unknown stream event type"),
         ({"type": "campus"}, "campus.campusId: missing"),
         ({"type": "campus", "campusId": "x", "extra": 1}, "unknown keys"),
+        ({"type": "home"}, "home.asOf: missing"),
+        ({"type": "home", "asOf": "today"}, "ISO date"),
         ({"type": "price", "instrumentId": "i", "price": {**SOURCED, "tag": "Q"}, "change1w": SOURCED}, "tag"),
         ({"type": "price", "instrumentId": "i", "price": {"value": 1, "tag": "M", "asOf": "2026-10-20"},
           "change1w": SOURCED}, "methodVersion"),

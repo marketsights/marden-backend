@@ -9,6 +9,9 @@ is the record's own `status` fact, else Signed when a source is filed and Announ
 ('obligation', id), output `annual: [{year, amountB}]`); concentration and the funding gap from the
 `obligation_company` model (subject ('entity', id), output `concentration: [{payerId, share}]`,
 `fundingGap: [{year, committedB, fundedB, gapB}]`). Until those models run, those lists are empty (n/d).
+A funding-gap row whose gap the model could not compute (an owed contract with no payment schedule) is left
+out: its committed total would be the scheduled part only. `ndReasons` {concentration, fundingGap} passes
+the model's plain-words reason for a list left empty.
 
 A node's status is the party's own credit status in the chains: its worst link in the status model's
 outputs (red -> Broken, amber -> Strained, green -> Holding), null when it holds no judged link.
@@ -134,6 +137,15 @@ def funding_gap(out: Row | None) -> list[Doc]:
     return sorted(rows, key=lambda r: r["year"])
 
 
+def nd_reasons(out: Row | None, doc: Doc) -> Doc | None:
+    """The model's plain-words reasons, kept only for a list this document shows empty."""
+    raw = output_field(out, "ndReasons")
+    if not isinstance(raw, dict):
+        return None
+    got = {k: v for k in ("concentration", "fundingGap") if not doc[k] and isinstance(v := raw.get(k), str) and v}
+    return got or None
+
+
 @builder("obligation_company", keys=obligation_company_ids)
 def build_obligation_company(conn: Conn, key: str) -> Doc | None:
     """CompanyObligations for one entity; None when no edge at either end is known on the build date."""
@@ -144,7 +156,7 @@ def build_obligation_company(conn: Conn, key: str) -> Doc | None:
     owes = [e for e in edges if e["from"] == key]
     is_owed = [e for e in edges if e["to"] == key]
     out = latest_output(conn, "obligation_company", "entity", key)
-    return {
+    doc: Doc = {
         "node": node_doc(conn, entity, edges),
         "owes": owes,
         "isOwed": is_owed,
@@ -152,3 +164,6 @@ def build_obligation_company(conn: Conn, key: str) -> Doc | None:
         "concentration": concentration(out),
         "fundingGap": funding_gap(out),
     }
+    if (reasons := nd_reasons(out, doc)) is not None:
+        doc["ndReasons"] = reasons
+    return doc

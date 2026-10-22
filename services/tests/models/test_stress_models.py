@@ -16,7 +16,7 @@ from ts_shapes_models import assert_matches_ts, assert_matches_types
 
 from marden.core import db
 from marden.core.jsonutil import jsonb
-from marden.models import capacity, payer_capacity, risk_list, stress, stress_run
+from marden.models import capacity, payer_capacity, risk_list, risk_note, stress, stress_run
 from marden.models import capacity_methods as cm
 from marden.models.stress_price import Book, Shock
 from marden.readmodels.context import business_today
@@ -101,6 +101,26 @@ def test_saved_scenarios_and_their_outputs(area):
     inst = out["EX-JUPITER-190"]  # InstrumentDetail.stress rows
     assert {r["scenario"] for r in inst["rows"]} and all(not math.isnan(r["change"]) for r in inst["rows"])
     assert out["oracle"]["stressSummary"]["siteDebtLossB"] == td["kpis"]["valueLostB"]
+    # Result text names parties as screens do (entity names), never by slug.
+    names = {r["id"]: r["name"] for r in rows("SELECT id, name FROM entity WHERE id IN ('oracle', 'openai')")}
+    assert td["basis"]["label"] == f"{names['oracle']} cut to BB+"
+    assert out["oracle"]["stressSummary"]["scenario"] == f"{names['oracle']} cut to BB+ (base)"
+    assert all(r["why"] == f"Tenant {names['oracle']} cut to BB+" for r in td["rows"] if r.get("ruleCode") == "T1")
+    assert td["rows"][-1]["name"].startswith(f"{names['oracle']} notes (")
+    eu = out["end_user_funding_miss:base"]
+    assert eu["basis"]["label"] == f"{names['openai']} cuts 30% of its contracts"
+    assert all("openai" not in r["why"] and "oracle" not in r["why"] for o in base for r in o["rows"])
+    assert all("_" not in r["why"] for r in out["power_delay:base"]["rows"])  # milestone names, not keys
+
+
+def test_risk_note_rounds_odds_half_up():
+    assert [risk_note.percent(x) for x in (0.625, 0.455, 0.571, 0.5, 0.0, 0.995)] == [63, 46, 57, 50, 0, 100]
+    para = risk_note.note(date(2026, 10, 19), [{"rank": 1, "name": "Jupiter loans", "instrumentId": "X",
+                                               "odds": {"value": 0.625}}], {})["paragraphs"][0]
+    assert para["text"].startswith("Ranked 1 of 1, with 63% odds of a 3-point move")
+    ev = risk_note.band_reason("oracle", "High", [], date(2026, 10, 21), "Oracle")
+    assert ev["text"].startswith("Tenant Oracle downgrade risk High")
+    assert ev["_ref"] == "model:payer_capacity@entity:oracle:2026-10-21"  # the reference keeps the id
 
 
 def test_stress_run_function_contract(area):
@@ -165,7 +185,8 @@ def test_risk_list_ranks_by_odds_and_freezes(area):
         )
         assert r["price"]["value"] == pytest.approx(float(stored[0]["p"]), abs=0.001)
     for para, row in zip(doc["note"]["paragraphs"], doc["rows"], strict=False):  # code templates, own numbers
-        assert para["lead"] == row["name"] and f"{round(row['odds']['value'] * 100)}%" in para["text"]
+        # half up to a whole percent, as the screen rounds it (0.625 -> 63%, never round()'s 62%)
+        assert para["lead"] == row["name"] and f"{math.floor(row['odds']['value'] * 100 + 0.5)}%" in para["text"]
         assert all(e["text"] in para["text"] for e in row["why"][:3])
     assert risk_list.run(trigger="test").get("frozen") is True  # published: frozen
     assert risk_list.week_of(date(2026, 10, 25)) == date(2026, 10, 26)  # a Sunday run publishes Monday's list

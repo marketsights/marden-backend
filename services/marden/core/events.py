@@ -139,6 +139,7 @@ SCHEMAS: dict[str, Check] = {
     ),
     "campus": _obj({"type": _string, "campusId": _string}),
     "plant": _obj({"type": _string, "plantId": _string}),
+    "home": _obj({"type": _string, "asOf": _iso_date}),
 }
 
 

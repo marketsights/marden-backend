@@ -46,7 +46,7 @@ from marden.models import contagion as contagion_model
 from marden.models import stress_inputs
 from marden.models.sourced import Batch
 from marden.models.stress_price import Book, remember
-from marden.models.stress_scenarios import DEFAULTS, Scenario, build
+from marden.models.stress_scenarios import DEFAULTS, Scenario, build, display_name
 from marden.readmodels.context import building, business_today
 
 log = logging.getLogger(__name__)
@@ -162,17 +162,18 @@ def stress_result(conn: Conn, book: Book, sc: Scenario) -> dict[str, Any]:
         notes_loss = (notes_loss or 0.0) + loss
         w = [(s, p["now"]) for s, p in sized]
         wa = [(s, p["after"]) for s, p in sized]
+        tenant_name = display_name(conn, tenant)
         rows.append(
             {
                 "instrumentId": f"notes:{tenant}",
-                "name": f"{tenant} notes ({len(ids)} issues)",
+                "name": f"{tenant_name} notes ({len(ids)} issues)",
                 "sizeB": {
                     "value": round(face / 1e9, 3),
                     "tag": "F",
                     "asOf": day.isoformat(),
                     "sourceName": "Marden instrument facts (sum)",
                 },
-                "why": f"Tenant's own notes re-priced at the shocked {tenant} intensity",
+                "why": f"Tenant's own notes re-priced at the shocked {tenant_name} intensity",
                 "priceNow": _weighted(w),
                 "priceAfter": _weighted(wa),
                 "holders": f"{sum(info[i].holder_count for i in ids)} fund lines",
@@ -265,9 +266,10 @@ def subject_of(request: dict[str, Any]) -> str:
     return f"{request['scenario']}:{request['severity']}"
 
 
-def _label(request: dict[str, Any], out: dict[str, Any]) -> str:
+def _label(conn: Conn, request: dict[str, Any], out: dict[str, Any]) -> str:
     if request["scenario"] == "contagion":
-        return f"{request['params']['company']} pays {request['params']['payPct']:g}%"
+        company = display_name(conn, request["params"]["company"])
+        return f"{company} pays {request['params']['payPct']:g}%"
     return f"{out['basis'].get('label') or SCENARIO_LABEL[request['scenario']]} ({request['severity']})"
 
 
@@ -280,7 +282,7 @@ def compute(conn: Conn, day: date) -> Batch:
         batch.add("scenario", subject_of(req), out)
         if req["scenario"] == "contagion" or req["severity"] != "base":
             continue
-        label = _label(req, out)
+        label = _label(conn, req, out)
         info = stress_inputs.load(conn, day, [r["instrumentId"] for r in out["rows"]])
         for r in out["rows"]:
             inst = info.get(r["instrumentId"])

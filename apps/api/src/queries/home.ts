@@ -12,3 +12,13 @@ export async function watchedRefs(db: Db, orgId: string): Promise<Watched> {
     instruments: res.rows.filter((r) => r.kind === 'instrument').map((r) => r.ref_id),
   };
 }
+
+/** When the member's previous session started (membership.last_visit_at, stamped by auth/activity.ts);
+ * null until the API has seen it start. */
+export async function lastVisitOf(db: Db, orgId: string, userId: string): Promise<string | null> {
+  const res = await db.query<{ at: Date | null }>(
+    `SELECT last_visit_at AS at FROM membership WHERE org_id = $1 AND user_id = $2`,
+    [orgId, userId],
+  );
+  return res.rows[0]?.at?.toISOString() ?? null;
+}

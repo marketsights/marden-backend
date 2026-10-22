@@ -154,7 +154,7 @@ export interface HomeDoc {
 /** GET /api/home (spec 01): the org's cut of HomeDoc plus the caller's unread alerts. */
 export interface HomeResponse {
   asOf: string;
-  lastVisit: string | null;                            // previous session start; null until sessions are stored
+  lastVisit: string | null;                            // previous session start (membership.last_visit_at); null until seen
   headline: {
     watchedDebtUnder3: { debtB: Sourced<number>; names: string[] };
     statusChangesThisWeek: { count: number; names: string[] };

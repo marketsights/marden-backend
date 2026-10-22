@@ -28,7 +28,7 @@ from typing import Any
 
 from marden.models import graph
 from marden.models.credit_inputs import Figure, Financials
-from marden.models.sourced import m_value
+from marden.models.sourced import fact_value, m_value
 
 YEARS_AHEAD = 3
 FILED_YEARS = 3  # filed fiscal years shown before the projection (views/payer_capacity.FILED_YEARS)
@@ -122,7 +122,20 @@ def path(
     filed_basis = {}
     for end in filed:
         lev, filed_basis[f"FY{end.year}"] = filed_leverage(fin, end)
-        p.years.append({"fiscalYear": f"FY{end.year}", "leaseAdjLeverage": m(lev)})
+        ocf_fy = fin.fiscal_year("operating_cash_flow", end)
+        capex_fy = fin.fiscal_year("capex", end) or fin.fiscal_year("productive_asset_payments", end)
+        p.years.append(
+            {
+                "fiscalYear": f"FY{end.year}",
+                "ocfB": ocf_fy.sourced_b() if ocf_fy else fact_value(None, as_of=end, tag="F"),
+                "capexB": capex_fy.sourced_b() if capex_fy else fact_value(None, as_of=end, tag="F"),
+                # commitments and the gap are projections; a filed year shows its filed cash flow only
+                "leaseCommencingB": m(None),
+                "computeCommitmentsB": m(None),
+                "fundingGapB": m(None),
+                "leaseAdjLeverage": m(lev),
+            }
+        )
     fy = fiscal_end(fin)
     p.basis = {
         "debt": _fig(debt),

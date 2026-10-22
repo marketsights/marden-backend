@@ -95,6 +95,25 @@ def test_graph_edges_schedules_and_company_pages(area):
         assert share == round(oo["totalB"]["value"] * 1e9 / float(rpo[0]["value"]), 4)
     assert companies["openai"]["fundingGap"] == []  # no filed cash flow: no gap rows, and it says so
     assert any("operating cash flow" in m for m in companies["openai"]["missing"])
+    assert "files no operating cash flow" in companies["openai"]["ndReasons"]["fundingGap"]
+    # An empty list says why in plain words: Meta is owed nothing on the map, and every unscheduled contract
+    # it owes is named by its counterparty (its gap is n/d, never the scheduled part read as complete).
+    meta = companies["meta"]
+    names = {r["id"]: r["name"] for r in rows("SELECT id, name FROM entity")}
+    paying_in = [e for e in doc["edges"] if e["to"] == "meta" and e["type"] in graph.PAYMENT_TYPES]
+    if not paying_in:
+        assert meta["concentration"] == [] and "owes Meta" in meta["ndReasons"]["concentration"]
+    unscheduled = [e for e in meta["owes"] if e["type"] in graph.PAYMENT_TYPES and e["status"] != "Terminated"
+                   and not e["annual"]]
+    if unscheduled:
+        assert all(g["gapB"]["value"] is None for g in meta["fundingGap"])
+        assert all(names[e["to"]] in meta["ndReasons"]["fundingGap"] for e in unscheduled)
+        assert f"{len(unscheduled)} of the" in meta["ndReasons"]["fundingGap"]
+    for o in companies.values():  # a reason only for a list with nothing known in it
+        if o["concentration"]:
+            assert "concentration" not in o["ndReasons"]
+        if any(g["gapB"]["value"] is not None for g in o["fundingGap"]):
+            assert "fundingGap" not in o["ndReasons"]
 
 
 def test_contagion_walks_the_payment_edges(area):
@@ -205,7 +224,7 @@ def test_payer_capacity_filed_years_carry_filed_leverage(area):
     assert [f"FY{e.year}" for e in ends] == list(o["basis"]["filedLeverage"])
     for end in ends:
         debt = _filed("total_debt_usd", end)
-        leases = (_filed("operating_lease_liability_usd", end) or 0.0) + (_filed("finance_lease_liability_usd", end) or 0.0)
+        leases = sum(_filed(f, end) or 0.0 for f in ("operating_lease_liability_usd", "finance_lease_liability_usd"))
         parts = [_filed(f"{b}_12m_usd", end) for b in ("operating_income", "depreciation", "amortization_intangibles")]
         lev = years[f"FY{end.year}"]["leaseAdjLeverage"]
         assert lev["tag"] == "M" and lev["methodVersion"].startswith(payer_capacity.METHOD)

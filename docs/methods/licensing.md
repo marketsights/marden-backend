@@ -53,7 +53,6 @@ Helpers in `marden.core.licensing`:
 - `is_unlicensed(source_name)` and `visible(source_name)` check one row against the current switch.
 - `filter_rows(rows)` drops hidden rows from a list of `price_obs` or `fact` dicts.
 - `unlicensed_source_names()` returns the exact names for SQL, e.g. `WHERE source_name <> ALL(%s)`.
-
 - `hidden_source_names()` returns the names a reader leaves out under the current switch: `[]` while it is true, `unlicensed_source_names()` when false. `source_name <> ALL(%s)` with an empty list keeps every row.
 
 **Wiring status (2026-10-22): complete.** Every place a value leaves the database reads the switch. With `false`, no value, source name or source link from an `unlicensed-commercial` source reaches a read model or an API response. With `true` (the default), nothing changes.
@@ -182,4 +181,7 @@ In short: after `seed all`, run `seed legacy_trace`, `legacy_frankfurt`, `legacy
   - `collect finra_trace`: refused today (§7). It records the refusal and writes nothing.
   - `collect boerse_frankfurt`: about 162 of 306 watched ISINs are listed, one fixing each per day.
   - `collect yahoo_equity`: 26 tickers, a 2-year backfill on the first run.
+- **Main database check (2026-10-22).** `marden` already holds exactly what the fixed loaders write, so nothing was cleaned.
+  - TRACE: 24,709 rows. Replaying the archive through `legacy_trace`'s reader and the watched universe gives the same set: 0 missing, 0 extra, 0 duplicate. For 2026-10-20 there are 108 rows (107 CUSIPs; `629377CP5` maps to two instruments), all with `obs_at` = 14:55:29 UTC, and no end-of-day rows.
+  - Yahoo: 82,788 facts (792 from `seed legacy_yahoo`, 81,996 from the collector). No series, field, date and value is held by both writers. The 3 dates both hold are the 2026-10-16 volume revisions for CRWV, NBIS and ORCL, which §5 keeps.
 - **Scratch database.** `marden_prices` held these sources while another workflow loaded `marden`. The scratch rows are not copied over: the main database is loaded by these same commands.

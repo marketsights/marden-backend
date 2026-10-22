@@ -10,7 +10,7 @@ import { cutHome } from '../lib/home-doc.js';
 import { asOfOf, isoDate, queryOf } from '../lib/params.js';
 import { unreadAlerts } from '../queries/alerts.js';
 import { mondayOf, publishedWeeks } from '../queries/risk-list.js';
-import { watchedRefs } from '../queries/home.js';
+import { lastVisitOf, watchedRefs } from '../queries/home.js';
 import { getAlertSettings } from '../queries/prefs.js';
 import { watchedSiteSlugs } from '../queries/watchlist.js';
 import { serveDoc } from './serve.js';
@@ -22,12 +22,13 @@ export function monitorRoutes(app: FastifyInstance, db: Db): void {
     const auth = authOf(req);
     const asOf = asOfOf(req);
     const doc = await serveDoc<HomeDoc>(db, 'home', 'all', asOf);
-    const [watched, alerts, settings] = await Promise.all([
+    const [watched, alerts, settings, lastVisit] = await Promise.all([
       watchedRefs(db, auth.orgId),
       unreadAlerts(db, auth.orgId, auth.userId, asOf),
       getAlertSettings(db, { orgId: auth.orgId, userId: auth.userId }),
+      lastVisitOf(db, auth.orgId, auth.userId),
     ]);
-    return cutHome(doc, watched, { priceThresholdPts: settings.priceThresholdPts, unreadAlerts: alerts, lastVisit: null });
+    return cutHome(doc, watched, { priceThresholdPts: settings.priceThresholdPts, unreadAlerts: alerts, lastVisit });
   });
 
   app.get('/api/completion', async (req) => {

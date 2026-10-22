@@ -18,6 +18,9 @@ concentration, fundingGap} for every company at either end of an edge:
   year (the edges' schedules); funded = trailing-twelve-month operating cash flow (SEC XBRL, held flat:
   no guidance is collected) plus cash on hand in the first year; gapB = committed - funded (tag M).
   A company without filed cash flow (OpenAI, Anthropic) has no funding-gap rows and says so.
+- ndReasons {concentration, fundingGap}: plain words for an empty concentration (nobody on the map owes the
+  company, or no owed contract discloses a total) and a funding gap with no known year (no filed cash flow,
+  or the owed contracts with no payment schedule, by counterparty name).
 Every output also carries `missing` and `basis`. KPIs: totalB sums the edges' totals; filedPct is the
 share of those dollars whose total is filed (tag F); changedThisMonth counts edges with a fact dated this
 month. Node status is the party's own worst link in the status model's outputs (graph.party_status).
@@ -142,6 +145,47 @@ def _funding_gap(owes: list[graph.Edge], fin: Financials, day: date) -> tuple[li
     return rows, missing, basis
 
 
+def _listed(labels: list[str]) -> str:
+    return ", ".join(labels[:-1]) + f" and {labels[-1]}" if len(labels) > 1 else "".join(labels)
+
+
+def nd_reasons(
+    name: str, owes: list[graph.Edge], owed: list[graph.Edge], concentration: list, gap: list,
+    fin: Financials, names: dict[str, str],
+) -> dict[str, str]:
+    """Plain-words reasons for an empty concentration and a funding gap with no known year."""
+    out: dict[str, str] = {}
+    if not concentration:
+        paying = [e for e in owed if e.pays]
+        if not paying:
+            out["concentration"] = (
+                f"No company on the obligation map owes {name} a payment stream, so no payer share applies"
+            )
+        else:
+            payers = _listed(sorted({names.get(e.payer, e.payer) for e in paying}))
+            out["concentration"] = (
+                f"n/d: none of the {len(paying)} payment contracts owed to {name} discloses a total ({payers})"
+            )
+    if not any(r["gapB"]["value"] is not None for r in gap):
+        paying = [e for e in owes if e.pays]
+        unsized = [e for e in paying if not e.schedule()]
+        if not paying:
+            out["fundingGap"] = f"{name} owes no payment contract on the obligation map, so there is no gap to fund"
+        elif fin.ttm("operating_cash_flow") is None:
+            out["fundingGap"] = (
+                f"n/d: {name} files no operating cash flow in SEC XBRL (a private company files none until an S-1)"
+            )
+        elif unsized:
+            who = _listed(sorted({names.get(e.payee, e.payee) for e in unsized}))
+            out["fundingGap"] = (
+                f"n/d: no disclosed payment schedule for {len(unsized)} of the {len(paying)} payment contracts "
+                f"{name} owes ({who}), so committed outflows by year are incomplete"
+            )
+        elif fin.instant("cash_usd") is None:
+            out["fundingGap"] = f"n/d: {name}\u2019s cash on hand is not filed in SEC XBRL"
+    return out
+
+
 def company_doc(
     conn: Conn, eid: str, edges: list[graph.Edge], fin: Financials, day: date, ctx: dict[str, Any]
 ) -> dict[str, Any]:
@@ -164,6 +208,7 @@ def company_doc(
         ],
         "concentration": concentration,
         "fundingGap": gap,
+        "ndReasons": nd_reasons(ctx["names"].get(eid, eid), owes, owed, concentration, gap, fin, ctx["names"]),
         "missing": sorted({m for e in mine for m in e.missing} | set(g_missing)),
         "basis": {"methodVersion": COMPANY_METHOD, "concentration": c_basis, "fundingGap": g_basis},
     }
