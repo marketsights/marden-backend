@@ -5,8 +5,10 @@
 For every V1 site (or the slugs given): the eight critical-path milestones from its facts and events
 (cushion_milestones, cushion_power), each pending milestone's slip drawn from history (cushion_history:
 EIA-860M planned vs actual and the archive's dated plan revisions), 10,000 simulated schedules
-(cushion_sim) -> P10/P50/P90 rent-start months, the outside date (a year-only date is taken as Dec 31 and
-says so in `outsideDateAssumed`), cushionMonths = outside - P50, deltaWeek against the stored run 7 days
+(cushion_sim) -> P10/P50/P90 rent-start months, the outside date (a year-only date is a range across that
+year: `oddsOfMissingRange` and `cushionMonthsRange` from best case Dec 31 to worst case Jan 1, and the
+midpoint, Jul 1, in `outsideDateAssumed` is what cushionMonths and oddsOfMissing, the single values other
+models and alerts read, use; the price model reads only the P50 rent start, which the deadline does not move), cushionMonths = outside - P50, deltaWeek against the stored run 7 days
 earlier, oddsOfMissing ('odds v0', uncalibrated: 'model v0' label) and costPerMonthLate with its parts in
 `lateCost` (marden.models.late_cost: construction interest on the site's debt, plus rent not collected while
 rent start is ahead; who bears each part as the site's structure terms state it). Output: one `model_output`
@@ -71,7 +73,11 @@ def project_site(site: SiteInputs, history: SlipHistory, prior: dict[str, Any] |
         "simulations": len(sim.rent) if sim is not None else 0,
         "powerMode": mode,
         "rentStart": rent.note or "rent_start fact",
-        "outsideDate": ({"basis": site.outside.basis, "quote": site.outside.quote[:300]} if site.outside else None),
+        "outsideDate": ({"basis": site.outside.basis, "quote": site.outside.quote[:300],
+                         **({"yearOnly": f"the lease gives {site.outside.value} only: tested from Jan 1 (worst case) "
+                                         f"to Dec 31 (best case); cushionMonths and oddsOfMissing, the single values "
+                                         f"other models and alerts read, use the midpoint {site.outside.assumed}"}
+                            if site.outside.year_only else {})} if site.outside else None),
         "rent": ({"basis": site.rent.basis, "monthlyUsd": round(site.rent.monthly_usd)} if site.rent else None),
         "slipHistory": {**history.counts(), "byMilestone": sim.slip_basis if sim else {}},
         "simulated": sim.simulated if sim else [],

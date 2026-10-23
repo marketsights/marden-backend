@@ -4,9 +4,12 @@ downgrade risk).
 
 Filed inputs are shown as filed: operating cash flow and capex per fiscal year from SEC XBRL
 (`operating_cash_flow_12m_usd`, `capex_12m_usd`; fiscal year named by the year the period ends, the last
-three filed). The exposed instruments are the debt behind the leases, compute contracts and guarantees
-the payer owes on the obligation map, each with its size, the first rating-tied term its documents quote
-(`agreement_term` / `covenant_test`, tag F) and its holder count.
+three filed). The exposed instruments are the debt whose payment chain runs through the leases, compute
+contracts and guarantees the payer owes on the obligation map (payers_exposure.py: debt another party's
+lease services is counted at that party and listed under `exposedElsewhere`; guaranteed debt is a
+backstop, link "Guarantee"), each with its size, the first rating-tied term its documents quote
+(`agreement_term` / `covenant_test`, tag F) and its holder count. `listed` and `scale` (the reported
+revenue, funding, valuation, compute commitments and burn of a payer no agency rates) are payer_scale.py.
 
 Everything spec 24 calls "the model" is read from the `payer_capacity` model output (subject ('entity',
 id)) and is n/d until that model runs: `ratings` (RatingState[] from agency releases), `spreadBp`,
@@ -27,25 +30,21 @@ from typing import Any
 
 from marden.core.db import Conn, Row
 from marden.readmodels.registry import builder
+from marden.readmodels.views.payer_scale import listed, scale
 from marden.readmodels.views.payers_common import (
-    LINK_LABELS,
-    OWED_TYPES,
     Doc,
     billions_of,
     day,
-    edge_inputs,
-    edge_instruments,
-    edge_known,
     entity_row,
     latest_output,
     model_field,
     model_value,
     nd,
-    obligation_rows,
     output_field,
     payer_ids,
 )
 from marden.readmodels.views.payers_debt import instrument_info, trigger_texts
+from marden.readmodels.views.payers_exposure import Lessees, elsewhere_docs, exposure_links, lessees_by_instrument
 from marden.readmodels.views.sites_common import known_fact_rows
 
 KIND_LABELS = {"cloud": "Cloud", "ai_lab": "AI lab", "neocloud": "Neocloud"}
@@ -129,21 +128,11 @@ def capacity_years(conn: Conn, entity_id: str, out: Row | None) -> list[Doc]:
 
 
 # ---------------------------------------------------------------- exposed instruments
-def exposed(conn: Conn, entity_id: str, out: Row | None) -> list[Doc]:
-    """ExposedInstrument per instrument behind an edge the payer owes (first link wins: lease, then compute
-    contract, then guarantee)."""
-    links: dict[str, str] = {}
-    obligations = [
-        ob for ob in obligation_rows(conn, entity_id) if ob["from_entity_id"] == entity_id and ob["type"] in OWED_TYPES
-    ]
-    obligations.sort(key=lambda ob: (OWED_TYPES.index(ob["type"]), ob["id"]))
-    for ob in obligations:
-        facts, rows = edge_inputs(conn, ob)
-        if not edge_known(facts, rows):
-            continue
-        for iid in edge_instruments(ob, facts):
-            links.setdefault(iid, LINK_LABELS[ob["type"]])
-    info = instrument_info(conn, list(links))
+def exposed(conn: Conn, entity_id: str, out: Row | None, lessees: Lessees | None = None) -> tuple[list[Doc], list[Doc]]:
+    """(ExposedInstrument per instrument whose payment chain runs through the payer, DebtCountedElsewhere):
+    payers_exposure.py says which debt counts and why."""
+    links, elsewhere = exposure_links(conn, entity_id, lessees)
+    info = instrument_info(conn, [*links, *(i for ids in elsewhere.values() for i in ids)])
     modeled = output_field(out, "exposed")
     if isinstance(modeled, list):  # the model writes ExposedInstrument[] (types.ts); index it by instrument
         modeled = {
@@ -173,7 +162,7 @@ def exposed(conn: Conn, entity_id: str, out: Row | None) -> list[Doc]:
             }
         )
     rows.sort(key=lambda r: (-(r["amountB"].get("value") or 0), r["name"]))
-    return rows
+    return rows, elsewhere_docs(conn, elsewhere, info, set(links))
 
 
 # ---------------------------------------------------------------- model fields
@@ -231,7 +220,7 @@ def nd_reasons(out: Row | None) -> Doc | None:
     return got or None
 
 
-def capacity_doc(conn: Conn, entity: Row) -> Doc:
+def capacity_doc(conn: Conn, entity: Row, lessees: Lessees | None = None) -> Doc:
     out = latest_output(conn, "payer_capacity", "entity", entity["id"])
     doc: Doc = {
         "slug": entity["id"],
@@ -244,7 +233,9 @@ def capacity_doc(conn: Conn, entity: Row) -> Doc:
     doc["topCounterparty"] = top_counterparty(out)
     doc["downgradeRisk"] = downgrade_risk(out)
     doc["years"] = capacity_years(conn, entity["id"], out)
-    doc["exposed"] = exposed(conn, entity["id"], out)
+    doc["exposed"], doc["exposedElsewhere"] = exposed(conn, entity["id"], out, lessees)
+    doc["listed"] = listed(conn, entity)
+    doc["scale"] = scale(conn, entity, rated=bool(doc["ratings"]))
     order = (
         "slug",
         "name",
@@ -261,6 +252,9 @@ def capacity_doc(conn: Conn, entity: Row) -> Doc:
         "downgradeRisk",
         "years",
         "exposed",
+        "exposedElsewhere",
+        "listed",
+        "scale",
     )
     out_doc = {k: doc[k] for k in order}
     if (reasons := nd_reasons(out)) is not None:
@@ -285,9 +279,10 @@ def _risk_order(row: Doc) -> tuple:
 def build_payers(conn: Conn):
     """Every payer's capacity row, highest downgrade risk first (then debt exposed, then name)."""
     rows = []
+    lessees = lessees_by_instrument(conn)  # read once for every row
     for key in payer_ids(conn):
         entity = entity_row(conn, key)
         if entity is not None:
-            rows.append(capacity_doc(conn, entity))
+            rows.append(capacity_doc(conn, entity, lessees))
     rows.sort(key=_risk_order)
     yield "all", {"asOf": day().isoformat(), "rows": rows}

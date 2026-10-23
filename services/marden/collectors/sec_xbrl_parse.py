@@ -116,6 +116,32 @@ FIELDS: tuple[FieldSpec, ...] = (
     _spec("unrecorded_purchase_obligation", INSTANT, USD,
           "us-gaap:UnrecordedUnconditionalPurchaseObligationBalanceSheetAmount"),
     _spec("long_term_purchase_commitment", INSTANT, USD, "us-gaap:LongTermPurchaseCommitmentAmount"),
+    # Balance-sheet totals and the asset lines the issuer recovery waterfall haircuts (recovery v0.3,
+    # marden.models.recovery_issuer). Total liabilities are not tagged by every filer (Oracle): the waterfall
+    # then takes liabilities and equity less total equity.
+    _spec("total_assets", INSTANT, USD, "us-gaap:Assets", "ifrs-full:Assets"),
+    _spec("total_liabilities", INSTANT, USD, "us-gaap:Liabilities", "ifrs-full:Liabilities"),
+    _spec("liabilities_and_equity", INSTANT, USD, "us-gaap:LiabilitiesAndStockholdersEquity",
+          "ifrs-full:EquityAndLiabilities"),
+    _spec("equity_total", INSTANT, USD,
+          "us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", "ifrs-full:Equity"),
+    _spec("equity", INSTANT, USD, "us-gaap:StockholdersEquity", "ifrs-full:EquityAttributableToOwnersOfParent"),
+    _spec("receivables", INSTANT, USD, "us-gaap:AccountsReceivableNetCurrent",
+          "ifrs-full:TradeAndOtherCurrentReceivables"),
+    _spec("cash_and_restricted", INSTANT, USD, "us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"),
+    _spec("restricted_cash_current", INSTANT, USD, "us-gaap:RestrictedCashCurrent",
+          "us-gaap:RestrictedCashAndCashEquivalentsAtCarryingValue"),
+    _spec("restricted_cash_noncurrent", INSTANT, USD, "us-gaap:RestrictedCashNoncurrent",
+          "us-gaap:RestrictedCashAndCashEquivalentsNoncurrent"),
+    _spec("operating_lease_rou_asset", INSTANT, USD, "us-gaap:OperatingLeaseRightOfUseAsset",
+          "ifrs-full:RightofuseAssets"),
+    _spec("goodwill", INSTANT, USD, "us-gaap:Goodwill", "ifrs-full:Goodwill"),
+    _spec("intangibles", INSTANT, USD, "us-gaap:IntangibleAssetsNetExcludingGoodwill",
+          "ifrs-full:IntangibleAssetsOtherThanGoodwill"),
+    # Debt by security where the filer tags it without an axis (a cross-check on the instrument table).
+    _spec("secured_debt", INSTANT, USD, "us-gaap:SecuredDebt"),
+    _spec("unsecured_debt", INSTANT, USD, "us-gaap:UnsecuredDebt"),
+    _spec("convertible_debt", INSTANT, USD, "us-gaap:ConvertibleDebt", "us-gaap:ConvertibleNotesPayable"),
     # Backlog (spec 24 "Concentration": a payer's share of the payee's backlog).
     _spec("remaining_performance_obligation", INSTANT, USD, "us-gaap:RevenueRemainingPerformanceObligation"),
     _spec("shares_outstanding", INSTANT, SHARES, "dei:EntityCommonStockSharesOutstanding"),  # cover page date

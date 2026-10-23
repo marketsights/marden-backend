@@ -135,7 +135,8 @@ def site_detail(conn: Conn, slug: str) -> Doc | None:
 def status_event(key: str, doc: Doc) -> Doc:
     """A changed site page is announced as the site's status event (types.ts StreamEvent 'status'):
     the app refetches the site on it."""
-    return {"type": "status", "siteSlug": key, "chain": doc["chain"]}
+    # The details lines stay in the document; the event carries the status fields only.
+    return {"type": "status", "siteSlug": key, "chain": [{k: v for k, v in link.items() if k != "details"} for link in doc["chain"]]}
 
 
 @builder("site_detail", keys=site_slugs, event=status_event)

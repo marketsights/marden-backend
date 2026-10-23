@@ -4,15 +4,17 @@ For every issuer with straight bonds (kind 'bond', fixed coupon, USD; converts a
 notes are left out because an option or an FX leg would distort the intensity):
 
 1. each usable bond observation (price_marks: TRACE, exchange quotes, N-PORT medians with at least
-   MIN_HOLDERS holders, public 60 days after the period) gives a flat intensity at 40% recovery on that
-   day's Treasury curve (price_bonds.solve_flat_hazard);
+   MIN_HOLDERS holders, public 60 days after the period) gives a flat intensity on that day's Treasury
+   curve (price_bonds.solve_flat_hazard) at the issuer's recovery: its unsecured recovery from the issuer
+   balance-sheet waterfall when the price model passes one (price v0.3: the same recovery its bonds are
+   then priced with), else 40%, the convention;
 2. a day's intensities are interpolated to the standard CDS maturity (price_cds.interpolate): the raw
    bond-implied level of that day;
 3. the raw levels are fused by the Kalman filter (price_kalman) in log intensity; between bond prints
    the state moves with the equity-implied move (CreditGrades elasticity x the day's equity log return)
    times its loading (price_equity), so equity only updates between prints and never sets the level
    (locked rule);
-4. the filtered intensity is converted with QuantLib's ISDA engine (price_cds.isda).
+4. the filtered intensity is converted with QuantLib's ISDA engine (price_cds.isda) at that same recovery.
 
 Every number keeps its inputs: the bonds of the latest cross-section, the equity loading and what is
 missing (no straight bonds, no equity series, no debt per share).
@@ -29,7 +31,7 @@ import numpy as np
 
 from marden.core.db import Conn
 from marden.models import price_equity
-from marden.models.price_bonds import Flows, Terms, dirty_price, flows, solve_flat_hazard
+from marden.models.price_bonds import RECOVERY, Flows, Terms, dirty_price, flows, solve_flat_hazard
 from marden.models.price_cds import CdsQuote, cds_maturity, interpolate, isda
 from marden.models.price_curve import CurveBook, year_frac
 from marden.models.price_kalman import Reading
@@ -71,6 +73,7 @@ class IssuerCurve:
     loading_pairs: int = 0
     ticker: str | None = None
     missing: list[str] = field(default_factory=list)
+    recovery: float = RECOVERY  # the recovery the bond intensities are solved at (and the ISDA conversion uses)
 
     def index(self, day: date) -> int | None:
         found = [i for i, d in enumerate(self.days) if d <= day]
@@ -96,15 +99,16 @@ def straight_bonds(instruments: dict[str, Instrument]) -> dict[str, list[Instrum
     return by_issuer
 
 
-def _point(inst: Instrument, o: Obs, book: CurveBook) -> BondPoint | None:
+def _point(inst: Instrument, o: Obs, book: CurveBook, recovery: float = RECOVERY) -> BondPoint | None:
     curve = book.curve(o.day)
     if curve is None or inst.terms is None or inst.terms.maturity <= o.day:
         return None
     f: Flows = flows(inst.terms, curve, o.day, None)
-    s = solve_flat_hazard(f, curve, o.price)
+    s = solve_flat_hazard(f, curve, o.price, recovery)
     base = max(s.value, FLOOR)
     h = max(base * 0.01, 1e-5)  # price noise -> log-intensity noise through dP/dlambda at the solution
-    slope = abs(dirty_price(f, curve, base + h) - dirty_price(f, curve, max(base - h, 0.0))) / (2 * h)
+    slope = abs(dirty_price(f, curve, base + h, recovery)
+                - dirty_price(f, curve, max(base - h, 0.0), recovery)) / (2 * h)
     noise = max(o.noise / max(slope, 1e-6) / base, 0.02)
     return BondPoint(inst.id, year_frac(o.day, inst.terms.maturity), base, o.price, o.source, o.holders, o.day,
                      s.bound, noise)
@@ -112,7 +116,7 @@ def _point(inst: Instrument, o: Obs, book: CurveBook) -> BondPoint | None:
 
 def sections(bonds: list[Instrument], obs: dict[str, list[Obs]], book: CurveBook, min_holders: int,
              exclude: str | None = None, sources: tuple[str, ...] = ("trace", "exchange", "nport"),
-             ) -> dict[date, list[BondPoint]]:
+             recovery: float = RECOVERY) -> dict[date, list[BondPoint]]:
     """Per day, the bond intensities usable that day (one observation per bond and day, the best of
     `sources`)."""
     out: dict[date, list[BondPoint]] = defaultdict(list)
@@ -122,7 +126,7 @@ def sections(bonds: list[Instrument], obs: dict[str, list[Obs]], book: CurveBook
         for day, o in daily(obs.get(inst.id, []), sources).items():
             if o.source == "nport" and o.holders < min_holders:
                 continue
-            p = _point(inst, o, book)
+            p = _point(inst, o, book, recovery)
             if p is not None:
                 out[day].append(p)
     return dict(out)
@@ -137,11 +141,11 @@ def raw_level(day: date, points: list[BondPoint]) -> tuple[float, str, float]:
 
 
 def build(conn: Conn, as_of: date, entity_id: str, bonds: list[Instrument], obs: dict[str, list[Obs]],
-          book: CurveBook, ticker: str | None) -> IssuerCurve:
-    """Raw and filtered bond-implied intensities of one issuer up to `as_of`."""
-    cur = IssuerCurve(entity_id, [b.id for b in bonds], ticker=ticker)
+          book: CurveBook, ticker: str | None, recovery: float = RECOVERY) -> IssuerCurve:
+    """Raw and filtered bond-implied intensities of one issuer up to `as_of`, solved at `recovery`."""
+    cur = IssuerCurve(entity_id, [b.id for b in bonds], ticker=ticker, recovery=recovery)
     min_h = MIN_HOLDERS.get(entity_id, DEFAULT_MIN_HOLDERS)
-    cur.sections = sections(bonds, obs, book, min_h)
+    cur.sections = sections(bonds, obs, book, min_h, recovery=recovery)
     if not cur.sections:
         cur.missing.append(f"entity {entity_id}: no usable straight-bond price (N-PORT needs >= {min_h} holders)")
         return cur
@@ -187,20 +191,21 @@ def quote(cur: IssuerCurve, day: date, book: CurveBook) -> dict[str, object] | N
     if got is None or curve is None:
         return None
     lam, sd = got
-    q: CdsQuote = isda(day, curve, lam)
-    lo = isda(day, curve, lam * math.exp(-1.2816 * sd)).spread_bp
-    hi = isda(day, curve, lam * math.exp(1.2816 * sd)).spread_bp
+    q: CdsQuote = isda(day, curve, lam, recovery=cur.recovery)
+    lo = isda(day, curve, lam * math.exp(-1.2816 * sd), recovery=cur.recovery).spread_bp
+    hi = isda(day, curve, lam * math.exp(1.2816 * sd), recovery=cur.recovery).spread_bp
     return {"hazard": lam, "logSd": sd, "spreadBp": q.spread_bp, "upfrontPct": q.upfront_pct,
             "maturity": q.maturity.isoformat(), "years": q.years, "band": {"low": lo, "high": hi}}
 
 
-def raw_quote(day: date, points: list[BondPoint], book: CurveBook) -> dict[str, object] | None:
+def raw_quote(day: date, points: list[BondPoint], book: CurveBook,
+              recovery: float = RECOVERY) -> dict[str, object] | None:
     """The unfiltered bond-implied CDS of one cross-section (what the methodology's Results grade)."""
     curve = book.curve(day)
     if curve is None or not points:
         return None
     lam, how, _ = raw_level(day, points)
-    q = isda(day, curve, lam)
+    q = isda(day, curve, lam, recovery=recovery)
     return {"date": day.isoformat(), "hazard": lam, "how": how, "spreadBp": q.spread_bp,
             "upfrontPct": q.upfront_pct, "maturity": q.maturity.isoformat(),
             "bonds": [{"instrumentId": p.instrument_id, "price": round(p.price, 4), "source": p.source,

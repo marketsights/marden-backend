@@ -7,11 +7,16 @@ otherwise), `recoveryInputs` (method, key inputs, the recovery output it came fr
 `recoverySensitivity` (price change per 10c of recovery). Without a price recovery (not priced, or read
 off the tier curve) the tile falls back to the recovery model's own number, then to the research facts.
 
-- tile: '52c (site collateral model)' / '55c assumed (no site collateral model yet)', sourced to the
-  recovery model (M, recovery v0.1) when derived, else to the price model (M, price v0.2).
+- tile: '52c (site collateral model)' / '48c (issuer balance-sheet waterfall)' / '55c assumed (no site
+  collateral model yet)', sourced to the recovery model (M) when derived, else to the price model (M).
 - detail: {basis, headline, method: Sourced<string> (method page), lines: [{label, value: Sourced<string>}],
   sensitivity: string | null}: building or GPU value, debt ahead, claims at the rank, lien (the seniority
   fact's own source when filed), the range, and '±10c recovery moves the price by ±X points'.
+- issuer waterfall (corporate notes, converts, issuer-level loans; recovery v0.3): `waterfall`, the short
+  waterfall of the issuer's balance sheet (assets after haircuts, less secured claims, left for unsecured,
+  the recovery), each step tagged M with its haircuts in the note, plus the filing it is read from (F) and
+  how the issuer curve is calibrated. No model version appears in the text (the source tags carry it).
+  An issuer without a balance sheet on file says so and why the stated 40% applies.
 """
 
 from __future__ import annotations
@@ -21,17 +26,20 @@ from typing import Any
 import numpy as np
 
 from marden.core.db import Conn, Row
+from marden.models.recovery_issuer import money
 from marden.readmodels.context import known_facts
 from marden.readmodels.views.instrument_inputs import fact_sourced, method_version, model_sourced, num, output_field
 from marden.readmodels.views.instrument_text import DASH
-from marden.readmodels.views.recovery_text import SITE_MODEL, price_recovery_text
+from marden.readmodels.views.recovery_text import ISSUER_MODEL, NO_NOTE_MODEL, SITE_MODEL, price_recovery_text
 from marden.readmodels.views.sites_recovery import money_b, reason_nd
 
 Doc = dict[str, Any]
 RECOVERY_DOC = "docs/methods/recovery-v0.1.md"
 PRICING_DOC = "docs/methods/pricing-v0.1.md"
 TIMES = "\u00d7"
-METHOD_NAME = {"powered_shell": "Powered-shell waterfall", "gpu_collateral": "GPU collateral waterfall"}
+METHOD_NAME = {"powered_shell": "Powered-shell waterfall", "gpu_collateral": "GPU collateral waterfall",
+               "issuer_waterfall": "Issuer balance-sheet waterfall"}
+ISSUER = "issuer_waterfall"
 
 
 def _priced(price_out: Row | None) -> dict[str, Any] | None:
@@ -69,12 +77,17 @@ def tile(price_out: Row | None, rec_out: Row | None) -> Doc | None:
     body = _priced(price_out)
     if body is not None and price_out is not None:
         text = price_recovery_text(body)
-        if body.get("recoveryBasis") == "site_waterfall":
+        if body.get("recoveryBasis") in ("site_waterfall", ISSUER):
             return {"value": text, **_rec_meta(rec_out, (body.get("recoveryInputs") or {}).get("source"))}
         return {"value": text, **_price_meta(price_out)}
     number = _rec_number(rec_out)
+    method = output_field(rec_out, "method")
     if number is not None:
-        return {"value": f"{number} ({SITE_MODEL})", **_rec_meta(rec_out)}
+        return {"value": f"{number} ({ISSUER_MODEL if method == ISSUER else SITE_MODEL})", **_rec_meta(rec_out)}
+    basis = output_field(rec_out, "basis")
+    assumed = num(basis.get("assumedCents")) if isinstance(basis, dict) else None
+    if assumed is not None:  # issuer-level debt of an issuer without a balance sheet on file
+        return {"value": f"{round(assumed)}c assumed ({NO_NOTE_MODEL})", **_rec_meta(rec_out)}
     return None
 
 
@@ -137,6 +150,11 @@ def _lien(conn: Conn, instrument_id: str, lien: str | None, meta: Doc) -> Doc | 
     return _line("Lien", lien, meta)
 
 
+def _rank_lien(rank: Any) -> str | None:
+    return {"unsecured": "unsecured", "parent": "secured at the parent", "junior": "junior / subordinated"}.get(
+        str(rank)) if rank else None
+
+
 def _site_lines(conn: Conn, instrument_id: str, ri: dict[str, Any], meta: Doc) -> list[Doc | None]:
     inp = ri.get("inputs") or {}
     value, ahead, pari = num(inp.get("valueB")), num(inp.get("seniorClaimsB")), num(inp.get("pariClaimsB"))
@@ -195,15 +213,90 @@ def _site_lines(conn: Conn, instrument_id: str, ri: dict[str, Any], meta: Doc) -
     return lines
 
 
+def _date(iso_day: Any) -> str | None:
+    from datetime import date
+
+    try:
+        d = date.fromisoformat(str(iso_day)[:10])
+    except ValueError:
+        return None
+    return f"{d:%b} {d.day}, {d.year}"
+
+
+def _cents(x: Any) -> str | None:
+    n = num(x)
+    return None if n is None else f"{round(n)}c"
+
+
+def _waterfall_steps(lines: list[Any], meta: Doc) -> list[Doc]:
+    """The issuer waterfall's four steps as the hover shows them (each M, its haircuts or claims in the note)."""
+    out: list[Doc] = []
+    for x in lines:
+        if not isinstance(x, dict) or not x.get("label"):
+            continue
+        usd = num(x.get("usd"))
+        value = money(usd) if usd is not None else _cents(x.get("cents"))
+        if value is None:
+            continue
+        out.append({"label": str(x["label"]), "value": {"value": value, **meta}, "op": x.get("op"),
+                    "note": x.get("note")})
+    return out
+
+
+def _filing_line(filing: Any, name: str | None) -> Doc | None:
+    if not isinstance(filing, dict) or not filing.get("periodEnd"):
+        return None
+    period, filed = _date(filing.get("periodEnd")), _date(filing.get("filed"))
+    text = f"{filing.get('form') or 'Filing'} for {period}" + (f", filed {filed}" if filed else "")
+    src = {"tag": "F", "asOf": str(filing["periodEnd"]), "sourceName": filing.get("sourceName") or "SEC EDGAR",
+           **({"sourceUrl": filing["sourceUrl"]} if filing.get("sourceUrl") else {})}
+    return {"label": "Balance sheet" + (f" ({name})" if name else ""), "value": {"value": text, **src}}
+
+
+def _issuer_detail(conn: Conn, instrument_id: str, inputs: dict[str, Any], meta: Doc, cents: int,
+                   span: Any, sensitivity: str | None, priced: bool, calibration: str | None,
+                   price_meta: Doc | None = None) -> Doc:
+    name = inputs.get("issuerName") or inputs.get("name")
+    filing = inputs.get("filing") or {}
+    period = _date(filing.get("periodEnd")) if isinstance(filing, dict) else None
+    lo_hi = (f"{span[0]}{DASH}{span[1]}c" if isinstance(span, list) and len(span) == 2 and None not in span
+             and span[0] != span[1] else None)
+    lines = [_filing_line(filing, None),
+             _lien(conn, instrument_id, inputs.get("lien"), meta),
+             _line("Range", f"{lo_hi} with every non-cash asset 20% lower or higher" if lo_hi else None, meta),
+             _line("Issuer curve", calibration, price_meta or meta) if calibration else None,
+             _line("Replaces", "the flat 40c corporate notes were priced at", meta)]
+    where = f"{name}'s balance sheet" + (f" at {period}" if period else "") if name else "the issuer's balance sheet"
+    return {"basis": ISSUER,
+            "headline": f"{cents}c from {where}" + (", used in the Marden price" if priced else " (not priced)"),
+            "method": {"value": METHOD_NAME[ISSUER], **meta, "sourceUrl": RECOVERY_DOC},
+            "lines": [x for x in lines if x is not None],
+            "waterfall": _waterfall_steps(inputs.get("lines") or [], meta), "sensitivity": sensitivity}
+
+
 def detail(conn: Conn, instrument_id: str, price_out: Row | None, rec_out: Row | None) -> Doc | None:
     """The tile's expand: which recovery the price used, from what, its sources and how much it matters."""
     body = _priced(price_out)
     if body is None or price_out is None:
         number = _rec_number(rec_out)
-        if number is None:
-            return None
-        meta = _rec_meta(rec_out)
         method = output_field(rec_out, "method")
+        basis = output_field(rec_out, "basis") or {}
+        if number is None:
+            assumed = num(basis.get("assumedCents")) if isinstance(basis, dict) else None
+            if assumed is None or rec_out is None:
+                return None
+            meta = _rec_meta(rec_out)
+            return {"basis": "default_assumption", "headline": f"{round(assumed)}c assumed ({NO_NOTE_MODEL})",
+                    "method": {"value": "Stated assumption", **meta, "sourceUrl": RECOVERY_DOC},
+                    "lines": [x for x in [_line("Assumed", f"{round(assumed)}% of par, the senior unsecured "
+                                                           "convention", meta),
+                                          _line("No waterfall because", str(basis.get("why") or "").rstrip(".")
+                                                or None, meta)] if x is not None],
+                    "sensitivity": None}
+        meta = _rec_meta(rec_out)
+        if method == ISSUER and isinstance(basis, dict):
+            return _issuer_detail(conn, instrument_id, {**basis, "lien": _rank_lien(basis.get("rank"))}, meta,
+                                  round(num(basis.get("baseCents")) or 0), basis.get("rangeCents"), None, False, None)
         return {"basis": "site_waterfall", "headline": f"{number} from the site collateral model (not priced yet)",
                 "method": {"value": f"{METHOD_NAME.get(str(method), 'Recovery model')} ({meta.get('methodVersion')})",
                            **meta, "sourceUrl": RECOVERY_DOC},
@@ -211,6 +304,12 @@ def detail(conn: Conn, instrument_id: str, price_out: Row | None, rec_out: Row |
     ri = body.get("recoveryInputs") or {}
     cents = round(float(body["recovery"]) * 100)
     sensitivity = sensitivity_text(body)
+    if body.get("recoveryBasis") == ISSUER:
+        meta = _rec_meta(rec_out, ri.get("source"))
+        inputs = {**(ri.get("inputs") or {})}
+        inputs.setdefault("lien", _rank_lien(inputs.get("rank")))
+        return _issuer_detail(conn, instrument_id, inputs, meta, cents, ri.get("rangeCents"), sensitivity, True,
+                              ri.get("calibration"), _price_meta(price_out))
     if body.get("recoveryBasis") == "site_waterfall":
         meta = _rec_meta(rec_out, ri.get("source"))
         name = METHOD_NAME.get(str(ri.get("method")), "Recovery model")
@@ -226,8 +325,11 @@ def detail(conn: Conn, instrument_id: str, price_out: Row | None, rec_out: Row |
     if ri.get("why") and ("price chain" in str(ri["why"]) or "days old" in str(ri["why"])):
         why = str(ri["why"])
     assumed = ri.get("label") or f"{cents}% of par recovered at default"
+    because = "No issuer waterfall because" if ri.get("method") == "bond_convention" else "No site model because"
+    if ri.get("method") == "bond_convention":
+        why = str(ri.get("why") or "") or why
     lines = [_line("Assumed", str(assumed), meta),
-             _line("No site model because", (why or str(ri.get("why") or "")).rstrip(".") or None, meta)]
+             _line(because, (why or str(ri.get("why") or "")).rstrip(".") or None, meta)]
     return {"basis": "default_assumption", "headline": text,
             "method": {"value": f"Default recovery assumption ({method_version(price_out)})", **meta,
                        "sourceUrl": PRICING_DOC},

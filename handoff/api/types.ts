@@ -23,12 +23,22 @@ export interface ChainLink {
   ruleCode?: string;                          // "T2"
   reason: string;                             // tooltip text
   fact?: Sourced<string>;                     // "Force majeure notice Sep 24"
+  assessed?: boolean;                         // false when the status model ran no test on the link or lacked an input for it
+  statusLabel?: string;                       // the link's word when the colour alone would mislead, e.g. "Not fully tested"
+  details?: ChainDetail[];                    // named lenders, issuer, lessee, lease: each line with its source (not in stream events)
+}
+
+export interface ChainDetail extends Sourced<string> {
+  label: string;                              // "Initial purchaser", "Issuer", "Lessee"
 }
 
 export interface CushionProjection {
   p10: string; p50: string; p90: string;      // ISO month 'YYYY-MM'
   outsideDate: Sourced<string>;               // 'YYYY-MM' or 'YYYY' when only the year is known
-  outsideDateAssumed?: string;                // ISO date the cushion uses when the lease gives only a year, e.g. '2028-12-31'
+  outsideDateAssumed?: string;                // ISO date the cushion uses when the lease gives less than a month; a year only: its midpoint, e.g. '2028-07-01'
+  outsideDateRange?: { from: string; to: string; central: string }; // a year only: the days tested, '2028-01-01'..'2028-12-31', and the midpoint used
+  oddsOfMissingRange?: { best: number; worst: number; bestDate: string; worstDate: string }; // a year only: odds at Dec 31 (best) and Jan 1 (worst)
+  cushionMonthsRange?: { best: number; worst: number }; // a year only: the cushion to Dec 31 (best) and to Jan 1 (worst)
   cushionMonths: Sourced<number> | null;      // outsideDate − p50; null when no lease date
   deltaWeek: Sourced<number>;                 // change vs 7 days ago
   oddsOfMissing?: Sourced<number>;            // 0..1; methodVersion 'odds v0' until the backtest calibrates it
@@ -195,11 +205,19 @@ export interface DebtBasis {
 export interface RecoveryLine { label: string; value: Sourced<string> }
 /** The recovery behind the Marden price (Recovery tile expand). */
 export interface RecoveryDetail {
-  basis: 'site_waterfall' | 'default_assumption';
+  basis: 'site_waterfall' | 'issuer_waterfall' | 'default_assumption';
   headline: string;                           // "52c from the site collateral model, used in the Marden price"
   method: Sourced<string>;                    // method name, linked to its page
   lines: RecoveryLine[];
   sensitivity: string | null;                 // "±10c recovery moves the price by ±0.13 points"
+  waterfall?: RecoveryStep[];                 // issuer_waterfall: assets after haircuts, less secured, left, recovery
+}
+/** One step of an issuer's balance-sheet waterfall ("Less secured claims  −$14.6B"), its haircuts or claims in the note. */
+export interface RecoveryStep {
+  label: string;
+  value: Sourced<string>;                     // "$40.8B", "48c"
+  op?: 'minus' | 'equals' | null;
+  note?: string | null;
 }
 /** The latest trade print behind a traded instrument's price (a price that has not moved says why). */
 export interface LastTrade {
@@ -223,19 +241,19 @@ export interface Holder {
 }
 /** A Marden daily price and the yields worked from it (model 'yield'; null = n/d, absent on a streamed point). */
 export interface PriceHistoryPoint { date: string; price: number; ytm?: number | null; ytw?: number | null }
-/** A date the debt may be redeemed on, worked by the yield model: stated maturity, an extension, a call, or prepayment at par. */
+/** A date the debt may be redeemed on, worked by the yield model: stated maturity, an extension, a call, a holder put, or prepayment at par. */
 export interface YieldWorkout {
-  kind: 'maturity' | 'extended' | 'call' | 'prepay';
+  kind: 'maturity' | 'extended' | 'call' | 'prepay' | 'put';
   date: string; price: number;                // redemption price per 100
   label: string;                              // "Fully extended, Apr 15, 2032"
   yieldPct: number | null; dmBp: number | null;   // dmBp: floating only
   counted: boolean;                           // false: shown, left out of yield to worst (a call the archive only presumes)
 }
-/** The price yields are worked from: the latest Marden price, else the latest observed one. */
+/** The price yields are worked from: the latest Marden price, else the latest market price (TRACE trade, BondTerminal or Börse Frankfurt quote). */
 export interface YieldBasis { price: number; date: string; kind: string; tag: Tag; sourceName: string; sourceUrl?: string; methodVersion?: string }
 /** Calculated yields (model 'yield', methodVersion 'yield v0.1'): percent, compounded twice a year. */
 export interface InstrumentYields {
-  ytw: Sourced<number>;                       // yield to worst; null = n/d (see why)
+  ytw: Sourced<number>;                       // yield to worst; M on the Marden price, else the market price's tag (F/R); null = n/d (see why)
   ytm: Sourced<number>;                       // yield to the stated maturity
   dmBp: Sourced<number> | null;               // floating: discount margin over projected SOFR at the yield-to-worst date; null for fixed
   ytwTo: YieldWorkout | null;
@@ -246,6 +264,7 @@ export interface InstrumentYields {
   observed: (YieldBasis & { ytm: number | null; ytw: number | null; reportedYieldPct: number | null }) | null;   // at the latest observed price
   assumptions: string[];                      // plain words, one per line
   why: string | null;                         // why the yields are n/d; null when worked
+  note?: string | null;                       // a convertible: "Yield on the trade price, ignoring the conversion option."
 }
 /** A lender, arranger or agent of a loan or bond, from a filing (F) or a report (R): `source.value` is its role. */
 export interface Lender { name: string; role: string | null; commitmentUsd?: number; source: Sourced<string> }
@@ -593,6 +612,13 @@ export interface ExposedInstrument {
   instrumentId: string; name: string; link: 'Lease' | 'Compute contract' | 'Guarantee' | 'Residual value guarantee' | 'GPU contract backlog' | string;
   amountB: Sourced<number>; ratingTrigger: Sourced<string>; onTrip: Sourced<string>; holdersCount: number;
 }
+// Debt on a payer's compute contracts that another party's lease services (the buyer pays that lessee, whose
+// rent services the debt): counted on the lessee's row, not the buyer's (OpenAI -> Oracle's site leases).
+export interface DebtCountedElsewhere { slug: string; name: string; instruments: number; amountB: Sourced<number> }
+// A payer's reported scale when no agency rates it: each figure sourced (R reporting, F filings, or the sized
+// contracts on Marden's obligation map), with what the number is in a few words ("annualized, end of Sep 2026").
+export type ScaleKey = 'revenue' | 'raised' | 'valuation' | 'commitments' | 'burn';
+export interface ScaleFigure { key: ScaleKey | string; basis: string; amountB: Sourced<number> }
 export interface PayerCapacity {
   slug: string; name: string; kind: 'Hyperscaler' | 'Cloud' | 'AI lab' | 'Neocloud' | string;
   ratings: RatingState[]; spreadBp: Sourced<number>;
@@ -601,7 +627,12 @@ export interface PayerCapacity {
   fundingGap3yB: Sourced<number>; aiRevenueCoverage: Sourced<number>;
   topCounterparty: { name: string; share: Sourced<number> } | null;
   downgradeRisk: Sourced<DowngradeRisk>;
+  // exposed: debt whose payment chain runs through the payer (its leases and compute contracts; link
+  // 'Guarantee' = a backstop it would pay only on the obligor's default).
   years: PayerCapacityYear[]; exposed: ExposedInstrument[];
+  exposedElsewhere?: DebtCountedElsewhere[];
+  listed?: boolean;              // has a public listing (ticker on file or in its filings); false = private company
+  scale?: ScaleFigure[];         // empty for a payer an agency rates
   // Plain-words reasons for an n/d projected leverage path, 3-year funding gap or trigger headroom
   // (the inputs not disclosed, by name); omitted until the capacity model writes them.
   ndReasons?: { leveragePath?: string; fundingGap?: string; triggerHeadroom?: string };
@@ -674,11 +705,21 @@ export interface CapacityMethod {
   method: 'Filed' | 'Utility load' | 'Prime generation' | 'Backup generators' | 'Cooling' | 'Campus share' | 'Footprint' | 'Disclosed GPU count' | 'Financed GPUs';
   facilityMw: Range3; assumptions: string; evidence: Evidence[];
 }
+export interface GpuBasis {
+  platforms: { chip: string; kwPerGpu: number; itKwPerGpu: number; priceUsd?: { low: number; high: number } }[];
+  gpus: { low: string; base: string; high: string };   // the chip each end of the GPU range assumes
+  value: { low: string; base: string; high: string };  // the chip each end of the value range assumes
+  stated?: boolean; statedBy?: string; onlineYear?: number; why?: string; note?: string; valueNote?: string;
+}
 export interface CapacityEstimate {
   scope: 'building' | 'campus'; id: string; name: string;
   facilityMw: Range3; itMw: Range3; gpus: Range3; gpuValueB: Range3;
   pue: Sourced<number>; gpuGeneration: Sourced<string>; kwPerGpu: Sourced<number>; gpuShareOfIt: Sourced<number>;
   confidence: 'High' | 'Medium' | 'Low'; methods: CapacityMethod[]; disagreement: boolean;
+  confidenceReason?: string;               // why the confidence is what it is, in words
+  facilityBasis?: string;                  // where a single facility MW figure comes from ("from the utility filing")
+  why?: Partial<Record<'facilityMw' | 'itMw' | 'gpus' | 'gpuValueB' | 'kwPerGpu' | 'gpuGeneration' | 'pue' | 'gpuShareOfIt', string>>; // why a figure is n/d
+  gpuBasis?: GpuBasis;                     // which GPU platform each end of the range assumes
   replacedByFiling: { field: 'facilityMw' | 'itMw' | 'gpus'; value: Sourced<number> }[];
   methodVersion: string;
   racks?: Range3; gpusPerRack?: number;    // rack-scale platforms (GB200 / GB300 NVL72): GPUs / 72

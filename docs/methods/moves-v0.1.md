@@ -20,8 +20,11 @@ Each window ends on the as-of day and starts on: the weekday before (1D), 7 days
 ## Yields
 
 Worked by the yield model (`yield-v0.1.md`) at both prices: yield to worst where the debt can be redeemed early
-(a call, an extension, a loan's prepayment at par), else yield to maturity; floating-rate debt also its discount
-margin. Changes in basis points.
+(a call, an extension, a loan's prepayment at par, a holder put stated on a date), else yield to maturity;
+floating-rate debt also its discount margin. Changes in basis points. An instrument with no Marden price (a
+convertible) has its yields worked from the window's trades, so 1W/1M/YTD yield changes show where it traded; a
+convertible's is the yield on the trade price, ignoring the conversion option, and the change carries the trade's
+tag (F) instead of M.
 
 ## What drove a move
 

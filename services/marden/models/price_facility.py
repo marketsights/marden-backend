@@ -2,7 +2,9 @@
 
 Two modes:
 - issuer bond: a straight bond of an issuer with a bond-implied curve (price_issuer). Its intensity on a
-  day is the issuer curve at the bond's maturity, recovery 40%, no liquidity premium.
+  day is the issuer curve at the bond's maturity, no liquidity premium, recovery the issuer's unsecured
+  recovery from its balance-sheet waterfall (price v0.3; the curve is solved at the same recovery), else
+  40% (the convention, with why).
 - facility: everything else with terms. The intensity is built up along the chain (price_chain); the
   liquidity premium is solved once so the model reprices the issue price (the comp's, else 100) on the
   issue date with that day's inputs, then held. If the tenant's curve starts after the issue date, its
@@ -28,7 +30,15 @@ import numpy as np
 from marden.core.db import Conn
 from marden.models import price_signals as sig
 from marden.models.price_bonds import RECOVERY, Flows, clean_price, flows, g_spread_bp, solve_spread, yield_to_maturity
-from marden.models.price_chain import Chain, Legs, hazard_fn, recovery_basis, recovery_doc, recovery_fn
+from marden.models.price_chain import (
+    Chain,
+    IssuerRecovery,
+    Legs,
+    hazard_fn,
+    recovery_basis,
+    recovery_doc,
+    recovery_fn,
+)
 from marden.models.price_curve import CurveBook
 from marden.models.price_issuer import IssuerCurve, bond_hazard
 from marden.models.price_kalman import Reading
@@ -53,6 +63,15 @@ class Ctx:
     tiers: TierFit | None
     signals: dict[str, list[sig.Signal]] = field(default_factory=dict)
     exclude_dealer: bool = False
+    issuer_recoveries: dict[str, IssuerRecovery] = field(default_factory=dict)
+
+    def issuer_recovery(self, entity: str | None) -> IssuerRecovery | None:
+        return self.issuer_recoveries.get(entity or "")
+
+    def bond_recovery(self, entity: str | None) -> float:
+        """The recovery an issuer's bonds are priced (and its curve solved) at."""
+        cur = self.curves.get(entity or "")
+        return cur.recovery if cur is not None else RECOVERY
 
 
 @dataclass
@@ -100,7 +119,7 @@ def model_for(ctx: Ctx, inst: Instrument, ch: Chain | None) -> Model:
             info = {"issuerHazard": got[0], "issuerLogSd": got[1]} if got else {}
             return h, ([] if h is not None else [f"issuer {inst.issuer}: curve not available on {day}"]), info
 
-        return Model("issuer bond", issuer_hazard, RECOVERY)
+        return Model("issuer bond", issuer_hazard, ctx.bond_recovery(inst.issuer))
 
     seen: dict[tuple[date, bool], tuple[Callable[[np.ndarray], np.ndarray], list[str], dict[str, Any]]] = {}
 
@@ -240,8 +259,9 @@ def price(ctx: Ctx, inst: Instrument, ch: Chain | None, obs: list[Obs]) -> dict[
         "chain": ch.doc() if ch else None, "terms": _terms_doc(inst),
         "defaultOddsToMaturity": round(_default_odds(hz, f_now.maturity_years), 4) if credit_leg else None,
     }
-    out["recoveryBasis"] = recovery_basis(ch)
-    out["recoveryInputs"] = recovery_doc(ch, rec, _version(), RECOVERY)
+    issuer = ctx.issuer_recovery(inst.issuer) if ch is None else None
+    out["recoveryBasis"] = recovery_basis(ch, issuer)
+    out["recoveryInputs"] = recovery_doc(ch, rec, _version(), RECOVERY, issuer)
     out["recoverySensitivity"] = _recovery_sensitivity(ctx, inst, ch, m, obs, f_now, hz, lp + r, rec, px)
     out["_week_ago_price"] = week
     return out
@@ -281,15 +301,15 @@ def _recovery_sensitivity(ctx: Ctx, inst: Instrument, ch: Chain | None, m: Model
     width = up - down
 
     def shifted(s: float) -> Any:
-        return recovery_fn(ch, s) if ch is not None else min(max(RECOVERY + s, 0.0), 1.0)
+        return recovery_fn(ch, s) if ch is not None else min(max(rec0 + s, 0.0), 1.0)
 
     hold = [clean_price(f_now, curve, hz, shifted(s), spread) for s in (down, up)]
     out: dict[str, Any] = {"holdingSpreadPer10cPts": round((hold[1] - hold[0]) / width * RECOVERY_STEP, 3),
                            "stepCents": round(width * 100, 1), "pricedAt": round(px, 3)}
     if m.mode != "facility" or ch is None:
-        out.update({"per10cPts": None, "why": "issuer bond: its default intensity is solved from the issuer's bond "
-                                               "prices at the same 40% recovery, so the model price does not move "
-                                               "with the convention; holdingSpread is at today's intensity"})
+        out.update({"per10cPts": None, "why": f"issuer bond: its default intensity is solved from the issuer's bond "
+                                               f"prices at the same {rec0:.0%} recovery, so the model price does not "
+                                               "move with it; holdingSpread is at today's intensity"})
         return out
     full: list[float] = []
     for s in (down, up):

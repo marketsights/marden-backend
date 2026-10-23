@@ -24,6 +24,7 @@ from marden.readmodels.deps import targets
 from marden.readmodels.registry import get_builder
 from marden.readmodels.views import facilities_status, sites_debt, sites_detail, sites_power, sites_project, sites_tabs  # noqa: F401
 from marden.readmodels.views import sites as _sites  # noqa: F401 (registers builders)
+from marden.readmodels.views.sites_chain import is_placeholder
 from marden.readmodels.views.sites_checklist import ITEMS
 
 NAMED = ("jupiter", "abilene", "frontier", "the-barn", "coreweave-ddtl-3", "southgate")
@@ -66,7 +67,10 @@ def test_every_site_view_rebuilds_every_site(sites):
     assert stored("site_detail", "jupiter")["slug"] == "jupiter"
     events = copied_rows("SELECT payload FROM stream_event WHERE payload->>'type' = 'status'")
     assert {e["payload"]["siteSlug"] for e in events} == set(sites)  # site pages announce themselves
-    assert all(e["payload"]["chain"] == stored("site_detail", e["payload"]["siteSlug"])["chain"] for e in events)
+    # the event carries each link without its details lines, which stay in the document
+    assert all(e["payload"]["chain"] == [{k: v for k, v in link.items() if k != "details"}
+                                         for link in stored("site_detail", e["payload"]["siteSlug"])["chain"]]
+               for e in events)
     before = len(events)
     rebuild_all("site_detail")  # unchanged documents: no new event
     assert len(copied_rows("SELECT id FROM stream_event WHERE payload->>'type' = 'status'")) == before
@@ -91,7 +95,9 @@ def test_model_pending_fields_are_null_only_until_the_model_runs(sites):
             assert {link["status"] for link in detail["chain"]} == {"none"}
         else:
             assert detail["status"] == status["output"]["status"]
-            assert detail["chain"] == status["output"]["chain"]
+            # the status model decides each link's status and rule; the page adds named parties and details
+            core = lambda chain: [(lk["role"], lk["status"], lk.get("ruleCode")) for lk in chain]  # noqa: E731
+            assert core(detail["chain"]) == core(status["output"]["chain"])
         cushion = latest_output("cushion", slug)
         projection = (cushion or {"output": {}})["output"].get("projection") or {}
         if projection.get("p50"):
@@ -126,7 +132,9 @@ def test_lists_cover_us_sites_with_their_debt(sites):
         assert row["debtB"]["value"] == _instrument_total(row["slug"]), row["slug"]
         parties = {p["role"]: p["label"] for p in copied_rows(
             "SELECT role, label FROM chain_party WHERE site_slug = %s", (row["slug"],))}
-        assert row["leadLenders"] == parties.get("lenders", "n/d")
+        label = parties.get("lenders", "n/d")
+        # a placeholder label ("About 20 banks") gives way to the lenders the debt records name
+        assert row["leadLenders"] == label or (is_placeholder(label) and row["leadLenders"]), row["slug"]
         assert [link["role"] for link in row["chain"]] == ["end_user", "tenant", "developer", "lenders"]
     frontier = next(r for r in rows if r["slug"] == "frontier")
     held = copied_rows("SELECT id FROM instrument WHERE site_slug = 'frontier' AND NOT in_v1")

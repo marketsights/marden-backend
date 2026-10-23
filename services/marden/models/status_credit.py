@@ -1,4 +1,8 @@
-"""The rate-neutral reading of a Marden price, for status rules L1 and L2 (docs/methods/status-rules-v0.1.md).
+"""The rate-neutral reading of a price, for status rules L1 and L2 (docs/methods/status-rules-v0.1.md).
+
+From status v0.5 the reading that trips L1 / L2 is the one on market evidence (`quote_test`: a trade,
+an exchange or dealer quote, or a fund mark; its spread is the quote's G-spread on its own day's Treasury
+curve); the same reading on the Marden price (`credit_test`) is shown as a note and never trips a rule.
 
 A chain status is a credit signal. A fixed-rate instrument's price also falls when Treasury yields rise
 while its credit is unchanged, so for a fixed coupon L1 and L2 read the Marden spread, not the price:
@@ -18,7 +22,7 @@ while its credit is unchanged, so for a fixed coupon L1 and L2 read the Marden s
 L2 fires on a loss of LOSS_RED_POINTS or more (the spread move alone would take a par-issued instrument
 below 95), L1 (status v0.3) on a loss of LOSS_AMBER_POINTS up to LOSS_RED_POINTS (it would take it to 98 or
 below). A floating-rate loan has no rate duration (its coupon resets with SOFR), so its price is already a
-credit price and L1 / L2 read the price itself (`status_rules.lenders`).
+credit price and L1 / L2 read the market price itself (`status_rules.lenders`).
 """
 
 from __future__ import annotations
@@ -144,3 +148,23 @@ def credit_test(instrument_id: str, output: dict[str, Any], day: date, book: Cur
     dv = clean_at_yield(f, y_credit - ONE_BP_PCT) - clean_at_yield(f, y_credit + ONE_BP_PCT)
     duration = dv / (2 * ONE_BP_PCT / 100.0) / (credit + f.accrued)
     return CreditTest(ref, spread, credit, ref_price, duration), None
+
+
+def quote_test(instrument_id: str, output: dict[str, Any], quote_day: date, quote_price: float, book: CurveBook,
+               first: tuple[date, float] | None) -> tuple[CreditTest | None, str | None]:
+    """The rate-neutral reading of a market quote (status v0.5): the quote's spread over the Treasury par
+    yield at the same maturity on the quote's day (its G-spread, the price model's `spreadBp` measure),
+    read against the reference spread like a price output's (`credit_test`, on the quote's day). The
+    instrument's terms and issue comp come from its price output."""
+    terms = fixed_terms(instrument_id, output)
+    if terms is None:
+        return None, f"fixed-rate terms of {instrument_id}"
+    curve = book.curve(quote_day)
+    if curve is None:
+        return None, f"Treasury curve on {quote_day.isoformat()} (market quote of {instrument_id})"
+    if terms.maturity <= quote_day:
+        return None, f"{instrument_id} matured on {terms.maturity.isoformat()}"
+    spread = g_spread_bp(flows(terms, curve, quote_day, None), curve, quote_price)
+    if spread is None:
+        return None, f"spread of the market quote of {instrument_id} ({quote_price:.2f} on {quote_day.isoformat()})"
+    return credit_test(instrument_id, {**output, "spreadBp": spread}, quote_day, book, first)

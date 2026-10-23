@@ -1,0 +1,47 @@
+[
+ {
+  "subject_type": "site",
+  "subject_id": "polaris-forge-2",
+  "field": "tenant_definition",
+  "value": "Oracle Corporation together with its wholly owned subsidiaries Oracle America, Inc. and Oracle America Cloud Services, LLC (formerly Green Chile Ventures LLC)",
+  "tag": "F",
+  "source_name": "APLD ComputeCo 2 indenture (8-K Ex 4.1)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/ex4-1.htm",
+  "find": "“ ?Oracle ?” means, individually or collectively, Oracle Corporation, a Delaware corporation, together with its wholly owned subsidiaries, Oracle America, Inc\\., a Delaware corporation, and Oracle America Cloud Services, LLC \\(f/k/a Green Chile Ventures LLC\\)",
+  "artifact": "Site Chains (focused v2) has no Polaris Forge 2 row; asked by the coordinator: the tenant card should use the indenture's definition of Oracle"
+ },
+ {
+  "subject_type": "site",
+  "subject_id": "polaris-forge-2",
+  "field": "lease_parties",
+  "value": "FAR-01 (150 MW): Data Center Service Order ORCL-FAR01_HZZ1-01 dated Oct 20, 2025 under the Master Service Agreement, between APLD FAR-01 LLC and Oracle; FAR-02 (50 MW): Service Order ORCL-FAR02_HZZ15-01 of the same date, between APLD FAR-02 LLC and Oracle",
+  "tag": "F",
+  "source_name": "APLD ComputeCo 2 indenture (8-K Ex 4.1)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/ex4-1.htm",
+  "find": "“ ?FAR-01 Datacenter Lease ?” means the MSA, as supplemented by the Data Center Service Order No\\. ORCL-FAR01_HZZ1-01 dated October 20, 2025, by and between APLD FAR-01 LLC and Oracle.{0,400}?“ ?FAR-02 Datacenter Lease ?” means the MSA, as supplemented by the Data Center Service Order No\\. ORCL-FAR02_HZZ15 ?-01 dated October 20, 2025, by and between APLD FAR-02 LLC and Oracle",
+  "artifact": "not in the artifacts; the SPV and lease counterparties the Developer and Tenant cards name"
+ },
+ {
+  "subject_type": "site",
+  "subject_id": "polaris-forge-2",
+  "field": "end_user_disclosure",
+  "value": "Not named. Applied Digital's filings call the Polaris Forge 2 tenant an investment-grade hyperscaler, which the notes indenture names as Oracle; no filing names whose workloads run there",
+  "tag": "F",
+  "source_name": "Applied Digital 10-K (FY2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "find": "Polaris Forge 2 Investment-grade hyperscaler 200 MW 15 years ~\\$5\\.0B 2H26.1H27",
+  "artifact": "not in the artifacts; the End user card says why it is empty"
+ },
+ {
+  "subject_type": "site",
+  "subject_id": "jupiter",
+  "field": "rent_start",
+  "value": "Full rent on completion, planned for 2028; until then Oracle pays a lower development-stage rent, and its force majeure notice would extend that period",
+  "tag": "R",
+  "source_name": "Reuters (via CP24)",
+  "url": "https://www.cp24.com/news/money/2026/09/24/oracle-triggers-force-majeure-on-data-centre-project-over-power-delays-source-says/",
+  "doc_date": "2026-09-24",
+  "find": "fail to come online in 2028 as planned.{0,900}?By invoking force majeure, Oracle extends the period during which it pays Blue Owl the lower development-stage rent",
+  "artifact": "Site Chains (focused v2) SiteDetail, Lease terms: 'Rent starts: On completion; 2028 target' (cited Bloomberg / Reuters Sep 24)"
+ }
+]

@@ -75,11 +75,18 @@ class Plant:
 @dataclass
 class Outside:
     value: str            # 'YYYY-MM' or 'YYYY' as the lease gives it
-    month: int            # the month index the cushion compares with
+    month: int            # the month index the cushion compares with (the deadline is that month's end)
     assumed: str | None   # ISO date the cushion uses when the lease gives less than a month
     row: Row
     basis: str            # 'outside_date fact' | 'lease trigger in <field>'
     quote: str
+    # a year only: the deadline is anywhere in that year, tested from its worst case (Jan 1: the month
+    # index before January) to its best (Dec 31: December); `month` / `assumed` are the midpoint, Jul 1
+    window: tuple[int, int] | None = None
+
+    @property
+    def year_only(self) -> bool:
+        return self.window is not None
 
 
 @dataclass
@@ -158,9 +165,10 @@ def _outside_from(text: str, row: Row, basis: str, *, trigger_only: bool) -> Out
     when = cd.leading(exprs)
     if when is None:
         return None
-    if when.precision == "year":
+    if when.precision == "year":  # the deadline is somewhere in that year: a range, its midpoint Jul 1 central
         year = when.lo // 12
-        return Outside(str(year), when.hi, f"{year}-12-31", row, basis, text)
+        return Outside(str(year), cd.month_index(year, 6), f"{year}-07-01", row, basis, text,
+                       window=(cd.month_index(year, 1) - 1, cd.month_index(year, 12)))
     if when.rank <= cd.PRECISION_RANK["month"]:
         return Outside(cd.ym(when.lo), when.lo, None, row, basis, text)
     return Outside(cd.ym(when.hi), when.hi, cd.month_end(when.hi).isoformat(), row, basis, text)

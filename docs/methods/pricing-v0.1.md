@@ -53,6 +53,17 @@ Owner decision 2026-10-22 ("Do what is proper"). Code: `services/marden/models/p
 - **Sensitivity.** `per10cPts`: the price change per 10c of recovery, by central difference of ±5c (one-sided at 0c / 100c), with the whole model re-run: the liquidity premium re-solves to the issue price and the residual re-filters. `holdingSpreadPer10cPts`: the same at today's spread, without re-solving. Because the premium absorbs the recovery at calibration, a recovery change moves the price mostly through the change in default intensity since issue: little for a facility whose tenant curve has not moved, several points where it has (Jupiter, the CoreWeave DDTLs). With no tenant, obligor or guarantor intensity, recovery does not move the price at all.
 - **Triggers.** A recovery run marks the price model dirty (`@model:recovery`).
 
+## v0.3: issuer recovery from the balance sheet (Oct 22, 2026)
+
+Issuer bonds priced at a flat 40% recovery. v0.3 prices them at the issuer's unsecured recovery from its
+balance-sheet waterfall (recovery-v0.1.md "v0.3"), `recoveryBasis` 'issuer_waterfall'. To keep the bond-implied
+CDS calibration consistent, each issuer's curve is solved from its bond prices at that same issuer unsecured
+recovery (one recovery for all its notes, not each bond's own), and the ISDA conversion uses it too; the CDS
+output's `recovery` says which. A bond's model price therefore barely moves (the curve absorbs the recovery), while
+the issuer's default intensity rises with it (CoreWeave 0.176 → 0.210 at 48c), so facilities with a CoreWeave
+tenant or obligor leg price lower (up to about 2 points on Oct 22). An issuer without a waterfall keeps 40% and
+says why. A day's Marden price row is the latest price version's.
+
 ## Data (all public, point in time)
 
 | Input | Source | Frequency | Use |

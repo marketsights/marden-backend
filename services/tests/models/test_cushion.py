@@ -2,14 +2,15 @@
 runs on the real rows of six V1 sites copied from the local `marden` database (tests/models/cushion_rows.py).
 
 Expectations for the full runs come from the stored facts themselves: Childress's filed outside date
-(2027-04), Jupiter's reported lease trigger ('... if 2028 date missed', taken as Dec 31, 2028), Frontier's
-missing outside date; nothing is made up.
+(2027-04), Jupiter's reported lease trigger ('... if 2028 date missed': a year only, tested from Jan 1 to
+Dec 31, 2028, with Jul 1, 2028 central), Frontier's missing outside date; nothing is made up.
 """
 
 from __future__ import annotations
 
 import re
 from datetime import date, timedelta
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -28,8 +29,9 @@ from marden.readmodels.context import business_today
 SITES = ["abilene", "childress", "frontier", "jupiter", "lighthouse", "the-barn"]
 STATUSES = {"Done", "Denied", "Withdrawn", "Slipped", "Not started", "Early works", "Projected", "At risk"}
 DRIVERS = {"Power", "Build", "Delivery", "Permits", "Funding"}
-PROJECTION_KEYS = {"p10", "p50", "p90", "outsideDate", "outsideDateAssumed", "cushionMonths", "deltaWeek",
-                   "oddsOfMissing", "costPerMonthLate", "lateCost"}
+PROJECTION_KEYS = {"p10", "p50", "p90", "outsideDate", "outsideDateAssumed", "outsideDateRange", "cushionMonths",
+                   "cushionMonthsRange", "deltaWeek", "oddsOfMissing", "oddsOfMissingRange", "costPerMonthLate",
+                   "lateCost"}
 YM = re.compile(r"^\d{4}-\d{2}$")
 
 
@@ -93,6 +95,31 @@ def test_a_milestone_finishes_no_earlier_than_its_predecessors():
     assert (sim.rent >= sim.finish["gas_or_grid"]).all() and sim.rent.min() >= cd.month_index(2027, 6)
 
 
+def test_a_year_only_outside_date_is_a_range_with_its_midpoint_central():
+    from marden.models.cushion_inputs import Outside, _outside_from
+    from marden.models.cushion_output import lease_view, projection_doc
+    from marden.models.cushion_sim import SimResult
+
+    row = {"tag": "R", "source_name": "Cp24", "valid_from": date(2026, 9, 24), "source_url": None, "id": 1}
+    o = _outside_from("force majeure invoked to defer payment step-up if 2028 date missed", row, "x",
+                      trigger_only=True)
+    assert isinstance(o, Outside) and o.value == "2028" and o.year_only and o.assumed == "2028-07-01"
+    assert (o.month, o.window) == (cd.month_index(2028, 6), (cd.month_index(2027, 12), cd.month_index(2028, 12)))
+    month = _outside_from("outside date 2028-11", row, "x", trigger_only=False)
+    assert month is not None and not month.year_only and month.assumed is None  # a month: the date as stated
+
+    # 1,000 simulated rent starts spread evenly over 2028: about half miss Jul 1, all miss Jan 1, none Dec 31.
+    rent = np.linspace(cd.month_index(2028, 1), cd.month_index(2028, 12) + 0.999, 1000)
+
+    site = SimpleNamespace(as_of=date(2026, 10, 22), outside=o, rent=None)
+    sim = SimResult(rent, {}, [], {}, "Build", {}, {})
+    doc = projection_doc(site, sim, None)  # type: ignore[arg-type]
+    assert doc["oddsOfMissing"]["value"] == pytest.approx(0.5, abs=0.01)
+    assert (doc["oddsOfMissingRange"]["best"], doc["oddsOfMissingRange"]["worst"]) == (0.0, 1.0)
+    outcomes, position = lease_view(site, sim)  # type: ignore[arg-type]
+    assert "we test Jan\u2013Dec 2028" in position["value"] and "0\u2013100% start rent after it" in outcomes[1]["text"]
+
+
 # ---------------------------------------------------------------- full runs on real rows
 @pytest.fixture
 def real(committed):
@@ -137,10 +164,22 @@ def test_today_run_matches_the_types_and_the_stored_lease_dates(real, committed)
     assert childress["costPerMonthLate"]["value"] == sum(p["monthlyUsd"] for p in parts.values())
     assert childress["costPerMonthLate"]["tag"] == "M"
     jupiter = sites["jupiter"]
-    assert jupiter["projection"]["outsideDate"]["value"] == "2028"
-    assert jupiter["projection"]["outsideDateAssumed"] == "2028-12-31"
-    assert 0 <= jupiter["projection"]["oddsOfMissing"]["value"] <= 1
-    assert jupiter["projection"]["oddsOfMissing"]["methodVersion"] == "odds v0"
+    jp = jupiter["projection"]
+    assert jp["outsideDate"]["value"] == "2028"
+    # A year only: tested across 2028 (worst case Jan 1, best case Dec 31), the midpoint Jul 1 central.
+    assert jp["outsideDateAssumed"] == "2028-07-01"
+    assert jp["outsideDateRange"] == {"from": "2028-01-01", "to": "2028-12-31", "central": "2028-07-01"}
+    odds, span = jp["oddsOfMissing"]["value"], jp["oddsOfMissingRange"]
+    assert 0 <= span["best"] <= odds <= span["worst"] <= 1
+    assert (span["bestDate"], span["worstDate"]) == ("2028-12-31", "2028-01-01")
+    assert jp["oddsOfMissing"]["methodVersion"] == "odds v0"
+    y, m = (int(x) for x in jp["p50"].split("-"))
+    p50 = cd.month_index(y, m)
+    assert jp["cushionMonths"]["value"] == cd.month_index(2028, 6) - p50  # the deadline is the end of June
+    assert jp["cushionMonthsRange"] == {"worst": cd.month_index(2027, 12) - p50, "best": cd.month_index(2028, 12) - p50}
+    assert "2028 only" in jupiter["leasePosition"]["value"] and "Jul 1, 2028" in jupiter["leasePosition"]["value"]
+    assert "yearOnly" in jupiter["basis"]["outsideDate"]
+    assert "outsideDateRange" not in childress and "oddsOfMissingRange" not in childress  # a month is stated
     gas = next(ms for ms in jupiter["milestones"] if ms["key"] == "gas_or_grid")
     assert gas["status"] == "Slipped" and gas["projected"]["p50"] >= "2027-02"
     frontier = sites["frontier"]
@@ -201,7 +240,8 @@ def test_eia_history_is_reported_missing_until_two_reports_exist(real, committed
     output = cushion.run(trigger="test")["sites"]["jupiter"]
     assert any(x.startswith("slip_history: no EIA-860M planned-vs-actual pairs (1 monthly report(s)")
                for x in output["missing"])
-    assert output["leasePosition"]["tag"] == "M" and "outside date" in output["leasePosition"]["value"]
+    position = output["leasePosition"]
+    assert position["tag"] == "M" and re.search(r"outside date|the lease gives \d{4} only", position["value"])
     assert [o["label"] for o in output["leaseOutcomes"]] == ["Finished before the outside date", "Finished after it"]
 
 

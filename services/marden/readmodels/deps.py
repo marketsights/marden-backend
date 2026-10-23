@@ -415,5 +415,8 @@ _install_facility_deps()
 
 # Payers and obligations area: its rules live in deps_payers.py (kept under the 400-line limit), and the moves
 # and event-effect views' in deps_moves.py; imported here so every writer that marks dirty sees them.
+from marden.readmodels import deps_chains as _deps_chains  # noqa: E402,F401
+from marden.readmodels import deps_delivery as _deps_delivery  # noqa: E402,F401
 from marden.readmodels import deps_moves as _deps_moves  # noqa: E402,F401
 from marden.readmodels import deps_payers as _deps_payers  # noqa: E402,F401
+from marden.readmodels import deps_pipeline as _deps_pipeline  # noqa: E402,F401

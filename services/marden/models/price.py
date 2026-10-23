@@ -3,18 +3,19 @@
     cd services && uv run python -m marden model price [--as-of YYYY-MM-DD] [--instrument ID ...]
 
 One run as of a day (default today, US Eastern; a past day is an honest backtest: every input is what
-was public that day, marden.models.pit / price_marks) writes, under model_run 'price' v0.2 (v0.2: a facility's
+was public that day, marden.models.pit / price_marks) writes, under model_run 'price' v0.3 (v0.2: a facility's
 recovery is its site collateral waterfall's central estimate when the recovery model has one, else the v0.1
-default; price_chain):
+default; v0.3: issuer bonds and issuer-level debt recover at the issuer's balance-sheet waterfall instead of a
+flat 40%, and each issuer's bond-implied curve is solved at that same unsecured recovery; price_chain):
 
 - model 'cds', subject entity: the 'Marden bond-implied CDS' of every issuer with straight bonds
   (price_issuer): {label, spreadBp, upfrontPct (500bp coupon), hazard, maturity, years, band, raw (the
   latest bond cross-section, unfiltered), equity {ticker, loading, pairs}, missing, methodVersion};
 - model 'price', subject instrument (every V1 instrument and every bond of the V1 chains' issuers):
   {price, mardenPrice (InstrumentRow.mardenPrice: Sourced<number>), spreadBp, yieldPct, recovery, change1w,
-  inputs: [...], band: {low, high}, missing: [...], recoveryBasis ('site_waterfall' | 'default_assumption' |
-  null), recoveryInputs, recoverySensitivity {per10cPts, holdingSpreadPer10cPts},
-  basis} (price_facility); plus price_obs kind 'marden', tag M, method_version 'price v0.2';
+  inputs: [...], band: {low, high}, missing: [...], recoveryBasis ('site_waterfall' | 'issuer_waterfall' |
+  'default_assumption' | null), recoveryInputs, recoverySensitivity {per10cPts, holdingSpreadPer10cPts},
+  basis} (price_facility); plus price_obs kind 'marden', tag M, method_version 'price v0.3';
 - model 'curve', subject series 'all': CurveTier[] (types.ts) for the Instruments curve card
   (price_curve_card): the Treasury par curve, then per tier its priced instruments as dots and a curve
   fitted to them (Treasury plus a robust fit of the tier's spreads).
@@ -33,7 +34,8 @@ from typing import Any
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, hash_parts
 from marden.models import pit, price_curve_card, price_marks, price_signals, price_tiers, runs
-from marden.models.price_chain import Chain, gpu_half_lives, recovery_input, resolve
+from marden.models.price_bonds import RECOVERY
+from marden.models.price_chain import Chain, IssuerRecovery, gpu_half_lives, issuer_recovery, recovery_input, resolve
 from marden.models.price_curve import CurveBook, load_curves, year_frac
 from marden.models.price_facility import Ctx, price
 from marden.models.price_issuer import IssuerCurve, build, quote, raw_quote, straight_bonds
@@ -43,7 +45,8 @@ from marden.readmodels.context import business_today
 
 log = logging.getLogger(__name__)
 
-MODEL, VERSION = "price", "price v0.2"  # v0.2 (2026-10-22): per-site recovery (pricing-v0.1.md "v0.2")
+MODEL, VERSION = "price", "price v0.3"  # v0.3 (2026-10-22): issuer balance-sheet recovery (pricing-v0.1.md "v0.3")
+# v0.2 (2026-10-22): per-site recovery (pricing-v0.1.md "v0.2")
 METHOD_URL = "docs/methods/pricing-v0.1.md"
 CDS_LABEL = "Marden bond-implied CDS"
 PRICE_LABEL = "Marden model price"
@@ -94,10 +97,18 @@ def cds_issuers(conn: Conn, by_issuer: dict[str, list[Instrument]], curves: dict
     return {e for e, bonds in by_issuer.items() if curves[e].sections and (e in listed or len(bonds) >= 2)}
 
 
-def cds_doc(cur: IssuerCurve, book: CurveBook, as_of: date) -> dict[str, Any]:
+def _recovery_assumption(cur: IssuerCurve, rec: IssuerRecovery | None) -> str:
+    cents = round(cur.recovery * 100)
+    if rec is not None and rec.base is not None:
+        return (f"recovery {cents}% (the issuer's unsecured recovery in its balance-sheet waterfall; its bonds are "
+                "solved and priced at it)")
+    return f"recovery {cents}% (convention: {rec.why if rec is not None and rec.why else 'no issuer waterfall'})"
+
+
+def cds_doc(cur: IssuerCurve, book: CurveBook, as_of: date, rec: IssuerRecovery | None = None) -> dict[str, Any]:
     q = quote(cur, as_of, book)
     sec = cur.latest_section(as_of)
-    raw = raw_quote(sec[0], sec[1], book) if sec else None
+    raw = raw_quote(sec[0], sec[1], book, cur.recovery) if sec else None
     out: dict[str, Any] = {
         "label": CDS_LABEL, "methodVersion": VERSION, "sourceUrl": METHOD_URL,
         "spreadBp": None, "upfrontPct": None, "hazard": None, "maturity": None, "years": None, "band": None,
@@ -108,7 +119,10 @@ def cds_doc(cur: IssuerCurve, book: CurveBook, as_of: date) -> dict[str, Any]:
                    "prior": None if cur.loading_prior is None else round(cur.loading_prior, 3),
                    "model": "CreditGrades (L=0.5, lambda=0.3, R=0.4); loading prior = 0.018 per unit equity log "
                             "return at the issuer's CreditGrades elasticity"},
-        "assumptions": ["recovery 40%", "flat intensity per bond on the Treasury par curve",
+        "recovery": {"cents": round(cur.recovery * 100, 1),
+                     "basis": "issuer_waterfall" if rec is not None and rec.base is not None else "bond_convention",
+                     **({"why": rec.why} if rec is not None and rec.why else {})},
+        "assumptions": [_recovery_assumption(cur, rec), "flat intensity per bond on the Treasury par curve",
                         "interpolated by maturity to the standard CDS maturity, never averaged",
                         "Treasury discounting (SOFR swaps would add ~30-35bp)",
                         "equity (CreditGrades) moves only between bond prints"],
@@ -222,13 +236,17 @@ def run_day(conn: Conn, day: date, ids: Sequence[str] | None = None, *,
     by_issuer = straight_bonds(insts)
     obs = price_marks.load(conn, day, list(insts))
     tickers = {r["id"]: r["ticker"] for r in conn.execute("SELECT id, ticker FROM entity").fetchall()}
-    curves = {e: build(conn, day, e, bonds, obs, book, tickers.get(e)) for e, bonds in sorted(by_issuer.items())}
+    # one recovery per issuer: its unsecured recovery in the balance-sheet waterfall (recovery v0.3), the same
+    # for solving its curve from its bonds and for pricing them; 40% when it has none (price_chain)
+    recs = {e: issuer_recovery(conn, e, day) for e in sorted(by_issuer)}
+    curves = {e: build(conn, day, e, bonds, obs, book, tickers.get(e), recs[e].value(RECOVERY))
+              for e, bonds in sorted(by_issuer.items())}
     corp = cds_issuers(conn, by_issuer, curves)
     tiers = price_tiers.fit(conn, day, load_comps(conn, day), book)
     slugs = sorted({i.site_slug for i in insts.values() if i.site_slug})
     ctx = Ctx(conn, day, book, {e: c for e, c in curves.items() if e in corp}, tiers,
-              {s: price_signals.from_records(conn, day, s) for s in slugs}, exclude_dealer)
-    cds = {e: cds_doc(curves[e], book, day) for e in sorted(corp)}
+              {s: price_signals.from_records(conn, day, s) for s in slugs}, exclude_dealer, recs)
+    cds = {e: cds_doc(curves[e], book, day, recs.get(e)) for e in sorted(corp)}
     for e, why in uncovered(conn, corp, set(by_issuer)).items():
         cds.setdefault(e, null_cds(e, why))
     halves = gpu_half_lives(conn, day)

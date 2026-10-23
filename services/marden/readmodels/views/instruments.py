@@ -3,9 +3,9 @@
 Every V1 instrument (instrument.in_v1) with its size, maturity, Marden price and 1w change (model
 'price', else the model's own 'marden' price_obs), the yield where it traded (latest observed trade,
 exchange, quote or dealer price that carries a yield), the calculated yield to worst and to maturity of the
-Marden price (model 'yield', instrument_yields), the mark gap (model 'mark_gap'; 'no fund'
-when no N-PORT or BDC filing lists it) and the status of the chain it sits on (model 'status' on its
-site). n/d values are null. `instrument_row` is shared with instrument_detail, so the list and the
+Marden price, else of the latest market price (model 'yield', instrument_yields), the mark gap (model
+'mark_gap'; 'no fund' when no N-PORT or BDC filing lists it) and the status of the chain it sits on (model
+'status' on its site). n/d values are null. `instrument_row` is shared with instrument_detail, so the list and the
 detail page show the same numbers.
 """
 

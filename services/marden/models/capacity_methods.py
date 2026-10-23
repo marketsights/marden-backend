@@ -81,7 +81,8 @@ def utility_load(cur: dict[str, Row]) -> Method | None:
         lo,
         hi,
         hi,
-        "large-load request / grid service MW: the facility draw ceiling",
+        "the load the utility is asked to serve (large-load request or grid service): the most the facility "
+        "can draw",
         [r for _, r in vals],
     )
 
@@ -113,7 +114,7 @@ def prime_generation(plants: list[dict[str, Any]]) -> Method | None:
         lo,
         (lo + hi) / 2,
         hi,
-        "serving plants' prime units (count x rating, diesel excluded) and stated capacity; low less one "
+        "serving plants' prime units (count \u00d7 rating, diesel excluded) and stated capacity; low less one "
         "unit for N+1 redundancy",
         rows,
     )
@@ -175,7 +176,7 @@ def footprint(
         sqft * lo,
         sqft * mid,
         sqft * hi,
-        f"{what} {sqft:,.0f} sq ft x {basis}",
+        f"{what} {sqft:,.0f} sq ft \u00d7 {basis}",
         [row] if row is not None else [],
     )
 
@@ -193,7 +194,8 @@ def gpu_implied(
     mid = chips * kw / 1000 / share[1] * pue[1]
     hi = chips * kw / 1000 / share[0] * pue[2]
     return Method(
-        "Disclosed GPU count", lo, mid, hi, f"{chips:,.0f} disclosed GPUs x {kw:.2f} kW / GPU share of IT x PUE", [row]
+        "Disclosed GPU count", lo, mid, hi,
+        f"{chips:,.0f} disclosed GPUs \u00d7 {kw:.2f} kW \u00f7 GPU share of IT \u00d7 PUE", [row],
     )
 
 
@@ -211,8 +213,8 @@ def campus_share(campus_mw: float | None, row: Row | None, own_m2: float | None,
         mw * 0.8,
         mw,
         mw * 1.2,
-        f"campus {campus_mw:,.0f} MW ({row['source_name']}) x {label}'s {share:.0%} of the campus's traced footprint "
-        "area (+/- 20%: halls of one campus differ in density)",
+        f"campus {campus_mw:,.0f} MW ({row['source_name']}) \u00d7 {label}'s {share:.0%} of the campus's traced "
+        "footprint area (+/- 20%: halls of one campus differ in density)",
         [row],
     )
 

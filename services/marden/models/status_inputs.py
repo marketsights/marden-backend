@@ -7,9 +7,13 @@ dated by its record, but the note itself was written when the archive was compil
 from the archive's own date (`document.doc_date`), not from the record date. Dated items (risk evidence,
 schedule changes, ready-for-service statements) are public on their own date. Tag M rows (the archive's
 legacy judgments and other models' estimates) are never inputs: only filed (F) and reported (R)
-statements can trip a status rule. The Marden price is the one model input, read from the price model's
-`model_output`; for a fixed coupon it comes with its rate-neutral reading (`status_credit`: the spread move
-since the reference day, on the reference day's Treasury curve), which rule L2 reads instead of the price.
+statements can trip a status rule. The Marden price is read from the price model's `model_output`, but
+from status v0.5 it never trips L1 or L2 by itself: the price rules read market evidence only (`Quote`:
+the newest TRACE trade, exchange or dealer quote tagged F or R, or fund mark (N-PORT, BDC) usable on the
+day and at most MARKET_MAX_AGE_DAYS old, `price_marks.load`). For a fixed coupon each price comes with its
+rate-neutral reading (`status_credit`: the spread move since the reference day, on the reference day's
+Treasury curve): `market_credit` on the market quote, which L1 / L2 read, and `credit` on the Marden price,
+shown as a note only.
 
 Authorizations (status v0.4): the permits and queue positions on file for the site and its approved plants
 on the day (`air_permits` on the site and plants, the plants' `queue_ids` with each queue position's
@@ -22,11 +26,11 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from marden.core.db import Conn, Row
-from marden.models import pit, status_credit
+from marden.models import pit, price_marks, status_credit
 from marden.models.price_curve import CurveBook, load_curves
 from marden.readmodels.context import business_day
 
@@ -45,6 +49,9 @@ QUEUE_FIELDS = ("queue_ids",)  # plant: its interconnection queue positions (ISO
 QUEUE_STATUS = "status_class"  # queue_project: active | under_construction | in_service | suspended | withdrawn ...
 EXCLUDED_EVENT_KINDS = ("catalyst",)  # scheduled future steps, not things that happened
 PRICE_MODEL = "price"
+MARKET_MAX_AGE_DAYS = 200  # a quarterly fund mark is public 45-90 days after its period end
+MARKET_WORDS = {"trace": "TRACE trade", "exchange": "exchange quote", "dealer": "dealer quote",
+                "nport": "fund mark", "bdc": "fund mark"}
 CURVES_SINCE = date(2025, 1, 1)  # the Treasury curve archive starts 2025-01-02 (as the price model's)
 ROLES = ("end_user", "tenant", "developer", "lenders")
 GENERIC_WORDS = frozenset({
@@ -115,6 +122,31 @@ class Party:
     names: list[str]
 
 
+@dataclass(frozen=True)
+class Quote:
+    """Market evidence on an instrument's price (status v0.5): a TRACE trade, an exchange or dealer quote
+    (tag F or R) or a fund mark, never a Marden model price."""
+
+    instrument_id: str
+    day: date  # the price's own date (trade date, quote date, fund period end)
+    price: float  # clean, percent of par
+    source: str  # price_marks source: 'trace' | 'exchange' | 'dealer' | 'nport' | 'bdc'
+    source_name: str
+    source_url: str | None
+    tag: str  # 'F' | 'R'
+
+    @property
+    def words(self) -> str:
+        return MARKET_WORDS.get(self.source, self.source)
+
+    def sourced(self, value: str) -> dict[str, Any]:
+        out: dict[str, Any] = {"value": value, "tag": self.tag, "asOf": self.day.isoformat(),
+                               "sourceName": self.source_name}
+        if self.source_url:
+            out["sourceUrl"] = self.source_url
+        return out
+
+
 @dataclass
 class Price:
     instrument_id: str
@@ -123,8 +155,11 @@ class Price:
     method_version: str | None
     source_url: str | None
     coupon_type: str | None = None  # 'fixed' | 'floating' (the output's basis.terms)
-    credit: status_credit.CreditTest | None = None  # fixed coupon: the rate-neutral reading
+    credit: status_credit.CreditTest | None = None  # fixed coupon: the Marden price's rate-neutral reading
     credit_missing: str | None = None  # fixed coupon without a rate-neutral reading: what is missing
+    market: Quote | None = None  # the market evidence L1 / L2 read (None: no price test)
+    market_credit: status_credit.CreditTest | None = None  # fixed coupon: the market quote's reading
+    market_missing: str | None = None  # fixed coupon with a quote but no rate-neutral reading of it
 
 
 @dataclass
@@ -276,24 +311,65 @@ def first_spreads(conn: Conn, as_of: date, instrument_ids: list[str]) -> dict[st
     return {r["subject_id"]: (r["as_of"], float(r["spread"])) for r in rows}
 
 
+def market_quotes(conn: Conn, as_of: date, instrument_ids: list[str]) -> dict[str, Quote]:
+    """The newest market evidence on each instrument usable on `as_of` (status v0.5): a TRACE trade, an
+    exchange or dealer quote tagged F or R, or a fund mark (N-PORT median across funds, BDC schedule of
+    investments; usable once public), at most MARKET_MAX_AGE_DAYS before the day. Read through
+    `price_marks.load` (point in time, the unlicensed-price switch); never the model's own 'marden' rows.
+    On one day a trade beats a quote, a quote a fund mark."""
+    if not instrument_ids:
+        return {}
+    since = as_of - timedelta(days=MARKET_MAX_AGE_DAYS)
+    obs = price_marks.load(conn, as_of, instrument_ids, since=since - timedelta(days=1))
+    tagged = {(r["instrument_id"], r["obs_date"], r["source_name"]): r["tag"].strip() for r in conn.execute(
+        """SELECT instrument_id, obs_date, source_name, tag FROM price_obs
+            WHERE instrument_id = ANY(%s) AND obs_date BETWEEN %s AND %s AND kind IN ('trade', 'exchange', 'dealer')
+              AND price IS NOT NULL""",
+        (instrument_ids, since, as_of)).fetchall()}
+    rank = {"trace": 0, "exchange": 1, "dealer": 2, "nport": 3, "bdc": 4}
+    out: dict[str, Quote] = {}
+    for iid, items in obs.items():
+        best: tuple[Any, ...] | None = None
+        for o in items:
+            if o.day < since or o.public > as_of:
+                continue
+            if o.source in ("trace", "exchange", "dealer"):
+                tag = tagged.get((iid, o.day, o.source_name))
+                if tag not in ("F", "R"):
+                    continue
+            else:
+                tag = "F"  # a fund's filed schedule of investments (N-PORT, BDC 10-Q / 10-K)
+            key = (o.day, -rank[o.source])
+            if best is None or key > best[0]:
+                best = (key, Quote(iid, o.day, o.price, o.source, o.source_name, o.source_url, tag))
+        if best is not None:
+            out[iid] = best[1]
+    return out
+
+
 def prices_from_outputs(conn: Conn, as_of: date, outputs: dict[str, tuple[date, Any, str | None]],
                         book: CurveBook | None = None) -> dict[str, Price]:
-    """Price inputs from price-model outputs {instrument: (output day, output, version)}: the Marden price
-    and, for a fixed coupon, its rate-neutral reading (status_credit). The Treasury curves are read point
-    in time as of `as_of` (a curve is public on its date)."""
+    """Price inputs from price-model outputs {instrument: (output day, output, version)}: the Marden price,
+    the newest market quote (`market_quotes`) and, for a fixed coupon, the rate-neutral reading of each
+    (status_credit). The Treasury curves are read point in time as of `as_of` (a curve is public on its date)."""
     out: dict[str, Price] = {}
     fixed = [i for i, (_, o, _) in outputs.items() if status_credit.coupon_type(o) == "fixed"]
     firsts = first_spreads(conn, as_of, fixed)
+    quotes = market_quotes(conn, as_of, sorted(outputs))
     if fixed and book is None:
         book = load_curves(conn, as_of, since=CURVES_SINCE)
     for iid, (day, output, version) in sorted(outputs.items()):
         value, method, url = price_value(output)
         if value is None:
             continue
-        price = Price(iid, value, day, method or version, url, status_credit.coupon_type(output))
+        price = Price(iid, value, day, method or version, url, status_credit.coupon_type(output),
+                      market=quotes.get(iid))
         if price.coupon_type == "fixed":
             assert book is not None
             price.credit, price.credit_missing = status_credit.credit_test(iid, output, day, book, firsts.get(iid))
+            if price.market is not None:
+                price.market_credit, price.market_missing = status_credit.quote_test(
+                    iid, output, price.market.day, price.market.price, book, firsts.get(iid))
         out[iid] = price
     return out
 

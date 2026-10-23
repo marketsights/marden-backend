@@ -16,6 +16,7 @@ from marden.agents.ops.numbers import Figure, check_filled, check_prose, vocabul
 from marden.agents.review import decide
 from marden.core import db
 from marden.core.jsonutil import jsonb
+from marden.readmodels.plain_text import strip_doc
 
 WEEK = date(2026, 10, 19)
 LIST = json.loads(recorded("risk_list_2026-10-19.json"))
@@ -167,7 +168,7 @@ def test_draft_with_a_model_keeps_only_checked_words_then_approval_serves_it():
                            "LIMIT 1", (WEEK.isoformat(),)).fetchone()["doc"]
         status = conn.execute("SELECT status FROM weekly_note").fetchone()["status"]
     assert status == "approved"
-    assert doc["note"] == row["note"]  # the approved draft, word for word
+    assert doc["note"] == strip_doc(row["note"])  # the approved draft, word for word (served without model versions)
     assert note.draft(WEEK, llm=llm)["result"].startswith("approved note version 1 already covers")
 
 
@@ -243,7 +244,8 @@ def test_a_recomputed_list_drops_the_approved_note_and_gets_a_new_draft():
     with db.transaction() as conn:
         doc = conn.execute("SELECT doc FROM read_model WHERE view = 'risk_list' AND key = %s ORDER BY as_of DESC, "
                            "built_at DESC LIMIT 1", (WEEK.isoformat(),)).fetchone()["doc"]
-    assert doc["note"]["paragraphs"][0]["text"] == changed["note"]["paragraphs"][0]["text"]  # the list's own note
+    own = strip_doc(changed["note"])["paragraphs"][0]["text"]
+    assert doc["note"]["paragraphs"][0]["text"] == own  # the list's own note
     second = note.draft(WEEK)
     assert second["version"] == 2 and second["result"] == "draft waiting for approval"
     with db.transaction() as conn:

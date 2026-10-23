@@ -6,7 +6,9 @@ From the `moves` model's output per instrument (the two prices each window compa
 of a model move into priced events, rates and spreads) and the `event_impact` model's output of the sites
 (the "What moved it" list of an instrument: each priced change on its site with its effect, and for a
 tenant's or end user's bond the trades around the site's changes). Every number keeps its tag: a traded price
-its trade's (TRACE prints are stored as filed, F), a Marden price, yield or split M.
+its trade's (TRACE prints are stored as filed, F), a Marden price, yield or split M. An instrument with no Marden
+price (a convertible) has its yields worked from the trades, so a traded window's yield change takes the trade's
+tag too.
 """
 
 from __future__ import annotations
@@ -89,14 +91,26 @@ def driver_doc(w: Doc) -> Doc:
     return out
 
 
-def window_doc(w: Doc, measure: str) -> Doc:
-    """MoveWindow (moves.ts)."""
-    end = w.get("end")
+def yield_change(w: Doc, key: str, market: bool) -> Doc:
+    """A yield change (bp) M, or, with no Marden price (`market`), worked from the window's trades: the trade's
+    tag and source, with the method that worked it."""
+    to = w.get("to") or {}
+    if not market or w.get("basis") != "trade" or not to:
+        return m_sourced(w.get(key), w.get("end"))
+    out: Doc = {"value": w.get(key), "tag": to.get("tag") or "F", "asOf": to.get("date") or day().isoformat(),
+                "sourceName": to.get("sourceName") or "TRACE", "methodVersion": METHOD}
+    if to.get("sourceUrl"):
+        out["sourceUrl"] = to["sourceUrl"]
+    return out
+
+
+def window_doc(w: Doc, measure: str, market: bool = False) -> Doc:
+    """MoveWindow (moves.ts). `market`: the instrument has no Marden price (yields worked from its trades)."""
     out: Doc = {k: w.get(k) for k in ("key", "nominalStart", "start", "end", "partial", "basis", "from", "to", "why",
                                       "note")}
     out.update({"change": price_change(w), "yieldMeasure": measure,
-                "yieldChangeBp": m_sourced(w.get("yieldChangeBp"), end),
-                "dmChangeBp": m_sourced(w["dmChangeBp"], end) if w.get("dmChangeBp") is not None else None,
+                "yieldChangeBp": yield_change(w, "yieldChangeBp", market),
+                "dmChangeBp": yield_change(w, "dmChangeBp", market) if w.get("dmChangeBp") is not None else None,
                 "yieldWhy": w.get("yieldWhy"), "driver": driver_doc(w)})
     return out
 
@@ -113,7 +127,8 @@ def windows_of(out: Doc | None) -> dict[str, Doc]:
     if not out:
         return {k: _empty_window(k, "Not computed yet: the moves model has not run for it.") for k in WINDOWS}
     measure = out.get("measure") or "YTM"
-    return {k: window_doc(out["windows"][k], measure) if k in (out.get("windows") or {}) else
+    market = not out.get("modelFrom")  # no Marden price on record
+    return {k: window_doc(out["windows"][k], measure, market) if k in (out.get("windows") or {}) else
             _empty_window(k, "Not computed for this window.") for k in WINDOWS}
 
 

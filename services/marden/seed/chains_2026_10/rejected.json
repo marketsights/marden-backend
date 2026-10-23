@@ -1,0 +1,22 @@
+[
+ {
+  "site": "jupiter",
+  "field": "outside_date",
+  "artifact_value": "2028: 'Oracle need not pay if completion slips past 2028' (Site Chains SiteDetail; V1 screens Lease terms 'Outside date 2028')",
+  "cited": "Bloomberg / Reuters, Sep 24 2026",
+  "checked": "https://www.cp24.com/news/money/2026/09/24/oracle-triggers-force-majeure-on-data-centre-project-over-power-delays-source-says/",
+  "why": "The Reuters report says Oracle 'cannot terminate the lease under any circumstances' and is 'attempting to delay payments' should the campus 'fail to come online in 2028 as planned': a planned date and a rent deferral, not a date after which the tenant need not pay. No lease, filing or report found states an outside date."
+ },
+ {
+  "site": "jupiter",
+  "field": "lease_annual_rent_usd",
+  "artifact_value": "Not disclosed",
+  "why": "The artifact has no value either."
+ },
+ {
+  "site": "loughton, milam, vineland, barstow, narvik, sines, lordstown",
+  "field": "all chain fields",
+  "artifact_value": "13-site watchlist rows (Site Chains Main)",
+  "why": "No Marden site for these seven: four are outside the US (V1 is US only) and Milam, Vineland, Barstow and Lordstown have no financed-site case. Nothing is loaded for a site Marden does not track."
+ }
+]

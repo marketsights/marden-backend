@@ -112,11 +112,17 @@ def projection_doc(site: SiteInputs, sim: SimResult | None, prior: dict[str, Any
     o = site.outside
     if o is not None and o.assumed:
         doc["outsideDateAssumed"] = o.assumed
+    if o is not None and o.window is not None:  # a year only: the range tested, and the midpoint used
+        doc["outsideDateRange"] = {"from": cd.month_start(o.window[0] + 1).isoformat(),
+                                   "to": cd.month_end(o.window[1]).isoformat(), "central": o.assumed}
     cushion: int | None = None
     if o is not None:
         if months["p50"] is not None:
             year, month = (int(x) for x in months["p50"].split("-"))
-            cushion = o.month - cd.month_index(year, month)
+            p50 = cd.month_index(year, month)
+            cushion = o.month - p50
+            if o.window is not None:
+                doc["cushionMonthsRange"] = {"worst": o.window[0] - p50, "best": o.window[1] - p50}
         doc["cushionMonths"] = m_value(cushion, as_of)
     else:
         doc["cushionMonths"] = None  # no lease date: shown as '—'
@@ -124,6 +130,11 @@ def projection_doc(site: SiteInputs, sim: SimResult | None, prior: dict[str, Any
     doc["deltaWeek"] = m_value(cushion - before if cushion is not None and before is not None else None, as_of)
     if o is not None and sim is not None:
         doc["oddsOfMissing"] = m_value(round(odds_after(sim.rent, o.month), 3), as_of, ODDS_VERSION)
+        if o.window is not None:  # best case Dec 31, worst case Jan 1; the midpoint above is what models read
+            doc["oddsOfMissingRange"] = {"best": round(odds_after(sim.rent, o.window[1]), 3),
+                                         "worst": round(odds_after(sim.rent, o.window[0]), 3),
+                                         "bestDate": cd.month_end(o.window[1]).isoformat(),
+                                         "worstDate": cd.month_start(o.window[0] + 1).isoformat()}
     lc = late_cost_doc(site, late, rent_done)
     total = sum(p["monthlyUsd"] for p in lc["parts"]) if lc["parts"] else None
     if total is not None:
@@ -193,10 +204,30 @@ def lease_view(site: SiteInputs, sim: SimResult | None) -> tuple[list[dict[str, 
     if o is None or sim is None:
         return [], None
     after = odds_after(sim.rent, o.month)
-    when = f"{date.fromisoformat(o.assumed):%b} {int(o.assumed[8:])}, {o.assumed[:4]}, assumed" if o.assumed \
-        else _month_label(o.month)
     p50 = int(np.floor(np.percentile(sim.rent, 50)))
     gap = o.month - p50
+
+    def months(n: int) -> str:
+        return f"{abs(n)} month{'s' if abs(n) != 1 else ''} {'before' if n >= 0 else 'after'}"
+
+    if o.window is not None:  # a year only: tested across the year, the midpoint Jul 1 central
+        worst, best = odds_after(sim.rent, o.window[0]), odds_after(sim.rent, o.window[1])
+        span = f"the lease gives {o.value} only; we test Jan\u2013Dec {o.value}, Jul 1 central"
+        outcomes = [
+            {"label": "Finished before the outside date",
+             "text": f"{round(100 * (1 - after))}% of simulated schedules start rent by Jul 1, {o.value} ({span}): "
+                     f"{round(100 * (1 - worst))}% by Jan 1, {round(100 * (1 - best))}% by Dec 31",
+             "value": m_value(f"{round(100 * (1 - after))}%", site.as_of, ODDS_VERSION)},
+            {"label": "Finished after it",
+             "text": f"{round(100 * best)}\u2013{round(100 * worst)}% start rent after it (Dec 31 to Jan 1; "
+                     f"{round(100 * after)}% after Jul 1); the lease's termination and force majeure terms apply",
+             "value": m_value(f"{round(100 * after)}%", site.as_of, ODDS_VERSION)},
+        ]
+        position = (f"P50 rent start {_month_label(p50)}: {months(gap)} Jul 1, {o.value} ({span}; "
+                    f"{months(o.window[1] - p50)} Dec 31, {months(o.window[0] - p50)} Jan 1)")
+        return outcomes, m_value(position, site.as_of)
+    when = f"{date.fromisoformat(o.assumed):%b} {int(o.assumed[8:])}, {o.assumed[:4]}, assumed" if o.assumed \
+        else _month_label(o.month)
     outcomes = [
         {"label": "Finished before the outside date",
          "text": f"{round(100 * (1 - after))}% of simulated schedules start rent by the outside date ({when})",
@@ -205,8 +236,7 @@ def lease_view(site: SiteInputs, sim: SimResult | None) -> tuple[list[dict[str, 
          "text": f"{round(100 * after)}% start rent after it; the lease's termination and force majeure terms apply",
          "value": m_value(f"{round(100 * after)}%", site.as_of, ODDS_VERSION)},
     ]
-    position = (f"P50 rent start {_month_label(p50)}: {abs(gap)} month{'s' if abs(gap) != 1 else ''} "
-                f"{'before' if gap >= 0 else 'after'} the outside date ({when})")
+    position = f"P50 rent start {_month_label(p50)}: {months(gap)} the outside date ({when})"
     return outcomes, m_value(position, site.as_of)
 
 

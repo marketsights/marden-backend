@@ -71,7 +71,7 @@ def test_abilene_withdrawn_permit_is_replaced_by_182126(abilene, committed):
     assert out["status"] != "Broken"
     stored = committed.execute("SELECT version FROM model_output WHERE model = 'status' AND subject_id = 'abilene'"
                                ).fetchone()
-    assert stored["version"] == status_model.VERSION == "0.4"
+    assert stored["version"] == status_model.VERSION == "0.5"
 
 
 def test_the_replacement_is_read_point_in_time(abilene):

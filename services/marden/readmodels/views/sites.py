@@ -5,7 +5,8 @@ One SiteSummary per site is shared with `site_detail`, so status and cushion are
 every screen (spec 05: one source). Chain links and status come from the `status` model, cushion,
 projection, rent start and driver from the `cushion` model; until those models have run for a site
 the values are n/d (status null, projection null, chain links grey with reason 'n/d'). Debt is the
-sum of the site's instruments' sizes (F/R/M as filed); lead lenders the lenders link's label.
+sum of the site's instruments' sizes (F/R/M as filed); lead lenders the lenders link's label. The chain cards'
+party details (SPV names, the lender group, why no end user is named) come from views/sites_chain.py.
 Non-US sites are left out of both lists (V1 is US only); `completion` also drops 'No build' sites.
 Both carry `buildings` (spec 16 "Bldgs", contracts/site-tabs.ts WithBuildingCount): built / total
 over the site's linked campuses, counted as the Data centers row counts a campus.
@@ -19,6 +20,7 @@ from marden.core.db import Conn, Row
 from marden.readmodels.registry import builder
 from marden.readmodels.views import facilities_status
 from marden.readmodels.views.facilities_common import campus_buildings
+from marden.readmodels.views.sites_chain import decorate_chain
 from marden.readmodels.views.sites_common import (
     Doc,
     chain_links,
@@ -128,6 +130,8 @@ def site_summary(conn: Conn, site: Row, *, instruments: list[Doc] | None = None)
     projection = projection_of(cushion_out)
     months = projection.get("cushionMonths") if projection else None
     instruments = site_instruments(conn, slug) if instruments is None else instruments
+    chain = decorate_chain(conn, slug, chain_links(parties, status_out), status_out, instruments)
+    lenders = next((link["party"] for link in chain if link["role"] == "lenders"), None)
     return {
         "slug": slug,
         "name": site["name"],
@@ -137,12 +141,12 @@ def site_summary(conn: Conn, site: Row, *, instruments: list[Doc] | None = None)
         "tenant": party_label(parties, "tenant"),
         "developer": party_label(parties, "developer") or "n/d",
         "gw": gw_value(facts),
-        "chain": chain_links(parties, status_out),
+        "chain": chain,
         "status": chain_status(status_out),
         "cushionMonths": months if isinstance(months, dict) else None,
         "rentStartP50": rent_start_p50(cushion_out, projection),
         "debtB": debt_value(instruments),
-        "leadLenders": party_label(parties, "lenders") or "n/d",
+        "leadLenders": lenders if lenders and lenders not in ("n/d", "—") else "n/d",
     }
 
 

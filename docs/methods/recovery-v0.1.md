@@ -25,7 +25,7 @@ One output per instrument:
      - With nothing delivered and no stated completion, v0.1 left the value of unfinished works n/d; v0.2 estimates the share from capex, schedule and imagery (below), never a flat assumption.
    - **Claims.** The site's other instruments (excluding GPU facilities) at their filed drawn amount, else their amount, ranked by `seniority`: secured 1, junior 2, unsecured 3. Guarantees and leases are not claims on the buildings.
    - **Recovery** = (value − claims ahead) ÷ claims at the instrument's rank, between 0 and 100c.
-3. **Corporate unsecured notes and converts.** n/d, because the issuer balance-sheet waterfall is not modelled in v0.
+3. **Corporate unsecured notes and converts.** n/d in v0.1 and v0.2; since v0.3 the issuer balance-sheet waterfall (below).
 
 ## v0.2: an estimated share finished, unfinished works and unspent proceeds (2026-10-22)
 
@@ -44,6 +44,48 @@ Owner feedback: a site under construction must never show n/d next to a flat 55c
 
 On 2026-10-22: Jupiter (EX-JUPITER-190) 41–45c, base 43c (share finished 34%, schedule only: Sep 2025 → Dec 2028; no footprint on file for the imagery estimate; $18B of claims at its rank). The Barn (EX-SALINE-308) 96–99c, base 97c (share 26%: schedule 18% from the Apr 2026 close, imagery 33%; $10.4B of the $14B notes still unspent).
 
+## v0.3: the issuer balance-sheet waterfall (2026-10-22)
+
+Corporate notes, converts, unsecured loans and parent-level secured facilities priced at a flat 40c. v0.3 gives
+each one its rank's recovery in its issuer's balance sheet (`recovery_issuer.py`; one output per issuer entity,
+one per instrument, method `issuer_waterfall`).
+
+- **Issuer.** The top of the issuer's parent chain; a holding company without a CIK takes the filer with its ticker
+  (Cipher Digital takes Cipher Digital Inc.'s filings).
+- **Inputs, point in time (tag F, each linked to its filing).** The latest 10-Q / 10-K public on the day (XBRL,
+  collector `sec_xbrl`, which now also collects total assets and liabilities, equity, receivables, restricted
+  cash, right-of-use assets, goodwill, intangibles and tagged secured / unsecured / convertible debt): total assets,
+  cash, restricted cash, receivables, PP&E net, total liabilities (else liabilities and equity less equity), lease
+  liabilities, balance-sheet debt. The debt stack is the instrument table (drawn, else amount; seniority; collateral
+  and ranking text), left out before its issue date; leases signed but not commenced from the lease curation. A
+  balance sheet without total assets, cash, PP&E or total liabilities is not run.
+- **Assets after haircuts (tag M).** Cash and restricted cash 100%; receivables 80%; PP&E split into GPUs and
+  servers (the stated share, else by role: GPU cloud 80%, GPU owner with its own data centers 60%, cloud
+  provider 50%, landlord 0%) at resale over depreciated cost (the issuer's own `gpu_collateral` pools: value per
+  GPU less the 20% resale haircut over new price × life left; else the GPU model's value at 1.5 years old), and
+  buildings, power and works at the site model's works value of the issuer's own sites (at most their cost, else
+  the works value stands for the cost) and 55% beyond them; right-of-use assets, goodwill and intangibles 0%; other
+  assets 25%. Debt raised after the balance-sheet date adds its proceeds at the PP&E blend.
+- **Claims by priority.** (1) SPV / opco secured debt (DDTLs, site notes) on its own collateral, ahead of the
+  holding company: each pool takes the lesser of its claims and its collateral value (gpu_collateral or
+  powered-shell value; no collateral model: taken as covered); a shortfall is a parent claim only when the parent
+  guarantees it. (2) Parent secured debt and finance leases. (3) Unsecured, pro rata: notes, converts, unsecured
+  loans, balance-sheet debt not itemised, lease rejection claims capped as 11 U.S.C. 502(b)(6) caps them (rent for
+  the greater of one year and 15% of the remaining term, at most three; commenced leases: rent = current portion +
+  7% of the liability, term from the liability as its present value; not commenced: commitment ÷ stated term),
+  guaranteed shortfalls, other liabilities. (4) Subordinated debt from what is left.
+- **Recovery** = value left for the rank ÷ claims at the rank, clamped to 5–95c; the range re-runs it with every
+  non-cash asset 20% lower and higher.
+- **No filings.** An issuer without an SEC balance sheet on file keeps the 40c senior unsecured convention, stated
+  with why (private, or a filer not linked).
+
+The price model (price v0.3) prices issuer bonds at the issuer's unsecured recovery and solves the issuer's
+bond-implied curve from its bonds at that same recovery (pricing-v0.1.md "v0.3").
+
+On 2026-10-22: CoreWeave unsecured 48c (39–61c; $40.8B of assets after haircuts, $14.6B secured ahead, $54.2B of
+unsecured claims), Oracle 49c (42–57c), Applied Digital 95c (its site notes are covered by their sites; the parent's
+claims are $1.4B against $3.9B left).
+
 ## Not in v0 (listed in each output's basis)
 
 - Land and equipment on site (no values on file).
@@ -53,5 +95,5 @@ On 2026-10-22: Jupiter (EX-JUPITER-190) 41–45c, base 43c (share finished 34%, 
 ## Runs
 
 - Weekly, Monday 09:41 UTC (spec 22 "Weekly").
-- Within a minute of an input changing: instrument terms, site capacity, cost or completion, any site's cost comp, GPU market inputs, or the `gpu_collateral` output.
+- Within a minute of an input changing: instrument terms, site capacity, cost or completion, any site's cost comp, GPU market inputs, the `gpu_collateral` output, or an issuer's XBRL balance sheet, lease commitments or role.
 - A run for today marks `@model:recovery` on the instrument.

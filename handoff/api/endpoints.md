@@ -18,6 +18,8 @@ Served by the Node/Fastify backend to our own web app. Session auth: Clerk sessi
 | GET | `/api/instruments/:id/holders` | Instrument detail, widget | holders |
 | GET | `/api/instruments/:id/moves` | Instrument detail | `InstrumentMoves` (contracts/moves.ts): 1D/1W/1M/QTD/YTD price and yield changes, what moved it |
 | GET | `/api/moves` | Moves, Home card | `MovesPage` (contracts/moves.ts; filters: type, site, tenant, endUser) |
+| GET | `/api/delivery` | Delivery record, payer pages | `DeliveryPage` (contracts/delivery.ts): who keeps having construction delays, per developer, issuer and tenant |
+| GET | `/api/mispriced` | Mispriced, Home card | `MispricedPage` (contracts/delivery.ts): Marden price against the latest market evidence and the events since |
 | GET | `/api/sites/:slug/debt-effects` | Site detail (Material events, Evidence) | `SiteDebtEffects` (contracts/moves.ts): each record's effect on the debt's value |
 | GET | `/api/payers/:slug` | Payer | `Payer` |
 | POST | `/api/stress/run` | Stress | `StressResult`, or `ContagionResult` for scenario `contagion` (spec 18) |

@@ -4,8 +4,11 @@
 The `recovery` model derives its range from the collateral ('62-74c', en dash; a bare '100' from the
 model gets its 'c'). The price model (v0.2) prices a facility with that model's central estimate when there is
 one (`recoveryBasis` 'site_waterfall': '52c (site collateral model)') and otherwise with a default it assumes
-(marden.models.price_chain BUILDING_RECOVERY and GPU_RECOVERY, 40% on bonds; 'default_assumption': '55c
-assumed (no site collateral model yet)'). A v0.1 price output has no basis: its recovery was always the default.
+(marden.models.price_chain BUILDING_RECOVERY and GPU_RECOVERY; 'default_assumption': '55c assumed (no site
+collateral model yet)'). Since v0.3 corporate notes and other issuer-level debt price at the issuer's
+balance-sheet waterfall (`recoveryBasis` 'issuer_waterfall': '48c (issuer balance-sheet waterfall)'), else
+the 40% convention ('40c assumed (no issuer balance sheet on file)'). A v0.1 price output has no basis: its
+recovery was always the default.
 """
 
 from __future__ import annotations
@@ -97,12 +100,14 @@ def recovery_from_output(value: Any, *, assumed: bool = False) -> str | None:
 
 SITE_MODEL = "site collateral model"
 NO_SITE_MODEL = "no site collateral model yet"
-NO_NOTE_MODEL = "no collateral model for corporate notes yet"
+NO_NOTE_MODEL = "no issuer balance sheet on file"
+ISSUER_MODEL = "issuer balance-sheet waterfall"
 
 
 def price_recovery_text(output: Any) -> str | None:
-    """The recovery the price model used, in plain words: '52c (site collateral model)', '55c assumed (no site
-    collateral model yet)', '40c assumed (no collateral model for corporate notes yet)'; None when unpriced."""
+    """The recovery the price model used, in plain words: '52c (site collateral model)', '48c (issuer
+    balance-sheet waterfall)', '55c assumed (no site collateral model yet)', '40c assumed (no issuer balance
+    sheet on file)'; None when unpriced."""
     if not isinstance(output, dict):
         return None
     n = num(output.get("recovery"))
@@ -111,6 +116,8 @@ def price_recovery_text(output: Any) -> str | None:
     cents = round(n * 100 if n <= 1 else n)
     if output.get("recoveryBasis") == "site_waterfall":
         return f"{cents}c ({SITE_MODEL})"
+    if output.get("recoveryBasis") == "issuer_waterfall":
+        return f"{cents}c ({ISSUER_MODEL})"
     bond = (output.get("recoveryInputs") or {}).get("method") == "bond_convention" or (
         (output.get("basis") or {}).get("mode") == "issuer bond")
     return f"{cents}c assumed ({NO_NOTE_MODEL if bond else NO_SITE_MODEL})"

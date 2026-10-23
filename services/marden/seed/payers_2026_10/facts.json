@@ -1,0 +1,130 @@
+[
+ {
+  "subject_type": "entity", "subject_id": "openai", "field": "reported_revenue",
+  "value": {"usd": 50000000000, "basis": "annualized, end of Sep 2026"},
+  "tag": "R", "source_name": "Bloomberg (via Yahoo Finance)",
+  "url": "https://finance.yahoo.com/technology/ai/articles/openai-expects-70-billion-annualized-014338719.html",
+  "find": "annualized revenue was roughly \\$50 billion at the end of September",
+  "valid_from": "2026-10-08"
+ },
+ {
+  "subject_type": "entity", "subject_id": "openai", "field": "funding_raised",
+  "value": {"usd": 122000000000, "basis": "latest round, Mar 2026"},
+  "tag": "R", "source_name": "Bloomberg (via Yahoo Finance)",
+  "url": "https://finance.yahoo.com/technology/ai/articles/openai-expects-70-billion-annualized-014338719.html",
+  "find": "most recently raised a \\$122 billion round in March at an \\$852 billion valuation, including the money",
+  "valid_from": "2026-10-08"
+ },
+ {
+  "subject_type": "entity", "subject_id": "openai", "field": "valuation",
+  "value": {"usd": 852000000000, "basis": "Mar 2026 round, including the new money"},
+  "tag": "R", "source_name": "Bloomberg (via Yahoo Finance)",
+  "url": "https://finance.yahoo.com/technology/ai/articles/openai-expects-70-billion-annualized-014338719.html",
+  "find": "most recently raised a \\$122 billion round in March at an \\$852 billion valuation, including the money",
+  "valid_from": "2026-10-08"
+ },
+ {
+  "subject_type": "entity", "subject_id": "openai", "field": "cash_burn",
+  "value": {"usd": 278000000000, "basis": "projected, 2026 to 2030 (investor presentation reported by the FT)"},
+  "tag": "R", "source_name": "Tom's Hardware (citing the Financial Times)",
+  "url": "https://www.tomshardware.com/tech-industry/artificial-intelligence/openai-projections-point-to-a-massive-usd278-billion-cash-burn-through-2030-that-exceeds-the-national-budgets-of-indonesia-and-norway-usd856-billion-compute-tab-outpaces-tenfold-revenue-surge",
+  "find": "OpenAI expects to spend \\$278 billion more money than it generates between 2026 and 2030",
+  "valid_from": "2026-09-21"
+ },
+ {
+  "subject_type": "entity", "subject_id": "anthropic", "field": "reported_revenue",
+  "value": {"usd": 65000000000, "basis": "annualized, end of Jul 2026"},
+  "tag": "R", "source_name": "Bloomberg (via Yahoo Finance)",
+  "url": "https://finance.yahoo.com/technology/ai/articles/openai-expects-70-billion-annualized-014338719.html",
+  "find": "Anthropic.s annualized revenue hit \\$65 billion by the end of July",
+  "valid_from": "2026-10-08"
+ },
+ {
+  "subject_type": "entity", "subject_id": "anthropic", "field": "funding_raised",
+  "value": {"usd": 65000000000, "basis": "Series H, May 2026"},
+  "tag": "R", "source_name": "TechCrunch",
+  "url": "https://techcrunch.com/2026/05/28/anthropic-raises-65-billion-nears-1t-valuation-ahead-of-ipo/",
+  "find": "Anthropic has snagged \\$65 billion in funding at a \\$965 billion post-money valuation",
+  "valid_from": "2026-05-28"
+ },
+ {
+  "subject_type": "entity", "subject_id": "anthropic", "field": "valuation",
+  "value": {"usd": 965000000000, "basis": "post-money, Series H May 2026"},
+  "tag": "R", "source_name": "TechCrunch",
+  "url": "https://techcrunch.com/2026/05/28/anthropic-raises-65-billion-nears-1t-valuation-ahead-of-ipo/",
+  "find": "Anthropic has snagged \\$65 billion in funding at a \\$965 billion post-money valuation",
+  "valid_from": "2026-05-28"
+ },
+ {
+  "subject_type": "entity", "subject_id": "xai-spacex", "field": "reported_revenue",
+  "value": {"usd": 2561000000, "basis": "Q2 2026, SpaceX AI segment"},
+  "tag": "F", "source_name": "SpaceX 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026052535/spcx-20260630.htm",
+  "find": "Three Months Ended June 30, 2026 Space Connectivity AI Total Reportable Segments Revenue \\$ 962 \\$ 4,291 \\$ 2,561 \\$ 7,814",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity", "subject_id": "xai-spacex", "field": "funding_raised",
+  "value": {"usd": 85675000000, "basis": "SpaceX IPO net proceeds, Jun 2026"},
+  "tag": "F", "source_name": "SpaceX 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026052535/spcx-20260630.htm",
+  "find": "In June 2026, the Company completed its initial public offering .{0,300}?net proceeds of \\$ 85,675 million",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity", "subject_id": "xai-spacex", "field": "listing",
+  "value": {"ticker": "SPCX", "exchange": "Nasdaq"},
+  "tag": "F", "source_name": "SpaceX 10-Q (Q2 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026052535/spcx-20260630.htm",
+  "find": "Class A Common Stock, \\$0.001 par value SPCX The Nasdaq",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity", "subject_id": "lambda-inc", "field": "funding_raised",
+  "value": {"usd": 1500000000, "basis": "latest round, Nov 2025 (Series E)"},
+  "tag": "R", "source_name": "TechCrunch",
+  "url": "https://techcrunch.com/2026/08/28/neocloud-lambda-secures-1b-in-debt-to-buy-more-chips/",
+  "find": "last November raised \\$1.5 billion in venture capital at a \\$5.43 billion post-money valuation, per PitchBook data",
+  "valid_from": "2026-08-28"
+ },
+ {
+  "subject_type": "entity", "subject_id": "lambda-inc", "field": "valuation",
+  "value": {"usd": 5430000000, "basis": "post-money, Nov 2025 (PitchBook)"},
+  "tag": "R", "source_name": "TechCrunch",
+  "url": "https://techcrunch.com/2026/08/28/neocloud-lambda-secures-1b-in-debt-to-buy-more-chips/",
+  "find": "last November raised \\$1.5 billion in venture capital at a \\$5.43 billion post-money valuation, per PitchBook data",
+  "valid_from": "2026-08-28"
+ },
+ {
+  "subject_type": "entity", "subject_id": "nscale", "field": "reported_revenue",
+  "value": {"usd": 140600000, "basis": "H1 2026 (Nscale S-1)"},
+  "tag": "F", "source_name": "Nscale S-1 (Sep 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+  "find": "Six months ended June 30, Year ended December 31, 2026 2025 2025 2024 \\(unaudited\\) \\(millions , except share and per share data\\) Consolidated Statements of Operations Data: Revenue \\$ 140.6",
+  "valid_from": "2026-06-30"
+ },
+ {
+  "subject_type": "entity", "subject_id": "nscale", "field": "funding_raised",
+  "value": {"usd": 3300000000, "basis": "series equity to date (Nscale S-1)"},
+  "tag": "F", "source_name": "Nscale S-1 (Sep 2026)",
+  "url": "https://www.sec.gov/Archives/edgar/data/2110365/000119312526395475/ck0002110365-20260918.htm",
+  "find": "raised over \\$3.3 billion through our series financing",
+  "valid_from": "2026-09-18"
+ },
+ {
+  "subject_type": "entity", "subject_id": "firmus", "field": "funding_raised",
+  "value": {"usd": 2000000000, "basis": "latest round, Aug 2026 (A$2.85B)"},
+  "tag": "R", "source_name": "Startup Daily",
+  "url": "https://www.startupdaily.net/topic/funding/ai-data-centre-startup-firmus-just-raised-another-2-85-billion-at-a-whopping-15b-valuation/",
+  "find": "valued at a staggering \\$15 billion \\(US\\$10.5bn\\) after raising an additional US\\$2bn \\(A\\$2.85bn\\)",
+  "valid_from": "2026-08-07"
+ },
+ {
+  "subject_type": "entity", "subject_id": "firmus", "field": "valuation",
+  "value": {"usd": 10500000000, "basis": "Aug 2026 round (A$15B)"},
+  "tag": "R", "source_name": "Startup Daily",
+  "url": "https://www.startupdaily.net/topic/funding/ai-data-centre-startup-firmus-just-raised-another-2-85-billion-at-a-whopping-15b-valuation/",
+  "find": "valued at a staggering \\$15 billion \\(US\\$10.5bn\\) after raising an additional US\\$2bn \\(A\\$2.85bn\\)",
+  "valid_from": "2026-08-07"
+ }
+]

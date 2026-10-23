@@ -6,17 +6,22 @@
 | tenant | T1 rated BBB- or lower, or must post contested collateral | T2 BBB- or lower and power denied or |
 | | | withdrawn (a withdrawal only if nothing replaces it), or force majeure filed |
 | developer | D1 in-service date slips 3+ months | D2 construction halted |
-| lenders | L1 Marden price 95-98 on credit alone, or | L2 Marden price below 95 on credit alone, or |
+| lenders | L1 market price 95-98 on credit alone, or | L2 market price below 95 on credit alone, or |
 | | syndication stalled | default notice |
 
 Chain status = worst link: any red -> Broken, any amber -> Strained, else Holding; 'No build' when a
 statement says construction has not started. A link without a named party is 'none' (lenders are judged
 whenever the site has debt). Each tripped rule keeps the statement that tripped it (the ChainLink `fact`);
 when several statements trip one rule, the filed one first, then the earliest. The price tests of L1 and L2
-are rate-neutral: a fixed-rate instrument trips L2 when its spread move since the reference day (issue, else
-the first Marden price) alone is worth 5+ points and L1 when it is worth 2 up to 5 points
-(`marden.models.status_credit`); a floating-rate loan trips L2 when its Marden price is below 95 and L1 at
-95-98. A withdrawn permit or queue position counts for T2 only when no other permit, application or queue
+read market evidence only (status v0.5): the newest TRACE trade, exchange or dealer quote (tag F or R) or
+fund mark on the instrument (`status_inputs.market_quotes`). The Marden model price never trips them on its
+own: our model marking a loan down is not evidence that its lenders are in trouble. When only the model
+price is past a line, the link says so in a note ("Marden model 83.3, no market quote; not used for
+status"). The tests are rate-neutral: a fixed-rate instrument trips L2 when the quote's spread move since the
+reference day (issue, else the first Marden price) alone is worth 5+ points and L1 when it is worth 2 up to
+5 points (`marden.models.status_credit`); a floating-rate loan trips L2 when its market price is below 95
+and L1 at 95-98. Default notices and stalled syndication are filed or reported statements and count as
+before. A withdrawn permit or queue position counts for T2 only when no other permit, application or queue
 position for the same plant / campus is live on the day (v0.4, `marden.models.status_power`). Text rules:
 `marden.models.status_text`; dates:
 `marden.models.status_dates`; method: docs/methods/status-rules-v0.1.md.
@@ -35,16 +40,18 @@ from marden.models import status_dates as dates
 from marden.models import status_power as sp
 from marden.models import status_text as tx
 from marden.models.status_credit import LOSS_AMBER_POINTS, LOSS_RED_POINTS
-from marden.models.status_inputs import Inputs, Item, Party, Price, SiteInputs
+from marden.models.status_inputs import Inputs, Item, Party, Price, Quote, SiteInputs
 
-METHOD_VERSION = "status v0.4"
+METHOD_VERSION = "status v0.5"
 PRICE_RED_BELOW = 95.0
 PRICE_AMBER_AT_OR_BELOW = 98.0
-L1_PRICE = "Marden price 95-98"  # a floating-rate loan (or terms not on file)
-L1_SPREAD = "Marden spread loss of 2-5 points"  # a fixed coupon: the spread move alone (status_credit)
-L2_PRICE = "Marden price below 95"  # a floating-rate loan (or terms not on file)
-L2_SPREAD = "Marden spread loss of 5+ points"  # a fixed coupon: the spread move alone (status_credit)
-PRICE_FINDINGS = (f"L1 {L1_PRICE}", f"L1 {L1_SPREAD}", f"L2 {L2_PRICE}", f"L2 {L2_SPREAD}")  # a link's reason
+L1_PRICE = "Market price 95-98"  # a floating-rate loan (or terms not on file)
+L1_SPREAD = "Market spread loss of 2-5 points"  # a fixed coupon: the spread move alone (status_credit)
+L2_PRICE = "Market price below 95"  # a floating-rate loan (or terms not on file)
+L2_SPREAD = "Market spread loss of 5+ points"  # a fixed coupon: the spread move alone (status_credit)
+# a link's reason; the v0.1-v0.4 labels (the Marden price) stay readable in stored snapshots
+PRICE_FINDINGS = (f"L1 {L1_PRICE}", f"L1 {L1_SPREAD}", f"L2 {L2_PRICE}", f"L2 {L2_SPREAD}",
+                  "L1 Marden price 95-98", "L1 Marden spread loss", "L2 Marden price below 95", "L2 Marden spread loss")
 SLIP_MONTHS = 3
 TAG_RANK = {"F": 0, "R": 1, "M": 2}
 SEVERITY = {"none": 0, "green": 1, "amber": 2, "red": 3}
@@ -270,53 +277,78 @@ def developer(site: SiteInputs, missing: list[str]) -> list[Finding]:
 
 
 # ---------------------------------------------------------------- lenders
-def _price_fact(p: Price, value: str, method: str | None = None) -> dict[str, Any]:
-    fact = {"value": value, "tag": "M", "asOf": p.as_of.isoformat(), "sourceName": "Marden model price",
-            "methodVersion": method or p.method_version or "price"}
-    if p.source_url:
-        fact["sourceUrl"] = p.source_url
-    return fact
+def _rule_of(loss: float | None, price: float | None) -> str | None:
+    """'L2' | 'L1' | None on a spread-only loss (fixed coupon) or a price (floating rate, or no terms)."""
+    if loss is not None:
+        return "L2" if loss >= LOSS_RED_POINTS else "L1" if loss >= LOSS_AMBER_POINTS else None
+    if price is None:
+        return None
+    return "L2" if price < PRICE_RED_BELOW else "L1" if price <= PRICE_AMBER_AT_OR_BELOW else None
 
 
 def credit_shortfall(p: Price) -> float | None:
-    """Points below par on credit alone: a fixed coupon's spread-only loss since its reference day, a
-    floating-rate loan's (or a price without terms) 100 - price. None when a fixed coupon has no reading."""
+    """Points below par on credit alone, on the market quote: a fixed coupon's spread-only loss since its
+    reference day, a floating-rate loan's (or a price without terms) 100 - price. None without a reading."""
     if p.coupon_type == "fixed":
-        return p.credit.loss if p.credit is not None else None
-    return 100.0 - p.value
+        return p.market_credit.loss if p.market_credit is not None else None
+    return 100.0 - p.market.price if p.market is not None else None
 
 
 def price_rule(p: Price) -> str | None:
-    """'L2' | 'L1' | None: the price rule one instrument trips. A fixed coupon by its spread-only loss (5+
-    points: L2; 2 up to 5: L1), a floating-rate loan (or a price without terms) by its price (below 95: L2;
-    95-98: L1). A fixed coupon without a rate-neutral reading trips neither."""
+    """'L2' | 'L1' | None: the price rule one instrument trips, on market evidence only (status v0.5). A
+    fixed coupon by its quote's spread-only loss (5+ points: L2; 2 up to 5: L1), a floating-rate loan (or a
+    price without terms) by its market price (below 95: L2; 95-98: L1). No market quote, or a fixed coupon
+    without a rate-neutral reading of its quote: neither."""
     if p.coupon_type == "fixed":
-        if p.credit is None:
-            return None
-        loss = p.credit.loss
-        return "L2" if loss >= LOSS_RED_POINTS else "L1" if loss >= LOSS_AMBER_POINTS else None
-    return "L2" if p.value < PRICE_RED_BELOW else "L1" if p.value <= PRICE_AMBER_AT_OR_BELOW else None
+        return _rule_of(p.market_credit.loss, None) if p.market_credit is not None else None
+    return _rule_of(None, p.market.price) if p.market is not None else None
+
+
+def model_rule(p: Price) -> str | None:
+    """The rule the Marden model price alone would trip (the same lines): shown as a note, never a finding."""
+    if p.coupon_type == "fixed":
+        return _rule_of(p.credit.loss, None) if p.credit is not None else None
+    return _rule_of(None, p.value)
+
+
+def _quote_words(q: Quote) -> str:
+    """'dealer quote, Kfgo, 2026-09-18': what the market evidence is, its source and its date."""
+    day = q.day.isoformat()
+    return f"{q.words}, {q.source_name}" + ("" if day in q.source_name else f", {day}")
 
 
 def _price_finding(code: str, p: Price) -> Finding:
-    """The L1 / L2 finding on one instrument's Marden price (fixed coupon: its spread-only loss)."""
+    """The L1 / L2 finding on one instrument's market evidence (fixed coupon: its spread-only loss)."""
     status = "red" if code == "L2" else "amber"
-    if p.credit is None:  # floating rate: the price is already a credit price
+    q = p.market
+    assert q is not None
+    c = p.market_credit
+    if c is None:  # floating rate: the price is already a credit price
         kind = "floating rate" if p.coupon_type == "floating" else "coupon type n/d"
-        text = f"Marden price {p.value:.1f} ({p.instrument_id}, {kind})"
+        text = f"market price {q.price:.1f} ({p.instrument_id}, {kind}; {_quote_words(q)}); Marden model {p.value:.1f}"
         label = L2_PRICE if code == "L2" else L1_PRICE
-        return Finding(code, status, label, detail=text, fact=_price_fact(p, text))
-    c = p.credit
-    text = (f"{p.instrument_id}: Marden spread {c.spread_bp:.0f} bp vs {c.ref.spread_bp:.0f} bp {c.ref.at}, "
-            f"{c.loss:.1f} points on spread alone (spread duration {c.spread_duration:.1f}; rate-neutral price "
-            f"{c.credit_price:.1f} vs {c.ref_price:.1f}); Marden price {p.value:.1f}")
-    fact = _price_fact(p, f"Marden spread loss {c.loss:.1f} points ({p.instrument_id}: {c.spread_bp:.0f} bp vs "
-                          f"{c.ref.spread_bp:.0f} bp {c.ref.at})",
-                       f"{METHOD_VERSION} on {p.method_version or 'price'}")
+        return Finding(code, status, label, detail=text,
+                       fact=q.sourced(f"Market price {q.price:.1f} ({p.instrument_id}, {q.words})"))
+    text = (f"{p.instrument_id}: market spread {c.spread_bp:.0f} bp ({q.price:.1f}, {_quote_words(q)}) vs "
+            f"{c.ref.spread_bp:.0f} bp {c.ref.at}, {c.loss:.1f} points on spread alone (spread duration "
+            f"{c.spread_duration:.1f}; rate-neutral price {c.credit_price:.1f} vs {c.ref_price:.1f}); "
+            f"Marden model {p.value:.1f}")
+    fact = {**q.sourced(f"Market spread loss {c.loss:.1f} points ({p.instrument_id}: {c.spread_bp:.0f} bp vs "
+                        f"{c.ref.spread_bp:.0f} bp {c.ref.at})"),
+            "tag": "M", "sourceName": f"Marden status model on {q.source_name}", "methodVersion": METHOD_VERSION}
     return Finding(code, status, L2_SPREAD if code == "L2" else L1_SPREAD, detail=text, fact=fact)
 
 
-def lenders(site: SiteInputs, missing: list[str]) -> list[Finding]:
+def _model_note(p: Price) -> str:
+    """Why the Marden model price, past a line on its own, sets no status."""
+    loss = f", spread-only loss {p.credit.loss:.1f} points" if p.coupon_type == "fixed" and p.credit else ""
+    if p.market is None:
+        return f"Marden model {p.value:.1f} ({p.instrument_id}{loss}), no market quote; not used for status"
+    return f"Marden model {p.value:.1f} ({p.instrument_id}{loss}) not used for status"  # the quote: the green clause
+
+
+def lenders(site: SiteInputs, missing: list[str], notes: list[str] | None = None) -> list[Finding]:
+    """L1 / L2 findings; `notes` gets one line per instrument whose Marden model price alone is past a line."""
     found = []
     debt_items = site.items + site.instrument_items
     default = _scan(debt_items, tx.default_notice, site=site, fields=DEBT_FIELDS)
@@ -326,12 +358,18 @@ def lenders(site: SiteInputs, missing: list[str]) -> list[Finding]:
         found.append(Finding("L2", "red", "Default notice", pick[0], pick[1].clause))
     if site.prices:
         for p in site.prices:
-            if p.coupon_type == "fixed" and p.credit is None:
-                missing.append(f"lenders: {p.credit_missing or p.instrument_id} (rate-neutral L1 / L2 test)")
+            if p.market is None:
+                missing.append(f"lenders: market price of {p.instrument_id} (a trade, exchange or dealer quote, or "
+                               "fund mark; L1 / L2 price test)")
+            elif p.coupon_type == "fixed" and p.market_credit is None:
+                missing.append(f"lenders: {p.market_missing or p.credit_missing or p.instrument_id} "
+                               "(rate-neutral L1 / L2 test)")
         tripped: dict[str, list[tuple[float, str, Price]]] = defaultdict(list)
         for p in site.prices:
             if (code := price_rule(p)) is not None:
                 tripped[code].append((credit_shortfall(p) or 0.0, p.instrument_id, p))
+            elif model_rule(p) is not None and notes is not None:
+                notes.append(_model_note(p))
         for code in ("L2", "L1"):  # the worst rule; within it the largest loss on credit alone
             if tripped[code]:
                 found.append(_price_finding(code, max(tripped[code], key=lambda r: r[:2])[2]))
@@ -344,12 +382,18 @@ def lenders(site: SiteInputs, missing: list[str]) -> list[Finding]:
     return found
 
 
-def _price_note(p: Price) -> str:
-    """The green lenders link's price clause: the lowest Marden price and, for a fixed coupon, its spread move."""
-    if p.credit is None:
-        return f"Marden price {p.value:.1f}"
-    return (f"Marden price {p.value:.1f} ({p.instrument_id}: spread-only loss {p.credit.loss:.1f} points "
-            f"{p.credit.ref.since})")
+def _price_note(prices: list[Price]) -> str:
+    """The green lenders link's price clause: the lowest market price (for a fixed coupon, its spread move),
+    else that no market quote is on file."""
+    quoted = [p for p in prices if p.market is not None]
+    if not quoted:
+        return "; no market quote on file" if prices else "; no Marden price yet"
+    p = min(quoted, key=lambda x: x.market.price if x.market else 0.0)
+    assert p.market is not None
+    clause = f"; market price {p.market.price:.1f} ({p.instrument_id}, {_quote_words(p.market)})"
+    if p.market_credit is not None:
+        clause += f", spread-only loss {p.market_credit.loss:.1f} points {p.market_credit.ref.since}"
+    return clause
 
 
 # ---------------------------------------------------------------- links and chain
@@ -412,10 +456,12 @@ def evaluate(site: SiteInputs, inputs: Inputs, pool: dict[str, list[RatingEviden
                        "No developer rule met: no in-service slip of 3+ months and no halt on file"))
     if "lenders" in parties or site.instruments:
         lend = parties.get("lenders")
-        price = min(site.prices, key=lambda p: p.value) if site.prices else None
+        lender_notes: list[str] = []
+        found_l = lenders(site, missing, lender_notes)
         green = "No lender rule met: no default notice or stalled syndication on file"
-        green += f"; {_price_note(price)}" if price else "; no Marden price yet"
-        chain.append(_link("lenders", lend.label if lend else "n/d", lenders(site, missing), green))
+        if not (lender_notes and all(p.market is None for p in site.prices)):  # else the notes say it
+            green += _price_note(site.prices)
+        chain.append(_link("lenders", lend.label if lend else "n/d", found_l, green, notes=lender_notes))
     else:
         chain.append(_none("lenders", "No debt is linked to this site"))
     if not site.links:

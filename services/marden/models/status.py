@@ -6,9 +6,10 @@ For each site the four ChainLinks (end_user, tenant, developer, lenders) with Li
 (E1/E2, T1/T2, D1/D2, L1/L2), the reason and the statement that tripped the rule, and the ChainStatus
 (worst link). L2's price test is rate-neutral from v0.2, L1's from v0.3: a fixed coupon's spread move since
 issue (else its first Marden price) worth 5+ points (L2) or 2 up to 5 points (L1), a floating-rate loan's
-price below 95 (L2) or 95-98 (L1) (status_credit). From v0.4 a withdrawn permit or queue position trips
-T2's power test only when no other permit, application or queue position for the same plant / campus is
-live on the day (status_power). One
+price below 95 (L2) or 95-98 (L1) (status_credit). From v0.5 that price is market evidence only (a trade,
+an exchange or dealer quote, or a fund mark): the Marden model price alone never trips L1 or L2. From v0.4
+a withdrawn permit or queue position trips T2's power test only when no other permit, application or
+queue position for the same plant / campus is live on the day (status_power). One
 `model_output` per site and as-of day: model 'status', version VERSION, subject ('site', slug), output =
 {chain: ChainLink[], status: ChainStatus, missing: [...]} - the `chain` and `status` pieces of types.ts
 SiteSummary, plus the inputs that were not on file. Rules: status_rules.py; inputs: status_inputs.py;
@@ -57,8 +58,9 @@ from marden.readmodels.deps import mark_dirty_for, via
 log = logging.getLogger(__name__)
 
 MODEL = "status"
-VERSION = "0.4"  # 0.2: L2 reads the Marden price rate-neutral (status_credit); 0.3: L1 as well; 0.4: a
-# withdrawn permit or queue position trips T2 only when nothing replaces it (status_power)
+VERSION = "0.5"  # 0.2: L2 reads the Marden price rate-neutral (status_credit); 0.3: L1 as well; 0.4: a
+# withdrawn permit or queue position trips T2 only when nothing replaces it (status_power); 0.5: L1 / L2
+# read market evidence only, not the Marden model price (status_inputs.market_quotes)
 CRON_UTC = "53 9 * * *"
 OUTPUT_FIELD = f"@model:{MODEL}"
 
@@ -68,7 +70,9 @@ def _inputs_hash(inputs: Inputs, slugs: list[str]) -> str:
     for slug in slugs:
         site = inputs.sites[slug]
         used.append([slug, sorted({it.origin for it in site.items + site.instrument_items}),
-                     [[p.instrument_id, p.value, p.as_of.isoformat()] for p in site.prices],
+                     [[p.instrument_id, p.value, p.as_of.isoformat(),
+                       [p.market.source_name, p.market.price, p.market.day.isoformat()] if p.market else None]
+                      for p in site.prices],
                      sorted({a.origin for a in site.authorizations})])
     used.append(sorted({it.origin for items in inputs.entity_items.values() for it in items}))
     return sha256_hex(canonical_json(used))

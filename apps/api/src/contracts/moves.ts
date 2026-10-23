@@ -30,7 +30,7 @@ export interface MoveWindow {
   from: MovePoint | null; to: MovePoint | null;
   change: Sourced<number>;                     // points; null = n/d (see why)
   yieldMeasure: 'YTW' | 'YTM';
-  yieldChangeBp: Sourced<number>;              // M; null = n/d (see yieldWhy)
+  yieldChangeBp: Sourced<number>;              // M (no Marden price: the trade's tag); null = n/d (see yieldWhy)
   dmChangeBp: Sourced<number> | null;          // floating rate only
   why: string | null;                          // why change is n/d
   yieldWhy: string | null;

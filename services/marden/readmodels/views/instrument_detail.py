@@ -56,6 +56,7 @@ from marden.readmodels.views.instruments import gap_rows, instrument_row
 from marden.readmodels.views.recovery_detail import detail as recovery_detail
 from marden.readmodels.views.recovery_detail import tile as recovery_tile
 from marden.readmodels.views.recovery_text import recovery_from_facts, recovery_from_output
+from marden.readmodels.views.sites_chain import instrument_lenders
 
 HOLDER_FILINGS = ("N-PORT", "10-Q")
 _MEDIAN_N = re.compile(r"median of (\d+) funds")
@@ -349,10 +350,11 @@ def price_event(key: str, doc: dict[str, Any]) -> dict[str, Any] | None:
     return {"type": "price", "instrumentId": key, "price": price, "change1w": change}
 
 
-def terms_block(inst: Row, facts: dict[str, Row]) -> dict[str, Any]:
-    """terms, why the missing ones are n/d (termsNotDisclosed) and the lender group (lenders; spec 07)."""
+def terms_block(inst: Row, facts: dict[str, Row], conn: Conn | None = None) -> dict[str, Any]:
+    """terms, why the missing ones are n/d (termsNotDisclosed) and the lender group (lenders; spec 07): the
+    instrument's own lender facts, else its package's and its site's research records (views/sites_chain.py)."""
     shown = terms(inst, facts)
-    group = lenders(facts)
+    group = lenders(facts) or (instrument_lenders(conn, inst) if conn is not None else [])
     return {"terms": shown, "termsNotDisclosed": terms_not_disclosed(facts, shown, group), "lenders": group}
 
 
@@ -376,7 +378,7 @@ def build_instrument_detail(conn: Conn, key: str) -> dict[str, Any] | None:
         "yields": ctx["yields"],
         "holders": holders(ctx["gap_out"], ctx["lines"]),
         "stress": stress_rows(conn, key),
-        **terms_block(inst, facts),
+        **terms_block(inst, facts, conn),
         "payers": payers(facts),
         "marketCheck": market_check(
             ctx["price_out"], ctx["observed"], ctx["marks"], entity_names(conn, cds_entities(ctx["price_out"]))

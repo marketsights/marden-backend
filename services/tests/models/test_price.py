@@ -246,7 +246,7 @@ def test_full_run_writes_outputs_marks_views_and_does_not_retrigger_itself():
     crwv = result["cds"]["coreweave"]
     assert crwv["label"] == "Marden bond-implied CDS" and 600 < crwv["spreadBp"] < 1600
     jup = result["prices"]["EX-JUPITER-190"]
-    assert jup["methodVersion"] == "price v0.2" and jup["band"]["label"] == "model v0"
+    assert jup["methodVersion"] == "price v0.3" and jup["band"]["label"] == "model v0"
     assert jup["price"] is not None and jup["band"]["low"] <= jup["price"] <= jup["band"]["high"]
     assert {"price", "spreadBp", "yieldPct", "recovery", "change1w", "inputs", "band", "missing"} <= set(jup)
     assert any(i["key"] == "tenantCdsBp" for i in jup["inputs"])

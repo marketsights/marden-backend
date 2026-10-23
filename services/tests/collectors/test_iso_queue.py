@@ -183,6 +183,7 @@ def test_links_mark_the_linked_subjects_pages_dirty(conn):
     store.finish(source_url="https://www.nyiso.com/x.xlsx", document_id=None)
     assert deps.targets("queue_project", "nyiso:1670", "linked_site", conn=conn) == {
         ("site_detail", "lake-mariner"), ("site_tab:power", "lake-mariner")}
-    assert deps.targets("queue_project", "nyiso:1670", "status", conn=conn) == set()  # no page per queue entry
+    # no page per queue entry; the Pipeline lists queue load requests
+    assert deps.targets("queue_project", "nyiso:1670", "status", conn=conn) == {("pipeline", "all")}
     dirty = {(r["view"], r["key"]) for r in conn.execute("SELECT view, key FROM read_model_dirty").fetchall()}
     assert {("site_detail", "lake-mariner"), ("site_tab:power", "lake-mariner")} <= dirty

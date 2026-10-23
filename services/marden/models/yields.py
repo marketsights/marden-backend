@@ -1,5 +1,5 @@
 """Model `yield` (docs/methods/yield-v0.1.md): yield to maturity, yield to worst and, for floating-rate debt,
-the discount margin, worked from every Marden daily price and from the latest observed price.
+the discount margin, worked from every Marden daily price and from the latest market price.
 
     cd services && uv run python -m marden model yield [--as-of YYYY-MM-DD] [--instrument ID ...] [--json]
 
@@ -12,20 +12,25 @@ rate of those flows against the dirty price, compounded twice a year (bond-equiv
 yields compare), settling on the price date:
 
 - YTM: to the stated maturity, redeemed at par.
-- YTW: the lowest yield over the dates the issuer or borrower may choose: the stated maturity, each
+- YTW: the lowest yield over the stated maturity and the dates the issuer or borrower may choose: each
   extension option (the coupon text or research terms: 'two 1-yr extensions'), a call stated in the
   research terms ('Callable at par from 15 May 2042'), and for a bank loan (construction loan, term loan,
-  DDTL) prepayment at par on any interest date. A call the archive only presumes ('First call presumed
-  about Aug 2028 at 104.94 (model assumption)') is worked and shown but left out of YTW; a make-whole call
-  never sets YTW. With no call or extension in the sources, YTW = YTM and the output says so.
+  DDTL) prepayment at par on any interest date; and a holder put stated on a date ('Holders may require
+  repurchase at par on 1 Jun 2029'). A put on a fundamental change has no date and is noted, not worked.
+  A call the archive only presumes ('First call presumed about Aug 2028 at 104.94 (model assumption)') is
+  worked and shown but left out of YTW; a make-whole call never sets YTW. With no call or extension in the
+  sources, YTW = YTM and the output says so.
 - DM (floating): the spread over SOFR (held at the current fixing) that discounts the flows to the dirty
   price.
 
 One `model_output` per instrument (model 'yield', version VERSION, subject ('instrument', id)): the
-headline yields (Sourced, tag M) at the latest Marden price (else the latest observed price), the dates
-worked, the assumptions in plain words, the inputs used (each sourced), one point per Marden daily price
-and the yields at the latest observed price. No price or no terms: the yields are null (n/d) and `why`
-says what is missing, in plain words. Convertibles, non-USD notes and securitizations are not worked.
+headline yields at the latest Marden price (Sourced, tag M), else at the latest market price (a TRACE
+trade, a BondTerminal or Börse Frankfurt quote, a dealer quote: price_obs, worked on that observation's
+date and tagged with its tag, F or R, and source), the dates worked, the assumptions in plain words, the
+inputs used (each sourced), one point per Marden daily price and the yields at the latest market price.
+No price or no terms: the yields are null (n/d) and `why` says what is missing, in plain words. A
+convertible is worked as a straight bond: the yield on the trade price, ignoring the conversion option
+(`note` says so). Non-USD notes and securitizations are not worked.
 
 Runs daily 09:44 UTC (after the 09:40 price run) and within a minute of a new price output, a price
 observation, an instrument's terms or a SOFR fixing (`models.run_dirty`).
@@ -71,7 +76,8 @@ CRON_UTC = "44 9 * * *"
 LOAN_KINDS = ("construction_loan", "term_loan", "ddtl")  # prepayable at par on an interest date (assumed)
 SECURITIZED = ("abs", "cmbs")
 OBSERVED_KINDS = ("trade", "exchange", "dealer", "quote")
-EXTRA_FIELDS = ("research_terms", "maturity_text", "amortization", "sofr_floor_pct")
+MARKET_RANK = {"quote": 0, "dealer": 1, "exchange": 2, "trade": 3}  # same day: a trade over a quote
+EXTRA_FIELDS = ("research_terms", "maturity_text", "amortization", "sofr_floor_pct", "covenants")
 PERPETUAL_YEAR = 2100  # a maturity this far out is the loaders' perpetual placeholder (3999-12-31)
 _GAP_WORDS = {"coupon terms": "coupon", "coupon rate": "coupon rate", "floating margin": "floating margin",
               "maturity": "maturity", "terms": "coupon and maturity"}
@@ -88,6 +94,12 @@ _NO_CALL = re.compile(r"call terms not in the sources", re.I)
 _AMORTIZES = re.compile(r"\bamortiz", re.I)
 _NOT_DISCLOSED = re.compile(r"amortization not disclosed", re.I)
 _FLOOR = re.compile(r"(\d+(?:\.\d+)?)% floor", re.I)  # 'Term SOFR with a 2.50% floor'
+_PUT = re.compile(r"\b(?:put(?:t?able)?|holders?\W{0,2} (?:may|can|have the right to|option to) (?:require|put)|"
+                  r"repurchase (?:right|option)|holder put)\b", re.I)
+_PUT_DATE = re.compile(rf"\b(?:on|in) ({_DAY_MONTH}|[A-Z][a-z]{{2,8}} \d{{4}})")
+_PUT_PRICE = re.compile(r"\bat (par|\d{2,3}(?:\.\d+)?)(?:%|\b)(?! [A-Z][a-z]{2,8}\b)", re.I)
+_CONTINGENT = re.compile(r"fundamental change|change of control|delisting", re.I)
+_SENTENCE = re.compile(r"(?<!\d)[.;](?!\d)")
 _FIXING = re.compile(r"\((?:~)?(\d+(?:\.\d+)?)% at (\d{1,2} [A-Z][a-z]{2,8}(?: \d{4})?)")  # '(6.14% at 30 Jun)'
 
 
@@ -124,7 +136,7 @@ def _count(word: str) -> int | None:
 class Workout:
     """A date the debt may be redeemed on, and at what price per 100."""
 
-    kind: str  # 'maturity' | 'extended' | 'call' | 'prepay'
+    kind: str  # 'maturity' | 'extended' | 'call' | 'prepay' | 'put'
     day: date
     price: float
     label: str
@@ -138,6 +150,7 @@ class Options:
     extensions: int = 0
     extension_months: int = 0
     calls: list[Workout] = field(default_factory=list)
+    puts: list[Workout] = field(default_factory=list)  # holder puts stated on a date (counted in YTW)
     prepay_at_par: bool = False
     notes: list[str] = field(default_factory=list)
     amortizing: bool = False
@@ -146,10 +159,11 @@ class Options:
     rows: dict[str, Row] = field(default_factory=dict)  # input key -> the fact row it was read from
 
 
-def _texts(inst: Instrument) -> list[tuple[str, Row, str]]:
+def _texts(inst: Instrument, fields: Sequence[str] = ("coupon", "maturity_text", "research_terms")
+           ) -> list[tuple[str, Row, str]]:
     """(field, fact row, text) of the term texts the options are read from."""
     out = []
-    for fld in ("coupon", "maturity_text", "research_terms"):
+    for fld in fields:
         row = inst.facts.get(fld)
         if row is None:
             continue
@@ -160,8 +174,35 @@ def _texts(inst: Instrument) -> list[tuple[str, Row, str]]:
     return out
 
 
+def _puts(inst: Instrument, opts: Options) -> None:
+    """Holder puts stated on a date (coupon, maturity or research terms, covenants): 'Holders may require the
+    company to repurchase the notes at par on 1 Jun 2029'. A put on a fundamental change (a takeover, a
+    delisting) has no date: noted, not worked."""
+    contingent = False
+    for _fld, row, text in _texts(inst, ("coupon", "maturity_text", "research_terms", "covenants")):
+        for sentence in _SENTENCE.split(text):
+            if not _PUT.search(sentence):
+                continue
+            if _CONTINGENT.search(sentence):
+                contingent = True
+                continue
+            pm = _PUT_PRICE.search(sentence)
+            price = 100.0 if pm is None or pm.group(1).lower() == "par" else float(pm.group(1))
+            for dm in _PUT_DATE.finditer(sentence):
+                day = _parse_day(dm.group(1)) or _parse_month(dm.group(1))
+                if day is None or any(p.day == day for p in opts.puts):
+                    continue
+                what = "par" if price == 100.0 else f"{price:g}"
+                opts.puts.append(Workout("put", day, price, f"Put by holders at {what} on {when(day)}"))
+                opts.rows.setdefault("put", row)
+    if contingent:
+        opts.notes.append("Holders may require repurchase at par on a fundamental change (a takeover or delisting). "
+                          "That right has no date, so it is not worked.")
+
+
 def options(inst: Instrument) -> Options:
-    """Extensions, calls and prepayment from the instrument's terms (coupon text, maturity text, research terms)."""
+    """Extensions, calls, puts and prepayment from the instrument's terms (coupon text, maturity text, research
+    terms; puts also from the covenants)."""
     opts = Options(prepay_at_par=inst.kind in LOAN_KINDS)
     for fld, row, text in _texts(inst):
         m = _EXTENSION.search(text)
@@ -215,6 +256,7 @@ def options(inst: Instrument) -> Options:
     if floor is not None and isinstance(floor["value"], int | float) and not isinstance(floor["value"], bool):
         opts.floor_pct = float(floor["value"])  # a stated floor field wins over the text
         opts.rows["floor"] = floor
+    _puts(inst, opts)
     return opts
 
 
@@ -227,7 +269,8 @@ def snap(terms: Terms, start: date, settle: date) -> date | None:
 
 
 def workouts(terms: Terms, opts: Options, settle: date) -> list[Workout]:
-    """Every redemption date worked: stated maturity, each extension, the calls, prepayment at par."""
+    """Every redemption date worked: stated maturity, each extension, the calls, the holder puts, prepayment at
+    par."""
     out = [Workout("maturity", terms.maturity, 100.0, f"Stated maturity, {when(terms.maturity)}")]
     for k in range(1, opts.extensions + 1):
         day = terms.maturity + relativedelta(months=opts.extension_months * k)
@@ -238,6 +281,10 @@ def workouts(terms: Terms, opts: Options, settle: date) -> list[Workout]:
         day = snap(terms, c.day, settle)
         if day is not None and day < last:
             out.append(replace(c, day=day))
+    for p in opts.puts:
+        day = snap(terms, p.day, settle)
+        if day is not None and day < last:
+            out.append(replace(p, day=day))
     if opts.prepay_at_par:
         for day in schedule(replace(terms, maturity=last), settle)[:-1]:
             out.append(Workout("prepay", day, 100.0, f"Prepaid at par, {when(day)}"))
@@ -332,9 +379,6 @@ def solve(terms: Terms, opts: Options, settle: date, sofr_pct: float | None, cle
 # ---------------------------------------------------------------- one instrument
 def _why_not(inst: Instrument) -> str | None:
     """Plain reason an instrument is not worked at all (before any price)."""
-    if inst.kind == "convert":
-        return ("No yield: a convertible note's value depends on the share price, and the equity option is not "
-                "modelled.")
     if inst.kind in SECURITIZED:
         return ("No yield: securitized notes repay principal early on a schedule the sources do not give, so a "
                 "yield to the legal maturity would mislead.")
@@ -408,12 +452,32 @@ class PricePoint:
         return out
 
 
+def _price_words(basis: PricePoint | None) -> str:
+    """'trade price', 'quoted price', 'Marden price': what a yield is worked on."""
+    if basis is None or basis.kind == "marden":
+        return "Marden price"
+    return "trade price" if basis.kind == "trade" else "quoted price"
+
+
+def convert_note(basis: PricePoint | None) -> str:
+    """The YTW tile's note on a convertible: 'Yield on the trade price, ignoring the conversion option.'"""
+    return f"Yield on the {_price_words(basis)}, ignoring the conversion option."
+
+
 def assumptions(inst: Instrument, opts: Options, s: Solved | None, price: float | None,
-                sofr: tuple[date, float] | None = None) -> list[str]:
+                sofr: tuple[date, float] | None = None, basis: PricePoint | None = None) -> list[str]:
     """The method's assumptions for this instrument, in plain words (the hover on the Yield tile)."""
     t = inst.terms
     assert t is not None
     out: list[str] = []
+    if inst.kind == "convert":
+        out.append(f"A convertible note, worked as a straight bond: the yield on the {_price_words(basis)}, ignoring "
+                   "the conversion option. The flows are the coupons and par at maturity, as if the note is never "
+                   "converted; the share price and the conversion terms are not modelled, so when the option is "
+                   "worth a lot the yield is low or negative.")
+    if basis is not None and basis.kind != "marden":
+        out.append(f"No Marden price: worked from the latest market price, {basis.source_name} {basis.price:.2f} on "
+                   f"{when(basis.day)}, settling that day.")
     if t.floating:
         margin = f"SOFR + {(t.margin_bp or 0.0) / 100:.2f}%"
         if s is not None and s.coupon is not None and sofr is not None:
@@ -453,9 +517,14 @@ def assumptions(inst: Instrument, opts: Options, s: Solved | None, price: float 
     if calls:
         out.append("Call terms from the research terms: " + "; ".join(c.label[:1].lower() + c.label[1:] for c in calls)
                    + ". Worked to the first call date and to maturity.")
+    if opts.puts:
+        out.append("Holder put from the terms: " + "; ".join(p.label[:1].lower() + p.label[1:] for p in opts.puts)
+                   + ". Worked to the put date and to maturity; yield to worst is the lower of the yields worked.")
     out.extend(opts.notes)
     if not t.floating and not calls and not any("call" in n for n in opts.notes) and not opts.prepay_at_par:
-        out.append("No call schedule in the sources, so yield to worst equals yield to maturity.")
+        out.append("No call schedule in the sources, so " + (
+            "yield to worst is the lower of the yields to the put and to maturity." if opts.puts else
+            "yield to worst equals yield to maturity."))
     if opts.floor_pct is not None and sofr is not None and opts.floor_pct <= sofr[1]:
         out.append(f"The {opts.floor_pct:g}% SOFR floor is below the current fixing, so it has no effect.")
     if opts.amortizing:
@@ -467,16 +536,27 @@ def assumptions(inst: Instrument, opts: Options, s: Solved | None, price: float 
     return out
 
 
+def yield_value(value: float | None, basis: PricePoint) -> dict[str, Any]:
+    """Sourced<T> of a yield worked from `basis`: tag M (this model) on a Marden price; on a market price the
+    price's own tag (F for a TRACE trade, R for a quote) and source, dated the observation, with the method that
+    worked it."""
+    if basis.kind == "marden":
+        return {**m_value(value, basis.day, METHOD, source_name=LABEL), "sourceUrl": METHOD_URL}
+    return {"value": value, "tag": basis.tag or "R", "sourceName": basis.source_name, "asOf": basis.day.isoformat(),
+            "methodVersion": METHOD, "sourceUrl": basis.source_url or METHOD_URL}
+
+
 def instrument_output(inst: Instrument, book: CurveBook, day: date, series: list[PricePoint],
                       observed: PricePoint | None) -> dict[str, Any]:
-    """The 'yield' output of one instrument as of `day`."""
+    """The 'yield' output of one instrument as of `day`: worked from the latest Marden price, else from the
+    latest market price (`observed`)."""
     t = inst.terms
     out: dict[str, Any] = {
         "label": LABEL, "methodVersion": METHOD, "sourceUrl": METHOD_URL,
         "couponType": t.coupon_type if t else None,
         "ytm": m_value(None, day, METHOD, source_name=LABEL), "ytw": m_value(None, day, METHOD, source_name=LABEL),
         "dmBp": None, "ytmTo": None, "ytwTo": None, "basis": None, "workouts": [], "points": [], "observed": None,
-        "assumptions": [], "inputs": [], "why": None, "missing": [],
+        "assumptions": [], "inputs": [], "why": None, "missing": [], "note": None,
     }
     for k in ("ytm", "ytw"):
         out[k]["sourceUrl"] = METHOD_URL
@@ -528,19 +608,20 @@ def instrument_output(inst: Instrument, book: CurveBook, day: date, series: list
         return out
     s = at(basis)[0] if basis is not observed else obs_solved
     out["basis"] = basis.doc()
+    if inst.kind == "convert":
+        out["note"] = convert_note(basis)
     sday = _sofr_day(book, basis.day)
-    out["assumptions"] = assumptions(inst, opts, s, basis.price, (sday, book.sofr[sday]) if sday else None)
+    out["assumptions"] = assumptions(inst, opts, s, basis.price, (sday, book.sofr[sday]) if sday else None, basis)
     out["inputs"] = _inputs(inst, opts, book, basis)
     if s is None or s.ytm.yield_pct is None or s.ytw is None:
         out["why"] = (out["missing"][-1] if out["missing"] else
                       f"No yield: the price {basis.price:.1f} gives no yield the solver can reach.")
         return out
-    as_of = basis.day
     assert s.ytw.yield_pct is not None
-    out["ytm"] = {**m_value(round(s.ytm.yield_pct, 3), as_of, METHOD, source_name=LABEL), "sourceUrl": METHOD_URL}
-    out["ytw"] = {**m_value(round(s.ytw.yield_pct, 3), as_of, METHOD, source_name=LABEL), "sourceUrl": METHOD_URL}
+    out["ytm"] = yield_value(round(s.ytm.yield_pct, 3), basis)
+    out["ytw"] = yield_value(round(s.ytw.yield_pct, 3), basis)
     if t.floating and s.ytw.dm is not None:
-        out["dmBp"] = {**m_value(round(s.ytw.dm * 1e4, 1), as_of, METHOD, source_name=LABEL), "sourceUrl": METHOD_URL}
+        out["dmBp"] = yield_value(round(s.ytw.dm * 1e4, 1), basis)
     out["ytmTo"] = _workout_doc(s.ytm)
     out["ytwTo"] = _workout_doc(s.ytw)
     out["workouts"] = _shown(s)
@@ -566,7 +647,7 @@ def _inputs(inst: Instrument, opts: Options, book: CurveBook, basis: PricePoint)
                       "sourceName": inst.comp.get("source_name") or "n/d",
                       **({"sourceUrl": inst.comp["source_url"]} if inst.comp.get("source_url") else {})})
     for key, label in (("extensions", "Extension options"), ("call", "Call terms"), ("presumedCall", "Presumed call"),
-                       ("floor", "SOFR floor")):
+                       ("put", "Holder put"), ("floor", "SOFR floor")):
         row = opts.rows.get(key)
         if row is not None:
             items.append(_fact_input(key, label, row))
@@ -597,11 +678,18 @@ def _point(r: Row) -> PricePoint:
 
 
 def load_prices(conn: Conn, ids: Sequence[str], day: date) -> tuple[dict[str, list[PricePoint]], dict[str, PricePoint]]:
-    """The Marden daily price series (one per day, the last row) and the latest observed price, by instrument."""
+    """The Marden daily price series (one per day, the last row) and the latest market price (TRACE trade,
+    BondTerminal or Börse Frankfurt quote, dealer quote; the latest day, on it a trade over a quote, then the
+    latest row), by instrument."""
     series: dict[str, dict[date, PricePoint]] = {}
     for r in _price_rows(conn, ids, day, ("marden",)):
         series.setdefault(r["instrument_id"], {})[r["obs_date"]] = _point(r)
-    observed = {r["instrument_id"]: _point(r) for r in _price_rows(conn, ids, day, OBSERVED_KINDS)}
+    best: dict[str, tuple[tuple[date, int, int], Row]] = {}
+    for n, r in enumerate(_price_rows(conn, ids, day, OBSERVED_KINDS)):
+        key = (r["obs_date"], MARKET_RANK.get(r["kind"], 0), n)
+        if r["instrument_id"] not in best or key > best[r["instrument_id"]][0]:
+            best[r["instrument_id"]] = (key, r)
+    observed = {iid: _point(r) for iid, (_, r) in best.items()}
     return {k: [v[d] for d in sorted(v)] for k, v in series.items()}, observed
 
 

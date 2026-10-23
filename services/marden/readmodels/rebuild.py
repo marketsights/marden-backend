@@ -22,6 +22,7 @@ from marden.core import db, events
 from marden.core.db import Conn
 from marden.core.jsonutil import canonical_json, jsonb, sha256_hex, to_jsonable
 from marden.readmodels.context import building, business_today, snapshot_date
+from marden.readmodels.plain_text import strip_doc
 from marden.readmodels.registry import Builder, Doc, get_builder, registered_views
 
 log = logging.getLogger(__name__)
@@ -50,9 +51,10 @@ class RebuildStats:
 
 def upsert_doc(conn: Conn, view: str, key: str, doc: Doc, *, as_of: date | None = None) -> bool:
     """Write the snapshot of a doc for `as_of` (default today; never after today). Returns True if it
-    differs from the snapshot in force on that day. `inputs_hash` holds the sha256 of the canonical JSON."""
+    differs from the snapshot in force on that day. `inputs_hash` holds the sha256 of the canonical JSON.
+    Model versions are taken out of the doc's text (`plain_text.strip_doc`; Track record keeps them)."""
     day = snapshot_date(as_of)
-    normalized = to_jsonable(doc)
+    normalized = strip_doc(to_jsonable(doc), view)
     digest = sha256_hex(canonical_json(normalized))
     prev = conn.execute(
         """SELECT inputs_hash FROM read_model WHERE view = %s AND key = %s AND as_of <= %s
@@ -98,7 +100,7 @@ class _Cycle:
         self.stats.changed += 1
         if not self.live:
             return
-        for payload in b.events_for(key, to_jsonable(doc), previous):
+        for payload in b.events_for(key, strip_doc(to_jsonable(doc), b.view), previous):
             fingerprint = canonical_json(payload)
             if fingerprint in self._emitted:
                 continue

@@ -29,6 +29,7 @@ import { instrumentRoutes } from './routes/instruments.js';
 import { marketRoutes } from './routes/market.js';
 import { monitorRoutes } from './routes/monitor.js';
 import { moveRoutes } from './routes/moves.js';
+import { deliveryRoutes } from './routes/delivery.js';
 import { prefsRoutes } from './routes/prefs.js';
 import { savedViewRoutes } from './routes/saved-views.js';
 import { productAccessRoutes } from './routes/product-access.js';
@@ -84,6 +85,7 @@ function registerRoutes(app: FastifyInstance, r: RouteDeps): void {
   siteRoutes(app, db);
   instrumentRoutes(app, db);
   moveRoutes(app, db);
+  deliveryRoutes(app, db);
   dataCenterRoutes(app, db);
   powerPlantRoutes(app, db);
   marketRoutes(app, db);

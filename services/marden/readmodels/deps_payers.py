@@ -12,6 +12,12 @@ from marden.readmodels.deps import _SITE_PAYERS, _many, depends, singleton, via
 # lists the debt behind the edges it owes (sizes, rating terms, holders). The lease map shows that debt
 # too, and each lessee's downgrade band (the payer_capacity output on the entity).
 _OBLIGATION_PAYEE = via("SELECT to_entity_id FROM obligation WHERE id = %s")
+# A payer's exposed debt leaves out debt another party's lease services (payers_exposure.py): a change to any
+# edge reaches every payer owing an edge over the same instruments.
+_EDGE_SHARING_OWERS = via(
+    """SELECT o2.from_entity_id FROM obligation o1 JOIN obligation o2 ON o2.instrument_ids && o1.instrument_ids
+        WHERE o1.id = %s"""
+)
 _EDGE_INSTRUMENT_OWERS = via(
     """SELECT from_entity_id FROM obligation WHERE %(id)s = ANY(instrument_ids)
        UNION SELECT o.from_entity_id FROM fact f JOIN obligation o ON o.id = f.subject_id
@@ -64,6 +70,7 @@ def _install_payer_deps() -> None:
     payer_views = ("payer", "payer_capacity")
     for subject_type in ("obligation", "contract"):
         _many(subject_type, payer_views, _OBLIGATION_PAYEE)  # paidBy; neocloud obligors' rows
+    _many("obligation", ("payer_capacity",), _EDGE_SHARING_OWERS)  # exposed debt counted at another payer
     _many("instrument", payer_views, _EDGE_INSTRUMENT_OWERS)  # exposed debt
     _many("instrument", ("payer",), _INSTRUMENT_EDGE_SITE_OWERS)  # debt on an edge-linked site
     _many("instrument", ("payer",), _NOTE_ISSUERS)  # its own notes

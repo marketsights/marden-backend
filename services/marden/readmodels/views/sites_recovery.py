@@ -205,7 +205,11 @@ def reason_nd(out: Row | None) -> str:
     if out is None:
         return "Not derived: the recovery model has not run for this loan yet."
     if output_field(out, "method") is None:
-        return "Not derived: unsecured or unsited debt needs the issuer's balance-sheet waterfall, not in model v0."
+        basis = output_field(out, "basis") or {}
+        why = basis.get("why") if isinstance(basis, dict) else None
+        if why:  # issuer-level debt of an issuer without a balance sheet on file (recovery v0.3)
+            return f"Not derived: {str(why).rstrip('.')}."
+        return "Not derived: no site, GPU pool or issuer-level seniority on file for a waterfall."
     b = output_field(out, "basis") or {}
     needs = [_plain(str(m), b) for m in output_field(out, "missing") or []]
     return "Not derived: the recovery model needs " + "; ".join(needs) + "." if needs else "Not derived by the model."

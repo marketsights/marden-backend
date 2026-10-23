@@ -191,6 +191,7 @@ SWITCH = ("hidden_source_names", "_licence_clause")
 NOT_SERVED = {
     ("deps", "*"): "dirty marks: which read models a new value touches (no value is read into a document)",
     ("deps_payers", "*"): "dirty marks for the payer views (no value is read into a document)",
+    ("deps_chains", "*"): "dirty marks for the chain cards and lender groups (no value is read into a document)",
 }
 
 

@@ -1,0 +1,1639 @@
+{
+ "_about": "Deal parties (initial purchasers, underwriters, arrangers, agents, lenders, trustee, capped-call counterparties) quoted from the issuers' SEC filings (F: 8-K and exhibits, purchase and underwriting agreements, indentures, capped-call confirmations, 424B prospectuses) and, only where no filing names them, press releases (R); not_disclosed says which roles stay unnamed and what was checked (marden.facilities.parties). Researched 2026-10-22.",
+ "instruments": [
+  {
+   "id": "EX-APLD-010",
+   "parties": [
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315225024479/form8-k.htm",
+     "quote": [
+      "Morgan Stanley & Co. LLC as the representative (the “Representative”) of the several initial purchasers named in Schedule I thereto"
+     ],
+     "valid_from": "2025-11-13",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee and collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315225024479/form8-k.htm",
+     "quote": [
+      "with Wilmington Trust, National Association, as trustee (the “Trustee”) and collateral agent (the “Collateral Agent”)"
+     ],
+     "valid_from": "2025-11-20",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the rest of the initial purchasers are listed only in Schedule I to the purchase agreement, which is not filed (8-K, 10-Q and 10-K exhibits checked)"
+   }
+  },
+  {
+   "id": "EX-APLD-011",
+   "parties": [
+    {
+     "name": "Goldman Sachs & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/form8-k.htm",
+     "quote": [
+      "entered into by and among the Issuer, the subsidiary guarantors party thereto",
+      "as the representative (the “Representative”) of the several initial purchasers named in Schedule I thereto",
+      "Goldman Sachs & Co. LLC"
+     ],
+     "valid_from": "2026-03-03",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee and collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226009538/form8-k.htm",
+     "quote": [
+      "with Wilmington Trust, National Association, as trustee (the “Trustee”) and collateral agent (the “Collateral Agent”)"
+     ],
+     "valid_from": "2026-03-10",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the rest of the initial purchasers are listed only in Schedule I to the purchase agreement, which is not filed (8-K, 10-Q and 10-K exhibits checked)"
+   }
+  },
+  {
+   "id": "EX-APLD-012",
+   "parties": [
+    {
+     "name": "Goldman Sachs & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226028899/form8-k.htm",
+     "quote": [
+      "as the representative (the “Representative”) of the several initial purchasers named in Schedule I thereto",
+      "Goldman Sachs & Co. LLC"
+     ],
+     "valid_from": "2026-06-09",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee and collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315226028899/form8-k.htm",
+     "quote": [
+      "with Wilmington Trust, National Association, as trustee (the “Trustee”) and collateral agent (the “Collateral Agent”)"
+     ],
+     "valid_from": "2026-06-16",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the rest of the initial purchasers are listed only in Schedule I to the purchase agreement, which is not filed (8-K, 10-Q and 10-K exhibits checked)"
+   }
+  },
+  {
+   "id": "EX-APLD-013",
+   "parties": [
+    {
+     "name": "Goldman Sachs & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315224043604/form8-k.htm",
+     "quote": [
+      "entered into by and among the Company and Goldman Sachs & Co. LLC, Cantor Fitzgerald & Co. and J.P. Morgan Securities LLC, as representatives of the several initial purchasers named therein"
+     ],
+     "valid_from": "2024-10-30",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Cantor Fitzgerald & Co.",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315224043604/form8-k.htm",
+     "quote": [
+      "entered into by and among the Company and Goldman Sachs & Co. LLC, Cantor Fitzgerald & Co. and J.P. Morgan Securities LLC, as representatives of the several initial purchasers named therein"
+     ],
+     "valid_from": "2024-10-30",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "J.P. Morgan Securities LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315224043604/form8-k.htm",
+     "quote": [
+      "entered into by and among the Company and Goldman Sachs & Co. LLC, Cantor Fitzgerald & Co. and J.P. Morgan Securities LLC, as representatives of the several initial purchasers named therein"
+     ],
+     "valid_from": "2024-10-30",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315224043604/form8-k.htm",
+     "quote": [
+      "the Company entered into an indenture (the “Indenture”) with respect to the notes with Wilmington Trust, National Association, as trustee"
+     ],
+     "valid_from": "2024-11-04",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2024-11-04",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1144879/000149315224043604/form8-k.htm",
+     "quote": [
+      "Indenture, dated as of November 4, 2024, between Applied Digital Corporation and Wilmington Trust, National Association, as trustee"
+     ],
+     "valid_from": "2024-11-04",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "capped-call counterparties": "the 8-K says only 'certain financial institutions' (the Option Counterparties); the confirmations are filed as a form without names",
+    "initial purchasers": "the rest of the initial purchasers are named only in the purchase agreement, which is not filed"
+   }
+  },
+  {
+   "id": "EX-CIFR-027",
+   "parties": [
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325014692/dp237330_8k.htm",
+     "quote": [
+      "and Morgan Stanley & Co. as representative of the initial purchasers"
+     ],
+     "valid_from": "2025-11-05",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee and collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325015181/dp237816_8k.htm",
+     "quote": [
+      "the Subsidiary Guarantor and Wilmington Trust, National Association, as trustee and collateral agent"
+     ],
+     "valid_from": "2025-11-13",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "sole initial purchaser of the $333 million add-on (Nov 24 2025)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010325015181/dp237816_8k.htm",
+     "quote": [
+      "and Morgan Stanley & Co. LLC, as the sole initial purchaser"
+     ],
+     "valid_from": "2025-11-20",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K names only the representative; the purchase agreement is not filed (the November 2025 add-on had Morgan Stanley as sole initial purchaser)"
+   }
+  },
+  {
+   "id": "EX-CIFR-028",
+   "parties": [
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001966/dp241421_8k.htm",
+     "quote": [
+      "and Morgan Stanley & Co. as representative of the initial purchasers"
+     ],
+     "valid_from": "2026-02-04",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326001966/dp241421_8k.htm",
+     "quote": [
+      "with respect to the notes with Wilmington Trust, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2026-02-11",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K names only the representative; the purchase agreement is not filed"
+   }
+  },
+  {
+   "id": "EX-CIFR-029",
+   "parties": [
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326008994/dp248453_8k.htm",
+     "quote": [
+      "and Morgan Stanley & Co. LLC as representative of the initial purchasers"
+     ],
+     "valid_from": "2026-06-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326008994/dp248453_8k.htm",
+     "quote": [
+      "with respect to the notes with Wilmington Trust, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2026-06-15",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2026-06-15",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000095010326008994/dp248453_8k.htm",
+     "quote": [
+      "Indenture, dated as of June 15, 2026, among Stingray Compute LLC, Cipher Stingray LLC, Cipher Stingray Holdings LLC, and Wilmington Trust, National Association, as trustee"
+     ],
+     "valid_from": "2026-06-15",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K names only the representative; the purchase agreement is not filed"
+   }
+  },
+  {
+   "id": "EX-CIFR-030",
+   "parties": [
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "representative of the underwriters",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000119312525125152/d86394d8k.htm",
+     "quote": [
+      "with Morgan Stanley & Co. LLC, as representative of the several underwriters named in Schedule I thereto"
+     ],
+     "valid_from": "2025-05-20",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Keefe, Bruyette & Woods, Inc.",
+     "role": "underwriter",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000119312525125152/d86394dex11.htm",
+     "quote": [
+      "SCHEDULE I",
+      "Keefe, Bruyette & Woods, Inc."
+     ],
+     "valid_from": "2025-05-20",
+     "source": "SEC EDGAR (underwriting agreement, filed exhibit)"
+    },
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000119312525125152/d86394d8k.htm",
+     "quote": [
+      "between the Company and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2025-05-22",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2025-05-22",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000119312525125152/d86394d8k.htm",
+     "quote": [
+      "Indenture, dated May 22, 2025, by and between Cipher Mining Inc. and U.S. Bank Trust Company, National Association, as Trustee"
+     ],
+     "valid_from": "2025-05-22",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ]
+  },
+  {
+   "id": "EX-CIFR-031",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000119312525225645/d52925d8k.htm",
+     "quote": [
+      "between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2025-09-30",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2025-09-30",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000119312525225645/d52925d8k.htm",
+     "quote": [
+      "Indenture, dated as of September 30, 2025, between Cipher Mining Inc. and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2025-09-30",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K says only 'the representative(s) of the initial purchasers'; the purchase agreement is not filed",
+    "capped-call counterparties": "the 8-K says only 'certain of the initial purchasers or their affiliates and certain other financial institutions'; the confirmation is filed as a form without names"
+   }
+  },
+  {
+   "id": "EX-CIFR-032",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000119312526424297/d313847d8k.htm",
+     "quote": [
+      "dated as of October 16, 2026, between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2026-10-16",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2026-10-16",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1819989/000119312526424297/d313847d8k.htm",
+     "quote": [
+      "dated as of October 16, 2026, between the Company and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2026-10-16",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K says only 'the representative(s) of the initial purchasers'; the purchase agreement is not filed",
+    "capped-call counterparties": "the 8-K says only 'certain of the initial purchasers or their affiliates and certain other financial institutions'; the confirmation is filed as a form without names"
+   }
+  },
+  {
+   "id": "EX-CORZ-065",
+   "parties": [
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526208905/d47435d8k.htm",
+     "quote": [
+      "and Morgan Stanley & Co. and J.P. Morgan Securities LLC, as representatives of the several initial purchasers"
+     ],
+     "valid_from": "2026-04-22",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "J.P. Morgan Securities LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526208905/d47435d8k.htm",
+     "quote": [
+      "and Morgan Stanley & Co. and J.P. Morgan Securities LLC, as representatives of the several initial purchasers"
+     ],
+     "valid_from": "2026-04-22",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Savings Fund Society, FSB",
+     "role": "trustee and collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000119312526208905/d47435d8k.htm",
+     "quote": [
+      "and Wilmington Savings Fund Society, FSB, as trustee (the “Trustee”) and collateral agent (the “Collateral Agent”)"
+     ],
+     "valid_from": "2026-05-06",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K names only the representatives; the purchase agreement is not filed"
+   }
+  },
+  {
+   "id": "EX-CORZ-066",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000162828024037702/core-20240813.htm",
+     "quote": [
+      "dated as of August 19, 2024, between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2024-08-19",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2024-08-19",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000162828024037702/core-20240813.htm",
+     "quote": [
+      "Indenture, dated as of August 19, 2024, by and between the Company and U.S. Bank Trust Company, National Association, as Trustee"
+     ],
+     "valid_from": "2024-08-19",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K refers only to 'the initial purchasers' in the purchase agreement dated August 13, 2024, which is not filed"
+   }
+  },
+  {
+   "id": "EX-CORZ-067",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000162828024050080/core-20241202.htm",
+     "quote": [
+      "dated as of December 5, 2024, between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2024-12-05",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2024-12-05",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1839341/000162828024050080/core-20241202.htm",
+     "quote": [
+      "Indenture, dated as of December 5, 2024, by and between the Company and U.S. Bank Trust Company, National Association, as Trustee"
+     ],
+     "valid_from": "2024-12-05",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K refers only to 'the initial purchasers' in the purchase agreement dated December 2, 2024, which is not filed"
+   }
+  },
+  {
+   "id": "EX-CRWV-102",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000119312525165924/d73657dex41.htm",
+     "quote": [
+      "U.S. BANK TRUST COMPANY, NATIONAL ASSOCIATION, a national banking association, as trustee"
+     ],
+     "valid_from": "2025-07-25",
+     "source": "SEC EDGAR (indenture, filed exhibit)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "not named in the filings checked: the 8-K, the indenture and the pricing press release say only 'initial purchasers'; the purchase agreement is not filed, and no press report found names them"
+   }
+  },
+  {
+   "id": "EX-CRWV-103",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "by and among CoreWeave, the guarantors party thereto and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "not named in the filings checked: the 8-K, the indenture and the pricing press release say only 'initial purchasers'; the purchase agreement is not filed, and no press report found names them"
+   }
+  },
+  {
+   "id": "EX-CRWV-107",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "among CoreWeave, the Guarantors (as defined below) party thereto and U.S. Bank Trust Company, National Association, as trustee (in such capacity, the “Convertible Notes Trustee”)"
+     ],
+     "valid_from": "2026-04-14",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "The Bank of Nova Scotia",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of The Bank of Nova Scotia, Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Citibank, N.A., J.P. Morgan Securities LLC, Mizuho Markets Americas LLC (with Mizuho Securities USA LLC acting as agent), Morgan Stanley & Co. LLC and The Toronto-Dominion Bank (represented by TD Securities (USA) LLC as its agent) (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-04-09",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Barclays Bank PLC",
+     "role": "capped-call counterparty (Barclays Capital Inc. as agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of The Bank of Nova Scotia, Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Citibank, N.A., J.P. Morgan Securities LLC, Mizuho Markets Americas LLC (with Mizuho Securities USA LLC acting as agent), Morgan Stanley & Co. LLC and The Toronto-Dominion Bank (represented by TD Securities (USA) LLC as its agent) (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-04-09",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of The Bank of Nova Scotia, Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Citibank, N.A., J.P. Morgan Securities LLC, Mizuho Markets Americas LLC (with Mizuho Securities USA LLC acting as agent), Morgan Stanley & Co. LLC and The Toronto-Dominion Bank (represented by TD Securities (USA) LLC as its agent) (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-04-09",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "J.P. Morgan Securities LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of The Bank of Nova Scotia, Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Citibank, N.A., J.P. Morgan Securities LLC, Mizuho Markets Americas LLC (with Mizuho Securities USA LLC acting as agent), Morgan Stanley & Co. LLC and The Toronto-Dominion Bank (represented by TD Securities (USA) LLC as its agent) (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-04-09",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Mizuho Markets Americas LLC",
+     "role": "capped-call counterparty (Mizuho Securities USA LLC as agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of The Bank of Nova Scotia, Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Citibank, N.A., J.P. Morgan Securities LLC, Mizuho Markets Americas LLC (with Mizuho Securities USA LLC acting as agent), Morgan Stanley & Co. LLC and The Toronto-Dominion Bank (represented by TD Securities (USA) LLC as its agent) (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-04-09",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of The Bank of Nova Scotia, Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Citibank, N.A., J.P. Morgan Securities LLC, Mizuho Markets Americas LLC (with Mizuho Securities USA LLC acting as agent), Morgan Stanley & Co. LLC and The Toronto-Dominion Bank (represented by TD Securities (USA) LLC as its agent) (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-04-09",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "The Toronto-Dominion Bank",
+     "role": "capped-call counterparty (TD Securities (USA) LLC as agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000164/crwv-20260409.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of The Bank of Nova Scotia, Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Citibank, N.A., J.P. Morgan Securities LLC, Mizuho Markets Americas LLC (with Mizuho Securities USA LLC acting as agent), Morgan Stanley & Co. LLC and The Toronto-Dominion Bank (represented by TD Securities (USA) LLC as its agent) (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-04-09",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "not named in the filings checked: the 8-K, the indenture and the pricing press release say only 'initial purchasers'; the purchase agreement is not filed, and no press report found names them"
+   }
+  },
+  {
+   "id": "EX-CRWV-106",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/crwv-20251208.htm",
+     "quote": [
+      "among CoreWeave, the Guarantors (as defined below) party thereto and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2025-12-11",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wells Fargo Bank, National Association",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/crwv-20251208.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with Wells Fargo Bank, National Association, Citibank, N.A., Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Morgan Stanley & Co. LLC, Société Générale, through its agent SG Americas Securities, LLC, The Toronto-Dominion Bank, represented by TD Securities (USA) LLC as its agent and Goldman Sachs & Co. LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/crwv-20251208.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with Wells Fargo Bank, National Association, Citibank, N.A., Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Morgan Stanley & Co. LLC, Société Générale, through its agent SG Americas Securities, LLC, The Toronto-Dominion Bank, represented by TD Securities (USA) LLC as its agent and Goldman Sachs & Co. LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Barclays Bank PLC",
+     "role": "capped-call counterparty (Barclays Capital Inc. as agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/crwv-20251208.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with Wells Fargo Bank, National Association, Citibank, N.A., Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Morgan Stanley & Co. LLC, Société Générale, through its agent SG Americas Securities, LLC, The Toronto-Dominion Bank, represented by TD Securities (USA) LLC as its agent and Goldman Sachs & Co. LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/crwv-20251208.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with Wells Fargo Bank, National Association, Citibank, N.A., Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Morgan Stanley & Co. LLC, Société Générale, through its agent SG Americas Securities, LLC, The Toronto-Dominion Bank, represented by TD Securities (USA) LLC as its agent and Goldman Sachs & Co. LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Société Générale",
+     "role": "capped-call counterparty (SG Americas Securities, LLC as agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/crwv-20251208.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with Wells Fargo Bank, National Association, Citibank, N.A., Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Morgan Stanley & Co. LLC, Société Générale, through its agent SG Americas Securities, LLC, The Toronto-Dominion Bank, represented by TD Securities (USA) LLC as its agent and Goldman Sachs & Co. LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "The Toronto-Dominion Bank",
+     "role": "capped-call counterparty (TD Securities (USA) LLC as agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/crwv-20251208.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with Wells Fargo Bank, National Association, Citibank, N.A., Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Morgan Stanley & Co. LLC, Société Générale, through its agent SG Americas Securities, LLC, The Toronto-Dominion Bank, represented by TD Securities (USA) LLC as its agent and Goldman Sachs & Co. LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Goldman Sachs & Co. LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962825000105/crwv-20251208.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with Wells Fargo Bank, National Association, Citibank, N.A., Barclays Bank PLC (with Barclays Capital Inc. acting as agent), Morgan Stanley & Co. LLC, Société Générale, through its agent SG Americas Securities, LLC, The Toronto-Dominion Bank, represented by TD Securities (USA) LLC as its agent and Goldman Sachs & Co. LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "not named in the filings checked: the 8-K, the indenture and the pricing press release say only 'initial purchasers'; the purchase agreement is not filed, and no press report found names them"
+   }
+  },
+  {
+   "id": "EX-CRWV-108",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "among CoreWeave, the Guarantors (as defined below) party thereto and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2026-09-22",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Barclays Bank PLC",
+     "role": "capped-call counterparty (Barclays Capital Inc. as agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Crédit Agricole Corporate and Investment Bank",
+     "role": "capped-call counterparty (Credit Agricole Securities (USA) Inc. as agent)",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Deutsche Bank AG, London Branch",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Banco Santander, S.A.",
+     "role": "capped-call counterparty (the 8-K lists it after Deutsche Bank AG, London Branch, \"through its agent\")",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "The Bank of Nova Scotia",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Deutsche Bank Securities Inc.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Goldman Sachs & Co. LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "HSBC Bank USA, National Association",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wells Fargo Bank, National Association",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000432/crwv-20260917.htm",
+     "quote": [
+      "CoreWeave entered into privately negotiated capped call transactions (the “Base Capped Call Transactions”) with each of Barclays Bank PLC, represented by Barclays Capital Inc. as its agent, Crédit Agricole Corporate and Investment Bank, represented by Credit Agricole Securities (USA) Inc. as its agent, Citibank, N.A., Deutsche Bank AG, London Branch, through its agent Banco Santander, S.A., The Bank of Nova Scotia, Deutsche Bank Securities Inc., Goldman Sachs & Co. LLC, HSBC Bank USA, National Association and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-09-17",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "not named in the filings checked: the 8-K, the indenture and the pricing press release say only 'initial purchasers'; the purchase agreement is not filed, and no press report found names them"
+   }
+  },
+  {
+   "id": "EX-CRWV-104",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/crwv-20260618.htm",
+     "quote": [
+      "The USD Notes were issued pursuant to an indenture, dated as of June 18, 2026 (the “USD Notes Indenture”), by and among CoreWeave, the guarantors party thereto and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "not named in the filings checked: the 8-K, the indenture and the pricing press release say only 'initial purchasers'; the purchase agreement is not filed, and no press report found names them"
+   }
+  },
+  {
+   "id": "EX-CRWV-105",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/crwv-20260618.htm",
+     "quote": [
+      "by and among CoreWeave, the guarantors party thereto, U.S. Bank Trust Company, National Association, as trustee, U.S. Bank Europe DAC, as registrar and transfer agent and U.S. Bank Europe DAC, UK Branch, as paying agent"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "U.S. Bank Europe DAC",
+     "role": "registrar and transfer agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/crwv-20260618.htm",
+     "quote": [
+      "by and among CoreWeave, the guarantors party thereto, U.S. Bank Trust Company, National Association, as trustee, U.S. Bank Europe DAC, as registrar and transfer agent and U.S. Bank Europe DAC, UK Branch, as paying agent"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "U.S. Bank Europe DAC, UK Branch",
+     "role": "paying agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000291/crwv-20260618.htm",
+     "quote": [
+      "by and among CoreWeave, the guarantors party thereto, U.S. Bank Trust Company, National Association, as trustee, U.S. Bank Europe DAC, as registrar and transfer agent and U.S. Bank Europe DAC, UK Branch, as paying agent"
+     ],
+     "valid_from": "2026-06-18",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "not named in the filings checked: the 8-K, the indenture and the pricing press release say only 'initial purchasers'; the purchase agreement is not filed, and no press report found names them"
+   }
+  },
+  {
+   "id": "EX-GLXY-163",
+   "parties": [
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000079/glxy-20260728.htm",
+     "quote": [
+      "and Morgan Stanley & Co. LLC as the representative of the several initial purchasers"
+     ],
+     "valid_from": "2026-07-23",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "The Bank of New York Mellon",
+     "role": "trustee and collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000185939226000079/glxy-20260728.htm",
+     "quote": [
+      "with The Bank of New York Mellon, as trustee (the “Trustee”) and collateral agent (the “Collateral Agent”)"
+     ],
+     "valid_from": "2026-07-28",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the 8-K names only the representative; the purchase agreement is not filed"
+   }
+  },
+  {
+   "id": "EX-GLXY-166",
+   "parties": [
+    {
+     "name": "Goldman Sachs & Co. LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000095010325013949/dp236467_ex1001.htm",
+     "quote": [
+      "Goldman Sachs & Co. LLC, as representative",
+      "of the several initial purchasers listed in Schedule I of the Purchase Agreement"
+     ],
+     "valid_from": "2025-10-30",
+     "source": "SEC EDGAR (registration rights agreement, filed exhibit)"
+    },
+    {
+     "name": "The Bank of New York Mellon",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000095010325013949/dp236467_8k.htm",
+     "quote": [
+      "among the Issuer, Galaxy Digital Inc. (the “Company”) and The Bank of New York Mellon, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2025-10-30",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "only the representative is named; Schedule I to the purchase agreement is not filed"
+   }
+  },
+  {
+   "id": "EX-GLXY-165",
+   "parties": [
+    {
+     "name": "Jefferies LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000162828024049357/exhibit47-sx4a6.htm",
+     "quote": [
+      "JEFFERIES LLC, as representative",
+      "of the several initial purchasers listed in Schedule I of the Purchase Agreement"
+     ],
+     "valid_from": "2024-11-25",
+     "source": "SEC EDGAR (registration rights agreement, S-4/A exhibit)"
+    },
+    {
+     "name": "The Bank of New York Mellon",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000162828024049357/exhibit45-sx4a6.htm",
+     "quote": [
+      "and The Bank of New York Mellon, a New York banking corporation, as trustee"
+     ],
+     "valid_from": "2024-11-25",
+     "source": "SEC EDGAR (indenture, S-4/A exhibit)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2024-11-25",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000162828024049357/exhibit45-sx4a6.htm",
+     "quote": [
+      "INDENTURE dated as of November 25, 2024"
+     ],
+     "valid_from": "2024-11-25",
+     "source": "SEC EDGAR (indenture, S-4/A exhibit)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "only the representative is named; Schedule I to the purchase agreement is not filed"
+   }
+  },
+  {
+   "id": "EX-GLXY-164",
+   "parties": [
+    {
+     "name": "The Bank of New York Mellon",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000110465922008454/tm2127871d9_ex4-2.htm",
+     "quote": [
+      "and The Bank of New York Mellon, a New York banking corporation, as trustee"
+     ],
+     "valid_from": "2021-12-09",
+     "source": "SEC EDGAR (indenture, S-4 exhibit)"
+    }
+   ],
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2021-12-09",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1859392/000110465922008454/tm2127871d9_ex4-2.htm",
+     "quote": [
+      "Indenture dated as of December 9, 2021"
+     ],
+     "valid_from": "2021-12-09",
+     "source": "SEC EDGAR (indenture, S-4 exhibit)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "none: the notes were sold directly to investors (the initial holders signing the December 9, 2021 registration rights agreement, S-4 Exhibit 4.4), not through initial purchasers"
+   }
+  },
+  {
+   "id": "EX-HUT-171",
+   "parties": [
+    {
+     "name": "J.P. Morgan Securities LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926053247/tm2613163d1_8k.htm",
+     "quote": [
+      "J.P. Morgan Securities LLC as the representative (the “Representative”) of the several initial purchasers named in Schedule 1 thereto"
+     ],
+     "valid_from": "2026-04-27",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee and collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926053247/tm2613163d1_8k.htm",
+     "quote": [
+      "with Wilmington Trust, National Association, as trustee (the “Trustee”), and collateral agent (the “Collateral Agent”)"
+     ],
+     "valid_from": "2026-04-30",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the rest of the initial purchasers are listed only in Schedule 1 to the purchase agreement, which is not filed"
+   }
+  },
+  {
+   "id": "EX-HUT-172",
+   "parties": [
+    {
+     "name": "J.P. Morgan Securities LLC",
+     "role": "representative of the initial purchasers",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926071952/tm2617190d1_8k.htm",
+     "quote": [
+      "J.P. Morgan Securities LLC as the representative (the “Representative”) of the several initial purchasers named in Schedule 1 thereto"
+     ],
+     "valid_from": "2026-06-04",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wilmington Trust, National Association",
+     "role": "trustee and collateral agent",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1964789/000110465926071952/tm2617190d1_8k.htm",
+     "quote": [
+      "with Wilmington Trust, National Association, as trustee (the “Trustee”), and collateral agent (the “Collateral Agent”)"
+     ],
+     "valid_from": "2026-06-09",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the rest of the initial purchasers are listed only in Schedule 1 to the purchase agreement, which is not filed"
+   }
+  },
+  {
+   "id": "EX-IREN-178",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036124048698/ef20039649_6k.htm",
+     "quote": [
+      "between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2024-12-06",
+     "source": "SEC EDGAR (6-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036124048698/ef20039649_6k.htm",
+     "quote": [
+      "with Citibank, N.A., Morgan Stanley & Co. LLC, Mizuho Markets Americas LLC and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2024-12-03",
+     "source": "SEC EDGAR (6-K)"
+    },
+    {
+     "name": "Morgan Stanley & Co. LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036124048698/ef20039649_6k.htm",
+     "quote": [
+      "with Citibank, N.A., Morgan Stanley & Co. LLC, Mizuho Markets Americas LLC and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2024-12-03",
+     "source": "SEC EDGAR (6-K)"
+    },
+    {
+     "name": "Mizuho Markets Americas LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036124048698/ef20039649_6k.htm",
+     "quote": [
+      "with Citibank, N.A., Morgan Stanley & Co. LLC, Mizuho Markets Americas LLC and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2024-12-03",
+     "source": "SEC EDGAR (6-K)"
+    },
+    {
+     "name": "Wells Fargo Bank, National Association",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036124048698/ef20039649_6k.htm",
+     "quote": [
+      "with Citibank, N.A., Morgan Stanley & Co. LLC, Mizuho Markets Americas LLC and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2024-12-03",
+     "source": "SEC EDGAR (6-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the filing says only 'the representatives of the initial purchasers'; the purchase agreement is not filed; the prepaid forward counterparty is 'one of the initial purchasers', unnamed"
+   },
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2024-12-06",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036124048698/ef20039649_6k.htm",
+     "quote": [
+      "Indenture, dated as of December 6, 2024, between IREN Limited and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2024-12-06",
+     "source": "SEC EDGAR (6-K)"
+    }
+   ]
+  },
+  {
+   "id": "EX-IREN-179",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125022454/ef20050570_6k.htm",
+     "quote": [
+      "between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2025-06-13",
+     "source": "SEC EDGAR (6-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125022454/ef20050570_6k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC and Mizuho Markets Americas LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-06-10",
+     "source": "SEC EDGAR (6-K)"
+    },
+    {
+     "name": "J.P. Morgan Securities LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125022454/ef20050570_6k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC and Mizuho Markets Americas LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-06-10",
+     "source": "SEC EDGAR (6-K)"
+    },
+    {
+     "name": "Mizuho Markets Americas LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125022454/ef20050570_6k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC and Mizuho Markets Americas LLC (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-06-10",
+     "source": "SEC EDGAR (6-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the filing says only 'the representatives of the initial purchasers'; the purchase agreement is not filed; the prepaid forward counterparty is 'one of the initial purchasers', unnamed"
+   },
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2025-06-13",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125022454/ef20050570_6k.htm",
+     "quote": [
+      "Indenture, dated as of June 13, 2025, between IREN Limited and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2025-06-13",
+     "source": "SEC EDGAR (6-K)"
+    }
+   ]
+  },
+  {
+   "id": "EX-IREN-180",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125038083/ef20056955_8k.htm",
+     "quote": [
+      "between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2025-10-14",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125038083/ef20056955_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Banco Santander, S.A., Mizuho Markets Americas LLC and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-10-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Banco Santander, S.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125038083/ef20056955_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Banco Santander, S.A., Mizuho Markets Americas LLC and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-10-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Mizuho Markets Americas LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125038083/ef20056955_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Banco Santander, S.A., Mizuho Markets Americas LLC and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-10-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wells Fargo Bank, National Association",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125038083/ef20056955_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Banco Santander, S.A., Mizuho Markets Americas LLC and Wells Fargo Bank, National Association (the “Option Counterparties”)"
+     ],
+     "valid_from": "2025-10-08",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the filing says only 'the representatives of the initial purchasers'; the purchase agreement is not filed"
+   },
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2025-10-14",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125038083/ef20056955_8k.htm",
+     "quote": [
+      "Indenture, dated as of October 14, 2025, between IREN Limited and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2025-10-14",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ]
+  },
+  {
+   "id": "EX-IREN-181",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC, Crédit Agricole Corporate and Investment Bank, Banco Santander, S.A., UBS AG, London Branch and Bank of Montreal (the “2032 Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "J.P. Morgan Securities LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC, Crédit Agricole Corporate and Investment Bank, Banco Santander, S.A., UBS AG, London Branch and Bank of Montreal (the “2032 Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Crédit Agricole Corporate and Investment Bank",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC, Crédit Agricole Corporate and Investment Bank, Banco Santander, S.A., UBS AG, London Branch and Bank of Montreal (the “2032 Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Banco Santander, S.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC, Crédit Agricole Corporate and Investment Bank, Banco Santander, S.A., UBS AG, London Branch and Bank of Montreal (the “2032 Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "UBS AG, London Branch",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC, Crédit Agricole Corporate and Investment Bank, Banco Santander, S.A., UBS AG, London Branch and Bank of Montreal (the “2032 Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Bank of Montreal",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., J.P. Morgan Securities LLC, Crédit Agricole Corporate and Investment Bank, Banco Santander, S.A., UBS AG, London Branch and Bank of Montreal (the “2032 Option Counterparties”)"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the filing says only 'the representatives of the initial purchasers'; the purchase agreement is not filed"
+   },
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2025-12-08",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "2032 Indenture, dated as of December 8, 2025, between IREN Limited and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ]
+  },
+  {
+   "id": "EX-IREN-182",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "2033 Indenture, dated as of December 8, 2025, between IREN Limited and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Goldman Sachs & Co. LLC, J.P. Morgan Securities LLC, Banco Santander, S.A., Wells Fargo Bank, National Association and Bank of Montreal (the “2033 Option Counterparties”"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Goldman Sachs & Co. LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Goldman Sachs & Co. LLC, J.P. Morgan Securities LLC, Banco Santander, S.A., Wells Fargo Bank, National Association and Bank of Montreal (the “2033 Option Counterparties”"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "J.P. Morgan Securities LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Goldman Sachs & Co. LLC, J.P. Morgan Securities LLC, Banco Santander, S.A., Wells Fargo Bank, National Association and Bank of Montreal (the “2033 Option Counterparties”"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Banco Santander, S.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Goldman Sachs & Co. LLC, J.P. Morgan Securities LLC, Banco Santander, S.A., Wells Fargo Bank, National Association and Bank of Montreal (the “2033 Option Counterparties”"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Wells Fargo Bank, National Association",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Goldman Sachs & Co. LLC, J.P. Morgan Securities LLC, Banco Santander, S.A., Wells Fargo Bank, National Association and Bank of Montreal (the “2033 Option Counterparties”"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Bank of Montreal",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "with Citibank, N.A., Goldman Sachs & Co. LLC, J.P. Morgan Securities LLC, Banco Santander, S.A., Wells Fargo Bank, National Association and Bank of Montreal (the “2033 Option Counterparties”"
+     ],
+     "valid_from": "2025-12-02",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the filing says only 'the representatives of the initial purchasers'; the purchase agreement is not filed"
+   },
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2025-12-08",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036125044888/ef20060782_8k.htm",
+     "quote": [
+      "2033 Indenture, dated as of December 8, 2025, between IREN Limited and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2025-12-08",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ]
+  },
+  {
+   "id": "EX-IREN-183",
+   "parties": [
+    {
+     "name": "U.S. Bank Trust Company, National Association",
+     "role": "trustee",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "between the Company and U.S. Bank Trust Company, National Association, as trustee (the “Trustee”)"
+     ],
+     "valid_from": "2026-05-14",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Banco Santander, S.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "with Banco Santander, S.A., Bank of Montreal, Citibank, N.A., Crédit Agricole Corporate and Investment Bank, Mizuho Markets Americas LLC, The Bank of Nova Scotia and UBS AG, London Branch (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-05-11",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Bank of Montreal",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "with Banco Santander, S.A., Bank of Montreal, Citibank, N.A., Crédit Agricole Corporate and Investment Bank, Mizuho Markets Americas LLC, The Bank of Nova Scotia and UBS AG, London Branch (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-05-11",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Citibank, N.A.",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "with Banco Santander, S.A., Bank of Montreal, Citibank, N.A., Crédit Agricole Corporate and Investment Bank, Mizuho Markets Americas LLC, The Bank of Nova Scotia and UBS AG, London Branch (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-05-11",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Crédit Agricole Corporate and Investment Bank",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "with Banco Santander, S.A., Bank of Montreal, Citibank, N.A., Crédit Agricole Corporate and Investment Bank, Mizuho Markets Americas LLC, The Bank of Nova Scotia and UBS AG, London Branch (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-05-11",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "Mizuho Markets Americas LLC",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "with Banco Santander, S.A., Bank of Montreal, Citibank, N.A., Crédit Agricole Corporate and Investment Bank, Mizuho Markets Americas LLC, The Bank of Nova Scotia and UBS AG, London Branch (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-05-11",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "The Bank of Nova Scotia",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "with Banco Santander, S.A., Bank of Montreal, Citibank, N.A., Crédit Agricole Corporate and Investment Bank, Mizuho Markets Americas LLC, The Bank of Nova Scotia and UBS AG, London Branch (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-05-11",
+     "source": "SEC EDGAR (8-K)"
+    },
+    {
+     "name": "UBS AG, London Branch",
+     "role": "capped-call counterparty",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "with Banco Santander, S.A., Bank of Montreal, Citibank, N.A., Crédit Agricole Corporate and Investment Bank, Mizuho Markets Americas LLC, The Bank of Nova Scotia and UBS AG, London Branch (the “Option Counterparties”)"
+     ],
+     "valid_from": "2026-05-11",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ],
+   "not_disclosed": {
+    "initial purchasers": "the filing says only 'the representatives of the initial purchasers'; the purchase agreement is not filed"
+   },
+   "facts": [
+    {
+     "field": "issue_date",
+     "value": "2026-05-14",
+     "tag": "F",
+     "url": "https://www.sec.gov/Archives/edgar/data/1878848/000114036126021285/ef20073507_8k.htm",
+     "quote": [
+      "Indenture, dated as of May 14, 2026, between IREN Limited and U.S. Bank Trust Company, National Association, as trustee"
+     ],
+     "valid_from": "2026-05-14",
+     "source": "SEC EDGAR (8-K)"
+    }
+   ]
+  }
+ ]
+}

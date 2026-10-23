@@ -115,8 +115,6 @@ def test_a_stated_par_call_counts_a_presumed_one_does_not_and_make_whole_never_d
 
 def test_no_yield_reasons_are_plain_words():
     book = price_curve.CurveBook(DAY, {}, {})
-    nd = yields.instrument_output(_inst("convert"), book, DAY, [], None)
-    assert nd["ytw"]["value"] is None and nd["ytw"]["tag"] == "M" and "convertible" in nd["why"]
     inst = _inst("lease")
     inst.terms_missing = ["instrument t: maturity", "instrument t: coupon terms"]
     assert yields.instrument_output(inst, book, DAY, [], None)["why"] == (
@@ -125,6 +123,56 @@ def test_no_yield_reasons_are_plain_words():
     assert "perpetual" in yields.instrument_output(perpetual, book, DAY, [], None)["why"]
     unpriced = yields.instrument_output(_inst(terms=Terms("t", date(2031, 1, 15), "fixed", 6.0)), book, DAY, [], None)
     assert unpriced["why"] == "No yield: no Marden or observed price yet." and unpriced["assumptions"]
+
+
+def _trade(day: date, price: float, kind="trade", tag="F", source="FINRA TRACE (finra.org)"):
+    return yields.PricePoint(day, price, kind, tag, source, "https://www.finra.org/x", None)
+
+
+def test_a_convertible_with_no_marden_price_is_worked_from_its_trade_ignoring_the_conversion_option():
+    """CoreWeave 2.875% 2033 (no Marden price; last TRACE trade 83.05 on Oct 20): yields on the trade price, tagged
+    as the trade (F, FINRA), with the note; a Frankfurt quote is R and says 'quoted price'."""
+    book = price_curve.CurveBook(DAY, {}, {})
+    t = Terms("c", date(2033, 4, 15), "fixed", 2.875)
+    day = date(2026, 10, 20)
+    out = yields.instrument_output(_inst("convert", terms=t), book, day, [], _trade(day, 83.05))
+    assert out["why"] is None and out["ytw"]["value"] == out["ytm"]["value"]
+    assert out["ytw"]["value"] == pytest.approx(6.09, abs=0.05)  # FINRA reports 6.094 on that print
+    assert out["ytw"]["tag"] == "F" and out["ytw"]["sourceName"] == "FINRA TRACE (finra.org)"
+    assert out["ytw"]["asOf"] == "2026-10-20" and out["ytw"]["methodVersion"] == "yield v0.1"
+    assert out["note"] == "Yield on the trade price, ignoring the conversion option."
+    assert "ignoring the conversion option" in out["assumptions"][0] and out["basis"]["kind"] == "trade"
+    quote = yields.instrument_output(_inst("convert", terms=t), book, day, [],
+                                     _trade(day, 83.16, "exchange", "R", "Börse Frankfurt"))
+    assert quote["ytw"]["tag"] == "R" and quote["note"] == "Yield on the quoted price, ignoring the conversion option."
+    # a straight bond with no Marden price: the market price's tag too, and no convertible note
+    bond = yields.instrument_output(_inst(terms=t), book, day, [], _trade(day, 83.05))
+    assert bond["ytw"]["tag"] == "F" and bond["note"] is None
+    marden = yields.PricePoint(day, 83.05, "marden", "M", "Marden model price", None, "price v0.1")
+    assert yields.instrument_output(_inst(terms=t), book, day, [marden], None)["ytw"]["tag"] == "M"
+
+
+def test_a_stated_holder_put_counts_in_ytw_and_a_fundamental_change_put_is_only_noted():
+    t = Terms("c", date(2031, 6, 1), "fixed", 3.0)
+    settle = date(2026, 10, 20)
+    o = options(_inst("convert", research_terms={"terms": "Holders may require the company to repurchase the notes "
+                                                           "at par on 1 Jun 2029. Matures 1 Jun 2031."}))
+    assert [(p.kind, p.day, p.price) for p in o.puts] == [("put", date(2029, 6, 1), 100.0)]
+    assert {("put", date(2029, 6, 1))} <= {(w.kind, w.day) for w in workouts(t, o, settle)}
+    rich = solve(t, o, settle, None, 105.0)  # above par the put is worked and is the worst: an earlier par exit
+    assert rich.ytw is not None and rich.ytw.workout.kind == "put" and rich.ytw.yield_pct < rich.ytm.yield_pct
+    cheap = solve(t, o, settle, None, 83.0)  # below par: the put yields more, so YTW = YTM
+    assert cheap.ytw is not None and cheap.ytw.workout.kind == "maturity"
+    assert any(x.workout.kind == "put" and x.yield_pct > cheap.ytm.yield_pct for x in cheap.worked)
+    assert options(_inst("convert", coupon="1.75%; putable at 100 in Dec 2028")).puts[0].day == date(2028, 12, 1)
+    fc = options(_inst("convert", covenants="Article 4 covenants: payment of principal and interest; holders' "
+                                            "repurchase right on a fundamental change (Article 14)"))
+    assert not fc.puts and any("fundamental change" in n and "not worked" in n for n in fc.notes)
+    book = price_curve.CurveBook(DAY, {}, {})
+    inst = _inst("convert", terms=t, research_terms={"terms": "Holders may require repurchase at par on 1 Jun 2029."})
+    out = yields.instrument_output(inst, book, settle, [], _trade(settle, 105.0))
+    assert out["ytwTo"]["kind"] == "put" and any("Holder put" in a for a in out["assumptions"])
+    assert any(i["key"] == "put" for i in out["inputs"])
 
 
 def test_options_defaults_are_empty():

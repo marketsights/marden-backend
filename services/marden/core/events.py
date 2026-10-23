@@ -123,7 +123,7 @@ _ALERT = _obj(
 )
 _CHAIN_LINK = _obj(
     {"role": _one_of(LINK_ROLES), "party": _string, "status": _one_of(LINK_STATUSES), "reason": _string},
-    {"ruleCode": _string, "fact": _sourced(_string)},
+    {"ruleCode": _string, "fact": _sourced(_string), "assessed": _bool, "statusLabel": _string},
 )
 
 SCHEMAS: dict[str, Check] = {

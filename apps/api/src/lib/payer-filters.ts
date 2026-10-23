@@ -38,19 +38,43 @@ function ratingColumns(row: PayerCapacity): Record<string, unknown> {
   return out;
 }
 
-/** Exposed instruments' total ($B) over the amounts that are known; null when none is. */
-export function exposedTotalB(row: PayerCapacity): number | null {
-  const known = row.exposed.map((e) => e.amountB?.value).filter((v): v is number => typeof v === 'number');
+/** A backstop: debt the payer guarantees, paid only on the obligor's default (not its own payment chain). */
+const isBackstop = (e: PayerCapacity['exposed'][number]): boolean => e.link === 'Guarantee';
+
+const totalB = (rows: PayerCapacity['exposed']): number | null => {
+  const known = rows.map((e) => e.amountB?.value).filter((v): v is number => typeof v === 'number');
   return known.length === 0 ? null : Math.round(known.reduce((a, b) => a + b, 0) * 1e6) / 1e6;
+};
+
+/** Exposed instruments' total ($B) over the amounts that are known; null when none is. Backstops are left out. */
+export function exposedTotalB(row: PayerCapacity): number | null {
+  return totalB(row.exposed.filter((e) => !isBackstop(e)));
 }
 
-/** One export row per payer: the index's columns, Sourced values kept so the sources sheet lists them. */
+const SCALE_KEYS = ['revenue', 'raised', 'valuation', 'commitments', 'burn'] as const;
+
+/** revenueB, revenueBasis, raisedB, ...: the payer's reported scale, Sourced kept; null when not reported. */
+function scaleColumns(row: PayerCapacity): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of SCALE_KEYS) {
+    const fig = (row.scale ?? []).find((f) => f.key === key);
+    out[`${key}B`] = fig?.amountB ?? null;
+    out[`${key}Basis`] = fig?.basis ?? null;
+  }
+  return out;
+}
+
+/** One export row per payer: the index's columns (hidden ones too), Sourced values kept so the sources sheet lists them. */
 export function payerIndexRow(row: PayerCapacity): Record<string, unknown> {
+  const own = row.exposed.filter((e) => !isBackstop(e));
+  const backstops = row.exposed.filter(isBackstop);
   return {
     slug: row.slug,
     name: row.name,
     kind: row.kind,
+    listed: row.listed ?? null,
     ...ratingColumns(row),
+    ...scaleColumns(row),
     leaseAdjLeverageToday: row.leaseAdjLeverageToday,
     leaseAdjLeveragePeak: row.leaseAdjLeveragePeak,
     triggerHeadroomTurns: row.triggerHeadroomTurns,
@@ -60,9 +84,12 @@ export function payerIndexRow(row: PayerCapacity): Record<string, unknown> {
     topCounterparty: row.topCounterparty?.name ?? null,
     topCounterpartyShare: row.topCounterparty?.share ?? null,
     downgradeRisk: row.downgradeRisk,
-    instrumentsExposed: row.exposed.length,
-    exposedB: exposedTotalB(row),
-    holderPositions: row.exposed.reduce((n, e) => n + (e.holdersCount ?? 0), 0),
+    instrumentsExposed: own.length,
+    exposedB: totalB(own),
+    holderPositions: own.reduce((n, e) => n + (e.holdersCount ?? 0), 0),
+    instrumentsBackstopped: backstops.length,
+    backstoppedB: totalB(backstops),
+    countedElsewhere: (row.exposedElsewhere ?? []).map((d) => `${d.name}: ${d.instruments}`).join('; ') || null,
   };
 }
 

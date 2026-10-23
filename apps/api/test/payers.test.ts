@@ -30,7 +30,12 @@ const PAYERS = {
   asOf: AS_OF,
   rows: [
     capacity(['pay-oracle', 'Oracle', 'Cloud'], 'High', [['I1', 18, 10], ['I2', null, 5], ['I3', 9.4, 0]]),
-    capacity(['pay-openai', 'OpenAI', 'AI lab'], null, [['I1', 18, 10]]),
+    {
+      ...capacity(['pay-openai', 'OpenAI', 'AI lab'], null, [['I1', 18, 10], ['I4', 2.2, 3]]),
+      listed: false,
+      scale: [{ key: 'revenue', basis: 'annualized, end of Sep 2026', amountB: sourced(50, 'R') }],
+      exposedElsewhere: [{ slug: 'pay-oracle', name: 'Oracle', instruments: 2, amountB: sourced(18, 'F') }],
+    },
     capacity(['pay-nebius', 'Nebius', 'Neocloud'], 'Watch', []),
   ],
 };
@@ -108,6 +113,18 @@ describe('payers', () => {
     });
     expect(rows[1]).toMatchObject({ instrumentsExposed: 0, holderPositions: 0, fitchRating: '' }); // no Fitch rating: empty cell
     expect(sources.some((l) => l[1] === 'pay-oracle' && l[2] === 'downgradeRisk' && l[4] === 'M' && l[8] === 'payer capacity v0')).toBe(true);
+  });
+
+  it('exports backstops apart from the payer’s own exposed debt, and its reported scale', async () => {
+    const page = { ...PAYERS, rows: PAYERS.rows.map((r) => (r.slug !== 'pay-openai' ? r : { ...r, exposed: r.exposed.map((e) => (e.instrumentId === 'I1' ? { ...e, link: 'Guarantee' } : e)) })) };
+    await putReadModel(db, { view: 'payers', key: 'all', asOf: AS_OF }, page);
+    const { rows, sources } = await sheet('/api/export/payers.xlsx?kind=AI%20lab');
+    expect(rows[0]).toMatchObject({
+      slug: 'pay-openai', listed: false, instrumentsExposed: 1, exposedB: 2.2, holderPositions: 3, instrumentsBackstopped: 1, backstoppedB: 18,
+      revenueB: 50, revenueBasis: 'annualized, end of Sep 2026', countedElsewhere: 'Oracle: 2',
+    });
+    expect(sources.some((l) => l[1] === 'pay-openai' && l[2] === 'revenueB' && l[4] === 'R')).toBe(true);
+    await putReadModel(db, { view: 'payers', key: 'all', asOf: AS_OF }, PAYERS);
   });
 
   it('exports one payer’s sites, sourced from the sites document when it is built', async () => {

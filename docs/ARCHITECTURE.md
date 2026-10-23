@@ -111,6 +111,9 @@ Key kinds: `all` (one document); `<table>.<column>` (that identity row's key); `
 | `leases` | `all` | GET /api/leases, GET /api/leases/:id (404 when the id is not in the doc); export `leases` | obligation, contract, site, campus; the debt behind each lease (instrument, holding); lessees' `payer_capacity` output; the `leases` model output |
 | `moves` | `all` | GET /api/moves (type, site, tenant, endUser; sort and the window picked in the app) | the `moves` model's output per instrument; instrument facts (names, sizes) |
 | `instrument_moves` | `instrument.id` | GET /api/instruments/:id/moves | the `moves` model's output for the instrument; the `event_impact` output of its site and of the sites whose tenant or end user issued it |
+| `delivery` | `all` | GET /api/delivery | the `completion` and `site_schedule` documents; the `status` (D1) and `event_impact` outputs of the sites; building registrations and completion; chain parties and issuers |
+| `mispriced` | `all` | GET /api/mispriced | V1 instruments' Marden price, trades, quotes and fund marks (`mark_gap` holders); the yield model's terms; the `event_impact` output and records of their sites, tenants and issuers |
+| `pipeline` | `all` | GET /api/pipeline | `pipeline_project` facts (announced projects); campus and building facts (status, developer, tenant, MW, registrations, construction start); the linked sites' large-load requests and permits; BPA and NYISO queue load requests |
 | `site_debt_effects` | `site.slug` | GET /api/sites/:slug/debt-effects | site events; the `event_impact` model's output for the site |
 
 Read without a read model:

@@ -9,18 +9,26 @@ Collateral waterfall per instrument, by what secures it:
 - site-backed debt (marden.models.recovery_shell): powered capacity x value per MW from the cost comps (25th /
   50th / 75th percentile) x the share finished (stated, else estimated: recovery_progress), unfinished works
   less a haircut, plus funded notes' unspent proceeds, less claims ranking ahead, over the claims at its rank;
-- anything else (corporate unsecured notes, converts): n/d, the issuer waterfall is not modelled.
+- issuer-level debt (corporate notes, converts, unsecured loans, parent-secured facilities; v0.3): the
+  issuer's balance-sheet waterfall from its latest 10-Q / 10-K (marden.models.recovery_issuer): assets after
+  stated haircuts, less SPV and site debt on its own collateral and the parent's secured debt, shared by
+  the claims at the instrument's rank, clamped to 5-95c. An issuer without SEC filings keeps a stated
+  assumption (n/d here; the price model's 40c convention) and says why.
 One `model_output` per instrument (subject ('instrument', id)) = {recovery: Sourced<string> ('62-74' with an en dash,
-cents per dollar; InstrumentDetail.recovery), valueB: Sourced<number> (collateral value, $B, base case),
-method: 'gpu_collateral' | 'powered_shell' | null, missing, basis}. Ranges are uncalibrated ('model v0').
+cents per dollar; InstrumentDetail.recovery), valueB: Sourced<number> (collateral value, $B, base case; for the
+issuer waterfall the value left for the instrument's rank), method: 'gpu_collateral' | 'powered_shell' |
+'issuer_waterfall' | null, missing, basis}, plus one per issuer entity (subject ('entity', id)) with the
+whole waterfall (recovery_issuer.issuer_doc). Ranges are uncalibrated ('model v0').
 The basis carries the central estimate the price model prices with (`baseCents`: the 50th-percentile comp
-for a powered shell, a default today for GPUs), `rangeCents` [low, high], and for GPUs `pathCents`, the
-recovery at each scheduled balance over the loan's life ({years, cents}: the GPUs age as the loan amortizes).
+for a powered shell, a default today for GPUs, the base haircuts for an issuer), `rangeCents` [low, high], and
+for GPUs `pathCents`, the recovery at each scheduled balance over the loan's life ({years, cents}: the GPUs age
+as the loan amortizes).
 
 Runs: weekly, Monday 09:41 UTC (spec 22 "Weekly ... recovery"), and within a minute of an input: the
 instrument's terms, its site's capacity, cost and completion facts, any site's cost comps, the GPU market
-inputs and the gpu_collateral output. A run for today marks the instrument's read models
-(`@model:recovery`: instrument_detail, site debt tab, ...); a past --as-of is a backtest.
+inputs and the gpu_collateral output, an issuer's XBRL balance sheet, lease commitments and role. A run for
+today marks the instrument's read models (`@model:recovery`: instrument_detail, site debt tab, ...); a past
+--as-of is a backtest.
 """
 
 from __future__ import annotations
@@ -33,7 +41,7 @@ from typing import Any
 from marden import cli
 from marden.core.db import Conn
 from marden.core.queue import app
-from marden.models import recovery_progress, triggers
+from marden.models import recovery_issuer, recovery_progress, triggers
 from marden.models.gpu_facilities import FACILITY_FIELDS, pools, range_text, value_facility
 from marden.models.gpu_facilities import load as load_facilities
 from marden.models.gpu_inputs import ENTITY_FIELDS, SERIES_FIELDS, SERIES_PREFIXES
@@ -48,15 +56,16 @@ from marden.models.recovery_shell import (
     shell_recovery,
     site_claims,
 )
-from marden.models.sourced import Batch, m_value, method_version, rounded, run_outputs
+from marden.models.sourced import Batch, m_value, method_version, num, rounded, run_outputs, stored_outputs
 from marden.readmodels.deps import via
 
 MODEL = "recovery"
-VERSION = "0.2"  # v0.2 (2026-10-22): estimated completion share, unfinished-works haircut, unspent proceeds
+VERSION = "0.3"  # v0.3 (2026-10-22): issuer balance-sheet waterfall for corporate and issuer-level debt
+# v0.2 (2026-10-22): estimated completion share, unfinished-works haircut, unspent proceeds
 METHOD = method_version(MODEL, VERSION)
 CRON_UTC = "41 9 * * 1"
 SOURCE = "Marden recovery model"
-UNSECURED = "issuer balance-sheet waterfall (unsecured or unsited debt is not modelled in v0)"
+UNSECURED = "a collateral or issuer waterfall (no site, GPU pool or issuer-level seniority on file)"
 
 
 def _m(value: Any, day: date) -> dict[str, Any]:
@@ -75,7 +84,7 @@ def _path(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
     return sorted(by.items())
 
 
-def _targets(conn: Conn, ids: list[str] | None) -> list[str]:
+def _targets(conn: Conn, ids: list[str] | None, level: dict[str, str]) -> list[str]:
     rows = conn.execute(
         """SELECT id FROM instrument WHERE (%(ids)s::text[] IS NULL AND (in_v1 OR site_slug IS NOT NULL OR id IN (
                   SELECT subject_id FROM fact WHERE subject_type = 'instrument'
@@ -83,11 +92,93 @@ def _targets(conn: Conn, ids: list[str] | None) -> list[str]:
                OR id = ANY(%(ids)s) ORDER BY id""",
         {"ids": ids},
     ).fetchall()
-    return [r["id"] for r in rows]
+    out = {r["id"] for r in rows}
+    if ids is None:
+        out |= set(level)  # issuer-level debt of every issuer (recovery_issuer.issuer_level)
+    return sorted(out)
+
+
+def _collateral(out: dict[str, Any], sites: dict[str, Any]) -> dict[str, Any] | None:
+    """An SPV instrument's collateral for the issuer waterfall, from its recovery output: the GPU pool's value
+    or the site's value (works, unspent proceeds) and cost spent (total project cost x share finished, else
+    the works value)."""
+    basis: dict[str, Any] = out["basis"] if isinstance(out.get("basis"), dict) else {}
+    value_b = num((out.get("valueB") or {}).get("value"))
+    if out.get("method") == "gpu_collateral" and basis.get("pool"):
+        pool = sorted(str(x) for x in basis["pool"])
+        return {"kind": "gpus", "pool": "gpus:" + ",".join(pool), "label": "GPU pool " + ", ".join(pool),
+                "valueUsd": None if value_b is None else value_b * 1e9}
+    if out.get("method") == "powered_shell" and basis.get("site"):
+        slug = str(basis["site"])
+        works = basis.get("worksUsd")
+        works_mid = num(works[1]) if isinstance(works, list) and len(works) == 3 else None
+        site = sites.get(slug)
+        cost_row = site.best("total_project_cost_usd") if site is not None else None
+        share = num(basis.get("completion"))
+        cost = num(cost_row["value"]) if cost_row is not None else None
+        # the cost spent, else (no project cost on file) the works value at the cost comps stands for it
+        book = cost * share if cost is not None and share is not None else works_mid
+        return {"kind": "site", "pool": f"site:{slug}", "label": f"site {slug}",
+                "valueUsd": None if value_b is None else value_b * 1e9, "worksUsd": works_mid, "bookUsd": book}
+    return None
+
+
+def _issuer_outputs(conn: Conn, day: date, batch: Batch, wanted: list[str], level: dict[str, str],
+                    sites: dict[str, Any], full: bool) -> None:
+    """The issuer waterfall: one entity output per issuer group touched, one instrument output per wanted
+    issuer-level instrument (recovery_issuer)."""
+    grp, of = recovery_issuer.groups(conn, day)
+    keys = sorted({of[i] for i in wanted if i in of})
+    if not keys:
+        return
+    member_ids = [r["id"] for k in keys for r in grp[k].instruments]
+    stored = stored_outputs(conn, MODEL, "instrument", member_ids, day)
+    for key in keys:
+        g = grp[key]
+        collateral: dict[str, dict[str, Any]] = {}
+        for r in g.instruments:
+            this = batch.outputs.get(("instrument", r["id"]))
+            prior = stored.get(r["id"])
+            doc = this if this is not None else (prior["output"] if prior is not None and isinstance(
+                prior["output"], dict) else None)
+            got = _collateral(doc, sites) if doc else None
+            if got:
+                collateral[r["id"]] = got
+        inp = recovery_issuer.load(conn, day, g, collateral, sites)
+        doc = recovery_issuer.issuer_doc(inp, day, f"{METHOD} (model v0)")
+        if full or any(of.get(i) == key for i in wanted):
+            batch.add("entity", g.issuer, doc)
+        for iid in wanted:
+            if of.get(iid) != key:
+                continue
+            batch.add("instrument", iid, _issuer_output(doc, iid, level.get(iid, "unsecured"), day))
+
+
+def _issuer_output(doc: dict[str, Any], iid: str, rank: str, day: date) -> dict[str, Any]:
+    head = {"methodVersion": f"{METHOD} (model v0)", "issuer": doc["issuer"], "issuerName": doc["name"],
+            "filer": doc.get("filer"), "rank": rank}
+    if doc.get("method") is None or not doc.get("ranks"):
+        why = "; ".join(doc.get("missing") or []) or "no balance sheet for the issuer waterfall"
+        return {"recovery": _m(None, day), "valueB": _m(None, day), "method": None, "missing": [why],
+                "basis": {**head, "assumedCents": doc.get("assumedCents"), "why": why}}
+    use = rank if rank in doc["ranks"] else "unsecured"
+    got = doc["ranks"].get(use) or {}
+    lo, hi = (got.get("rangeCents") or [None, None])
+    base = got.get("cents")
+    text = None if base is None else (str(base) if lo is None or hi is None or lo == hi else f"{lo}\u2013{hi}")
+    value = doc["leftUsd"] if use == "unsecured" else None
+    return {"recovery": _m(text, day), "valueB": _m(rounded(value / 1e9 if value is not None else None, 4), day),
+            "method": recovery_issuer.METHOD_KEY, "missing": list(doc.get("missing") or []),
+            "basis": {**head, "rank": use, "baseCents": base, "rangeCents": [lo, hi], "filing": doc.get("filing"),
+                      "periodEnd": doc.get("periodEnd"), "assetsUsd": doc.get("assetsUsd"),
+                      "securedUsd": doc.get("securedUsd"), "leftUsd": doc.get("leftUsd"),
+                      "unsecuredClaimsUsd": doc.get("unsecuredClaimsUsd"), "lines": doc["lines"].get(use) or [],
+                      "rule": doc.get("rule")}}
 
 
 def compute(conn: Conn, day: date, ids: list[str] | None) -> Batch:
-    targets = _targets(conn, ids)
+    level = recovery_issuer.issuer_level(conn)
+    targets = _targets(conn, ids, level)
     market = load_market(conn, day)
     fit = fit_decline(market, market.median_life())
     facilities = load_facilities(conn, day)
@@ -132,10 +223,14 @@ def compute(conn: Conn, day: date, ids: list[str] | None) -> Batch:
                              "rangeCents": _cents_pair(res.low, res.high),
                              "seniorClaimsB": rounded(res.ahead / 1e9 if res.ahead is not None else None, 4),
                              "pariClaimsB": rounded(res.pari / 1e9 if res.pari is not None else None, 4), **res.basis}}
+        elif iid in level:
+            continue  # the issuer waterfall, below: it needs every collateral value of this run first
         else:
             out = {"recovery": _m(None, day), "valueB": _m(None, day), "method": None, "missing": [UNSECURED],
                    "basis": {"methodVersion": f"{METHOD} (model v0)"}}
         batch.add("instrument", iid, out)
+    _issuer_outputs(conn, day, batch, [i for i in targets if i in level and ("instrument", i) not in batch.outputs],
+                    level, sites, ids is None)
     batch.inputs = [market.origins, sorted(comp.per_mw), targets]
     return batch
 
@@ -180,6 +275,13 @@ def _install_triggers() -> None:
     triggers.model_depends(MODEL, "site", "@model:cushion", _SITE_INSTRUMENTS)
     for fld in ENTITY_FIELDS:
         triggers.model_depends(MODEL, "entity", fld, triggers.everything)
+    # the issuer waterfall: a filer's balance sheet, lease commitments and role move every issuer-level
+    # instrument of the issuer (all of them: the filer may be a ticker twin of the issuing holding company);
+    # a claim's amount, rank or status moves its whole issuer group
+    for fld in (*recovery_issuer.XBRL_FIELDS, *recovery_issuer.ENTITY_FIELDS):
+        triggers.model_depends(MODEL, "entity", fld, triggers.everything)
+    for fld in recovery_issuer.INSTRUMENT_FIELDS:
+        triggers.model_depends(MODEL, "instrument", fld, recovery_issuer.group_instruments)
     triggers.register_runner(MODEL, run_keys)
 
 
@@ -215,6 +317,10 @@ def run_cli(args: argparse.Namespace) -> int:
         return 0
     print(f"recovery {VERSION} as of {result['as_of']} (run {result['run_id']}): {len(result['outputs'])} instruments")
     for iid, o in result["outputs"].items():
+        if "valueB" not in o:  # an issuer's balance-sheet waterfall (subject entity)
+            print(f"  {iid:40} {'issuer':15} unsecured {o.get('unsecuredCents') or 'n/d'}c; "
+                  f"missing {(o.get('missing') or [])[:1]}")
+            continue
         value = o["valueB"]["value"]
         print(f"  {iid:40} {o['method'] or '-':15} recovery {o['recovery']['value'] or 'n/d':8} "
               f"value {'n/d' if value is None else f'${value}B'}; missing {o['missing'][:2]}")
