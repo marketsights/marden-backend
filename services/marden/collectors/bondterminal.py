@@ -3,8 +3,9 @@
 API: https://bondterminal.com/api/v1 with `Authorization: Bearer $BT_API_KEY` (server-side only; the key is
 never logged or stored). POST /bonds/batch takes up to 10 identifiers per call (Basic key) and costs one read
 unit per identifier. Basic limits: 200 read units a day, 10 requests a minute, at most 100 different bonds per
-30 days. This collector asks for at most MAX_BONDS ISINs a run, in batches of 10, one batch every 7 seconds,
-once a weekday evening.
+30 days. This collector asks for every watched ISIN three times a weekday (10:35, 13:35 and 17:35 New York), in
+batches of 10, one batch every 7 seconds, stalest quote first (curated EX-* instruments win ties). When
+BondTerminal refuses for quota (429), the run stops and keeps the batches already stored.
 
 Watched ISINs come from market_watch.watched_isins, curated instruments (EX-*) first. Each row's raw JSON is
 stored as a document before it is parsed. `python -m marden collect bondterminal [--probe] [--isin I]`:
@@ -35,12 +36,11 @@ SOURCE_ID = "bondterminal"
 SOURCE_NAME = "BondTerminal"
 BASE = "https://bondterminal.com/api/v1"
 BATCH = 10
-MAX_BONDS = 90  # stays under the Basic key's 100 different bonds per 30 days
 PAUSE_SECONDS = 7.0  # 10 requests a minute on a Basic key
 TERMS_NOTE = ("BondTerminal API, Basic key, personal use by the account holder: up to 100 bonds per 30 days, "
               "200 read units a day; keys are server-side only.")
 SOURCE = declare_source(SOURCE_ID, SOURCE_NAME, "api", BASE, 24 * 60, TERMS_NOTE)
-CRON_UTC = "35 22 * * 1-5"  # after the US close
+CRON_UTC = "35 14,17,21 * * 1-5"  # 10:35, 13:35, 17:35 New York (EDT)
 
 
 def _key() -> str:
@@ -102,17 +102,34 @@ def _batch(client: httpx.Client, isins: list[str]) -> tuple[Any, bytes]:
     r = client.post(f"{BASE}/bonds/batch", json={"identifiers": isins},
                     headers={"Authorization": f"Bearer {_key()}", "Content-Type": "application/json"})
     if r.status_code == 429:
-        raise RuntimeError(f"BondTerminal quota or rate limit: {r.text[:300]}")
+        raise QuotaReached(r.text[:300])
     r.raise_for_status()
     return r.json(), r.content
+
+
+class QuotaReached(RuntimeError):
+    """BondTerminal answered 429: the key's daily units, per-minute rate or 30-day bond count is used up."""
+
+
+def _last_quoted(conn: Any) -> dict[str, str]:
+    """instrument id -> time of its latest BondTerminal quote (ISO text, sorts in time order)."""
+    rows = conn.execute(
+        "SELECT instrument_id, max(coalesce(obs_at, obs_date::timestamptz))::text FROM price_obs"
+        " WHERE source_name = %s GROUP BY instrument_id", (SOURCE_NAME,)).fetchall()
+    return {r[0]: r[1] for r in rows}
 
 
 def _universe(conn: Any, only: list[str] | None) -> dict[str, list[str]]:
     watched = watched_isins(conn)
     if only:
         return {i: watched.get(i, []) for i in (s.upper() for s in only)}
-    ranked = sorted(watched.items(), key=lambda kv: (not any(x.startswith("EX-") for x in kv[1]), kv[0]))
-    return dict(ranked[:MAX_BONDS])
+    last = _last_quoted(conn)
+
+    def key(kv: tuple[str, list[str]]) -> tuple[str, bool, str]:
+        seen = max((last.get(i, "") for i in kv[1]), default="")  # never quoted ("") first
+        return seen, not any(x.startswith("EX-") for x in kv[1]), kv[0]
+
+    return dict(sorted(watched.items(), key=key))
 
 
 def run(*, isins: list[str] | None = None, probe: bool = False) -> dict[str, Any]:
@@ -126,7 +143,11 @@ def run(*, isins: list[str] | None = None, probe: bool = False) -> dict[str, Any
                 chunk = names[start:start + BATCH]
                 if n:
                     time.sleep(PAUSE_SECONDS)
-                payload, raw = _batch(client, chunk)
+                try:
+                    payload, raw = _batch(client, chunk)
+                except QuotaReached as exc:
+                    stats.extra["stopped_quota"] = f"after {start} of {len(names)} ISINs: {exc}"
+                    return
                 rows = _rows(payload)
                 if probe:
                     keys = list(payload)[:20] if isinstance(payload, dict) else "list"
@@ -156,7 +177,7 @@ def run(*, isins: list[str] | None = None, probe: bool = False) -> dict[str, Any
     return collect(SOURCE, body)
 
 
-@app.periodic(cron=CRON_UTC, periodic_id="weekdays_2235_utc")
+@app.periodic(cron=CRON_UTC, periodic_id="weekdays_3x_new_york")
 @app.task(name="collect.bondterminal", queue="collect", queueing_lock="collect.bondterminal")
 def collect_task(timestamp: int | None = None) -> dict[str, Any]:
     return run()
